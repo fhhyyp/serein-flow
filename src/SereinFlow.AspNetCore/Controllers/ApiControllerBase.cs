@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Cors;
 using SereinFlow.Application;
@@ -12,11 +13,11 @@ public abstract class ApiControllerBase : ControllerBase
 {
     protected ActionResult? ToAuthorizationFailure(SereinFlowApiAuthorizationResult result)
     {
-        global::Microsoft.AspNetCore.Mvc.ActionResult? evaluatedValue1 = result.IsAllowed ? null : resolveApiProblemResult();
+        ActionResult? evaluatedValue1 = result.IsAllowed ? null : resolveApiProblemResult();
         return evaluatedValue1;
-        global::Microsoft.AspNetCore.Mvc.ObjectResult resolveApiProblemResult()
+        ObjectResult resolveApiProblemResult()
         {
-            global::System.Collections.Generic.IReadOnlyDictionary<string, object>? evaluatedValue = string.IsNullOrWhiteSpace(result.Code) ? null : new Dictionary<string, object?>
+            IReadOnlyDictionary<string, object>? evaluatedValue = string.IsNullOrWhiteSpace(result.Code) ? null : new Dictionary<string, object?>
             {
                 ["code"] = result.Code
             };
@@ -67,7 +68,7 @@ public abstract class ApiControllerBase : ControllerBase
             return jsonResult;
         }
 
-        global::System.Collections.Generic.IReadOnlyDictionary<string, object>? evaluatedValue2 = submission.CurrentVersion is null ? null : new Dictionary<string, object?>
+        IReadOnlyDictionary<string, object>? evaluatedValue2 = submission.CurrentVersion is null ? null : new Dictionary<string, object?>
         {
             ["currentVersion"] = submission.CurrentVersion
         };
@@ -77,17 +78,17 @@ public abstract class ApiControllerBase : ControllerBase
 
     protected ActionResult ToDebugCommandResponse(FlowDebugSessionCommandResult result)
     {
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue4 = result.IsAccepted ? Accepted() : ApiProblem(result.StatusCode, result.ErrorTitle);
+        ActionResult evaluatedValue4 = result.IsAccepted ? Accepted() : ApiProblem(result.StatusCode, result.ErrorTitle);
         return evaluatedValue4;
     }
 
     protected ActionResult ToProjectLibraryResponse(ProjectLibraryOperationResult result)
     {
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue8 = result.IsSuccess ? Ok(result.References ?? []) : resolveApiProblemResult5();
+        ActionResult evaluatedValue8 = result.IsSuccess ? Ok(result.References ?? []) : resolveApiProblemResult5();
         return evaluatedValue8;
-        global::Microsoft.AspNetCore.Mvc.ObjectResult resolveApiProblemResult5()
+        ObjectResult resolveApiProblemResult5()
         {
-            global::System.Collections.Generic.IReadOnlyDictionary<string, object>? evaluatedValue6 = string.IsNullOrWhiteSpace(result.Code) ? null : new Dictionary<string, object?>
+            IReadOnlyDictionary<string, object>? evaluatedValue6 = string.IsNullOrWhiteSpace(result.Code) ? null : new Dictionary<string, object?>
             {
                 ["code"] = result.Code
             };
@@ -100,9 +101,9 @@ public abstract class ApiControllerBase : ControllerBase
     {
         if (result.IsSuccess)
         {
-            global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue10 = result.StatusCode == StatusCodes.Status201Created ? resolveCreatedResult() : Ok(result.Value);
+            ActionResult evaluatedValue10 = result.StatusCode == StatusCodes.Status201Created ? resolveCreatedResult() : Ok(result.Value);
             return evaluatedValue10;
-            global::Microsoft.AspNetCore.Mvc.ActionResult resolveCreatedResult()
+            ActionResult resolveCreatedResult()
             {
                 var evaluatedValue9 = $"/api/projects/library-upgrades/{ApiEndpointHelpers.GetUpgradeId(result.Value)}";
                 var createdResult = Created(evaluatedValue9, result.Value);

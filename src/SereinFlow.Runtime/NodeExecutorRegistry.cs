@@ -17,7 +17,7 @@ public sealed class NodeExecutorRegistry
 
     public INodeExecutor Get(NodeType nodeType)
     {
-        global::SereinFlow.Runtime.Abstractions.INodeExecutor evaluatedValue = _executors.TryGetValue(nodeType, out var executor) ? executor : throw new InvalidOperationException($"No executor is registered for node type '{nodeType}'. 未注册节点类型“{nodeType}”的执行器。");
+        INodeExecutor evaluatedValue = _executors.TryGetValue(nodeType, out var executor) ? executor : throw new InvalidOperationException($"No executor is registered for node type '{nodeType}'. 未注册节点类型“{nodeType}”的执行器。");
         return evaluatedValue;
     }
 

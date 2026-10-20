@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Globalization;
 using System.Text.Json;
@@ -38,7 +39,7 @@ public static class SereinFlowScriptValueConverter
             return fromJsonElementResult;
         }
 
-        global::ScriptLang.Runtime.Value evaluatedValue = value switch
+        Value evaluatedValue = value switch
         {
             null => Value.Null,
             Value scriptValue => scriptValue,
@@ -60,14 +61,14 @@ public static class SereinFlowScriptValueConverter
             IEnumerable sequence => FromSequence(sequence, depth),
             _ => new ClrObjectValue(value)};
         return evaluatedValue;
-        global::ScriptLang.Runtime.Value resolveCreateResult(ulong number)
+        Value resolveCreateResult(ulong number)
         {
             var toDecimalResult = Convert.ToDecimal(number, CultureInfo.InvariantCulture);
             var createResult = NumberValueFactory.Create(toDecimalResult);
             return createResult;
         }
 
-        global::ScriptLang.Runtime.Value resolveCreateResult1(char character)
+        Value resolveCreateResult1(char character)
         {
             var toStringResult = character.ToString();
             var createResult2 = StringValue.Create(toStringResult);
@@ -96,7 +97,7 @@ public static class SereinFlowScriptValueConverter
             ObjectValue obj => ToVariableObject(obj, depth),
             _ => throw resolveNotSupportedException()};
         return evaluatedValue4;
-        global::System.Exception resolveNotSupportedException()
+        Exception resolveNotSupportedException()
         {
             var evaluatedValue3 = $"Script value '{value.GetType().Name}' cannot be stored as a flow variable. 脚本值“{value.GetType().Name}”不能存入流程变量表。";
             var notSupportedException = new NotSupportedException(evaluatedValue3);
@@ -106,7 +107,7 @@ public static class SereinFlowScriptValueConverter
 
     private static Value FromJsonElement(JsonElement element, int depth)
     {
-        global::ScriptLang.Runtime.Value evaluatedValue9 = element.ValueKind switch
+        Value evaluatedValue9 = element.ValueKind switch
         {
             JsonValueKind.Null or JsonValueKind.Undefined => Value.Null,
             JsonValueKind.True => BoolValue.True,
@@ -120,14 +121,14 @@ public static class SereinFlowScriptValueConverter
             JsonValueKind.Object => FromJsonObject(element, depth),
             _ => throw new NotSupportedException($"Unsupported JSON value kind '{element.ValueKind}'. 不支持 JSON 值类型“{element.ValueKind}”。")};
         return evaluatedValue9;
-        global::ScriptLang.Runtime.Value resolveCreateResult5()
+        Value resolveCreateResult5()
         {
             var getStringResult = element.GetString();
             var createResult6 = StringValue.Create(getStringResult);
             return createResult6;
         }
 
-        global::ScriptLang.Runtime.Value resolveCreateResult7()
+        Value resolveCreateResult7()
         {
             var getDoubleResult = element.GetDouble();
             var createResult8 = NumberValueFactory.Create(getDoubleResult);

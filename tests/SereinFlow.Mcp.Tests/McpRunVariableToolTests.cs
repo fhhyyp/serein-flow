@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,7 +52,7 @@ public sealed class McpRunVariableToolTests
     public async Task WrongProjectOrMissingWritePermissionCannotReachVariables(bool wrongProject, bool readOnly)
     {
         using var host = new TestHost();
-        global::System.Guid evaluatedValue6 = wrongProject ? Guid.NewGuid() : host.Run.ProjectId;
+        Guid evaluatedValue6 = wrongProject ? Guid.NewGuid() : host.Run.ProjectId;
         host.SetPrincipal(evaluatedValue6, readOnly ? McpPermissionDto.RunRead : McpPermissionDto.RunVariableWrite);
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {

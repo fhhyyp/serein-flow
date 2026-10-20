@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
@@ -14,7 +15,7 @@ public sealed class LibraryUpgradeServiceTests
     {
         var fixture = CreateFixture();
         fixture.Project.Archive();
-        global::SereinFlow.Contracts.LibraryUpgradePreviewRequestDto evaluatedValue = new(SourceArtifactId, TargetArtifactId, [fixture.Flow.Id]);
+        LibraryUpgradePreviewRequestDto evaluatedValue = new(SourceArtifactId, TargetArtifactId, [fixture.Flow.Id]);
         var result = await fixture.Service.PreviewAsync(fixture.Project.Id, evaluatedValue);
         Assert.False(result.IsSuccess);
         Assert.Equal(409, result.StatusCode);
@@ -26,7 +27,7 @@ public sealed class LibraryUpgradeServiceTests
     {
         var fixture = CreateFixture(targetLifecycle: LibraryLifecycleDto.Archived);
         await fixture.References.AddAsync(fixture.Project.Id, SourceArtifactId);
-        global::SereinFlow.Contracts.LibraryUpgradePreviewRequestDto evaluatedValue1 = new(SourceArtifactId, TargetArtifactId, [fixture.Flow.Id]);
+        LibraryUpgradePreviewRequestDto evaluatedValue1 = new(SourceArtifactId, TargetArtifactId, [fixture.Flow.Id]);
         var result = await fixture.Service.PreviewAsync(fixture.Project.Id, evaluatedValue1);
         Assert.False(result.IsSuccess);
         Assert.Equal(409, result.StatusCode);
@@ -37,7 +38,7 @@ public sealed class LibraryUpgradeServiceTests
     public async Task PreviewRejectsSourceArtifactNotReferencedByProject()
     {
         var fixture = CreateFixture();
-        global::SereinFlow.Contracts.LibraryUpgradePreviewRequestDto evaluatedValue2 = new(SourceArtifactId, TargetArtifactId, [fixture.Flow.Id]);
+        LibraryUpgradePreviewRequestDto evaluatedValue2 = new(SourceArtifactId, TargetArtifactId, [fixture.Flow.Id]);
         var result = await fixture.Service.PreviewAsync(fixture.Project.Id, evaluatedValue2);
         Assert.False(result.IsSuccess);
         Assert.Equal(409, result.StatusCode);
@@ -49,7 +50,7 @@ public sealed class LibraryUpgradeServiceTests
     {
         var fixture = CreateFixture(flowLibraryId: "other-artifact");
         await fixture.References.AddAsync(fixture.Project.Id, SourceArtifactId);
-        global::SereinFlow.Contracts.LibraryUpgradePreviewRequestDto evaluatedValue3 = new(SourceArtifactId, TargetArtifactId, [fixture.Flow.Id]);
+        LibraryUpgradePreviewRequestDto evaluatedValue3 = new(SourceArtifactId, TargetArtifactId, [fixture.Flow.Id]);
         var result = await fixture.Service.PreviewAsync(fixture.Project.Id, evaluatedValue3);
         Assert.False(result.IsSuccess);
         Assert.Equal(409, result.StatusCode);
@@ -61,10 +62,10 @@ public sealed class LibraryUpgradeServiceTests
     {
         var fixture = CreateFixture();
         var newGuidResult = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowLibraryUpgradePreviewDto> evaluatedValue4 = [new(fixture.Flow.Id, fixture.Flow.Version, true, 1, [])];
+        IReadOnlyList<FlowLibraryUpgradePreviewDto> evaluatedValue4 = [new(fixture.Flow.Id, fixture.Flow.Version, true, 1, [])];
         var plan = new LibraryUpgradePlanDto(newGuidResult, fixture.Project.Id, SourceArtifactId, TargetArtifactId, LibraryUpgradePlanStatusDto.Analyzed, evaluatedValue4, DateTimeOffset.UtcNow);
         await fixture.Store.SavePlanAsync(plan);
-        global::SereinFlow.Contracts.ApplyLibraryUpgradeRequestDto evaluatedValue5 = new(fixture.Flow.Id, fixture.Flow.Version);
+        ApplyLibraryUpgradeRequestDto evaluatedValue5 = new(fixture.Flow.Id, fixture.Flow.Version);
         var result = await fixture.Service.ApplyAsync(fixture.Project.Id, plan.Id, evaluatedValue5);
         Assert.False(result.IsSuccess);
         Assert.Equal(409, result.StatusCode);
@@ -84,13 +85,13 @@ public sealed class LibraryUpgradeServiceTests
         var testLibraryCatalog = new TestLibraryCatalog(createLibraryResult, createLibraryResult6);
         var libraryCompatibilityAnalyzer = new LibraryCompatibilityAnalyzer();
         var service = new LibraryUpgradeService(projects, flows, references, testLibraryCatalog, libraryCompatibilityAnalyzer, store);
-        global::SereinFlow.Application.Tests.LibraryUpgradeServiceTests.UpgradeFixture evaluatedValue7 = new(project, flow, references, store, service);
+        LibraryUpgradeServiceTests.UpgradeFixture evaluatedValue7 = new(project, flow, references, store, service);
         return evaluatedValue7;
     }
 
     private static LibraryDto CreateLibrary(string id, LibraryLifecycleDto lifecycle = LibraryLifecycleDto.Available)
     {
-        global::SereinFlow.Contracts.LibraryDto evaluatedValue8 = new(id, id, "1.0.0", $"{id}.zip", 1, id, DateTimeOffset.UtcNow, [], lifecycle, FamilyId, "1.0.0");
+        LibraryDto evaluatedValue8 = new(id, id, "1.0.0", $"{id}.zip", 1, id, DateTimeOffset.UtcNow, [], lifecycle, FamilyId, "1.0.0");
         return evaluatedValue8;
     }
 
@@ -99,7 +100,7 @@ public sealed class LibraryUpgradeServiceTests
         var nodeUiMetadataDto = new NodeUiMetadataDto("library-action", "library-action", string.Empty, null, "ready", true, null, LibraryId: libraryId);
         var node = new NodeDto("library-node", NodeTypeDto.Action, "Library action", 0, 0, [], [], null, nodeUiMetadataDto);
         var newGuidResult9 = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue10 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue10 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
         var flowDefinitionDto = new FlowDefinitionDto(newGuidResult9, 1, 1, evaluatedValue10, node.Id, "checksum");
         return flowDefinitionDto;
     }
@@ -230,7 +231,7 @@ public sealed class LibraryUpgradeServiceTests
         private readonly Dictionary<Guid, Dictionary<string, ProjectLibraryReference>> _items = [];
         public Task<IReadOnlyList<ProjectLibraryReference>> ListByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Application.Persistence.ProjectLibraryReference> evaluatedValue20 = _items.TryGetValue(projectId, out var references) ? references.Values.ToArray() : [];
+            IReadOnlyList<ProjectLibraryReference> evaluatedValue20 = _items.TryGetValue(projectId, out var references) ? references.Values.ToArray() : [];
             var fromResultResult21 = Task.FromResult<IReadOnlyList<ProjectLibraryReference>>(evaluatedValue20);
             return fromResultResult21;
         }

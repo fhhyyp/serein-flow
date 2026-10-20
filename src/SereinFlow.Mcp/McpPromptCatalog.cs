@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 
 namespace SereinFlow.Mcp;
@@ -60,10 +61,10 @@ internal static class McpPromptCatalog
 
     private static McpPromptResult Result(string description, string text)
     {
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpPromptMessage> evaluatedValue2 = [resolveMcpPromptMessage()];
-        global::SereinFlow.Mcp.McpPromptResult evaluatedValue3 = new(description, evaluatedValue2);
+        IReadOnlyList<McpPromptMessage> evaluatedValue2 = [resolveMcpPromptMessage()];
+        McpPromptResult evaluatedValue3 = new(description, evaluatedValue2);
         return evaluatedValue3;
-        global::SereinFlow.Mcp.McpPromptMessage resolveMcpPromptMessage()
+        McpPromptMessage resolveMcpPromptMessage()
         {
             var trimResult = text.Trim();
             var mcpPromptContent = new McpPromptContent("text", trimResult);
@@ -119,52 +120,52 @@ internal static class McpPromptCatalog
     {
         IReadOnlyList<McpPromptDescriptor> descriptorsInitialValue = [resolveevaluatedValue(), resolveevaluatedValue6(), resolveevaluatedValue9(), resolveevaluatedValue12(), resolveevaluatedValue15(), resolveevaluatedValue18(), resolveevaluatedValue21()];
         return descriptorsInitialValue;
-        global::SereinFlow.Mcp.McpPromptDescriptor resolveevaluatedValue()
+        McpPromptDescriptor resolveevaluatedValue()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpPromptArgumentDescriptor> evaluatedValue1 = [new("request", "Optional project discovery or inspection request.")];
-            global::SereinFlow.Mcp.McpPromptDescriptor evaluatedValue5 = new("sereinflow.inspect", "Inspect project discovery and project-level read state.", evaluatedValue1);
+            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue1 = [new("request", "Optional project discovery or inspection request.")];
+            McpPromptDescriptor evaluatedValue5 = new("sereinflow.inspect", "Inspect project discovery and project-level read state.", evaluatedValue1);
             return evaluatedValue5;
         }
 
-        global::SereinFlow.Mcp.McpPromptDescriptor resolveevaluatedValue6()
+        McpPromptDescriptor resolveevaluatedValue6()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpPromptArgumentDescriptor> evaluatedValue7 = [new("request", "The requested flow change.", Required: true)];
-            global::SereinFlow.Mcp.McpPromptDescriptor evaluatedValue8 = new("sereinflow.edit-flow", "Prepare and apply a validated flow edit using one task-level authorization and the preview gate.", evaluatedValue7);
+            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue7 = [new("request", "The requested flow change.", Required: true)];
+            McpPromptDescriptor evaluatedValue8 = new("sereinflow.edit-flow", "Prepare and apply a validated flow edit using one task-level authorization and the preview gate.", evaluatedValue7);
             return evaluatedValue8;
         }
 
-        global::SereinFlow.Mcp.McpPromptDescriptor resolveevaluatedValue9()
+        McpPromptDescriptor resolveevaluatedValue9()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpPromptArgumentDescriptor> evaluatedValue10 = [new("request", "The runtime or debugging question.", Required: true)];
-            global::SereinFlow.Mcp.McpPromptDescriptor evaluatedValue11 = new("sereinflow.debug-run", "Inspect a run or debug session with bounded, current state diagnostics.", evaluatedValue10);
+            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue10 = [new("request", "The runtime or debugging question.", Required: true)];
+            McpPromptDescriptor evaluatedValue11 = new("sereinflow.debug-run", "Inspect a run or debug session with bounded, current state diagnostics.", evaluatedValue10);
             return evaluatedValue11;
         }
 
-        global::SereinFlow.Mcp.McpPromptDescriptor resolveevaluatedValue12()
+        McpPromptDescriptor resolveevaluatedValue12()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpPromptArgumentDescriptor> evaluatedValue13 = [new("request", "The requested release or rollback operation.", Required: true)];
-            global::SereinFlow.Mcp.McpPromptDescriptor evaluatedValue14 = new("sereinflow.publish-flow", "Review production impact and prepare a publish or rollback preview.", evaluatedValue13);
+            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue13 = [new("request", "The requested release or rollback operation.", Required: true)];
+            McpPromptDescriptor evaluatedValue14 = new("sereinflow.publish-flow", "Review production impact and prepare a publish or rollback preview.", evaluatedValue13);
             return evaluatedValue14;
         }
 
-        global::SereinFlow.Mcp.McpPromptDescriptor resolveevaluatedValue15()
+        McpPromptDescriptor resolveevaluatedValue15()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpPromptArgumentDescriptor> evaluatedValue16 = [new("request", "The source-to-package library request; excludes import or attachment.", Required: true)];
-            global::SereinFlow.Mcp.McpPromptDescriptor evaluatedValue17 = new("sereinflow.package-library", "Prepare source code as a SereinFlow library package using SereinFlow.Library from NuGet.org.", evaluatedValue16);
+            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue16 = [new("request", "The source-to-package library request; excludes import or attachment.", Required: true)];
+            McpPromptDescriptor evaluatedValue17 = new("sereinflow.package-library", "Prepare source code as a SereinFlow library package using SereinFlow.Library from NuGet.org.", evaluatedValue16);
             return evaluatedValue17;
         }
 
-        global::SereinFlow.Mcp.McpPromptDescriptor resolveevaluatedValue18()
+        McpPromptDescriptor resolveevaluatedValue18()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpPromptArgumentDescriptor> evaluatedValue19 = [new("request", "The requested project library upgrade.", Required: true)];
-            global::SereinFlow.Mcp.McpPromptDescriptor evaluatedValue20 = new("sereinflow.upgrade-library", "Inspect a project library family and prepare a compatible per-flow library upgrade through the preview gate.", evaluatedValue19);
+            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue19 = [new("request", "The requested project library upgrade.", Required: true)];
+            McpPromptDescriptor evaluatedValue20 = new("sereinflow.upgrade-library", "Inspect a project library family and prepare a compatible per-flow library upgrade through the preview gate.", evaluatedValue19);
             return evaluatedValue20;
         }
 
-        global::SereinFlow.Mcp.McpPromptDescriptor resolveevaluatedValue21()
+        McpPromptDescriptor resolveevaluatedValue21()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpPromptArgumentDescriptor> evaluatedValue22 = [new("request", "The SereinLang syntax compilation request; excludes imports and host APIs.", Required: true)];
-            global::SereinFlow.Mcp.McpPromptDescriptor evaluatedValue23 = new("sereinlang.compile", "Compile a standalone SereinLang lexical or expression syntax draft and inspect its structured diagnostics.", evaluatedValue22);
+            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue22 = [new("request", "The SereinLang syntax compilation request; excludes imports and host APIs.", Required: true)];
+            McpPromptDescriptor evaluatedValue23 = new("sereinlang.compile", "Compile a standalone SereinLang lexical or expression syntax draft and inspect its structured diagnostics.", evaluatedValue22);
             return evaluatedValue23;
         }
     }

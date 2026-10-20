@@ -86,7 +86,7 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
     {
         if (requestedMessageId is not null)
         {
-            global::SereinFlow.Api.RunMessageDeliveryService.MessageIdResolution evaluatedValue = Guid.TryParse(requestedMessageId, out var parsed) && parsed != Guid.Empty ? new MessageIdResolution(true, parsed) : new MessageIdResolution(false, Guid.Empty);
+            RunMessageDeliveryService.MessageIdResolution evaluatedValue = Guid.TryParse(requestedMessageId, out var parsed) && parsed != Guid.Empty ? new MessageIdResolution(true, parsed) : new MessageIdResolution(false, Guid.Empty);
             return evaluatedValue;
         }
 
@@ -121,7 +121,7 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
             Code = code ?? MessageErrorCodes.Rejected,
             Message = message
         };
-        global::SereinFlow.Application.RunMessageDeliveryResult evaluatedValue9 = response.Status switch
+        RunMessageDeliveryResult evaluatedValue9 = response.Status switch
         {
             WorkerMessageDeliveryStatusDto.Accepted => new(RunMessageDeliveryDisposition.Accepted, normalizedResponse, null, response.Message ?? "The message was accepted. 消息已接受。", 202),
             WorkerMessageDeliveryStatusDto.NotFound when string.Equals(code, WorkerErrorCodes.NotActive, StringComparison.Ordinal) => new(RunMessageDeliveryDisposition.WorkerNotFound, normalizedResponse, code, message, 404),
@@ -153,7 +153,7 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
     };
     private static RunMessageDeliveryResult Failure(RunMessageDeliveryDisposition disposition, string code, string message, int statusCode)
     {
-        global::SereinFlow.Application.RunMessageDeliveryResult evaluatedValue10 = new(disposition, null, code, message, statusCode);
+        RunMessageDeliveryResult evaluatedValue10 = new(disposition, null, code, message, statusCode);
         return evaluatedValue10;
     }
 

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using System.IO.Compression;
 using SereinFlow.Contracts;
@@ -390,7 +391,7 @@ public sealed class WorkerSupervisorTests
             var events = new List<WorkerEventEnvelopeDto>();
             var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
             var addSecondsResult41 = DateTimeOffset.UtcNow.AddSeconds(15);
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeParameterDto> evaluatedValue42 = [new NodeParameterDto("设备状态", "\"告警\"", DataSourceDto.Literal, true)];
+            IReadOnlyList<NodeParameterDto> evaluatedValue42 = [new NodeParameterDto("设备状态", "\"告警\"", DataSourceDto.Literal, true)];
             var request = CreateLibraryActionRequest(addSecondsResult41, packageRoot, [TestLibraryArtifactId], methodName: "按设备状态选择分支", parameters: evaluatedValue42, returnType: "System.String");
             var result = await supervisor.RunAsync(request, (workerEvent, _) =>
             {
@@ -427,7 +428,7 @@ public sealed class WorkerSupervisorTests
             var events = new List<WorkerEventEnvelopeDto>();
             var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
             var addSecondsResult49 = DateTimeOffset.UtcNow.AddSeconds(15);
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeParameterDto> evaluatedValue50 = [new NodeParameterDto("设备状态", "\"故障\"", DataSourceDto.Literal, true)];
+            IReadOnlyList<NodeParameterDto> evaluatedValue50 = [new NodeParameterDto("设备状态", "\"故障\"", DataSourceDto.Literal, true)];
             var request = CreateLibraryActionRequest(addSecondsResult49, packageRoot, [TestLibraryArtifactId], methodName: "按设备状态选择分支", parameters: evaluatedValue50, returnType: "System.String");
             var result = await supervisor.RunAsync(request, (workerEvent, _) =>
             {
@@ -460,7 +461,7 @@ public sealed class WorkerSupervisorTests
             var events = new List<WorkerEventEnvelopeDto>();
             var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
             var addSecondsResult55 = DateTimeOffset.UtcNow.AddSeconds(15);
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeParameterDto> evaluatedValue56 = [CreateVariadicParameter("param-1", "检测值", "2", "expanded"), CreateVariadicParameter("param-1-2", "检测值 2", "3", "expanded"), CreateVariadicParameter("param-1-3", "检测值 3", null, "expanded")];
+            IReadOnlyList<NodeParameterDto> evaluatedValue56 = [CreateVariadicParameter("param-1", "检测值", "2", "expanded"), CreateVariadicParameter("param-1-2", "检测值 2", "3", "expanded"), CreateVariadicParameter("param-1-3", "检测值 3", null, "expanded")];
             var request = CreateLibraryActionRequest(addSecondsResult55, packageRoot, [TestLibraryArtifactId], methodName: "汇总多个检测值", parameters: evaluatedValue56, returnType: "System.Int32");
             var result = await supervisor.RunAsync(request, (workerEvent, _) =>
             {
@@ -494,7 +495,7 @@ public sealed class WorkerSupervisorTests
             var events = new List<WorkerEventEnvelopeDto>();
             var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
             var addSecondsResult62 = DateTimeOffset.UtcNow.AddSeconds(15);
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeParameterDto> evaluatedValue63 = [CreateVariadicParameter("param-1", "检测值", "[2,3,5]", "collection")];
+            IReadOnlyList<NodeParameterDto> evaluatedValue63 = [CreateVariadicParameter("param-1", "检测值", "[2,3,5]", "collection")];
             var request = CreateLibraryActionRequest(addSecondsResult62, packageRoot, [TestLibraryArtifactId], methodName: "汇总多个检测值", parameters: evaluatedValue63, returnType: "System.Int32");
             var result = await supervisor.RunAsync(request, (workerEvent, _) =>
             {
@@ -646,23 +647,23 @@ public sealed class WorkerSupervisorTests
             });
             var fromSecondsResult79 = TimeSpan.FromSeconds(10);
             await firstPause.Task.WaitAsync(fromSecondsResult79);
-            global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue80 = new(WorkerProtocol.Version, request.RunId, "list");
+            WorkerVariableRequestDto evaluatedValue80 = new(WorkerProtocol.Version, request.RunId, "list");
             var empty = await supervisor.AccessVariablesAsync(evaluatedValue80);
             Assert.Empty(empty.Snapshot!.Variables);
             var serializeToElementResult = JsonSerializer.SerializeToElement<object?>(null);
-            global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue81 = new(WorkerProtocol.Version, request.RunId, "set", "note", serializeToElementResult, "null");
+            WorkerVariableRequestDto evaluatedValue81 = new(WorkerProtocol.Version, request.RunId, "set", "note", serializeToElementResult, "null");
             var nullWrite = await supervisor.AccessVariablesAsync(evaluatedValue81);
             Assert.Equal(200, nullWrite.StatusCode);
             Assert.True(nullWrite.Variable!.ValueAvailable);
             Assert.Null(nullWrite.Variable.Value);
             var serializeToElementResult82 = JsonSerializer.SerializeToElement(42);
-            global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue83 = new(WorkerProtocol.Version, request.RunId, "set", "test.variables.count", serializeToElementResult82, "int32");
+            WorkerVariableRequestDto evaluatedValue83 = new(WorkerProtocol.Version, request.RunId, "set", "test.variables.count", serializeToElementResult82, "int32");
             var write = await supervisor.AccessVariablesAsync(evaluatedValue83);
             Assert.Equal(200, write.StatusCode);
             await debug.ContinueAsync(1);
             var fromSecondsResult84 = TimeSpan.FromSeconds(10);
             await secondPause.Task.WaitAsync(fromSecondsResult84);
-            global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue85 = new(WorkerProtocol.Version, request.RunId, "get", "test.variables.count");
+            WorkerVariableRequestDto evaluatedValue85 = new(WorkerProtocol.Version, request.RunId, "get", "test.variables.count");
             var read = await supervisor.AccessVariablesAsync(evaluatedValue85);
             var getInt32Result86 = read.Variable!.Value!.Value.GetInt32();
             Assert.Equal(43, getInt32Result86);
@@ -680,17 +681,17 @@ public sealed class WorkerSupervisorTests
             var getLibraryNodeResultResult91 = GetLibraryNodeResult(events, "library-service-second");
             Assert.Equal("44", getLibraryNodeResultResult91);
             await debug.DisposeAsync();
-            global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue92 = new(WorkerProtocol.Version, request.RunId, "list");
+            WorkerVariableRequestDto evaluatedValue92 = new(WorkerProtocol.Version, request.RunId, "list");
             var evaluatedValue93 = (await supervisor.AccessVariablesAsync(evaluatedValue92)).StatusCode;
             Assert.Equal(409, evaluatedValue93);
-            global::SereinFlow.Contracts.WorkerRunRequestDto resolveCreateTwoNodeLibraryServiceRequestResult()
+            WorkerRunRequestDto resolveCreateTwoNodeLibraryServiceRequestResult()
             {
                 var addSecondsResult78 = DateTimeOffset.UtcNow.AddSeconds(20);
                 var createTwoNodeLibraryServiceRequestResult = CreateTwoNodeLibraryServiceRequest(addSecondsResult78, packageRoot, typeof(VariableNodes), nameof(VariableNodes.ShareVariables));
                 return createTwoNodeLibraryServiceRequestResult;
             }
 
-            global::SereinFlow.Contracts.WorkerDebugOptionsDto resolveWorkerDebugOptionsDto()
+            WorkerDebugOptionsDto resolveWorkerDebugOptionsDto()
             {
                 var newGuidResult = Guid.NewGuid();
                 var workerDebugOptionsDto = new WorkerDebugOptionsDto(newGuidResult, ["library-service-first", "library-service-second"]);
@@ -759,7 +760,7 @@ public sealed class WorkerSupervisorTests
                 return variables.get("script.observed")
                 """);
             var newGuidResult109 = Guid.NewGuid();
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue111 = [resolveCanvasDto()];
+            IReadOnlyList<CanvasDto> evaluatedValue111 = [resolveCanvasDto()];
             var definition = new FlowDefinitionDto(newGuidResult109, 5, 1, evaluatedValue111, first.Id, "test");
             var newGuidResult112 = Guid.NewGuid();
             var serializeResult = JsonSerializer.Serialize(definition);
@@ -785,18 +786,18 @@ public sealed class WorkerSupervisorTests
                 });
                 var fromSecondsResult102 = TimeSpan.FromSeconds(10);
                 await pause.Task.WaitAsync(fromSecondsResult102);
-                global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue103 = new(WorkerProtocol.Version, request.RunId, "get", "test.variables.count");
+                WorkerVariableRequestDto evaluatedValue103 = new(WorkerProtocol.Version, request.RunId, "get", "test.variables.count");
                 var read = await supervisor.AccessVariablesAsync(evaluatedValue103);
                 var getInt32Result104 = read.Variable!.Value!.Value.GetInt32();
                 Assert.Equal(42, getInt32Result104);
                 var serializeToElementResult105 = JsonSerializer.SerializeToElement(60);
-                global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue106 = new(WorkerProtocol.Version, request.RunId, "set", "test.variables.count", serializeToElementResult105, "int32");
+                WorkerVariableRequestDto evaluatedValue106 = new(WorkerProtocol.Version, request.RunId, "set", "test.variables.count", serializeToElementResult105, "int32");
                 var write = await supervisor.AccessVariablesAsync(evaluatedValue106);
                 Assert.Equal(200, write.StatusCode);
                 await debug.ContinueAsync(1);
                 var fromSecondsResult107 = TimeSpan.FromSeconds(10);
                 result = await debug.Completion.WaitAsync(fromSecondsResult107);
-                global::SereinFlow.Contracts.WorkerDebugOptionsDto resolveWorkerDebugOptionsDto99()
+                WorkerDebugOptionsDto resolveWorkerDebugOptionsDto99()
                 {
                     var newGuidResult100 = Guid.NewGuid();
                     var workerDebugOptionsDto101 = new WorkerDebugOptionsDto(newGuidResult100, [last.Id]);
@@ -837,9 +838,9 @@ public sealed class WorkerSupervisorTests
                 Assert.Equal(expected, getInt32Result108);
             }
 
-            global::SereinFlow.Contracts.CanvasDto resolveCanvasDto()
+            CanvasDto resolveCanvasDto()
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ConnectionDto> evaluatedValue110 = [new ConnectionDto("write-library", first.Id, "success", library.Id, "execute", ConnectionKindDto.Execution, ExecutionBranchDto.Success, null, 0), new ConnectionDto("library-read", library.Id, "success", last.Id, "execute", ConnectionKindDto.Execution, ExecutionBranchDto.Success, null, 0)];
+                IReadOnlyList<ConnectionDto> evaluatedValue110 = [new ConnectionDto("write-library", first.Id, "success", library.Id, "execute", ConnectionKindDto.Execution, ExecutionBranchDto.Success, null, 0), new ConnectionDto("library-read", library.Id, "success", last.Id, "execute", ConnectionKindDto.Execution, ExecutionBranchDto.Success, null, 0)];
                 var canvasDto = new CanvasDto("main", CanvasLifecycleDto.Main, [first, library, last], evaluatedValue110);
                 return canvasDto;
             }
@@ -853,9 +854,9 @@ public sealed class WorkerSupervisorTests
     private static NodeDto CreateVariableScriptNode(string id, string source)
     {
         var computeSourceHashResult = SereinFlow.Domain.ScriptNodeDefinition.ComputeSourceHash(source);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ScriptValueContractDto> evaluatedValue118 = [new ScriptValueContractDto("result", "System.Int32", false)];
+        IReadOnlyList<ScriptValueContractDto> evaluatedValue118 = [new ScriptValueContractDto("result", "System.Int32", false)];
         var scriptNodeDataDto = new ScriptNodeDataDto(id, source, "1", computeSourceHashResult, [], evaluatedValue118);
-        global::SereinFlow.Contracts.NodeDto evaluatedValue119 = new(id, NodeTypeDto.Script, id, 0, 0, [], [], scriptNodeDataDto);
+        NodeDto evaluatedValue119 = new(id, NodeTypeDto.Script, id, 0, 0, [], [], scriptNodeDataDto);
         return evaluatedValue119;
     }
 
@@ -1041,14 +1042,14 @@ public sealed class WorkerSupervisorTests
             var fromSecondsResult140 = TimeSpan.FromSeconds(10);
             var result = await debug.Completion.WaitAsync(fromSecondsResult140);
             Assert.Equal(FlowRunStatusDto.Cancelled, result.Status);
-            global::SereinFlow.Contracts.WorkerRunRequestDto resolveCreateLibraryExternalMessageChainRequestResult()
+            WorkerRunRequestDto resolveCreateLibraryExternalMessageChainRequestResult()
             {
                 var addSecondsResult134 = DateTimeOffset.UtcNow.AddSeconds(15);
                 var createLibraryExternalMessageChainRequestResult = CreateLibraryExternalMessageChainRequest(addSecondsResult134, packageRoot, WorkerMessageChannelKindDto.Queue, "test.message.inbox", nameof(MessageNodes.ReceiveExternal));
                 return createLibraryExternalMessageChainRequestResult;
             }
 
-            global::SereinFlow.Contracts.WorkerDebugOptionsDto resolveWorkerDebugOptionsDto135()
+            WorkerDebugOptionsDto resolveWorkerDebugOptionsDto135()
             {
                 var newGuidResult136 = Guid.NewGuid();
                 var workerDebugOptionsDto137 = new WorkerDebugOptionsDto(newGuidResult136, []);
@@ -1067,7 +1068,7 @@ public sealed class WorkerSupervisorTests
         var fromMillisecondsResult142 = TimeSpan.FromMilliseconds(100);
         var fromSecondsResult143 = TimeSpan.FromSeconds(2);
         var runnerLaunchOptions144 = new RunnerLaunchOptions("dotnet", [typeof(RunnerHost).Assembly.Location], HandshakeTimeout: fromSecondsResult141, HeartbeatInterval: fromMillisecondsResult142, CancellationGracePeriod: fromSecondsResult143, AllowedLibraryPackageRoot: allowedLibraryPackageRoot, DiagnosticLogger: diagnosticLogger, AllowedWorkpieceRoot: allowedWorkpieceRoot);
-        global::SereinFlow.Worker.Supervisor.WorkerSupervisor evaluatedValue145 = new(runnerLaunchOptions144);
+        WorkerSupervisor evaluatedValue145 = new(runnerLaunchOptions144);
         return evaluatedValue145;
     }
 
@@ -1091,7 +1092,7 @@ public sealed class WorkerSupervisorTests
         var scriptNodeDataDto149 = new ScriptNodeDataDto("second", secondSource, "1", computeSourceHashResult148, [], []);
         var second = new NodeDto("second", NodeTypeDto.Script, "Second", 0, 0, [], [], scriptNodeDataDto149);
         var connection = new ConnectionDto("first:success->second:execute", first.Id, "success", second.Id, "execute", ConnectionKindDto.Execution, ExecutionBranchDto.Success, null, 0);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue150 = [new CanvasDto("main", CanvasLifecycleDto.Main, [first, second], [connection])];
+        IReadOnlyList<CanvasDto> evaluatedValue150 = [new CanvasDto("main", CanvasLifecycleDto.Main, [first, second], [connection])];
         var flowRunPolicyDto = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var definition = new FlowDefinitionDto(flowId, 5, 1, evaluatedValue150, first.Id, "test", RunPolicy: flowRunPolicyDto);
         var newGuidResult151 = Guid.NewGuid();
@@ -1133,7 +1134,7 @@ public sealed class WorkerSupervisorTests
         var getFileNameResult = Path.GetFileName(nodeType.Assembly.Location);
         var nodeUiMetadataDto = new NodeUiMetadataDto("library-service-action", "node.libraryService.title", "node.libraryService.subtitle", null, "ready", true, null, Category: "library", LibraryId: TestLibraryArtifactId, ClassName: nodeType.FullName, MethodName: methodName, DllName: getFileNameResult, DllVersion: "1.0.0", ReturnType: "System.String");
         var action = new NodeDto("library-service-action", NodeTypeDto.Action, "Library service action", 0, 0, [], [], null, nodeUiMetadataDto);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue159 = [new CanvasDto("main", CanvasLifecycleDto.Main, [action], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue159 = [new CanvasDto("main", CanvasLifecycleDto.Main, [action], [])];
         var flowRunPolicyDto160 = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var definition = new FlowDefinitionDto(flowId, 5, 1, evaluatedValue159, action.Id, "test", RunPolicy: flowRunPolicyDto160);
         var newGuidResult161 = Guid.NewGuid();
@@ -1148,7 +1149,7 @@ public sealed class WorkerSupervisorTests
         var first = CreateLibraryServiceNode("library-service-first", "First library service action", nodeType, methodName);
         var second = CreateLibraryServiceNode("library-service-second", "Second library service action", nodeType, methodName);
         var connection = new ConnectionDto("library-service-first:success->library-service-second:execute", first.Id, "success", second.Id, "execute", ConnectionKindDto.Execution, ExecutionBranchDto.Success, null, 0);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue164 = [new CanvasDto("main", CanvasLifecycleDto.Main, [first, second], [connection])];
+        IReadOnlyList<CanvasDto> evaluatedValue164 = [new CanvasDto("main", CanvasLifecycleDto.Main, [first, second], [connection])];
         var flowRunPolicyDto165 = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var definition = new FlowDefinitionDto(flowId, 5, 1, evaluatedValue164, first.Id, "test", RunPolicy: flowRunPolicyDto165);
         var newGuidResult166 = Guid.NewGuid();
@@ -1161,7 +1162,7 @@ public sealed class WorkerSupervisorTests
     {
         var getFileNameResult169 = Path.GetFileName(nodeType.Assembly.Location);
         var nodeUiMetadataDto170 = new NodeUiMetadataDto(id, "node.libraryService.title", "node.libraryService.subtitle", null, "ready", true, null, Category: "library", LibraryId: TestLibraryArtifactId, ClassName: nodeType.FullName, MethodName: methodName, DllName: getFileNameResult169, DllVersion: "1.0.0", ReturnType: "System.String");
-        global::SereinFlow.Contracts.NodeDto evaluatedValue171 = new(id, NodeTypeDto.Action, name, 0, 0, [], [], null, nodeUiMetadataDto170);
+        NodeDto evaluatedValue171 = new(id, NodeTypeDto.Action, name, 0, 0, [], [], null, nodeUiMetadataDto170);
         return evaluatedValue171;
     }
 
@@ -1187,7 +1188,7 @@ public sealed class WorkerSupervisorTests
         var getFileNameResult178 = Path.GetFileName(typeof(生产线节点).Assembly.Location);
         var nodeUiMetadataDto179 = new NodeUiMetadataDto("library-action", "node.libraryAction.title", "node.libraryAction.subtitle", null, "ready", true, null, Category: "library", LibraryId: TestLibraryArtifactId, ClassName: typeof(生产线节点).FullName, MethodName: methodName, DllName: getFileNameResult178, DllVersion: "1.0.0", ReturnType: returnType);
         var action = new NodeDto("library-action", NodeTypeDto.Action, "Calculate quality rate", 0, 0, [], evaluatedValue177, null, nodeUiMetadataDto179);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue180 = [new CanvasDto("main", CanvasLifecycleDto.Main, [action], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue180 = [new CanvasDto("main", CanvasLifecycleDto.Main, [action], [])];
         var flowRunPolicyDto181 = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var definition = new FlowDefinitionDto(flowId, 5, 1, evaluatedValue180, action.Id, "test", RunPolicy: flowRunPolicyDto181);
         var newGuidResult182 = Guid.NewGuid();
@@ -1199,11 +1200,11 @@ public sealed class WorkerSupervisorTests
     private static WorkerRunRequestDto CreateLibraryGlobalFlipflopDebugRequest(DateTimeOffset deadline, string packageRoot, IReadOnlyList<string> breakpointNodeIds, int intervalMilliseconds)
     {
         var flowId = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeParameterDto> evaluatedValue185 = [new NodeParameterDto("设备编号", "\"debug-device\"", DataSourceDto.Literal, true), resolveNodeParameterDto()];
+        IReadOnlyList<NodeParameterDto> evaluatedValue185 = [new NodeParameterDto("设备编号", "\"debug-device\"", DataSourceDto.Literal, true), resolveNodeParameterDto()];
         var getFileNameResult186 = Path.GetFileName(typeof(生产线节点).Assembly.Location);
         var nodeUiMetadataDto187 = new NodeUiMetadataDto("library-flipflop", "node.libraryFlipflop.title", "node.libraryFlipflop.subtitle", null, "ready", true, null, Category: "library", LibraryId: TestLibraryArtifactId, ClassName: typeof(生产线节点).FullName, MethodName: "等待设备触发", DllName: getFileNameResult186, DllVersion: "1.0.0", ReturnType: "System.Boolean", IsAwaitable: true);
         var flipflop = new NodeDto("library-flipflop", NodeTypeDto.Flipflop, "Wait for device trigger", 0, 0, [], evaluatedValue185, null, nodeUiMetadataDto187);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue188 = [new CanvasDto("main", CanvasLifecycleDto.Main, [flipflop], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue188 = [new CanvasDto("main", CanvasLifecycleDto.Main, [flipflop], [])];
         var flowRunPolicyDto189 = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var definition = new FlowDefinitionDto(flowId, 5, 1, evaluatedValue188, string.Empty, "test", RunPolicy: flowRunPolicyDto189);
         var newGuidResult190 = Guid.NewGuid();
@@ -1212,7 +1213,7 @@ public sealed class WorkerSupervisorTests
         var workerDebugOptionsDto193 = new WorkerDebugOptionsDto(newGuidResult192, breakpointNodeIds);
         var workerRunRequestDto194 = new WorkerRunRequestDto(WorkerProtocol.Version, newGuidResult190, flowId, 1, serializeResult191, deadline, LibraryPackageRootPath: packageRoot, AllowedLibraryIds: [TestLibraryArtifactId], Debug: workerDebugOptionsDto193);
         return workerRunRequestDto194;
-        global::SereinFlow.Contracts.NodeParameterDto resolveNodeParameterDto()
+        NodeParameterDto resolveNodeParameterDto()
         {
             var toStringResult = intervalMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
             var nodeParameterDto = new NodeParameterDto("轮询间隔毫秒", toStringResult, DataSourceDto.Literal, false);
@@ -1226,7 +1227,7 @@ public sealed class WorkerSupervisorTests
         var getFileNameResult195 = Path.GetFileName(typeof(MessageNodes).Assembly.Location);
         var nodeUiMetadataDto196 = new NodeUiMetadataDto("message-flipflop", NodeErrorCodes.MessageTitle, NodeErrorCodes.MessageSubtitle, null, "ready", true, null, Category: "library", LibraryId: TestLibraryArtifactId, ClassName: typeof(MessageNodes).FullName, MethodName: nameof(MessageNodes.ReceiveExternal), DllName: getFileNameResult195, DllVersion: "1.0.0", ReturnType: "System.String", IsAwaitable: true);
         var flipflop = new NodeDto("message-flipflop", NodeTypeDto.Flipflop, "External message listener", 0, 0, [], [], null, nodeUiMetadataDto196);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue197 = [new CanvasDto("main", CanvasLifecycleDto.Main, [flipflop], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue197 = [new CanvasDto("main", CanvasLifecycleDto.Main, [flipflop], [])];
         var flowRunPolicyDto198 = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var definition = new FlowDefinitionDto(flowId, 5, 1, evaluatedValue197, string.Empty, "test", RunPolicy: flowRunPolicyDto198);
         var newGuidResult199 = Guid.NewGuid();
@@ -1241,13 +1242,13 @@ public sealed class WorkerSupervisorTests
         var getFileNameResult202 = Path.GetFileName(typeof(MessageNodes).Assembly.Location);
         var nodeUiMetadataDto203 = new NodeUiMetadataDto("message-flipflop", NodeErrorCodes.MessageTitle, NodeErrorCodes.MessageSubtitle, null, "ready", true, null, Category: "library", LibraryId: TestLibraryArtifactId, ClassName: typeof(MessageNodes).FullName, MethodName: flipflopMethodName, DllName: getFileNameResult202, DllVersion: "1.0.0", ReturnType: "System.String", IsAwaitable: true);
         var flipflop = new NodeDto("message-flipflop", NodeTypeDto.Flipflop, "External message listener", 0, 0, [], [], null, nodeUiMetadataDto203);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeParameterDto> evaluatedValue204 = [new NodeParameterDto("message", null, DataSourceDto.PreviousNode, true)];
+        IReadOnlyList<NodeParameterDto> evaluatedValue204 = [new NodeParameterDto("message", null, DataSourceDto.PreviousNode, true)];
         var getFileNameResult205 = Path.GetFileName(typeof(MessageNodes).Assembly.Location);
         var nodeUiMetadataDto206 = new NodeUiMetadataDto("message-action", NodeErrorCodes.MessageActionTitle, NodeErrorCodes.MessageActionSubtitle, null, "ready", true, null, Category: "library", LibraryId: TestLibraryArtifactId, ClassName: typeof(MessageNodes).FullName, MethodName: nameof(MessageNodes.ProcessExternal), DllName: getFileNameResult205, DllVersion: "1.0.0", ReturnType: "System.String");
         var action = new NodeDto("message-action", NodeTypeDto.Action, "Process external message", 0, 0, [], evaluatedValue204, null, nodeUiMetadataDto206);
         var execution = new ConnectionDto("message-flipflop:success->message-action:execute", flipflop.Id, "success", action.Id, "execute", ConnectionKindDto.Execution, ExecutionBranchDto.Success, null, 0);
         var data = new ConnectionDto("message-flipflop:data-out->message-action:message", flipflop.Id, "data-out", action.Id, "message", ConnectionKindDto.Data, null, DataSourceDto.PreviousNode, 0);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue207 = [new CanvasDto("main", CanvasLifecycleDto.Main, [flipflop, action], [execution, data])];
+        IReadOnlyList<CanvasDto> evaluatedValue207 = [new CanvasDto("main", CanvasLifecycleDto.Main, [flipflop, action], [execution, data])];
         var flowRunPolicyDto208 = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var definition = new FlowDefinitionDto(flowId, 5, 1, evaluatedValue207, string.Empty, "test", RunPolicy: flowRunPolicyDto208);
         var newGuidResult209 = Guid.NewGuid();
@@ -1259,13 +1260,13 @@ public sealed class WorkerSupervisorTests
     private static NodeParameterDto CreateVariadicParameter(string id, string name, string? valueJson, string mode)
     {
         var nodeParameterUiMetadataDto = new NodeParameterUiMetadataDto(id, name, "System.Int32", valueJson, null, null, null, null, Type: "System.Int32", IsVariadic: true, VariadicGroupId: "param-1", ElementType: "System.Int32", VariadicMode: mode);
-        global::SereinFlow.Contracts.NodeParameterDto evaluatedValue212 = new(name, valueJson, DataSourceDto.Literal, false, nodeParameterUiMetadataDto);
+        NodeParameterDto evaluatedValue212 = new(name, valueJson, DataSourceDto.Literal, false, nodeParameterUiMetadataDto);
         return evaluatedValue212;
     }
 
     private static WorkerRunRequestDto CreateRequest(Guid flowId, NodeDto node, DateTimeOffset deadline)
     {
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue213 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue213 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
         var flowRunPolicyDto214 = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var definition = new FlowDefinitionDto(flowId, 5, 1, evaluatedValue213, node.Id, "test", RunPolicy: flowRunPolicyDto214);
         var newGuidResult215 = Guid.NewGuid();

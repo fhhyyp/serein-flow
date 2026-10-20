@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using SereinFlow.Contracts;
 using SereinFlow.Worker.Protocol;
@@ -7,9 +8,9 @@ public sealed partial class WorkerSupervisor
 {
     public Task<WorkerVariableResponseDto> AccessVariablesAsync(WorkerVariableRequestDto request, CancellationToken cancellationToken = default)
     {
-        global::System.Threading.Tasks.Task<global::SereinFlow.Contracts.WorkerVariableResponseDto> evaluatedValue = _messageSessions.TryGetValue(request.RunId, out var session) ? session.AccessVariablesAsync(request, cancellationToken) : resolveFromResultResult();
+        Task<WorkerVariableResponseDto> evaluatedValue = _messageSessions.TryGetValue(request.RunId, out var session) ? session.AccessVariablesAsync(request, cancellationToken) : resolveFromResultResult();
         return evaluatedValue;
-        global::System.Threading.Tasks.Task<global::SereinFlow.Contracts.WorkerVariableResponseDto> resolveFromResultResult()
+        Task<WorkerVariableResponseDto> resolveFromResultResult()
         {
             var workerVariableResponseDto = new WorkerVariableResponseDto(WorkerProtocolConstants.Version, request.RunId, 409, Code: WorkerErrorCodes.NotActive, Message: "The Worker run is not active. Worker 运行当前不活动。");
             var fromResultResult = Task.FromResult(workerVariableResponseDto);
@@ -31,7 +32,7 @@ internal sealed partial class WorkerMessageSession
 
         if (request.RunId != _request.RunId || request.ProtocolVersion != WorkerProtocolConstants.Version)
         {
-            global::SereinFlow.Contracts.WorkerVariableResponseDto evaluatedValue1 = new(WorkerProtocolConstants.Version, request.RunId, 400, Code: VariableErrorCodes.InvalidRequest);
+            WorkerVariableResponseDto evaluatedValue1 = new(WorkerProtocolConstants.Version, request.RunId, 400, Code: VariableErrorCodes.InvalidRequest);
             return evaluatedValue1;
         }
 
@@ -56,7 +57,7 @@ internal sealed partial class WorkerMessageSession
         }
         catch (TimeoutException)
         {
-            global::SereinFlow.Contracts.WorkerVariableResponseDto evaluatedValue3 = new(WorkerProtocolConstants.Version, request.RunId, 504, Code: VariableErrorCodes.Timeout, Message: "The Worker variable request timed out. Worker 变量请求超时。");
+            WorkerVariableResponseDto evaluatedValue3 = new(WorkerProtocolConstants.Version, request.RunId, 504, Code: VariableErrorCodes.Timeout, Message: "The Worker variable request timed out. Worker 变量请求超时。");
             return evaluatedValue3;
         }
         catch (Exception exception)when (exception is IOException or WorkerTransportException or ObjectDisposedException)
@@ -88,7 +89,7 @@ internal sealed partial class WorkerMessageSession
 
     private WorkerVariableResponseDto VariablesInactive()
     {
-        global::SereinFlow.Contracts.WorkerVariableResponseDto evaluatedValue5 = new(WorkerProtocolConstants.Version, _request.RunId, 409, Code: WorkerErrorCodes.NotActive, Message: "The Worker run is not active. Worker 运行当前不活动。");
+        WorkerVariableResponseDto evaluatedValue5 = new(WorkerProtocolConstants.Version, _request.RunId, 409, Code: WorkerErrorCodes.NotActive, Message: "The Worker run is not active. Worker 运行当前不活动。");
         return evaluatedValue5;
     }
 

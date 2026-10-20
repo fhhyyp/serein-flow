@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -31,7 +32,7 @@ public sealed class FlowDiffService
             if (!beforeCanvases.TryGetValue(id, out var oldCanvas))
             {
                 var serializeResult = Serialize(afterCanvases[id]);
-                global::SereinFlow.Contracts.FlowDiffItemDto evaluatedValue = new("canvas.added", $"canvases.{id}", null, serializeResult);
+                FlowDiffItemDto evaluatedValue = new("canvas.added", $"canvases.{id}", null, serializeResult);
                 changes.Add(evaluatedValue);
                 continue;
             }
@@ -39,7 +40,7 @@ public sealed class FlowDiffService
             if (!afterCanvases.TryGetValue(id, out var newCanvas))
             {
                 var serializeResult1 = Serialize(oldCanvas);
-                global::SereinFlow.Contracts.FlowDiffItemDto evaluatedValue2 = new("canvas.removed", $"canvases.{id}", serializeResult1, null);
+                FlowDiffItemDto evaluatedValue2 = new("canvas.removed", $"canvases.{id}", serializeResult1, null);
                 changes.Add(evaluatedValue2);
                 continue;
             }
@@ -62,7 +63,7 @@ public sealed class FlowDiffService
 
         var getChecksumResult = GetChecksum(before);
         var getChecksumResult8 = GetChecksum(after);
-        global::SereinFlow.Contracts.FlowDiffDto evaluatedValue9 = new(after.Id, before.Version, after.Version == before.Version ? null : after.Version, getChecksumResult, getChecksumResult8, changes, addedNodes, removedNodes, changedNodes, addedConnections, removedConnections, changedConnections);
+        FlowDiffDto evaluatedValue9 = new(after.Id, before.Version, after.Version == before.Version ? null : after.Version, getChecksumResult, getChecksumResult8, changes, addedNodes, removedNodes, changedNodes, addedConnections, removedConnections, changedConnections);
         return evaluatedValue9;
     }
 
@@ -94,7 +95,7 @@ public sealed class FlowDiffService
             Changes = resolveToArrayResult(),
         };
         return evaluatedValue12;
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowDiffItemDto> resolveToArrayResult()
+        IReadOnlyList<FlowDiffItemDto> resolveToArrayResult()
         {
             var selectResult = diff.Changes.Select(static change =>
             {
@@ -119,7 +120,7 @@ public sealed class FlowDiffService
             Canvases = resolveToArrayResult21(),
         };
         return evaluatedValue24;
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> resolveToArrayResult21()
+        IReadOnlyList<CanvasDto> resolveToArrayResult21()
         {
             var selectResult22 = definition.Canvases.Select(static canvas =>
             {
@@ -128,7 +129,7 @@ public sealed class FlowDiffService
                     Nodes = resolveToArrayResult17(),
                 };
                 return evaluatedValue20;
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> resolveToArrayResult17()
+                IReadOnlyList<NodeDto> resolveToArrayResult17()
                 {
                     var selectResult18 = canvas.Nodes.Select(static node =>
                     {
@@ -141,7 +142,7 @@ public sealed class FlowDiffService
                             },
                         };
                         return evaluatedValue16;
-                        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeParameterDto> resolveToArrayResult13()
+                        IReadOnlyList<NodeParameterDto> resolveToArrayResult13()
                         {
                             var selectResult14 = node.Parameters.Select(static parameter => parameter with { ValueJson = null, Ui = parameter.Ui is null ? null : parameter.Ui with { LiteralValue = null, ProjectInputKey = null, Expression = null, }, });
                             var toArrayResult15 = selectResult14.ToArray();
@@ -245,14 +246,14 @@ public sealed class FlowDiffService
             {
                 added++;
                 var serializeResult26 = serialize(newItems[id]);
-                global::SereinFlow.Contracts.FlowDiffItemDto evaluatedValue27 = new($"{kind}.added", $"{path}.{id}", null, serializeResult26);
+                FlowDiffItemDto evaluatedValue27 = new($"{kind}.added", $"{path}.{id}", null, serializeResult26);
                 changes.Add(evaluatedValue27);
             }
             else if (!newItems.TryGetValue(id, out var newItem))
             {
                 removed++;
                 var serializeResult28 = serialize(oldItem);
-                global::SereinFlow.Contracts.FlowDiffItemDto evaluatedValue29 = new($"{kind}.removed", $"{path}.{id}", serializeResult28, null);
+                FlowDiffItemDto evaluatedValue29 = new($"{kind}.removed", $"{path}.{id}", serializeResult28, null);
                 changes.Add(evaluatedValue29);
             }
             else
@@ -262,7 +263,7 @@ public sealed class FlowDiffService
                     changed++;
                     var serializeResult30 = serialize(oldItem);
                     var serializeResult31 = serialize(newItem);
-                    global::SereinFlow.Contracts.FlowDiffItemDto evaluatedValue32 = new($"{kind}.changed", $"{path}.{id}", serializeResult30, serializeResult31);
+                    FlowDiffItemDto evaluatedValue32 = new($"{kind}.changed", $"{path}.{id}", serializeResult30, serializeResult31);
                     changes.Add(evaluatedValue32);
                 }
 
@@ -281,7 +282,7 @@ public sealed class FlowDiffService
     {
         if (!string.Equals(before, after, StringComparison.Ordinal))
         {
-            global::SereinFlow.Contracts.FlowDiffItemDto evaluatedValue36 = new("property.changed", path, before, after);
+            FlowDiffItemDto evaluatedValue36 = new("property.changed", path, before, after);
             changes.Add(evaluatedValue36);
         }
     }
@@ -520,7 +521,7 @@ public sealed class FlowPatchService
         {
             Nodes = resolveToArrayResult70()
         };
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> resolveToArrayResult70()
+        IReadOnlyList<NodeDto> resolveToArrayResult70()
         {
             var whereResult = canvas.Nodes.Where(node => node.Id != nodeId);
             var toArrayResult71 = whereResult.ToArray();
@@ -717,7 +718,7 @@ public sealed class FlowPatchService
         {
             Connections = resolveToArrayResult78(),
         };
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ConnectionDto> resolveToArrayResult78()
+        IReadOnlyList<ConnectionDto> resolveToArrayResult78()
         {
             var whereResult79 = updatedCanvas.Connections.Where(connection => connection.Id != connectionId);
             var toArrayResult80 = whereResult79.ToArray();

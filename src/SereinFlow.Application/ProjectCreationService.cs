@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
@@ -40,7 +41,7 @@ public sealed class ProjectCreationService
     {
         var normalizedFlowName = string.IsNullOrWhiteSpace(flowName) ? "Main" : flowName.Trim();
         var evaluatedValue = flowId ?? Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue1 = [new CanvasDto("main", CanvasLifecycleDto.Main, [], [], normalizedFlowName)];
+        IReadOnlyList<CanvasDto> evaluatedValue1 = [new CanvasDto("main", CanvasLifecycleDto.Main, [], [], normalizedFlowName)];
         var flowRunPolicyDto = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var definition = new FlowDefinitionDto(evaluatedValue, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue1, string.Empty, string.Empty, RunPolicy: flowRunPolicyDto);
         var prepareResult2 = Prepare(name, definition, projectId);
@@ -57,7 +58,7 @@ public sealed class ProjectCreationService
         diagnostics.AddRange(evaluatedValue4);
         var validation = new FlowValidationResultDto(diagnostics.Count == 0, diagnostics);
         var normalized = validation.IsValid ? FlowDefinitionContractNormalizer.NormalizeForPersistence(definition) : definition;
-        global::SereinFlow.Application.ProjectCreationCandidate evaluatedValue5 = new(project, normalized, validation);
+        ProjectCreationCandidate evaluatedValue5 = new(project, normalized, validation);
         return evaluatedValue5;
     }
 
@@ -66,25 +67,25 @@ public sealed class ProjectCreationService
         ArgumentNullException.ThrowIfNull(candidate);
         if (!candidate.Validation.IsValid)
         {
-            global::SereinFlow.Application.ProjectCreationResult evaluatedValue6 = new(ProjectCreationStatus.Invalid, candidate, FlowErrorCodes.Invalid, "The initial flow definition is invalid.");
+            ProjectCreationResult evaluatedValue6 = new(ProjectCreationStatus.Invalid, candidate, FlowErrorCodes.Invalid, "The initial flow definition is invalid.");
             return evaluatedValue6;
         }
 
         if (await _projects.FindAsync(candidate.Project.Id, cancellationToken)is not null)
         {
-            global::SereinFlow.Application.ProjectCreationResult evaluatedValue7 = new(ProjectCreationStatus.Conflict, candidate, ProjectErrorCodes.AlreadyExists, "The project ID already exists. 项目 ID 已存在。");
+            ProjectCreationResult evaluatedValue7 = new(ProjectCreationStatus.Conflict, candidate, ProjectErrorCodes.AlreadyExists, "The project ID already exists. 项目 ID 已存在。");
             return evaluatedValue7;
         }
 
         if (await _flows.FindAsync(candidate.Project.Id, candidate.Definition.Id, cancellationToken)is not null)
         {
-            global::SereinFlow.Application.ProjectCreationResult evaluatedValue8 = new(ProjectCreationStatus.Conflict, candidate, FlowErrorCodes.AlreadyExists, "The initial flow ID already exists. 初始流程 ID 已存在。");
+            ProjectCreationResult evaluatedValue8 = new(ProjectCreationStatus.Conflict, candidate, FlowErrorCodes.AlreadyExists, "The initial flow ID already exists. 初始流程 ID 已存在。");
             return evaluatedValue8;
         }
 
         await _projects.AddAsync(candidate.Project, cancellationToken);
         await _flows.AddAsync(candidate.Project.Id, candidate.Definition, cancellationToken);
-        global::SereinFlow.Application.ProjectCreationResult evaluatedValue9 = new(ProjectCreationStatus.Created, candidate);
+        ProjectCreationResult evaluatedValue9 = new(ProjectCreationStatus.Created, candidate);
         return evaluatedValue9;
     }
 }

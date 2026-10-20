@@ -75,7 +75,7 @@ public sealed class BuiltinNodeTemplateService
 
     private static BuiltinNodeTemplateException Invalid(string code, string fieldPath, string expected, string remediation, int statusCode = StatusCodes.Status400BadRequest)
     {
-        global::SereinFlow.Application.BuiltinNodeTemplateException evaluatedValue2 = new(code, fieldPath, expected, remediation, statusCode);
+        BuiltinNodeTemplateException evaluatedValue2 = new(code, fieldPath, expected, remediation, statusCode);
         return evaluatedValue2;
     }
 }

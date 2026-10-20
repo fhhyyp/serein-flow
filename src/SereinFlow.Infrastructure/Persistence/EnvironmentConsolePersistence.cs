@@ -15,7 +15,7 @@ public sealed class SqlSugarRunEnvironmentSettingsStore : IRunEnvironmentSetting
     public async Task<RunExecutionSettingsDto?> GetAsync(CancellationToken cancellationToken = default)
     {
         var record = await _settings.GetByIdAsync(SettingsId, cancellationToken);
-        global::SereinFlow.Contracts.RunExecutionSettingsDto? evaluatedValue = record is null ? null : Map(record);
+        RunExecutionSettingsDto? evaluatedValue = record is null ? null : Map(record);
         return evaluatedValue;
     }
 
@@ -49,7 +49,7 @@ public sealed class SqlSugarRunEnvironmentSettingsStore : IRunEnvironmentSetting
 
     private static RunExecutionSettingsDto Map(RunEnvironmentSettingsRecord record)
     {
-        global::SereinFlow.Contracts.RunExecutionSettingsDto evaluatedValue2 = new(record.QueueCapacity, record.MaxConcurrentRuns, record.MaxConcurrentListenerRuns, record.MaxConcurrentRunsPerProject, record.QueueWaitTimeoutSeconds, record.ShutdownGracePeriodSeconds, record.SynchronousInvocationTimeoutSeconds, record.MaxLibraryUploadBytes);
+        RunExecutionSettingsDto evaluatedValue2 = new(record.QueueCapacity, record.MaxConcurrentRuns, record.MaxConcurrentListenerRuns, record.MaxConcurrentRunsPerProject, record.QueueWaitTimeoutSeconds, record.ShutdownGracePeriodSeconds, record.SynchronousInvocationTimeoutSeconds, record.MaxLibraryUploadBytes);
         return evaluatedValue2;
     }
 
@@ -89,7 +89,7 @@ public sealed class SqlSugarFlowInterfaceRepository : IFlowInterfaceRepository
     {
         var toStringResult = interfaceId.ToString("D");
         var record = await _interfaces.GetByIdAsync(toStringResult, cancellationToken);
-        global::SereinFlow.Contracts.FlowInterfaceDto? evaluatedValue4 = record is null ? null : Map(record);
+        FlowInterfaceDto? evaluatedValue4 = record is null ? null : Map(record);
         return evaluatedValue4;
     }
 
@@ -122,13 +122,13 @@ public sealed class SqlSugarFlowInterfaceRepository : IFlowInterfaceRepository
         var parseResult10 = Enum.Parse<FlowInvocationModeDto>(record.InvocationMode, ignoreCase: true);
         var parseResult11 = Parse(record.CreatedAt);
         var parseResult12 = Parse(record.UpdatedAt);
-        global::SereinFlow.Contracts.FlowInterfaceDto evaluatedValue13 = new(parseResult, parseResult8, parseResult9, record.Name, parseResult10, record.IsEnabled, parseResult11, parseResult12);
+        FlowInterfaceDto evaluatedValue13 = new(parseResult, parseResult8, parseResult9, record.Name, parseResult10, record.IsEnabled, parseResult11, parseResult12);
         return evaluatedValue13;
     }
 
     private static FlowInterfaceRecord Map(FlowInterfaceDto flowInterface)
     {
-        global::SereinFlow.Infrastructure.Persistence.FlowInterfaceRecord evaluatedValue14 = new()
+        FlowInterfaceRecord evaluatedValue14 = new()
         {
             Id = flowInterface.Id.ToString("D"),
             ProjectId = flowInterface.ProjectId.ToString("D"),

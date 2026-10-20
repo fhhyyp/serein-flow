@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using SereinFlow.Domain;
@@ -52,8 +53,8 @@ public sealed class ScriptArtifactStore
         if (duplicate is not null)
         {
             var dictionary = new Dictionary<string, ScriptArtifact>();
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.ScriptAdapter.ScriptExecutionDiagnostic> evaluatedValue1 = [new(ScriptErrorCodes.DuplicateNode, $"Script node '{duplicate.Key}' is defined more than once. 脚本节点“{duplicate.Key}”被重复定义。", NodeId: duplicate.Key)];
-            global::SereinFlow.ScriptAdapter.ScriptArtifactBuildResult evaluatedValue2 = new(false, dictionary, evaluatedValue1);
+            IReadOnlyList<ScriptExecutionDiagnostic> evaluatedValue1 = [new(ScriptErrorCodes.DuplicateNode, $"Script node '{duplicate.Key}' is defined more than once. 脚本节点“{duplicate.Key}”被重复定义。", NodeId: duplicate.Key)];
+            ScriptArtifactBuildResult evaluatedValue2 = new(false, dictionary, evaluatedValue1);
             return evaluatedValue2;
         }
 
@@ -74,10 +75,10 @@ public sealed class ScriptArtifactStore
             {
                 if (!IsSafeSegment(node.NodeId))
                 {
-                    global::SereinFlow.ScriptAdapter.ScriptExecutionDiagnostic evaluatedValue3 = new(ScriptErrorCodes.NodeIdInvalid, $"Script node ID '{node.NodeId}' cannot be used as an artifact name. 脚本节点 ID“{node.NodeId}”不能用作缓存名称。", NodeId: node.NodeId);
+                    ScriptExecutionDiagnostic evaluatedValue3 = new(ScriptErrorCodes.NodeIdInvalid, $"Script node ID '{node.NodeId}' cannot be used as an artifact name. 脚本节点 ID“{node.NodeId}”不能用作缓存名称。", NodeId: node.NodeId);
                     diagnostics.Add(evaluatedValue3);
                     var dictionary4 = new Dictionary<string, ScriptArtifact>();
-                    global::SereinFlow.ScriptAdapter.ScriptArtifactBuildResult evaluatedValue5 = new(false, dictionary4, diagnostics);
+                    ScriptArtifactBuildResult evaluatedValue5 = new(false, dictionary4, diagnostics);
                     return evaluatedValue5;
                 }
 
@@ -105,16 +106,16 @@ public sealed class ScriptArtifactStore
                 };
                 return evaluatedValue6;
             }, StringComparer.Ordinal);
-            global::SereinFlow.ScriptAdapter.ScriptArtifactBuildResult evaluatedValue9 = new(true, published, diagnostics);
+            ScriptArtifactBuildResult evaluatedValue9 = new(true, published, diagnostics);
             return evaluatedValue9;
         }
         catch (Exception exception)
         {
             var evaluatedValue10 = nodes.FirstOrDefault()?.NodeId;
-            global::SereinFlow.ScriptAdapter.ScriptExecutionDiagnostic evaluatedValue11 = new(ScriptErrorCodes.CompileFailed, $"Script artifact compilation failed. 脚本缓存编译失败。 {exception.Message}", NodeId: evaluatedValue10);
+            ScriptExecutionDiagnostic evaluatedValue11 = new(ScriptErrorCodes.CompileFailed, $"Script artifact compilation failed. 脚本缓存编译失败。 {exception.Message}", NodeId: evaluatedValue10);
             diagnostics.Add(evaluatedValue11);
             var dictionary12 = new Dictionary<string, ScriptArtifact>();
-            global::SereinFlow.ScriptAdapter.ScriptArtifactBuildResult evaluatedValue13 = new(false, dictionary12, diagnostics);
+            ScriptArtifactBuildResult evaluatedValue13 = new(false, dictionary12, diagnostics);
             return evaluatedValue13;
         }
         finally
@@ -178,7 +179,7 @@ public sealed class ScriptArtifactStore
 
     private static ArtifactManifestEntry ToManifest(ScriptArtifact artifact)
     {
-        global::SereinFlow.ScriptAdapter.ScriptArtifactStore.ArtifactManifestEntry evaluatedValue16 = new(artifact.NodeId, artifact.SourceHash, artifact.ArtifactFingerprint, artifact.LanguageVersion);
+        ScriptArtifactStore.ArtifactManifestEntry evaluatedValue16 = new(artifact.NodeId, artifact.SourceHash, artifact.ArtifactFingerprint, artifact.LanguageVersion);
         return evaluatedValue16;
     }
 

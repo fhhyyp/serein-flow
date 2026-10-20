@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
@@ -97,7 +98,7 @@ public sealed class ProjectsController : ApiControllerBase
         }
 
         var toProjectDtoResult4 = ToProjectDto(candidate.Project);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowDefinitionSummaryDto> evaluatedValue = [ToFlowSummaryDto(candidate.Definition)];
+        IReadOnlyList<FlowDefinitionSummaryDto> evaluatedValue = [ToFlowSummaryDto(candidate.Definition)];
         var workspace = new ProjectWorkspaceDto(toProjectDtoResult4, evaluatedValue);
         var createdResult = Created($"/api/projects/{candidate.Project.Id:D}/flows/{candidate.Definition.Id:D}", workspace);
         return createdResult;
@@ -172,16 +173,16 @@ public sealed class ProjectsController : ApiControllerBase
     public async Task<ActionResult> Archive([FromRoute] Guid projectId, CancellationToken cancellationToken)
     {
         var result = await _projectArchive.ArchiveAsync(projectId, cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue19 = result.IsSuccess ? resolveOkResult() : resolveApiProblemResult();
+        ActionResult evaluatedValue19 = result.IsSuccess ? resolveOkResult() : resolveApiProblemResult();
         return evaluatedValue19;
-        global::Microsoft.AspNetCore.Mvc.ObjectResult resolveOkResult()
+        ObjectResult resolveOkResult()
         {
             var toProjectDtoResult15 = ToProjectDto(result.Project!);
             var okResult16 = Ok(toProjectDtoResult15);
             return okResult16;
         }
 
-        global::Microsoft.AspNetCore.Mvc.ObjectResult resolveApiProblemResult()
+        ObjectResult resolveApiProblemResult()
         {
             var dictionary17 = new Dictionary<string, object?>
             {

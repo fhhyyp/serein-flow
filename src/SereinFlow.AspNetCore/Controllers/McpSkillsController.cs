@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
@@ -122,7 +123,7 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
             var extensions = data.ValueKind == JsonValueKind.Object ? resolveToDictionaryResult() : null;
             var apiProblemResult4 = ApiProblem(status, exception.Message, extensions: extensions);
             return apiProblemResult4;
-            global::System.Collections.Generic.Dictionary<string, object?> resolveToDictionaryResult()
+            Dictionary<string, object?> resolveToDictionaryResult()
             {
                 var enumerateObjectResult = data.EnumerateObject();
                 var toDictionaryResult = enumerateObjectResult.ToDictionary(property => property.Name, property =>

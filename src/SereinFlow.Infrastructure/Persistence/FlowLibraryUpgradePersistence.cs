@@ -360,7 +360,7 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
 
     private static LibraryUpgradePlanRecord ToRecord(LibraryUpgradePlanDto plan)
     {
-        global::SereinFlow.Infrastructure.Persistence.LibraryUpgradePlanRecord evaluatedValue27 = new()
+        LibraryUpgradePlanRecord evaluatedValue27 = new()
         {
             Id = plan.Id.ToString("D"),
             ProjectId = plan.ProjectId.ToString("D"),

@@ -124,7 +124,7 @@ public sealed class McpDebugToolTests
         var resource = Deserialize<AiPageDto<AiDebugSessionSummaryDto>>(evaluatedValue22);
         var evaluatedValue23 = Assert.Single(resource.Items).ProjectId;
         Assert.Equal(firstProjectId, evaluatedValue23);
-        global::SereinFlow.Domain.FlowDebugSession resolveCreateResult()
+        FlowDebugSession resolveCreateResult()
         {
             var newGuidResult = Guid.NewGuid();
             var newGuidResult10 = Guid.NewGuid();
@@ -132,7 +132,7 @@ public sealed class McpDebugToolTests
             return createResult;
         }
 
-        global::SereinFlow.Domain.FlowDebugSession resolveCreateResult11()
+        FlowDebugSession resolveCreateResult11()
         {
             var newGuidResult12 = Guid.NewGuid();
             var newGuidResult13 = Guid.NewGuid();

@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using System.Text.Json;
 using SereinFlow.Application.Persistence;
@@ -32,7 +33,7 @@ public sealed class SqlSugarFlowDebugSessionStore : IFlowDebugSessionStore
     {
         var toStringResult = sessionId.ToString("D");
         var row = await _sessions.GetByIdAsync(toStringResult, cancellationToken);
-        global::SereinFlow.Domain.FlowDebugSession? evaluatedValue = row is null ? null : Map(row);
+        FlowDebugSession? evaluatedValue = row is null ? null : Map(row);
         return evaluatedValue;
     }
 
@@ -40,9 +41,9 @@ public sealed class SqlSugarFlowDebugSessionStore : IFlowDebugSessionStore
     {
         var runKey = runId.ToString("D");
         var rows = await _sessions.ListAsync(row => row.RunId == runKey, cancellationToken);
-        global::SereinFlow.Domain.FlowDebugSession? evaluatedValue2 = rows.Count == 0 ? null : resolveMapResult();
+        FlowDebugSession? evaluatedValue2 = rows.Count == 0 ? null : resolveMapResult();
         return evaluatedValue2;
-        global::SereinFlow.Domain.FlowDebugSession resolveMapResult()
+        FlowDebugSession resolveMapResult()
         {
             var singleResult = rows.Single();
             var mapResult1 = Map(singleResult);
@@ -81,7 +82,7 @@ public sealed class SqlSugarFlowDebugSessionStore : IFlowDebugSessionStore
 
     private static FlowDebugSessionRecord Map(FlowDebugSession session)
     {
-        global::SereinFlow.Infrastructure.Persistence.FlowDebugSessionRecord evaluatedValue6 = new()
+        FlowDebugSessionRecord evaluatedValue6 = new()
         {
             Id = session.Id.ToString("D"),
             RunId = session.RunId.ToString("D"),
@@ -113,8 +114,8 @@ public sealed class SqlSugarFlowDebugSessionStore : IFlowDebugSessionStore
         var parseResult7 = Guid.Parse(row.RunId);
         var parseResult8 = Guid.Parse(row.ProjectId);
         var parseResult9 = Guid.Parse(row.FlowId);
-        global::SereinFlow.Domain.FlowDebugSessionStatus evaluatedValue10 = Enum.TryParse<FlowDebugSessionStatus>(row.Status, out var status) ? status : FlowDebugSessionStatus.Failed;
-        global::System.Guid? evaluatedValue11 = Guid.TryParse(row.ActiveInvocationId, out var activeInvocationId) ? activeInvocationId : null;
+        FlowDebugSessionStatus evaluatedValue10 = Enum.TryParse<FlowDebugSessionStatus>(row.Status, out var status) ? status : FlowDebugSessionStatus.Failed;
+        Guid? evaluatedValue11 = Guid.TryParse(row.ActiveInvocationId, out var activeInvocationId) ? activeInvocationId : null;
         var parseResult12 = DateTimeOffset.Parse(row.CreatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
         var parseResult13 = DateTimeOffset.Parse(row.UpdatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
         var rehydrateResult = FlowDebugSession.Rehydrate(parseResult, parseResult7, parseResult8, parseResult9, breakpoints, evaluatedValue10, row.CurrentNodeId, evaluatedValue11, row.ActiveFlipflopNodeId, row.QueuedTriggerCount, row.LastCommandSequence, row.FailureMessage, parseResult12, parseResult13, row.StateRevision, pauseState, lastNodeResult);

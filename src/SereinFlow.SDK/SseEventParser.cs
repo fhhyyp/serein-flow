@@ -46,7 +46,7 @@ internal static class SseEventParser
                     break;
             }
 
-            global::System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable<string?> resolveConfigureAwaitResult()
+            ConfiguredValueTaskAwaitable<string?> resolveConfigureAwaitResult()
             {
                 var readLineAsyncResult = reader.ReadLineAsync(cancellationToken);
                 var configureAwaitResult = readLineAsyncResult.ConfigureAwait(false);

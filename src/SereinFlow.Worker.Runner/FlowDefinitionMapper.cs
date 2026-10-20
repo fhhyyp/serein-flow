@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SereinFlow.Contracts;
@@ -18,7 +20,7 @@ public static class FlowDefinitionMapper
     {
         var dto = JsonSerializer.Deserialize<FlowDefinitionDto>(definitionJson, Options) ?? throw new InvalidOperationException("Flow definition payload is empty. 流程定义载荷为空。");
         var selectResult = dto.Canvases.Select(MapCanvas);
-        global::SereinFlow.Domain.FlowRunPolicy? evaluatedValue = dto.RunPolicy is null ? null : new FlowRunPolicy((FlowConcurrencyMode)dto.RunPolicy.ConcurrencyMode);
+        FlowRunPolicy? evaluatedValue = dto.RunPolicy is null ? null : new FlowRunPolicy((FlowConcurrencyMode)dto.RunPolicy.ConcurrencyMode);
         var createResult = FlowDefinition.Create(dto.Id, dto.Version, selectResult, dto.EntryNodeId, dto.SchemaVersion, dto.Checksum, evaluatedValue);
         return createResult;
     }
@@ -46,17 +48,17 @@ public static class FlowDefinitionMapper
             var nodeParameterDefinition = new NodeParameterDefinition(parameter.Name, parameter.ValueJson, (DataSource)parameter.Source, parameter.Required, parameter.Ui?.Id, parameter.Ui?.ProjectInputKey, parameter.Ui?.Expression, parameter.Ui?.SourceNodeId, parameter.Ui?.SourcePortId, parameter.Ui?.ValueKind, parameter.Ui?.Description, parameter.Ui?.IsVariadic ?? false, parameter.Ui?.VariadicGroupId, parameter.Ui?.ElementType, parseVariadicModeResult);
             return nodeParameterDefinition;
         });
-        global::SereinFlow.Domain.ScriptNodeDefinition? evaluatedValue10 = dto.Script is null ? null : resolveCreateResult();
-        global::SereinFlow.Domain.NodeRuntimeDefinition conditionalValue;
+        ScriptNodeDefinition? evaluatedValue10 = dto.Script is null ? null : resolveCreateResult();
+        NodeRuntimeDefinition conditionalValue;
         if (dto.Ui is null)
         {
             conditionalValue = null;
         }
         else
         {
-            global::System.Guid? evaluatedValue1 = Guid.TryParse(dto.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null;
+            Guid? evaluatedValue1 = Guid.TryParse(dto.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null;
             var optionalReceiver = dto.Ui.FlowCallParameterBindings;
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.FlowCallParameterBinding>? optionalResult = default(global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.FlowCallParameterBinding>);
+            IReadOnlyList<FlowCallParameterBinding>? optionalResult = default(IReadOnlyList<FlowCallParameterBinding>);
             if (optionalReceiver is not null)
             {
                 var selectResult3 = optionalReceiver.Select(item =>
@@ -71,10 +73,10 @@ public static class FlowDefinitionMapper
             conditionalValue = new NodeRuntimeDefinition(dto.Ui.LibraryId, dto.Ui.ClassName, dto.Ui.MethodName, dto.Ui.DllName, dto.Ui.DllVersion, dto.Ui.ReturnType, dto.Ui.TargetNodeId, evaluatedValue1, dto.Ui.IsAwaitable ?? false, dto.Ui.StaticReturnType, dto.Ui.IsDynamicReturnType ?? false, dto.Ui.TargetCanvasId, dto.Ui.IsPublic ?? false, evaluatedValue4, dto.Ui.LibraryNodeContractId);
         }
 
-        global::SereinFlow.Domain.NodeRuntimeDefinition? evaluatedValue11 = conditionalValue;
+        NodeRuntimeDefinition? evaluatedValue11 = conditionalValue;
         var createResult12 = NodeDefinition.Create(dto.Id, (NodeType)dto.Type, dto.DisplayName, nodePosition, selectResult5, selectResult6, evaluatedValue10, evaluatedValue11);
         return createResult12;
-        global::SereinFlow.Domain.ScriptNodeDefinition resolveCreateResult()
+        ScriptNodeDefinition resolveCreateResult()
         {
             var selectResult7 = dto.Script.Inputs.Select(input =>
             {
@@ -95,7 +97,7 @@ public static class FlowDefinitionMapper
 
     private static VariadicParameterMode? ParseVariadicMode(string? value)
     {
-        global::SereinFlow.Domain.VariadicParameterMode? evaluatedValue13 = Enum.TryParse<VariadicParameterMode>(value, ignoreCase: true, out var mode) ? mode : null;
+        VariadicParameterMode? evaluatedValue13 = Enum.TryParse<VariadicParameterMode>(value, ignoreCase: true, out var mode) ? mode : null;
         return evaluatedValue13;
     }
 

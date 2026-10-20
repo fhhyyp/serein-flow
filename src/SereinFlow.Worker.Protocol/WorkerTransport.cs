@@ -136,7 +136,7 @@ public sealed class StdioWorkerTransport : IWorkerTransport
     {
         if (Volatile.Read(ref _closed) == 1)
         {
-            global::SereinFlow.Worker.Protocol.WorkerMessage? evaluatedValue1 = CloseResult.IsRemote ? null : throw CreateClosedException();
+            WorkerMessage? evaluatedValue1 = CloseResult.IsRemote ? null : throw CreateClosedException();
             return evaluatedValue1;
         }
 
@@ -282,7 +282,7 @@ public sealed class StdioWorkerTransport : IWorkerTransport
 
     private WorkerTransportException CreateClosedException(Exception? innerException = null)
     {
-        global::SereinFlow.Worker.Protocol.WorkerTransportException evaluatedValue7 = new(WorkerTransportErrorCodes.Closed, "The Worker transport is closed. Worker 传输已关闭。", innerException, CloseResult);
+        WorkerTransportException evaluatedValue7 = new(WorkerTransportErrorCodes.Closed, "The Worker transport is closed. Worker 传输已关闭。", innerException, CloseResult);
         return evaluatedValue7;
     }
 

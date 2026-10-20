@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
@@ -129,7 +130,7 @@ internal static class McpProjectToolHandlers
     {
         var getFlowNameResult6 = GetFlowName(candidate.Definition);
         var createWorkspaceResult = CreateWorkspace(candidate);
-        global::SereinFlow.Contracts.ProjectCreatePreviewDto evaluatedValue = new(descriptor.PreviewId, candidate.Project.Id, candidate.Definition.Id, candidate.Project.Name, getFlowNameResult6, descriptor.ExpiresAt, descriptor.PreviewFingerprint, descriptor.Status == McpMutationPreviewStatusDto.Pending && descriptor.ExpiresAt > DateTimeOffset.UtcNow && candidate.Validation.IsValid, candidate.Validation, createWorkspaceResult);
+        ProjectCreatePreviewDto evaluatedValue = new(descriptor.PreviewId, candidate.Project.Id, candidate.Definition.Id, candidate.Project.Name, getFlowNameResult6, descriptor.ExpiresAt, descriptor.PreviewFingerprint, descriptor.Status == McpMutationPreviewStatusDto.Pending && descriptor.ExpiresAt > DateTimeOffset.UtcNow && candidate.Validation.IsValid, candidate.Validation, createWorkspaceResult);
         return evaluatedValue;
     }
 
@@ -137,10 +138,10 @@ internal static class McpProjectToolHandlers
     {
         var toProjectStatusValueResult = ToProjectStatusValue(candidate.Project.Status);
         var projectDto = new ProjectDto(candidate.Project.Id, candidate.Project.Name, candidate.Project.Version, toProjectStatusValueResult, candidate.Project.CreatedAt, candidate.Project.UpdatedAt);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowDefinitionSummaryDto> evaluatedValue7 = [resolveFlowDefinitionSummaryDto()];
-        global::SereinFlow.Contracts.ProjectWorkspaceDto evaluatedValue8 = new(projectDto, evaluatedValue7);
+        IReadOnlyList<FlowDefinitionSummaryDto> evaluatedValue7 = [resolveFlowDefinitionSummaryDto()];
+        ProjectWorkspaceDto evaluatedValue8 = new(projectDto, evaluatedValue7);
         return evaluatedValue8;
-        global::SereinFlow.Contracts.FlowDefinitionSummaryDto resolveFlowDefinitionSummaryDto()
+        FlowDefinitionSummaryDto resolveFlowDefinitionSummaryDto()
         {
             var sumResult = candidate.Definition.Canvases.Sum(static canvas => canvas.Nodes.Count);
             var flowDefinitionSummaryDto = new FlowDefinitionSummaryDto(candidate.Definition.Id, candidate.Definition.Version, candidate.Definition.EntryNodeId, candidate.Definition.Canvases.Count, sumResult);

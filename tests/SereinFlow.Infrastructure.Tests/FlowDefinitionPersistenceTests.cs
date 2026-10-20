@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
 using SereinFlow.Infrastructure.Persistence;
@@ -43,35 +44,35 @@ public sealed class FlowDefinitionPersistenceTests
         var sugarParameter = new SqlSugar.SugarParameter("@flowId", toStringResult);
         var scalarResult = database.Scalar<long>("SELECT COUNT(*) FROM FlowDefinitionVersions WHERE FlowId = @flowId", sugarParameter);
         Assert.Equal(2L, scalarResult);
-        global::SereinFlow.Contracts.NodeDto resolveSingleResult()
+        NodeDto resolveSingleResult()
         {
             var evaluatedValue2 = loaded.Canvases.Single().Nodes;
             var singleResult = evaluatedValue2.Single();
             return singleResult;
         }
 
-        global::SereinFlow.Contracts.NodeDto resolveSingleResult4()
+        NodeDto resolveSingleResult4()
         {
             var evaluatedValue5 = loaded.Canvases.Single().Nodes;
             var singleResult6 = evaluatedValue5.Single();
             return singleResult6;
         }
 
-        global::SereinFlow.Contracts.NodeDto resolveSingleResult8()
+        NodeDto resolveSingleResult8()
         {
             var evaluatedValue9 = loaded.Canvases.Single().Nodes;
             var singleResult10 = evaluatedValue9.Single();
             return singleResult10;
         }
 
-        global::SereinFlow.Contracts.NodeDto resolveSingleResult11()
+        NodeDto resolveSingleResult11()
         {
             var evaluatedValue12 = loaded.Canvases.Single().Nodes;
             var singleResult13 = evaluatedValue12.Single();
             return singleResult13;
         }
 
-        global::SereinFlow.Contracts.NodeParameterDto resolveSingleResult15()
+        NodeParameterDto resolveSingleResult15()
         {
             var evaluatedValue16 = loaded.Canvases.Single().Nodes;
             var evaluatedValue17 = evaluatedValue16.Single().Parameters;
@@ -165,7 +166,7 @@ public sealed class FlowDefinitionPersistenceTests
         await references.AddAsync(project.Id, sourceArtifactId);
         var store = new SqlSugarFlowLibraryUpgradeStore(database);
         var newGuidResult = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowLibraryUpgradePreviewDto> evaluatedValue28 = [new FlowLibraryUpgradePreviewDto(original.Id, original.Version, true, 1, []), new FlowLibraryUpgradePreviewDto(secondOriginal.Id, secondOriginal.Version, true, 1, []), ];
+        IReadOnlyList<FlowLibraryUpgradePreviewDto> evaluatedValue28 = [new FlowLibraryUpgradePreviewDto(original.Id, original.Version, true, 1, []), new FlowLibraryUpgradePreviewDto(secondOriginal.Id, secondOriginal.Version, true, 1, []), ];
         var plan = new LibraryUpgradePlanDto(newGuidResult, project.Id, sourceArtifactId, targetArtifactId, LibraryUpgradePlanStatusDto.Analyzed, evaluatedValue28, DateTimeOffset.UtcNow);
         await store.SavePlanAsync(plan);
         var originalCanvas = Assert.Single(original.Canvases);
@@ -254,7 +255,7 @@ public sealed class FlowDefinitionPersistenceTests
         var appliedPlan = await store.FindPlanAsync(project.Id, plan.Id);
         Assert.Equal(LibraryUpgradePlanStatusDto.Applied, appliedPlan!.Status);
         Assert.Equal(2, appliedPlan.AppliedFlows!.Count);
-        global::SereinFlow.Contracts.NodeDto resolveSingleResult30()
+        NodeDto resolveSingleResult30()
         {
             var evaluatedValue31 = Assert.Single(commit.Definition.Canvases).Nodes;
             var singleResult32 = evaluatedValue31.Single();
@@ -265,15 +266,15 @@ public sealed class FlowDefinitionPersistenceTests
     private static FlowDefinitionDto CreateDefinition(string libraryId = "library-orders")
     {
         var flowId = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodePortDto> evaluatedValue44 = [new NodePortDto("exec-success", "Success", "Output", false), new NodePortDto("exec-failure", "Failure", "Output", false), new NodePortDto("exec-error", "Error", "Output", false)];
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeParameterDto> evaluatedValue45 = [resolveNodeParameterDto()];
+        IReadOnlyList<NodePortDto> evaluatedValue44 = [new NodePortDto("exec-success", "Success", "Output", false), new NodePortDto("exec-failure", "Failure", "Output", false), new NodePortDto("exec-error", "Error", "Output", false)];
+        IReadOnlyList<NodeParameterDto> evaluatedValue45 = [resolveNodeParameterDto()];
         var nodeUiMetadataDto = new NodeUiMetadataDto("trigger", "node.httpTrigger", "node.triggerSubtitle", null, "ready", true, 224, "method", libraryId, "Orders", "Create", "Orders.dll", "1.2.0", "System.String");
         var node = new NodeDto("trigger", NodeTypeDto.Action, "HTTP trigger", 120, 80, evaluatedValue44, evaluatedValue45, null, nodeUiMetadataDto);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue46 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue46 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
         var flowRunPolicyDto = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var flowDefinitionDto = new FlowDefinitionDto(flowId, 4, 1, evaluatedValue46, "trigger", "initial", RunPolicy: flowRunPolicyDto);
         return flowDefinitionDto;
-        global::SereinFlow.Contracts.NodeParameterDto resolveNodeParameterDto()
+        NodeParameterDto resolveNodeParameterDto()
         {
             var nodeParameterUiMetadataDto = new NodeParameterUiMetadataDto("payload", "parameter.payload", "string", "order", null, null, null, null, "System.String", "Order payload", "manual");
             var nodeParameterDto = new NodeParameterDto("payload", "\"order\"", DataSourceDto.Literal, false, nodeParameterUiMetadataDto);
@@ -283,7 +284,7 @@ public sealed class FlowDefinitionPersistenceTests
 
     private static LibraryRecord CreateLibraryRecord(string id, string version)
     {
-        global::SereinFlow.Infrastructure.Persistence.LibraryRecord evaluatedValue47 = new()
+        LibraryRecord evaluatedValue47 = new()
         {
             Id = id,
             Name = "Orders library",
@@ -313,7 +314,7 @@ public sealed class FlowDefinitionPersistenceTests
         var evaluatedValue48 = $"sereinflow-flow-{Guid.NewGuid():N}.db";
         var combineResult = Path.Combine(getTempPathResult, evaluatedValue48);
         var sqliteDatabaseOptions = new SqliteDatabaseOptions(combineResult);
-        global::SereinFlow.Infrastructure.Persistence.SqliteDatabase evaluatedValue49 = new(sqliteDatabaseOptions);
+        SqliteDatabase evaluatedValue49 = new(sqliteDatabaseOptions);
         return evaluatedValue49;
     }
 }

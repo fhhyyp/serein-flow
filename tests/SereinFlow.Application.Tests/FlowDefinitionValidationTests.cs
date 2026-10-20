@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
@@ -12,7 +13,7 @@ public sealed class FlowDefinitionValidationTests
         var scriptNodeDataDto = new ScriptNodeDataDto("script-node", source, "0.1", "stale-source-hash", [], []);
         var node = new NodeDto("script-node", NodeTypeDto.Script, "Script", 0, 0, [], [], scriptNodeDataDto);
         var newGuidResult = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
         var definition = new FlowDefinitionDto(newGuidResult, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue, node.Id, string.Empty);
         var normalized = FlowDefinitionContractNormalizer.NormalizeForExecution(definition);
         var evaluatedValue1 = Assert.Single(normalized.Canvases).Nodes;
@@ -87,9 +88,9 @@ public sealed class FlowDefinitionValidationTests
         };
         var evaluatedValue4 = FlowDefinitionContractValidator.ValidateForPersistence(definition).IsValid;
         Assert.True(evaluatedValue4);
-        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto()
+        CanvasDto resolveCanvasDto()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> evaluatedValue3 = [CreateEnumNode("not-a-member", isFlags: false, DataSourceDto.ProjectInput)];
+            IReadOnlyList<NodeDto> evaluatedValue3 = [CreateEnumNode("not-a-member", isFlags: false, DataSourceDto.ProjectInput)];
             var canvasDto = new CanvasDto("main", CanvasLifecycleDto.Main, evaluatedValue3, []);
             return canvasDto;
         }
@@ -98,22 +99,22 @@ public sealed class FlowDefinitionValidationTests
     private static FlowDefinitionDto CreateBlankDraft()
     {
         var newGuidResult5 = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue6 = [new CanvasDto("main", CanvasLifecycleDto.Main, [], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue6 = [new CanvasDto("main", CanvasLifecycleDto.Main, [], [])];
         var flowRunPolicyDto = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
-        global::SereinFlow.Contracts.FlowDefinitionDto evaluatedValue7 = new(newGuidResult5, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue6, string.Empty, string.Empty, RunPolicy: flowRunPolicyDto);
+        FlowDefinitionDto evaluatedValue7 = new(newGuidResult5, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue6, string.Empty, string.Empty, RunPolicy: flowRunPolicyDto);
         return evaluatedValue7;
     }
 
     private static FlowDefinitionDto CreateEnumDraft(string value, bool isFlags)
     {
         var newGuidResult8 = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue12 = [resolveCanvasDto9()];
+        IReadOnlyList<CanvasDto> evaluatedValue12 = [resolveCanvasDto9()];
         var flowRunPolicyDto13 = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
-        global::SereinFlow.Contracts.FlowDefinitionDto evaluatedValue14 = new(newGuidResult8, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue12, string.Empty, string.Empty, RunPolicy: flowRunPolicyDto13);
+        FlowDefinitionDto evaluatedValue14 = new(newGuidResult8, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue12, string.Empty, string.Empty, RunPolicy: flowRunPolicyDto13);
         return evaluatedValue14;
-        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto9()
+        CanvasDto resolveCanvasDto9()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> evaluatedValue10 = [CreateEnumNode(value, isFlags, DataSourceDto.Literal)];
+            IReadOnlyList<NodeDto> evaluatedValue10 = [CreateEnumNode(value, isFlags, DataSourceDto.Literal)];
             var canvasDto11 = new CanvasDto("main", CanvasLifecycleDto.Main, evaluatedValue10, []);
             return canvasDto11;
         }

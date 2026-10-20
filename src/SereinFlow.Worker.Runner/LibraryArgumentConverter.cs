@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.ComponentModel;
 using System.Globalization;
@@ -74,7 +75,7 @@ public static class LibraryArgumentConverter
         {
             object evaluatedValue1 = value is Guid guid ? guid : resolveParseResult();
             return evaluatedValue1;
-            global::System.Guid resolveParseResult()
+            Guid resolveParseResult()
             {
                 var evaluatedValue = System.Convert.ToString(value, CultureInfo.InvariantCulture)!;
                 var parseResult = Guid.Parse(evaluatedValue);

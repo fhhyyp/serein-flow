@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
@@ -80,14 +81,14 @@ public sealed class FlowDiffRedactionTests
 
     private static FlowDefinitionDto CreateDefinition(string source, string value)
     {
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeParameterDto> evaluatedValue3 = [resolveNodeParameterDto()];
+        IReadOnlyList<NodeParameterDto> evaluatedValue3 = [resolveNodeParameterDto()];
         var scriptNodeDataDto = new ScriptNodeDataDto("node", source, "1", "hash", [], []);
         var node = new NodeDto("node", NodeTypeDto.Script, "Script", 0, 0, [], evaluatedValue3, scriptNodeDataDto);
         var newGuidResult = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue4 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [], "Main")];
+        IReadOnlyList<CanvasDto> evaluatedValue4 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [], "Main")];
         var flowDefinitionDto = new FlowDefinitionDto(newGuidResult, 1, 1, evaluatedValue4, "node", "checksum");
         return flowDefinitionDto;
-        global::SereinFlow.Contracts.NodeParameterDto resolveNodeParameterDto()
+        NodeParameterDto resolveNodeParameterDto()
         {
             var serializeResult = JsonSerializer.Serialize(value);
             var nodeParameterUiMetadataDto = new NodeParameterUiMetadataDto("value", "value", "string", value, "secret-input", "secret-expression", null, null);

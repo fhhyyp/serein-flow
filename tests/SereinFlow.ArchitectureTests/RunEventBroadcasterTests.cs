@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Api;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
@@ -205,13 +206,13 @@ public sealed class RunEventBroadcasterTests
 
         : Array.Empty<NodeDto>();
         var newGuidResult31 = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue33 = [resolveCanvasDto()];
+        IReadOnlyList<CanvasDto> evaluatedValue33 = [resolveCanvasDto()];
         var flowRunPolicyDto = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var definition = new FlowDefinitionDto(newGuidResult31, 4, 1, evaluatedValue33, listener ? "listener" : "entry", string.Empty, RunPolicy: flowRunPolicyDto);
         var newGuidResult34 = Guid.NewGuid();
         var runWorkItem = new RunWorkItem(newGuidResult34, projectId, definition, null, DateTimeOffset.UtcNow, 300, 10_000);
         return runWorkItem;
-        global::SereinFlow.Contracts.NodeDto resolveNodeDto()
+        NodeDto resolveNodeDto()
         {
             var emptyResult = Array.Empty<NodePortDto>();
             var emptyResult30 = Array.Empty<NodeParameterDto>();
@@ -219,7 +220,7 @@ public sealed class RunEventBroadcasterTests
             return nodeDto;
         }
 
-        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto()
+        CanvasDto resolveCanvasDto()
         {
             var emptyResult32 = Array.Empty<ConnectionDto>();
             var canvasDto = new CanvasDto("main", CanvasLifecycleDto.Main, nodes, emptyResult32);

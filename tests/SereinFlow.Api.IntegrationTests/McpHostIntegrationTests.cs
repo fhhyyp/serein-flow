@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
@@ -299,12 +300,12 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
 
     private static HttpRequestMessage CreateMcpRequest(string method, int id)
     {
-        global::System.Net.Http.HttpRequestMessage evaluatedValue1 = new(HttpMethod.Post, "/mcp")
+        HttpRequestMessage evaluatedValue1 = new(HttpMethod.Post, "/mcp")
         {
             Content = resolveStringContent()
         };
         return evaluatedValue1;
-        global::System.Net.Http.HttpContent resolveStringContent()
+        HttpContent resolveStringContent()
         {
             var serializeResult1 = JsonSerializer.Serialize(new { jsonrpc = "2.0", id, method, @params = new { } });
             var stringContent = new StringContent(serializeResult1, Encoding.UTF8, "application/json");

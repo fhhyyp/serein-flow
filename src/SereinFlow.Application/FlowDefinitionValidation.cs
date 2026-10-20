@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
@@ -12,7 +14,7 @@ public static class FlowDefinitionContractMapper
         }
 
         var selectResult = dto.Canvases.Select(MapCanvas);
-        global::SereinFlow.Domain.FlowRunPolicy? evaluatedValue = dto.RunPolicy is null ? null : new FlowRunPolicy((FlowConcurrencyMode)dto.RunPolicy.ConcurrencyMode);
+        FlowRunPolicy? evaluatedValue = dto.RunPolicy is null ? null : new FlowRunPolicy((FlowConcurrencyMode)dto.RunPolicy.ConcurrencyMode);
         var createResult = FlowDefinition.Create(dto.Id, dto.Version, selectResult, dto.EntryNodeId, dto.SchemaVersion, dto.Checksum, evaluatedValue);
         return createResult;
     }
@@ -41,7 +43,7 @@ public static class FlowDefinitionContractMapper
             var nodeParameterDefinition = new NodeParameterDefinition(parameter.Name, parameter.ValueJson, (DataSource)parameter.Source, parameter.Required, parameter.Ui?.Id, parameter.Ui?.ProjectInputKey, parameter.Ui?.Expression, parameter.Ui?.SourceNodeId, parameter.Ui?.SourcePortId, parameter.Ui?.ValueKind, parameter.Ui?.Description, parameter.Ui?.IsVariadic ?? false, parameter.Ui?.VariadicGroupId, parameter.Ui?.ElementType, parseVariadicModeResult, mapEnumMetadataResult);
             return nodeParameterDefinition;
         });
-        global::SereinFlow.Domain.ScriptNodeDefinition conditionalValue;
+        ScriptNodeDefinition conditionalValue;
         if (dto.Script is null)
         {
             conditionalValue = null;
@@ -64,17 +66,17 @@ public static class FlowDefinitionContractMapper
             sourceHash: null, selectResult3, selectResult4);
         }
 
-        global::SereinFlow.Domain.ScriptNodeDefinition? evaluatedValue7 = conditionalValue;
-        global::SereinFlow.Domain.NodeRuntimeDefinition conditionalValue5;
+        ScriptNodeDefinition? evaluatedValue7 = conditionalValue;
+        NodeRuntimeDefinition conditionalValue5;
         if (dto.Ui is null)
         {
             conditionalValue5 = null;
         }
         else
         {
-            global::System.Guid? evaluatedValue6 = Guid.TryParse(dto.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null;
+            Guid? evaluatedValue6 = Guid.TryParse(dto.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null;
             var optionalReceiver = dto.Ui.FlowCallParameterBindings;
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.FlowCallParameterBinding>? optionalResult = default(global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.FlowCallParameterBinding>);
+            IReadOnlyList<FlowCallParameterBinding>? optionalResult = default(IReadOnlyList<FlowCallParameterBinding>);
             if (optionalReceiver is not null)
             {
                 var selectResult7 = optionalReceiver.Select(item =>
@@ -89,22 +91,22 @@ public static class FlowDefinitionContractMapper
             conditionalValue5 = new NodeRuntimeDefinition(dto.Ui.LibraryId, dto.Ui.ClassName, dto.Ui.MethodName, dto.Ui.DllName, dto.Ui.DllVersion, dto.Ui.ReturnType, dto.Ui.TargetNodeId, evaluatedValue6, dto.Ui.IsAwaitable ?? false, dto.Ui.StaticReturnType, dto.Ui.IsDynamicReturnType ?? false, dto.Ui.TargetCanvasId, dto.Ui.IsPublic ?? false, evaluatedValue9, dto.Ui.LibraryNodeContractId);
         }
 
-        global::SereinFlow.Domain.NodeRuntimeDefinition? evaluatedValue8 = conditionalValue5;
+        NodeRuntimeDefinition? evaluatedValue8 = conditionalValue5;
         var createResult9 = NodeDefinition.Create(dto.Id, (NodeType)dto.Type, dto.DisplayName, nodePosition, selectResult5, selectResult6, evaluatedValue7, evaluatedValue8);
         return createResult9;
     }
 
     private static VariadicParameterMode? ParseVariadicMode(string? value)
     {
-        global::SereinFlow.Domain.VariadicParameterMode? evaluatedValue10 = Enum.TryParse<VariadicParameterMode>(value, ignoreCase: true, out var mode) ? mode : null;
+        VariadicParameterMode? evaluatedValue10 = Enum.TryParse<VariadicParameterMode>(value, ignoreCase: true, out var mode) ? mode : null;
         return evaluatedValue10;
     }
 
     private static EnumParameterMetadata? MapEnumMetadata(EnumParameterMetadataDto? metadata)
     {
-        global::SereinFlow.Domain.EnumParameterMetadata? evaluatedValue12 = metadata is null ? null : resolveEnumParameterMetadata();
+        EnumParameterMetadata? evaluatedValue12 = metadata is null ? null : resolveEnumParameterMetadata();
         return evaluatedValue12;
-        global::SereinFlow.Domain.EnumParameterMetadata resolveEnumParameterMetadata()
+        EnumParameterMetadata resolveEnumParameterMetadata()
         {
             var selectResult11 = metadata.Options.Select(static option =>
             {
@@ -179,14 +181,14 @@ public static class FlowDefinitionContractValidator
         {
             if (definition.RunPolicy is null)
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ValidationDiagnosticDto> evaluatedValue15 = [new ValidationDiagnosticDto(FlowErrorCodes.RunPolicyMissing, "The flow run policy is required. 流程运行策略不能为空。", "runPolicy")];
+                IReadOnlyList<ValidationDiagnosticDto> evaluatedValue15 = [new ValidationDiagnosticDto(FlowErrorCodes.RunPolicyMissing, "The flow run policy is required. 流程运行策略不能为空。", "runPolicy")];
                 var flowValidationResultDto = new FlowValidationResultDto(false, evaluatedValue15);
                 return flowValidationResultDto;
             }
 
             if (!Enum.IsDefined(definition.RunPolicy.ConcurrencyMode))
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ValidationDiagnosticDto> evaluatedValue16 = [new ValidationDiagnosticDto(FlowErrorCodes.RunPolicyInvalid, "The flow run policy is invalid. 流程运行策略无效。", "runPolicy.concurrencyMode")];
+                IReadOnlyList<ValidationDiagnosticDto> evaluatedValue16 = [new ValidationDiagnosticDto(FlowErrorCodes.RunPolicyInvalid, "The flow run policy is invalid. 流程运行策略无效。", "runPolicy.concurrencyMode")];
                 var flowValidationResultDto17 = new FlowValidationResultDto(false, evaluatedValue16);
                 return flowValidationResultDto17;
             }
@@ -222,7 +224,7 @@ public static class FlowDefinitionContractValidator
         }
         catch (ArgumentException exception)
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ValidationDiagnosticDto> evaluatedValue22 = [new ValidationDiagnosticDto(FlowErrorCodes.Invalid, $"Flow definition is invalid. 流程定义无效。 {exception.Message}", null)];
+            IReadOnlyList<ValidationDiagnosticDto> evaluatedValue22 = [new ValidationDiagnosticDto(FlowErrorCodes.Invalid, $"Flow definition is invalid. 流程定义无效。 {exception.Message}", null)];
             var flowValidationResultDto23 = new FlowValidationResultDto(false, evaluatedValue22);
             return flowValidationResultDto23;
         }
@@ -241,7 +243,7 @@ public static class FlowDefinitionContractNormalizer
     public static FlowDefinitionDto NormalizeForPersistence(FlowDefinitionDto definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        global::SereinFlow.Contracts.FlowDefinitionDto evaluatedValue24 = string.IsNullOrWhiteSpace(definition.EntryNodeId) ? definition : NormalizeForExecution(definition);
+        FlowDefinitionDto evaluatedValue24 = string.IsNullOrWhiteSpace(definition.EntryNodeId) ? definition : NormalizeForExecution(definition);
         return evaluatedValue24;
     }
 
@@ -264,7 +266,7 @@ public static class FlowDefinitionContractNormalizer
                 Nodes = resolveToArrayResult9(),
             };
             return evaluatedValue25;
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> resolveToArrayResult9()
+            IReadOnlyList<NodeDto> resolveToArrayResult9()
             {
                 var selectResult10 = canvas.Nodes.Select(node =>
                 {
@@ -278,7 +280,7 @@ public static class FlowDefinitionContractNormalizer
                                 Inputs = resolveToArrayResult(),
                             },
                         };
-                        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ScriptValueContractDto> resolveToArrayResult()
+                        IReadOnlyList<ScriptValueContractDto> resolveToArrayResult()
                         {
                             var selectResult8 = node.Parameters.Select(parameter =>
                             {

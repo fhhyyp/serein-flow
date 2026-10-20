@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.IO.Compression;
@@ -802,7 +803,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
 
         var evaluatedValue2 = optionalResult;
-        global::System.Version conditionalValue;
+        Version conditionalValue;
         if (Version.TryParse(evaluatedValue2, out var version))
         {
             conditionalValue = version;
@@ -812,13 +813,13 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             conditionalValue = new Version(0, 0);
         }
 
-        global::System.Version evaluatedValue56 = conditionalValue;
+        Version evaluatedValue56 = conditionalValue;
         return evaluatedValue56;
     }
 
     private static DateTimeOffset ParseDate(string? value)
     {
-        global::System.DateTimeOffset evaluatedValue57 = DateTimeOffset.TryParse(value, out var parsed) ? parsed : DateTimeOffset.UnixEpoch;
+        DateTimeOffset evaluatedValue57 = DateTimeOffset.TryParse(value, out var parsed) ? parsed : DateTimeOffset.UnixEpoch;
         return evaluatedValue57;
     }
 
@@ -830,7 +831,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
     private static LibraryLifecycleDto ParseLifecycle(string? status)
     {
-        global::SereinFlow.Contracts.LibraryLifecycleDto evaluatedValue59 = Enum.TryParse<LibraryLifecycleDto>(status, ignoreCase: true, out var lifecycle) ? lifecycle : LibraryLifecycleDto.Available;
+        LibraryLifecycleDto evaluatedValue59 = Enum.TryParse<LibraryLifecycleDto>(status, ignoreCase: true, out var lifecycle) ? lifecycle : LibraryLifecycleDto.Available;
         return evaluatedValue59;
     }
 
@@ -1152,7 +1153,7 @@ internal sealed class EnumMetadataIndex
     public EnumParameterMetadataDto? Resolve(string typeName)
     {
         var normalized = UnwrapNullable(typeName);
-        global::SereinFlow.Contracts.EnumParameterMetadataDto? evaluatedValue73 = _ambiguousNames.Contains(normalized) ? null : _entries.GetValueOrDefault(normalized);
+        EnumParameterMetadataDto? evaluatedValue73 = _ambiguousNames.Contains(normalized) ? null : _entries.GetValueOrDefault(normalized);
         return evaluatedValue73;
     }
 
@@ -1286,14 +1287,14 @@ internal static class LibraryMetadataScanner
                     var isAwaitableReturnTypeResult85 = IsAwaitableReturnType(signature.ReturnType);
                     var libraryManifestNodeDto = new LibraryManifestNodeDto(nodeContractId, nodeIdentityConfidence, nodeMetadata.Type, className, methodName, overloadSignature, signature.ReturnType, isAwaitableReturnTypeResult85, manifestParameters, hasResultConverter);
                     manifestNodes.Add(libraryManifestNodeDto);
-                    global::System.Reflection.Metadata.CustomAttributeHandle? resolveFindAttributeResult()
+                    CustomAttributeHandle? resolveFindAttributeResult()
                     {
                         var getCustomAttributesResult76 = method.GetCustomAttributes();
                         var findAttributeResult = FindAttribute(reader, getCustomAttributesResult76, LibraryAttributeContract.NodeResultAttributeFullName);
                         return findAttributeResult;
                     }
 
-                    global::System.Reflection.Metadata.CustomAttributeHandle? resolveFindAttributeResult77()
+                    CustomAttributeHandle? resolveFindAttributeResult77()
                     {
                         var getCustomAttributesResult78 = method.GetCustomAttributes();
                         var findAttributeResult79 = FindAttribute(reader, getCustomAttributesResult78, LibraryAttributeContract.NodeResultGenericAttributeFullName);
@@ -1897,7 +1898,7 @@ internal static class LibraryMetadataScanner
 
         try
         {
-            global::SereinFlow.Contracts.NodeTypeDto evaluatedValue178 = Convert.ToInt32(convertible, CultureInfo.InvariantCulture) switch
+            NodeTypeDto evaluatedValue178 = Convert.ToInt32(convertible, CultureInfo.InvariantCulture) switch
             {
                 (int)NodeType.Action => NodeTypeDto.Action,
                 (int)NodeType.Flipflop => NodeTypeDto.Flipflop,
@@ -1949,7 +1950,7 @@ internal static class LibraryMetadataScanner
             _ => string.Empty,
         };
         return evaluatedValue181;
-        global::System.Reflection.Metadata.EntityHandle resolveGetDeclaringTypeResult()
+        EntityHandle resolveGetDeclaringTypeResult()
         {
             var getMethodDefinitionResult = reader.GetMethodDefinition((MethodDefinitionHandle)attribute.Constructor);
             var getDeclaringTypeResult = getMethodDefinitionResult.GetDeclaringType();

@@ -19,7 +19,7 @@ public sealed class WorkerVariableServiceTests
         var runId = Guid.NewGuid();
         var variables = new LibraryVariableService();
         var deserializeResult = JsonSerializer.Deserialize<JsonElement>(json);
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue = new(WorkerProtocol.Version, runId, "set", "value", deserializeResult, valueType);
+        WorkerVariableRequestDto evaluatedValue = new(WorkerProtocol.Version, runId, "set", "value", deserializeResult, valueType);
         var response = WorkerVariableService.Execute(runId, variables, evaluatedValue);
         Assert.Equal(200, response.StatusCode);
         var evaluatedValue1 = variables.Get("value")!;
@@ -36,7 +36,7 @@ public sealed class WorkerVariableServiceTests
         var variables = new LibraryVariableService();
         variables.Set("b", 2);
         variables.Set<string?>("a", null);
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue2 = new(WorkerProtocol.Version, runId, "list", Take: 1);
+        WorkerVariableRequestDto evaluatedValue2 = new(WorkerProtocol.Version, runId, "list", Take: 1);
         var response = WorkerVariableService.Execute(runId, variables, evaluatedValue2);
         Assert.Equal(2, response.Snapshot!.TotalCount);
         Assert.True(response.Snapshot.HasMore);
@@ -44,12 +44,12 @@ public sealed class WorkerVariableServiceTests
         Assert.Equal("a", entry.Name);
         Assert.True(entry.ValueAvailable);
         Assert.Equal(JsonValueKind.Null, entry.Value!.Value.ValueKind);
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue3 = new(WorkerProtocol.Version, runId, "list", Offset: 1, Take: 1);
+        WorkerVariableRequestDto evaluatedValue3 = new(WorkerProtocol.Version, runId, "list", Offset: 1, Take: 1);
         var next = WorkerVariableService.Execute(runId, variables, evaluatedValue3);
         var evaluatedValue4 = Assert.Single(next.Snapshot!.Variables).Name;
         Assert.Equal("b", evaluatedValue4);
         Assert.False(next.Snapshot.HasMore);
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue5 = new(WorkerProtocol.Version, runId, "get", "missing");
+        WorkerVariableRequestDto evaluatedValue5 = new(WorkerProtocol.Version, runId, "get", "missing");
         var evaluatedValue6 = WorkerVariableService.Execute(runId, variables, evaluatedValue5).StatusCode;
         Assert.Equal(404, evaluatedValue6);
     }
@@ -70,7 +70,7 @@ public sealed class WorkerVariableServiceTests
             }
         };
         variables.Set("collection", dictionary);
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue7 = new(WorkerProtocol.Version, runId, "list");
+        WorkerVariableRequestDto evaluatedValue7 = new(WorkerProtocol.Version, runId, "list");
         var response = WorkerVariableService.Execute(runId, variables, evaluatedValue7);
         Assert.Equal(200, response.StatusCode);
         var handle = Assert.Single(response.Snapshot!.Variables, item => item.Name == "handle");
@@ -93,7 +93,7 @@ public sealed class WorkerVariableServiceTests
         var variables = new LibraryVariableService();
         variables.Set("value", 7);
         var deserializeResult8 = JsonSerializer.Deserialize<JsonElement>(json);
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue9 = new(WorkerProtocol.Version, runId, "set", "value", deserializeResult8, type);
+        WorkerVariableRequestDto evaluatedValue9 = new(WorkerProtocol.Version, runId, "set", "value", deserializeResult8, type);
         var response = WorkerVariableService.Execute(runId, variables, evaluatedValue9);
         Assert.Equal(400, response.StatusCode);
         Assert.Equal(code, response.Code);
@@ -107,23 +107,23 @@ public sealed class WorkerVariableServiceTests
         var runId = Guid.NewGuid();
         var variables = new LibraryVariableService();
         var newGuidResult = Guid.NewGuid();
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue10 = new(WorkerProtocol.Version, newGuidResult, "list");
+        WorkerVariableRequestDto evaluatedValue10 = new(WorkerProtocol.Version, newGuidResult, "list");
         var evaluatedValue11 = WorkerVariableService.Execute(runId, variables, evaluatedValue10).StatusCode;
         Assert.Equal(400, evaluatedValue11);
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue12 = new(WorkerProtocol.Version, runId, "list", Take: 201);
+        WorkerVariableRequestDto evaluatedValue12 = new(WorkerProtocol.Version, runId, "list", Take: 201);
         var evaluatedValue13 = WorkerVariableService.Execute(runId, variables, evaluatedValue12).StatusCode;
         Assert.Equal(400, evaluatedValue13);
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue14 = new(WorkerProtocol.Version, runId, "list", Offset: -1);
+        WorkerVariableRequestDto evaluatedValue14 = new(WorkerProtocol.Version, runId, "list", Offset: -1);
         var evaluatedValue15 = WorkerVariableService.Execute(runId, variables, evaluatedValue14).StatusCode;
         Assert.Equal(400, evaluatedValue15);
         var stringValue = new string ('中', 16_385);
         var large = JsonSerializer.SerializeToElement(stringValue);
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue16 = new(WorkerProtocol.Version, runId, "set", "large", large, "string");
+        WorkerVariableRequestDto evaluatedValue16 = new(WorkerProtocol.Version, runId, "set", "large", large, "string");
         var evaluatedValue17 = WorkerVariableService.Execute(runId, variables, evaluatedValue16).StatusCode;
         Assert.Equal(413, evaluatedValue17);
         var stringValue18 = new string ('a', 20_000);
         variables.Set("large", stringValue18);
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue19 = new(WorkerProtocol.Version, runId, "get", "large");
+        WorkerVariableRequestDto evaluatedValue19 = new(WorkerProtocol.Version, runId, "get", "large");
         var response = WorkerVariableService.Execute(runId, variables, evaluatedValue19);
         Assert.False(response.Variable!.ValueAvailable);
     }
@@ -135,7 +135,7 @@ public sealed class WorkerVariableServiceTests
         var variables = new LibraryVariableService();
         variables.Set("integer", 9_007_199_254_740_993L);
         variables.Set("decimal", 0.1234567890123456789012345678m);
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue20 = new(WorkerProtocol.Version, runId, "list");
+        WorkerVariableRequestDto evaluatedValue20 = new(WorkerProtocol.Version, runId, "list");
         var result = WorkerVariableService.Execute(runId, variables, evaluatedValue20);
         var evaluatedValue21 = Assert.Single(result.Snapshot!.Variables, value => value.Name == "integer").ValueJson;
         Assert.Equal("9007199254740993", evaluatedValue21);

@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
@@ -161,7 +162,7 @@ internal sealed class SereinFlowHttpClient
 
         var delayResult = Task.Delay(delay, cancellationToken);
         await delayResult.ConfigureAwait(false);
-        global::System.TimeSpan resolveFromTicksResult()
+        TimeSpan resolveFromTicksResult()
         {
             var evaluatedValue9 = _options.RetryBaseDelay.Ticks * (1L << Math.Min(attempt, MaximumRetryBackoffExponent));
             var fromTicksResult = TimeSpan.FromTicks(evaluatedValue9);

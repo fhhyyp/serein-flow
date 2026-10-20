@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
@@ -42,7 +43,7 @@ public sealed class DataConnectionResolver
                 };
                 object? resolveReadPreviousNodeResult()
                 {
-                    global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.ConnectionDefinition> evaluatedValue = string.IsNullOrWhiteSpace(parameter.SourceNodeId) ? [] : [ConnectionDefinition.Data(parameter.SourceNodeId, parameter.SourcePortId ?? "data-out", node.Id, parameter.Id, DataSource.PreviousNode)];
+                    IReadOnlyList<ConnectionDefinition> evaluatedValue = string.IsNullOrWhiteSpace(parameter.SourceNodeId) ? [] : [ConnectionDefinition.Data(parameter.SourceNodeId, parameter.SourcePortId ?? "data-out", node.Id, parameter.Id, DataSource.PreviousNode)];
                     var readPreviousNodeResult = ReadPreviousNode(evaluatedValue, session);
                     return readPreviousNodeResult;
                 }

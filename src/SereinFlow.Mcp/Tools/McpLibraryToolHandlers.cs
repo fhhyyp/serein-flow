@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
@@ -263,12 +264,12 @@ internal static class McpLibraryToolHandlers
         var library = string.IsNullOrWhiteSpace(libraryId) ? null : await catalog.FindAsync(libraryId, cancellationToken);
         if (string.IsNullOrWhiteSpace(libraryId))
         {
-            global::SereinFlow.Contracts.ValidationDiagnosticDto evaluatedValue13 = new(LibraryErrorCodes.IdRequired, "The library ID is required.", "libraryId");
+            ValidationDiagnosticDto evaluatedValue13 = new(LibraryErrorCodes.IdRequired, "The library ID is required.", "libraryId");
             diagnostics.Add(evaluatedValue13);
         }
         else if (library is null)
         {
-            global::SereinFlow.Contracts.ValidationDiagnosticDto evaluatedValue = new(LibraryErrorCodes.NotFound, "The library artifact was not found.", "libraryId");
+            ValidationDiagnosticDto evaluatedValue = new(LibraryErrorCodes.NotFound, "The library artifact was not found.", "libraryId");
             diagnostics.Add(evaluatedValue);
         }
 
@@ -285,13 +286,13 @@ internal static class McpLibraryToolHandlers
         });
         if (familyId is not null && targetFamily is null)
         {
-            global::SereinFlow.Contracts.ValidationDiagnosticDto evaluatedValue15 = new(LibraryErrorCodes.FamilyNotFound, "The requested library family was not found.", "familyId");
+            ValidationDiagnosticDto evaluatedValue15 = new(LibraryErrorCodes.FamilyNotFound, "The requested library family was not found.", "familyId");
             diagnostics.Add(evaluatedValue15);
         }
 
         if (familyId is null && string.IsNullOrWhiteSpace(name))
         {
-            global::SereinFlow.Contracts.ValidationDiagnosticDto evaluatedValue16 = new(LibraryErrorCodes.FamilyNameRequired, "A family name is required when creating a library family.", "name");
+            ValidationDiagnosticDto evaluatedValue16 = new(LibraryErrorCodes.FamilyNameRequired, "A family name is required when creating a library family.", "name");
             diagnostics.Add(evaluatedValue16);
         }
 
@@ -307,7 +308,7 @@ internal static class McpLibraryToolHandlers
 
     private static McpProtocolException LibraryUpgradeFailure<T>(LibraryUpgradeOperationResult<T> result)
     {
-        global::SereinFlow.Mcp.McpProtocolException evaluatedValue18 = new(result.StatusCode switch
+        McpProtocolException evaluatedValue18 = new(result.StatusCode switch
         {
             StatusCodes.Status400BadRequest => McpProtocolErrorCodes.InvalidParams,
             StatusCodes.Status404NotFound => McpProtocolErrorCodes.ResourceNotFound,
@@ -411,14 +412,14 @@ internal static class McpLibraryToolHandlers
             staged = null;
             var libraryPackagePreviewDto = new LibraryPackagePreviewDto(entry.Id, fileName, stored.SizeBytes, inspection.Library.Sha256, entry.ExpiresAt, entry.PreviewFingerprint, true, inspection.Library, [], inspection.AlreadyExists, inspection.Library.DllSha256, compatibility, projectImpact);
             return libraryPackagePreviewDto;
-            global::System.Threading.Tasks.Task<global::SereinFlow.Application.LibraryPackageInspectionDto?> resolveInspectAsyncResult()
+            Task<LibraryPackageInspectionDto?> resolveInspectAsyncResult()
             {
                 var getRequiredServiceResult22 = scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>();
                 var inspectAsyncResult = getRequiredServiceResult22.InspectAsync(package, fileName, staged.SizeBytes, familyId, baselineArtifactId, cancellationToken);
                 return inspectAsyncResult;
             }
 
-            global::System.Threading.Tasks.Task<global::SereinFlow.Contracts.LibraryPackageProjectImpactDto?> resolveBuildLibraryPackageProjectImpactAsyncResult()
+            Task<LibraryPackageProjectImpactDto?> resolveBuildLibraryPackageProjectImpactAsyncResult()
             {
                 var getRequiredServiceResult23 = scope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>();
                 var buildLibraryPackageProjectImpactAsyncResult = BuildLibraryPackageProjectImpactAsync(getRequiredServiceResult23, projectId.Value, compatibility.BaselineArtifactId, cancellationToken);
@@ -555,7 +556,7 @@ internal static class McpLibraryToolHandlers
             throw new McpSecurityException(McpErrorCodes.LibraryAccessDenied, "The MCP caller cannot use the requested library baseline for this project.", StatusCodes.Status403Forbidden);
         }
 
-        global::System.Threading.Tasks.Task<bool> resolveIsReferencedAsyncResult()
+        Task<bool> resolveIsReferencedAsyncResult()
         {
             var getRequiredServiceResult31 = scope.ServiceProvider.GetRequiredService<IProjectLibraryReferenceRepository>();
             var isReferencedAsyncResult = getRequiredServiceResult31.IsReferencedAsync(projectId, artifactId, cancellationToken);
@@ -574,7 +575,7 @@ internal static class McpLibraryToolHandlers
             LibraryId = libraryId
         };
         var validation = await ValidateProjectLibraryAttachAsync(scope, request, cancellationToken);
-        global::SereinFlow.Contracts.ProjectLibraryAttachRequestDto evaluatedValue32 = new(request.ProjectId, libraryId);
+        ProjectLibraryAttachRequestDto evaluatedValue32 = new(request.ProjectId, libraryId);
         var stored = new StoredProjectLibraryAttachPreview(evaluatedValue32, validation);
         var getRequiredServiceResult33 = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
         var entry = await getRequiredServiceResult33.CreateAsync(ProjectErrorCodes.LibraryAttach, principal, request.ProjectId, null, null, stored, cancellationToken);
@@ -630,49 +631,49 @@ internal static class McpLibraryToolHandlers
         var project = await getRequiredServiceResult43.FindAsync(request.ProjectId, cancellationToken);
         if (project is null)
         {
-            global::SereinFlow.Contracts.ValidationDiagnosticDto evaluatedValue38 = new(ProjectErrorCodes.NotFound, "The project was not found. 未找到项目。", "projectId");
+            ValidationDiagnosticDto evaluatedValue38 = new(ProjectErrorCodes.NotFound, "The project was not found. 未找到项目。", "projectId");
             diagnostics.Add(evaluatedValue38);
         }
         else if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
         {
-            global::SereinFlow.Contracts.ValidationDiagnosticDto evaluatedValue37 = new(ProjectErrorCodes.Archived, "Archived projects cannot change library references. 已归档项目不能修改类库引用。", "projectId");
+            ValidationDiagnosticDto evaluatedValue37 = new(ProjectErrorCodes.Archived, "Archived projects cannot change library references. 已归档项目不能修改类库引用。", "projectId");
             diagnostics.Add(evaluatedValue37);
         }
 
         var libraryId = request.LibraryId?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(libraryId))
         {
-            global::SereinFlow.Contracts.ValidationDiagnosticDto evaluatedValue39 = new(LibraryErrorCodes.IdRequired, "The library ID is required. 类库 ID 不能为空。", "libraryId");
+            ValidationDiagnosticDto evaluatedValue39 = new(LibraryErrorCodes.IdRequired, "The library ID is required. 类库 ID 不能为空。", "libraryId");
             diagnostics.Add(evaluatedValue39);
         }
 
         var library = string.IsNullOrWhiteSpace(libraryId) ? null : await resolveFindAsyncResult();
         if (library is null)
         {
-            global::SereinFlow.Contracts.ValidationDiagnosticDto evaluatedValue41 = new(LibraryErrorCodes.NotFound, "The library artifact was not found. 未找到类库制品。", "libraryId");
+            ValidationDiagnosticDto evaluatedValue41 = new(LibraryErrorCodes.NotFound, "The library artifact was not found. 未找到类库制品。", "libraryId");
             diagnostics.Add(evaluatedValue41);
         }
         else if (library.Lifecycle != LibraryLifecycleDto.Available)
         {
-            global::SereinFlow.Contracts.ValidationDiagnosticDto evaluatedValue40 = new(LibraryErrorCodes.Archived, "Archived library artifacts cannot be attached. 已归档类库制品不能被接入。", "libraryId");
+            ValidationDiagnosticDto evaluatedValue40 = new(LibraryErrorCodes.Archived, "Archived library artifacts cannot be attached. 已归档类库制品不能被接入。", "libraryId");
             diagnostics.Add(evaluatedValue40);
         }
 
         if (library is not null && await resolveIsReferencedAsyncResult45())
         {
-            global::SereinFlow.Contracts.ValidationDiagnosticDto evaluatedValue42 = new(ProjectLibraryErrorCodes.AlreadyReferenced, "The project already references this library artifact. 项目已引用该类库制品。", "libraryId");
+            ValidationDiagnosticDto evaluatedValue42 = new(ProjectLibraryErrorCodes.AlreadyReferenced, "The project already references this library artifact. 项目已引用该类库制品。", "libraryId");
             diagnostics.Add(evaluatedValue42);
         }
 
         return diagnostics;
-        global::System.Threading.Tasks.Task<global::SereinFlow.Contracts.LibraryDto?> resolveFindAsyncResult()
+        Task<LibraryDto?> resolveFindAsyncResult()
         {
             var getRequiredServiceResult44 = scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>();
             var findAsyncResult = getRequiredServiceResult44.FindAsync(libraryId, cancellationToken);
             return findAsyncResult;
         }
 
-        global::System.Threading.Tasks.Task<bool> resolveIsReferencedAsyncResult45()
+        Task<bool> resolveIsReferencedAsyncResult45()
         {
             var getRequiredServiceResult46 = scope.ServiceProvider.GetRequiredService<IProjectLibraryReferenceRepository>();
             var isReferencedAsyncResult47 = getRequiredServiceResult46.IsReferencedAsync(request.ProjectId, library.Id, cancellationToken);

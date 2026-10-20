@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
@@ -80,7 +81,7 @@ public sealed class RunApplicationServiceTests
     {
         var node = new NodeDto("entry-node", NodeTypeDto.Action, "Entry", 0, 0, [], [], null);
         var newGuidResult13 = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue14 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue14 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
         var flowRunPolicyDto = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var flowDefinitionDto = new FlowDefinitionDto(newGuidResult13, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue14, node.Id, "checksum", RunPolicy: flowRunPolicyDto);
         return flowDefinitionDto;

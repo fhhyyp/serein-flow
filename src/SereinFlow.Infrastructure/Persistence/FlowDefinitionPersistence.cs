@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SereinFlow.Application.Persistence;
@@ -69,7 +70,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
             var evaluatedValue2 = item.Id == flowId.ToString("D") && item.ProjectId == projectId.ToString("D");
             return evaluatedValue2;
         });
-        global::SereinFlow.Contracts.FlowDefinitionDto? evaluatedValue3 = row is null ? null : Deserialize(row);
+        FlowDefinitionDto? evaluatedValue3 = row is null ? null : Deserialize(row);
         return evaluatedValue3;
     }
 
@@ -165,7 +166,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
             var evaluatedValue14 = item.Id == flowId.ToString("D") && item.ProjectId == projectId.ToString("D");
             return evaluatedValue14;
         });
-        global::SereinFlow.Contracts.FlowDefinitionDto? evaluatedValue18 = row is null ? null : Deserialize(row);
+        FlowDefinitionDto? evaluatedValue18 = row is null ? null : Deserialize(row);
         return evaluatedValue18;
     }
 
@@ -301,7 +302,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
         }
 
         var version = await FindVersionRecordAsync(flowId, head.Version, cancellationToken);
-        global::SereinFlow.Contracts.FlowDefinitionDto? evaluatedValue36 = version is null || ParseTrack(version.Track) != FlowVersionTrackDto.Production ? null : Deserialize(version);
+        FlowDefinitionDto? evaluatedValue36 = version is null || ParseTrack(version.Track) != FlowVersionTrackDto.Production ? null : Deserialize(version);
         return evaluatedValue36;
     }
 
@@ -494,7 +495,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
 
     private static FlowDefinitionRecord ToRecord(Guid projectId, FlowDefinitionDto definition, string serialized)
     {
-        global::SereinFlow.Infrastructure.Persistence.FlowDefinitionRecord evaluatedValue64 = new()
+        FlowDefinitionRecord evaluatedValue64 = new()
         {
             Id = definition.Id.ToString("D"),
             ProjectId = projectId.ToString("D"),
@@ -507,7 +508,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
 
     private static FlowDefinitionVersionRecord ToVersionRecord(FlowDefinitionDto definition, string serialized, FlowVersionTrackDto track, FlowVersionOperationDto operation, long? parentVersion, long? sourceVersion, string remark, DateTimeOffset? createdAt)
     {
-        global::SereinFlow.Infrastructure.Persistence.FlowDefinitionVersionRecord evaluatedValue65 = new()
+        FlowDefinitionVersionRecord evaluatedValue65 = new()
         {
             FlowId = definition.Id.ToString("D"),
             Version = definition.Version,
@@ -547,7 +548,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
     {
         var toStringResult66 = flowId.ToString("D");
         var row = await _definitions.GetByIdAsync(toStringResult66, cancellationToken);
-        global::SereinFlow.Infrastructure.Persistence.FlowDefinitionRecord? evaluatedValue68 = row is not null && resolveEqualsResult() ? row : null;
+        FlowDefinitionRecord? evaluatedValue68 = row is not null && resolveEqualsResult() ? row : null;
         return evaluatedValue68;
         bool resolveEqualsResult()
         {
@@ -614,20 +615,20 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
     {
         var parseTrackResult = ParseTrack(record.Track);
         var parseOperationResult = ParseOperation(record.Operation);
-        global::System.DateTimeOffset? evaluatedValue71 = DateTimeOffset.TryParse(record.CreatedAt, out var createdAt) ? createdAt : null;
-        global::SereinFlow.Contracts.FlowVersionSummaryDto evaluatedValue72 = new(flowId, record.Version, parseTrackResult, parseOperationResult, record.ParentVersion, record.SourceVersion, record.Remark, evaluatedValue71, isCurrent);
+        DateTimeOffset? evaluatedValue71 = DateTimeOffset.TryParse(record.CreatedAt, out var createdAt) ? createdAt : null;
+        FlowVersionSummaryDto evaluatedValue72 = new(flowId, record.Version, parseTrackResult, parseOperationResult, record.ParentVersion, record.SourceVersion, record.Remark, evaluatedValue71, isCurrent);
         return evaluatedValue72;
     }
 
     private static FlowVersionTrackDto ParseTrack(string? value)
     {
-        global::SereinFlow.Contracts.FlowVersionTrackDto evaluatedValue73 = Enum.TryParse<FlowVersionTrackDto>(value, ignoreCase: true, out var track) ? track : FlowVersionTrackDto.Development;
+        FlowVersionTrackDto evaluatedValue73 = Enum.TryParse<FlowVersionTrackDto>(value, ignoreCase: true, out var track) ? track : FlowVersionTrackDto.Development;
         return evaluatedValue73;
     }
 
     private static FlowVersionOperationDto ParseOperation(string? value)
     {
-        global::SereinFlow.Contracts.FlowVersionOperationDto evaluatedValue74 = Enum.TryParse<FlowVersionOperationDto>(value, ignoreCase: true, out var operation) ? operation : FlowVersionOperationDto.Imported;
+        FlowVersionOperationDto evaluatedValue74 = Enum.TryParse<FlowVersionOperationDto>(value, ignoreCase: true, out var operation) ? operation : FlowVersionOperationDto.Imported;
         return evaluatedValue74;
     }
 

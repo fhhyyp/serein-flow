@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
@@ -64,12 +66,12 @@ public sealed class AiReadModelService
             {
                 var findProductionVersionAsyncResult = await _versions.FindProductionVersionAsync(project.Id, flow.Id, cancellationToken);
                 var sumResult = flow.Canvases.Sum(static canvas => canvas.Nodes.Count);
-                global::SereinFlow.Contracts.AiFlowSummaryDto evaluatedValue = new(flow.Id, flow.Version, findProductionVersionAsyncResult, flow.EntryNodeId, flow.Canvases.Count, sumResult);
+                AiFlowSummaryDto evaluatedValue = new(flow.Id, flow.Version, findProductionVersionAsyncResult, flow.EntryNodeId, flow.Canvases.Count, sumResult);
                 summaries.Add(evaluatedValue);
             }
 
             var toStringResult = project.Status.ToString();
-            global::SereinFlow.Contracts.AiProjectSummaryDto evaluatedValue2 = new(project.Id, project.Name, project.Version, toStringResult, project.CreatedAt, project.UpdatedAt, summaries);
+            AiProjectSummaryDto evaluatedValue2 = new(project.Id, project.Name, project.Version, toStringResult, project.CreatedAt, project.UpdatedAt, summaries);
             items.Add(evaluatedValue2);
         }
 
@@ -95,12 +97,12 @@ public sealed class AiReadModelService
         {
             var findProductionVersionAsyncResult5 = await _versions.FindProductionVersionAsync(projectId, flow.Id, cancellationToken);
             var sumResult6 = flow.Canvases.Sum(static canvas => canvas.Nodes.Count);
-            global::SereinFlow.Contracts.AiFlowSummaryDto evaluatedValue7 = new(flow.Id, flow.Version, findProductionVersionAsyncResult5, flow.EntryNodeId, flow.Canvases.Count, sumResult6);
+            AiFlowSummaryDto evaluatedValue7 = new(flow.Id, flow.Version, findProductionVersionAsyncResult5, flow.EntryNodeId, flow.Canvases.Count, sumResult6);
             summaries.Add(evaluatedValue7);
         }
 
         var toStringResult8 = project.Status.ToString();
-        global::SereinFlow.Contracts.AiProjectSummaryDto evaluatedValue9 = new(project.Id, project.Name, project.Version, toStringResult8, project.CreatedAt, project.UpdatedAt, summaries);
+        AiProjectSummaryDto evaluatedValue9 = new(project.Id, project.Name, project.Version, toStringResult8, project.CreatedAt, project.UpdatedAt, summaries);
         return evaluatedValue9;
     }
 
@@ -127,9 +129,9 @@ public sealed class AiReadModelService
             definition = track == FlowVersionTrackDto.Production ? await _versions.FindProductionDefinitionAsync(projectId, flowId, cancellationToken) : await _flows.FindAsync(projectId, flowId, cancellationToken);
         }
 
-        global::SereinFlow.Contracts.AiFlowTopologyDto? evaluatedValue11 = definition is null ? null : resolveMapTopologyResult();
+        AiFlowTopologyDto? evaluatedValue11 = definition is null ? null : resolveMapTopologyResult();
         return evaluatedValue11;
-        global::SereinFlow.Contracts.AiFlowTopologyDto resolveMapTopologyResult()
+        AiFlowTopologyDto resolveMapTopologyResult()
         {
             var evaluatedValue10 = (options ?? new());
             var normalizeResult = evaluatedValue10.Normalize();
@@ -173,7 +175,7 @@ public sealed class AiReadModelService
             return mapLibraryResult;
         });
         var toArrayResult = selectResult13.ToArray();
-        global::SereinFlow.Contracts.AiFlowEditModelDto evaluatedValue14 = new(projectId, flowId, flow, builtinNodes.Nodes, toArrayResult);
+        AiFlowEditModelDto evaluatedValue14 = new(projectId, flowId, flow, builtinNodes.Nodes, toArrayResult);
         return evaluatedValue14;
     }
 
@@ -216,7 +218,7 @@ public sealed class AiReadModelService
     public async Task<AiLibrarySummaryDto?> GetLibraryAsync(string libraryId, CancellationToken cancellationToken = default)
     {
         var library = await _libraries.FindAsync(libraryId, cancellationToken);
-        global::SereinFlow.Contracts.AiLibrarySummaryDto? evaluatedValue22 = library is null ? null : MapLibrary(library, includeNodes: true);
+        AiLibrarySummaryDto? evaluatedValue22 = library is null ? null : MapLibrary(library, includeNodes: true);
         return evaluatedValue22;
     }
 
@@ -277,7 +279,7 @@ public sealed class AiReadModelService
         var outputs = await GetRunOutputsAsync(runId, normalized, cancellationToken) ?? EmptyPage<AiNodeExecutionRecordDto>();
         var debug = run.DebugSessionId is null ? null : await GetDebugStateAsync(run.DebugSessionId.Value, cancellationToken);
         var mapRunResult = MapRun(run);
-        global::SereinFlow.Contracts.AiRunInspectionDto evaluatedValue36 = new(mapRunResult, definition, events, outputs, debug);
+        AiRunInspectionDto evaluatedValue36 = new(mapRunResult, definition, events, outputs, debug);
         return evaluatedValue36;
     }
 
@@ -336,19 +338,19 @@ public sealed class AiReadModelService
     public async Task<AiDebugStateDto?> GetDebugStateAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         var session = await _debugSessions.FindAsync(sessionId, cancellationToken);
-        global::SereinFlow.Contracts.AiDebugStateDto? evaluatedValue51 = session is null ? null : MapDebugState(session);
+        AiDebugStateDto? evaluatedValue51 = session is null ? null : MapDebugState(session);
         return evaluatedValue51;
     }
 
     public async Task<AiDebugStateWaitResultDto?> WaitForDebugStateChangeAsync(Guid sessionId, long afterRevision, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         var result = await FlowDebugSessionWaiter.WaitAsync(_debugSessions, sessionId, afterRevision, timeout, cancellationToken);
-        global::SereinFlow.Contracts.AiDebugStateWaitResultDto? evaluatedValue53 = result.Session is null ? null : resolveevaluatedValue();
+        AiDebugStateWaitResultDto? evaluatedValue53 = result.Session is null ? null : resolveevaluatedValue();
         return evaluatedValue53;
-        global::SereinFlow.Contracts.AiDebugStateWaitResultDto resolveevaluatedValue()
+        AiDebugStateWaitResultDto resolveevaluatedValue()
         {
             var mapDebugStateResult = MapDebugState(result.Session);
-            global::SereinFlow.Contracts.AiDebugStateWaitResultDto evaluatedValue52 = new(result.HasChanged, result.TimedOut, mapDebugStateResult);
+            AiDebugStateWaitResultDto evaluatedValue52 = new(result.HasChanged, result.TimedOut, mapDebugStateResult);
             return evaluatedValue52;
         }
     }
@@ -380,7 +382,7 @@ public sealed class AiReadModelService
             return aiCanvasDto;
         });
         var toArrayResult66 = selectResult65.ToArray();
-        global::SereinFlow.Contracts.AiFlowTopologyDto evaluatedValue67 = new(projectId, definition.Id, track, definition.Version, definition.SchemaVersion, definition.EntryNodeId, definition.Checksum, evaluatedValue64, toArrayResult66);
+        AiFlowTopologyDto evaluatedValue67 = new(projectId, definition.Id, track, definition.Version, definition.SchemaVersion, definition.EntryNodeId, definition.Checksum, evaluatedValue64, toArrayResult66);
         return evaluatedValue67;
     }
 
@@ -400,22 +402,22 @@ public sealed class AiReadModelService
             return mapParameterResult;
         });
         var toArrayResult72 = selectResult71.ToArray();
-        global::SereinFlow.Contracts.AiNodeRuntimeDto conditionalValue;
+        AiNodeRuntimeDto conditionalValue;
         if (node.Ui is null)
         {
             conditionalValue = null;
         }
         else
         {
-            global::System.Guid? evaluatedValue1 = Guid.TryParse(node.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null;
+            Guid? evaluatedValue1 = Guid.TryParse(node.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null;
             conditionalValue = new AiNodeRuntimeDto(node.Ui.LibraryId, node.Ui.LibraryNodeContractId, node.Ui.FlowLibraryName, node.Ui.ClassName, node.Ui.MethodName, node.Ui.DllName, node.Ui.DllVersion, node.Ui.ReturnType, node.Ui.IsAwaitable ?? false, evaluatedValue1, node.Ui.TargetNodeId, node.Ui.TargetCanvasId, node.Ui.IsPublic ?? false);
         }
 
-        global::SereinFlow.Contracts.AiNodeRuntimeDto? evaluatedValue73 = conditionalValue;
-        global::SereinFlow.Contracts.AiScriptContractDto? evaluatedValue79 = node.Script is null ? null : resolveAiScriptContractDto();
-        global::SereinFlow.Contracts.AiNodeContractDto evaluatedValue80 = new(node.Id, toStringResult68, node.DisplayName, canvasId, toArrayResult70, toArrayResult72, evaluatedValue73, evaluatedValue79, node.X, node.Y);
+        AiNodeRuntimeDto? evaluatedValue73 = conditionalValue;
+        AiScriptContractDto? evaluatedValue79 = node.Script is null ? null : resolveAiScriptContractDto();
+        AiNodeContractDto evaluatedValue80 = new(node.Id, toStringResult68, node.DisplayName, canvasId, toArrayResult70, toArrayResult72, evaluatedValue73, evaluatedValue79, node.X, node.Y);
         return evaluatedValue80;
-        global::SereinFlow.Contracts.AiScriptContractDto resolveAiScriptContractDto()
+        AiScriptContractDto resolveAiScriptContractDto()
         {
             string? evaluatedValue74 = options.IncludeScriptSource ? LimitText(node.Script.Source, options.MaxJsonBytes) : null;
             var selectResult75 = node.Script.Inputs.Select(MapScriptValue);
@@ -439,13 +441,13 @@ public sealed class AiReadModelService
         var toStringResult81 = source.ToString();
         var evaluatedValue82 = !string.IsNullOrWhiteSpace(parameter.ValueJson) || parameter.Ui?.ProjectInputKey is not null || parameter.Ui?.Expression is not null || sourceNodeId is not null;
         string? evaluatedValue83 = options.IncludeFlowLiteralValues && source == DataSourceDto.Literal ? LimitText(parameter.ValueJson, options.MaxJsonBytes) : null;
-        global::SereinFlow.Contracts.AiParameterContractDto evaluatedValue84 = new(parameter.Ui?.Id ?? parameter.Name, parameter.Name, parameter.Ui?.Type ?? parameter.Ui?.ValueKind, toStringResult81, parameter.Required, evaluatedValue82, evaluatedValue83, options.IncludeFlowLiteralValues ? parameter.Ui?.ProjectInputKey : null, options.IncludeFlowLiteralValues ? parameter.Ui?.Expression : null, sourceNodeId, sourcePortId, parameter.Ui?.IsVariadic ?? false, parameter.Ui?.VariadicGroupId, parameter.Ui?.ElementType, parameter.Ui?.Description, parameter.Ui?.EnumMetadata);
+        AiParameterContractDto evaluatedValue84 = new(parameter.Ui?.Id ?? parameter.Name, parameter.Name, parameter.Ui?.Type ?? parameter.Ui?.ValueKind, toStringResult81, parameter.Required, evaluatedValue82, evaluatedValue83, options.IncludeFlowLiteralValues ? parameter.Ui?.ProjectInputKey : null, options.IncludeFlowLiteralValues ? parameter.Ui?.Expression : null, sourceNodeId, sourcePortId, parameter.Ui?.IsVariadic ?? false, parameter.Ui?.VariadicGroupId, parameter.Ui?.ElementType, parameter.Ui?.Description, parameter.Ui?.EnumMetadata);
         return evaluatedValue84;
     }
 
     private static AiScriptValueContractDto MapScriptValue(ScriptValueContractDto value)
     {
-        global::SereinFlow.Contracts.AiScriptValueContractDto evaluatedValue85 = new(value.Id ?? value.Name, value.Name, value.ValueKind, value.Required, value.Description);
+        AiScriptValueContractDto evaluatedValue85 = new(value.Id ?? value.Name, value.Name, value.ValueKind, value.Required, value.Description);
         return evaluatedValue85;
     }
 
@@ -454,17 +456,17 @@ public sealed class AiReadModelService
         var toStringResult86 = connection.Kind.ToString();
         var evaluatedValue87 = connection.Branch?.ToString();
         string? evaluatedValue88 = connection.Kind == ConnectionKindDto.Data ? (connection.DataSource ?? DataSourceDto.PreviousNode).ToString() : connection.DataSource?.ToString();
-        global::SereinFlow.Contracts.AiConnectionDto evaluatedValue89 = new(connection.Id, connection.FromNodeId, connection.FromPortId, connection.ToNodeId, connection.ToPortId, toStringResult86, evaluatedValue87, evaluatedValue88, connection.Priority);
+        AiConnectionDto evaluatedValue89 = new(connection.Id, connection.FromNodeId, connection.FromPortId, connection.ToNodeId, connection.ToPortId, toStringResult86, evaluatedValue87, evaluatedValue88, connection.Priority);
         return evaluatedValue89;
     }
 
     private static AiLibrarySummaryDto MapLibrary(LibraryDto library, bool includeNodes)
     {
         var toStringResult93 = library.Lifecycle.ToString();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.AiLibraryNodeContractDto>? evaluatedValue96 = includeNodes ? resolveToArrayResult() : null;
-        global::SereinFlow.Contracts.AiLibrarySummaryDto evaluatedValue97 = new(library.Id, library.Name, library.Version, library.SemanticVersion, library.Sha256, toStringResult93, library.FamilyId, library.FamilyName, library.Nodes.Count, evaluatedValue96);
+        IReadOnlyList<AiLibraryNodeContractDto>? evaluatedValue96 = includeNodes ? resolveToArrayResult() : null;
+        AiLibrarySummaryDto evaluatedValue97 = new(library.Id, library.Name, library.Version, library.SemanticVersion, library.Sha256, toStringResult93, library.FamilyId, library.FamilyName, library.Nodes.Count, evaluatedValue96);
         return evaluatedValue97;
-        global::SereinFlow.Contracts.AiLibraryNodeContractDto[] resolveToArrayResult()
+        AiLibraryNodeContractDto[] resolveToArrayResult()
         {
             var selectResult94 = library.Nodes.Select(node =>
             {
@@ -487,7 +489,7 @@ public sealed class AiReadModelService
     {
         var toStringResult98 = run.Status.ToString();
         var toStringResult99 = run.ExecutionKind.ToString();
-        global::SereinFlow.Contracts.AiRunSummaryDto evaluatedValue100 = new(run.Id, run.ProjectId, run.FlowId, run.FlowVersion, toStringResult98, toStringResult99, run.IsListenerRun, run.CreatedAt, run.StartedAt, run.EndedAt, run.ErrorSummary, run.CancellationReason, run.DebugSessionId, run.DefinitionChecksum);
+        AiRunSummaryDto evaluatedValue100 = new(run.Id, run.ProjectId, run.FlowId, run.FlowVersion, toStringResult98, toStringResult99, run.IsListenerRun, run.CreatedAt, run.StartedAt, run.EndedAt, run.ErrorSummary, run.CancellationReason, run.DebugSessionId, run.DefinitionChecksum);
         return evaluatedValue100;
     }
 
@@ -497,7 +499,7 @@ public sealed class AiReadModelService
         var payload = deconstructedValues.Item1;
         var malformed = deconstructedValues.Item2;
         var truncated = deconstructedValues.Item3;
-        global::SereinFlow.Contracts.AiRunEventDto evaluatedValue101 = new(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, payload, malformed, truncated);
+        AiRunEventDto evaluatedValue101 = new(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, payload, malformed, truncated);
         return evaluatedValue101;
     }
 
@@ -511,25 +513,25 @@ public sealed class AiReadModelService
         var outputs = deconstructedValues103.Item1;
         var outputsMalformed = deconstructedValues103.Item2;
         var outputsTruncated = deconstructedValues103.Item3;
-        global::SereinFlow.Contracts.AiNodeExecutionRecordDto evaluatedValue104 = new(item.RunId, item.Sequence, item.Timestamp, item.NodeId, item.Outcome, item.Branch, inputs, outputs, item.ErrorCode, item.ErrorMessage, inputsMalformed, outputsMalformed, inputsTruncated, outputsTruncated);
+        AiNodeExecutionRecordDto evaluatedValue104 = new(item.RunId, item.Sequence, item.Timestamp, item.NodeId, item.Outcome, item.Branch, inputs, outputs, item.ErrorCode, item.ErrorMessage, inputsMalformed, outputsMalformed, inputsTruncated, outputsTruncated);
         return evaluatedValue104;
     }
 
     private static AiDebugStateDto MapDebugState(FlowDebugSession session)
     {
         var toStringResult105 = session.Status.ToString();
-        global::SereinFlow.Contracts.AiDebugPauseStateDto? evaluatedValue107 = session.PauseState is null ? null : resolveAiDebugPauseStateDto();
-        global::SereinFlow.Contracts.AiDebugNodeResultDto? evaluatedValue110 = session.LastNodeResult is null ? null : resolveAiDebugNodeResultDto();
-        global::SereinFlow.Contracts.AiDebugStateDto evaluatedValue111 = new(session.Id, session.RunId, session.ProjectId, session.FlowId, toStringResult105, session.BreakpointNodeIds, session.CurrentNodeId, session.ActiveInvocationId, session.ActiveFlipflopNodeId, session.QueuedTriggerCount, session.LastCommandSequence, session.FailureMessage, session.CreatedAt, session.UpdatedAt, session.StateRevision, evaluatedValue107, evaluatedValue110);
+        AiDebugPauseStateDto? evaluatedValue107 = session.PauseState is null ? null : resolveAiDebugPauseStateDto();
+        AiDebugNodeResultDto? evaluatedValue110 = session.LastNodeResult is null ? null : resolveAiDebugNodeResultDto();
+        AiDebugStateDto evaluatedValue111 = new(session.Id, session.RunId, session.ProjectId, session.FlowId, toStringResult105, session.BreakpointNodeIds, session.CurrentNodeId, session.ActiveInvocationId, session.ActiveFlipflopNodeId, session.QueuedTriggerCount, session.LastCommandSequence, session.FailureMessage, session.CreatedAt, session.UpdatedAt, session.StateRevision, evaluatedValue107, evaluatedValue110);
         return evaluatedValue111;
-        global::SereinFlow.Contracts.AiDebugPauseStateDto resolveAiDebugPauseStateDto()
+        AiDebugPauseStateDto resolveAiDebugPauseStateDto()
         {
             var evaluatedValue106 = ParsePayload(session.PauseState.InputsJson, 64 * 1024).Payload;
             var aiDebugPauseStateDto = new AiDebugPauseStateDto(session.PauseState.NodeId, session.PauseState.NodeType, session.PauseState.Step, session.PauseState.FrameDepth, session.PauseState.InvocationId, session.PauseState.BoundarySequence, evaluatedValue106, session.PauseState.PausedAt);
             return aiDebugPauseStateDto;
         }
 
-        global::SereinFlow.Contracts.AiDebugNodeResultDto resolveAiDebugNodeResultDto()
+        AiDebugNodeResultDto resolveAiDebugNodeResultDto()
         {
             var evaluatedValue108 = ParsePayload(session.LastNodeResult.InputsJson, 64 * 1024).Payload;
             var evaluatedValue109 = ParsePayload(session.LastNodeResult.OutputsJson, 64 * 1024).Payload;
@@ -541,7 +543,7 @@ public sealed class AiReadModelService
     private static AiDebugSessionSummaryDto MapDebugSessionSummary(FlowDebugSession session)
     {
         var toStringResult112 = session.Status.ToString();
-        global::SereinFlow.Contracts.AiDebugSessionSummaryDto evaluatedValue113 = new(session.Id, session.RunId, session.ProjectId, session.FlowId, toStringResult112, session.BreakpointNodeIds, session.CurrentNodeId, session.ActiveInvocationId, session.ActiveFlipflopNodeId, session.QueuedTriggerCount, session.LastCommandSequence, session.StateRevision, session.CreatedAt, session.UpdatedAt);
+        AiDebugSessionSummaryDto evaluatedValue113 = new(session.Id, session.RunId, session.ProjectId, session.FlowId, toStringResult112, session.BreakpointNodeIds, session.CurrentNodeId, session.ActiveInvocationId, session.ActiveFlipflopNodeId, session.QueuedTriggerCount, session.LastCommandSequence, session.StateRevision, session.CreatedAt, session.UpdatedAt);
         return evaluatedValue113;
     }
 
@@ -610,7 +612,7 @@ public sealed class AiReadModelService
         var hasMore = items.Count > take;
         var visible = hasMore ? resolveToArrayResult118() : items.ToArray();
         string? evaluatedValue121 = hasMore && visible.Length > 0 ? cursor(visible[^1]) : null;
-        global::SereinFlow.Contracts.AiPageDto<T> evaluatedValue122 = new(AiReadModelContract.SchemaVersion, visible, hasMore, evaluatedValue121);
+        AiPageDto<T> evaluatedValue122 = new(AiReadModelContract.SchemaVersion, visible, hasMore, evaluatedValue121);
         return evaluatedValue122;
         T[] resolveToArrayResult118()
         {
@@ -622,7 +624,7 @@ public sealed class AiReadModelService
 
     private static AiPageDto<T> EmptyPage<T>()
     {
-        global::SereinFlow.Contracts.AiPageDto<T> evaluatedValue123 = new(AiReadModelContract.SchemaVersion, [], false, null);
+        AiPageDto<T> evaluatedValue123 = new(AiReadModelContract.SchemaVersion, [], false, null);
         return evaluatedValue123;
     }
 }

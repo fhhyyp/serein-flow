@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using SereinFlow.Contracts;
 
@@ -40,7 +41,7 @@ public sealed class FlowPatchContractNormalizer
         foreach (var operation in operationElement.EnumerateArray())
         {
             var path = $"$.operations[{index}]";
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue = isV2 ? ReadV2Operation(operation, path) : ReadV1Operation(operation, path);
+            FlowPatchCanonicalOperationDto evaluatedValue = isV2 ? ReadV2Operation(operation, path) : ReadV1Operation(operation, path);
             operations.Add(evaluatedValue);
             index++;
         }
@@ -61,7 +62,7 @@ public sealed class FlowPatchContractNormalizer
         });
         var operations = selectResult.ToArray();
         var canonical = new FlowPatchCanonicalRequestDto(request.ProjectId, request.FlowId, request.ExpectedDevelopmentVersion, FlowPatchContract.CurrentSchemaVersion, operations, request.Remark);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowPatchNormalizationWarningDto> evaluatedValue1 = [new FlowPatchNormalizationWarningDto(McpErrorCodes.FlowPatchLegacyInput, "$.operations", "The stored preview uses the legacy flow-patch representation and was normalized to schema 2.0.")];
+        IReadOnlyList<FlowPatchNormalizationWarningDto> evaluatedValue1 = [new FlowPatchNormalizationWarningDto(McpErrorCodes.FlowPatchLegacyInput, "$.operations", "The stored preview uses the legacy flow-patch representation and was normalized to schema 2.0.")];
         var normalizedFlowPatchRequest2 = new NormalizedFlowPatchRequest(canonical, request, evaluatedValue1);
         return normalizedFlowPatchRequest2;
     }
@@ -99,14 +100,14 @@ public sealed class FlowPatchContractNormalizer
     {
         var selectResult5 = request.Operations.Select(ToLegacyOperation);
         var toArrayResult6 = selectResult5.ToArray();
-        global::SereinFlow.Contracts.FlowPatchRequestDto evaluatedValue7 = new(request.ProjectId, request.FlowId, request.ExpectedDevelopmentVersion, toArrayResult6, request.Remark);
+        FlowPatchRequestDto evaluatedValue7 = new(request.ProjectId, request.FlowId, request.ExpectedDevelopmentVersion, toArrayResult6, request.Remark);
         return evaluatedValue7;
     }
 
     public static FlowPatchOperationDto ToLegacyOperation(FlowPatchCanonicalOperationDto operation)
     {
         ArgumentNullException.ThrowIfNull(operation);
-        global::SereinFlow.Contracts.FlowPatchOperationDto evaluatedValue8 = operation.Op switch
+        FlowPatchOperationDto evaluatedValue8 = operation.Op switch
         {
             "addCanvas" => Legacy(FlowPatchOperationKindDto.AddCanvas, value: operation.Canvas),
             "updateCanvas" => Legacy(FlowPatchOperationKindDto.UpdateCanvas, operation.CanvasId, value: operation.Canvas),
@@ -129,8 +130,8 @@ public sealed class FlowPatchContractNormalizer
 
     private static FlowPatchOperationDto Legacy(FlowPatchOperationKindDto operation, string? canvasId = null, string? nodeId = null, string? connectionId = null, string? parameterId = null, object? value = null)
     {
-        global::System.Text.Json.JsonElement? evaluatedValue9 = value is null ? null : JsonSerializer.SerializeToElement(value, JsonOptions);
-        global::SereinFlow.Contracts.FlowPatchOperationDto evaluatedValue10 = new(operation, canvasId, nodeId, connectionId, parameterId, evaluatedValue9);
+        JsonElement? evaluatedValue9 = value is null ? null : JsonSerializer.SerializeToElement(value, JsonOptions);
+        FlowPatchOperationDto evaluatedValue10 = new(operation, canvasId, nodeId, connectionId, parameterId, evaluatedValue9);
         return evaluatedValue10;
     }
 
@@ -170,7 +171,7 @@ public sealed class FlowPatchContractNormalizer
     {
         RequireObject(operation, path, "Each operation must be an object.");
         var op = ReadRequiredString(operation, "op", $"{path}.op");
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue43 = op switch
+        FlowPatchCanonicalOperationDto evaluatedValue43 = op switch
         {
             "addCanvas" => resolveevaluatedValue(),
             "updateCanvas" => resolveevaluatedValue12(),
@@ -189,78 +190,78 @@ public sealed class FlowPatchContractNormalizer
             "replaceScriptSource" => ReadV2ReplaceScriptSource(operation, path, op),
             _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.op", "one of the 15 schema 2.0 operation names", "Use the operation names exposed by sereinflow_preview_flow_patch.")};
         return evaluatedValue43;
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue()
         {
             var readCanvasResult = ReadCanvas(operation, "canvas", path, legacyEnums: false, ["op", "canvas"]);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue11 = new(op, Canvas: readCanvasResult);
+            FlowPatchCanonicalOperationDto evaluatedValue11 = new(op, Canvas: readCanvasResult);
             return evaluatedValue11;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue12()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue12()
         {
             var readRequiredStringResult = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
             var readCanvasResult13 = ReadCanvas(operation, "canvas", path, legacyEnums: false, ["op", "canvasId", "canvas"]);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue14 = new(op, readRequiredStringResult, Canvas: readCanvasResult13);
+            FlowPatchCanonicalOperationDto evaluatedValue14 = new(op, readRequiredStringResult, Canvas: readCanvasResult13);
             return evaluatedValue14;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue15()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue15()
         {
             var readRequiredStringResult16 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
             var readNodeResult = ReadNode(operation, "node", path, legacyEnums: false, ["op", "canvasId", "node"]);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue17 = new(op, readRequiredStringResult16, Node: readNodeResult);
+            FlowPatchCanonicalOperationDto evaluatedValue17 = new(op, readRequiredStringResult16, Node: readNodeResult);
             return evaluatedValue17;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue18()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue18()
         {
             var readRequiredStringResult19 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
             var readRequiredStringResult20 = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
             var readNodeResult21 = ReadNode(operation, "node", path, legacyEnums: false, ["op", "canvasId", "nodeId", "node"]);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue22 = new(op, readRequiredStringResult19, readRequiredStringResult20, Node: readNodeResult21);
+            FlowPatchCanonicalOperationDto evaluatedValue22 = new(op, readRequiredStringResult19, readRequiredStringResult20, Node: readNodeResult21);
             return evaluatedValue22;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue23()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue23()
         {
             var readRequiredStringResult24 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
             var readRequiredStringResult25 = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
             var readRequiredStringResult26 = ReadRequiredString(operation, "parameterId", $"{path}.parameterId");
             var readParameterResult = ReadParameter(operation, "parameter", path, legacyEnums: false, ["op", "canvasId", "nodeId", "parameterId", "parameter"]);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue27 = new(op, readRequiredStringResult24, readRequiredStringResult25, ParameterId: readRequiredStringResult26, Parameter: readParameterResult);
+            FlowPatchCanonicalOperationDto evaluatedValue27 = new(op, readRequiredStringResult24, readRequiredStringResult25, ParameterId: readRequiredStringResult26, Parameter: readParameterResult);
             return evaluatedValue27;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue28()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue28()
         {
             var readRequiredStringResult29 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
             var readRequiredStringResult30 = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
             var readParameterResult31 = ReadParameter(operation, "parameter", path, legacyEnums: false, ["op", "canvasId", "nodeId", "parameter"]);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue32 = new(op, readRequiredStringResult29, readRequiredStringResult30, Parameter: readParameterResult31);
+            FlowPatchCanonicalOperationDto evaluatedValue32 = new(op, readRequiredStringResult29, readRequiredStringResult30, Parameter: readParameterResult31);
             return evaluatedValue32;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue33()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue33()
         {
             var readRequiredStringResult34 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
             var readConnectionResult = ReadConnection(operation, "connection", path, legacyEnums: false, ["op", "canvasId", "connection"]);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue35 = new(op, readRequiredStringResult34, Connection: readConnectionResult);
+            FlowPatchCanonicalOperationDto evaluatedValue35 = new(op, readRequiredStringResult34, Connection: readConnectionResult);
             return evaluatedValue35;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue36()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue36()
         {
             var readRequiredStringResult37 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
             var readRequiredStringResult38 = ReadRequiredString(operation, "connectionId", $"{path}.connectionId");
             var readConnectionResult39 = ReadConnection(operation, "connection", path, legacyEnums: false, ["op", "canvasId", "connectionId", "connection"]);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue40 = new(op, readRequiredStringResult37, ConnectionId: readRequiredStringResult38, Connection: readConnectionResult39);
+            FlowPatchCanonicalOperationDto evaluatedValue40 = new(op, readRequiredStringResult37, ConnectionId: readRequiredStringResult38, Connection: readConnectionResult39);
             return evaluatedValue40;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue41()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue41()
         {
             var readRunPolicyResult = ReadRunPolicy(operation, "runPolicy", path, legacyEnums: false, ["op", "runPolicy"]);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue42 = new(op, RunPolicy: readRunPolicyResult);
+            FlowPatchCanonicalOperationDto evaluatedValue42 = new(op, RunPolicy: readRunPolicyResult);
             return evaluatedValue42;
         }
     }
@@ -269,7 +270,7 @@ public sealed class FlowPatchContractNormalizer
     {
         EnsureKnownProperties(operation, path, ["op", "canvasId"]);
         var readRequiredStringResult44 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue45 = new(op, readRequiredStringResult44);
+        FlowPatchCanonicalOperationDto evaluatedValue45 = new(op, readRequiredStringResult44);
         return evaluatedValue45;
     }
 
@@ -278,7 +279,7 @@ public sealed class FlowPatchContractNormalizer
         EnsureKnownProperties(operation, path, ["op", "canvasId", "nodeId"]);
         var readRequiredStringResult46 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
         var readRequiredStringResult47 = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue48 = new(op, readRequiredStringResult46, readRequiredStringResult47);
+        FlowPatchCanonicalOperationDto evaluatedValue48 = new(op, readRequiredStringResult46, readRequiredStringResult47);
         return evaluatedValue48;
     }
 
@@ -288,7 +289,7 @@ public sealed class FlowPatchContractNormalizer
         var readRequiredStringResult49 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
         var readRequiredStringResult50 = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
         var readRequiredStringResult51 = ReadRequiredString(operation, "parameterId", $"{path}.parameterId");
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue52 = new(op, readRequiredStringResult49, readRequiredStringResult50, ParameterId: readRequiredStringResult51);
+        FlowPatchCanonicalOperationDto evaluatedValue52 = new(op, readRequiredStringResult49, readRequiredStringResult50, ParameterId: readRequiredStringResult51);
         return evaluatedValue52;
     }
 
@@ -297,7 +298,7 @@ public sealed class FlowPatchContractNormalizer
         EnsureKnownProperties(operation, path, ["op", "canvasId", "connectionId"]);
         var readRequiredStringResult53 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
         var readRequiredStringResult54 = ReadRequiredString(operation, "connectionId", $"{path}.connectionId");
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue55 = new(op, readRequiredStringResult53, ConnectionId: readRequiredStringResult54);
+        FlowPatchCanonicalOperationDto evaluatedValue55 = new(op, readRequiredStringResult53, ConnectionId: readRequiredStringResult54);
         return evaluatedValue55;
     }
 
@@ -305,7 +306,7 @@ public sealed class FlowPatchContractNormalizer
     {
         EnsureKnownProperties(operation, path, ["op", "entryNodeId"]);
         var readRequiredStringResult56 = ReadRequiredString(operation, "entryNodeId", $"{path}.entryNodeId");
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue57 = new(op, EntryNodeId: readRequiredStringResult56);
+        FlowPatchCanonicalOperationDto evaluatedValue57 = new(op, EntryNodeId: readRequiredStringResult56);
         return evaluatedValue57;
     }
 
@@ -315,7 +316,7 @@ public sealed class FlowPatchContractNormalizer
         var readRequiredStringResult58 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
         var readRequiredStringResult59 = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
         var readRequiredStringResult60 = ReadRequiredString(operation, "source", $"{path}.source");
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue61 = new(op, readRequiredStringResult58, readRequiredStringResult59, Source: readRequiredStringResult60);
+        FlowPatchCanonicalOperationDto evaluatedValue61 = new(op, readRequiredStringResult58, readRequiredStringResult59, Source: readRequiredStringResult60);
         return evaluatedValue61;
     }
 
@@ -324,7 +325,7 @@ public sealed class FlowPatchContractNormalizer
         RequireObject(operation, path, "Each operation must be an object.");
         var requirePropertyResult = RequireProperty(operation, "operation", $"{path}.operation");
         var op = ReadLegacyOperationName(requirePropertyResult, $"{path}.operation");
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue124 = op switch
+        FlowPatchCanonicalOperationDto evaluatedValue124 = op switch
         {
             "addCanvas" => resolveevaluatedValue62(),
             "updateCanvas" => resolveevaluatedValue64(),
@@ -343,128 +344,128 @@ public sealed class FlowPatchContractNormalizer
             "replaceScriptSource" => resolveevaluatedValue119(),
             _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.operation", "a supported legacy operation name", "Use schemaVersion 2.0 and the canonical op names.")};
         return evaluatedValue124;
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue62()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue62()
         {
             var readLegacyPayloadResult = ReadLegacyPayload<CanvasDto>(operation, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue63 = new(op, Canvas: readLegacyPayloadResult);
+            FlowPatchCanonicalOperationDto evaluatedValue63 = new(op, Canvas: readLegacyPayloadResult);
             return evaluatedValue63;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue64()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue64()
         {
             var readLegacyIdentifierResult = ReadLegacyIdentifier(operation, "canvasId", path);
             var readLegacyPayloadResult65 = ReadLegacyPayload<CanvasDto>(operation, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue66 = new(op, readLegacyIdentifierResult, Canvas: readLegacyPayloadResult65);
+            FlowPatchCanonicalOperationDto evaluatedValue66 = new(op, readLegacyIdentifierResult, Canvas: readLegacyPayloadResult65);
             return evaluatedValue66;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue67()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue67()
         {
             var readLegacyIdentifierResult68 = ReadLegacyIdentifier(operation, "canvasId", path);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue69 = new(op, readLegacyIdentifierResult68);
+            FlowPatchCanonicalOperationDto evaluatedValue69 = new(op, readLegacyIdentifierResult68);
             return evaluatedValue69;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue70()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue70()
         {
             var readLegacyIdentifierResult71 = ReadLegacyIdentifier(operation, "canvasId", path);
             var readLegacyPayloadResult72 = ReadLegacyPayload<NodeDto>(operation, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue73 = new(op, readLegacyIdentifierResult71, Node: readLegacyPayloadResult72);
+            FlowPatchCanonicalOperationDto evaluatedValue73 = new(op, readLegacyIdentifierResult71, Node: readLegacyPayloadResult72);
             return evaluatedValue73;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue74()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue74()
         {
             var readLegacyIdentifierResult75 = ReadLegacyIdentifier(operation, "canvasId", path);
             var readLegacyIdentifierResult76 = ReadLegacyIdentifier(operation, "nodeId", path);
             var readLegacyPayloadResult77 = ReadLegacyPayload<NodeDto>(operation, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue78 = new(op, readLegacyIdentifierResult75, readLegacyIdentifierResult76, Node: readLegacyPayloadResult77);
+            FlowPatchCanonicalOperationDto evaluatedValue78 = new(op, readLegacyIdentifierResult75, readLegacyIdentifierResult76, Node: readLegacyPayloadResult77);
             return evaluatedValue78;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue79()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue79()
         {
             var readLegacyIdentifierResult80 = ReadLegacyIdentifier(operation, "canvasId", path);
             var readLegacyIdentifierResult81 = ReadLegacyIdentifier(operation, "nodeId", path);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue82 = new(op, readLegacyIdentifierResult80, readLegacyIdentifierResult81);
+            FlowPatchCanonicalOperationDto evaluatedValue82 = new(op, readLegacyIdentifierResult80, readLegacyIdentifierResult81);
             return evaluatedValue82;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue83()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue83()
         {
             var readLegacyIdentifierResult84 = ReadLegacyIdentifier(operation, "canvasId", path);
             var readLegacyIdentifierResult85 = ReadLegacyIdentifier(operation, "nodeId", path);
             var readLegacyIdentifierResult86 = ReadLegacyIdentifier(operation, "parameterId", path);
             var readLegacyPayloadResult87 = ReadLegacyPayload<NodeParameterDto>(operation, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue88 = new(op, readLegacyIdentifierResult84, readLegacyIdentifierResult85, ParameterId: readLegacyIdentifierResult86, Parameter: readLegacyPayloadResult87);
+            FlowPatchCanonicalOperationDto evaluatedValue88 = new(op, readLegacyIdentifierResult84, readLegacyIdentifierResult85, ParameterId: readLegacyIdentifierResult86, Parameter: readLegacyPayloadResult87);
             return evaluatedValue88;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue89()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue89()
         {
             var readLegacyIdentifierResult90 = ReadLegacyIdentifier(operation, "canvasId", path);
             var readLegacyIdentifierResult91 = ReadLegacyIdentifier(operation, "nodeId", path);
             var readLegacyPayloadResult92 = ReadLegacyPayload<NodeParameterDto>(operation, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue93 = new(op, readLegacyIdentifierResult90, readLegacyIdentifierResult91, Parameter: readLegacyPayloadResult92);
+            FlowPatchCanonicalOperationDto evaluatedValue93 = new(op, readLegacyIdentifierResult90, readLegacyIdentifierResult91, Parameter: readLegacyPayloadResult92);
             return evaluatedValue93;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue94()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue94()
         {
             var readLegacyIdentifierResult95 = ReadLegacyIdentifier(operation, "canvasId", path);
             var readLegacyIdentifierResult96 = ReadLegacyIdentifier(operation, "nodeId", path);
             var readLegacyIdentifierResult97 = ReadLegacyIdentifier(operation, "parameterId", path);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue98 = new(op, readLegacyIdentifierResult95, readLegacyIdentifierResult96, ParameterId: readLegacyIdentifierResult97);
+            FlowPatchCanonicalOperationDto evaluatedValue98 = new(op, readLegacyIdentifierResult95, readLegacyIdentifierResult96, ParameterId: readLegacyIdentifierResult97);
             return evaluatedValue98;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue99()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue99()
         {
             var readLegacyIdentifierResult100 = ReadLegacyIdentifier(operation, "canvasId", path);
             var readLegacyPayloadResult101 = ReadLegacyPayload<ConnectionDto>(operation, path, legacyEnums: true);
             var normalizeConnectionResult = NormalizeConnection(readLegacyPayloadResult101);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue102 = new(op, readLegacyIdentifierResult100, Connection: normalizeConnectionResult);
+            FlowPatchCanonicalOperationDto evaluatedValue102 = new(op, readLegacyIdentifierResult100, Connection: normalizeConnectionResult);
             return evaluatedValue102;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue103()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue103()
         {
             var readLegacyIdentifierResult104 = ReadLegacyIdentifier(operation, "canvasId", path);
             var readLegacyIdentifierResult105 = ReadLegacyIdentifier(operation, "connectionId", path);
             var readLegacyPayloadResult106 = ReadLegacyPayload<ConnectionDto>(operation, path, legacyEnums: true);
             var normalizeConnectionResult107 = NormalizeConnection(readLegacyPayloadResult106);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue108 = new(op, readLegacyIdentifierResult104, ConnectionId: readLegacyIdentifierResult105, Connection: normalizeConnectionResult107);
+            FlowPatchCanonicalOperationDto evaluatedValue108 = new(op, readLegacyIdentifierResult104, ConnectionId: readLegacyIdentifierResult105, Connection: normalizeConnectionResult107);
             return evaluatedValue108;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue109()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue109()
         {
             var readLegacyIdentifierResult110 = ReadLegacyIdentifier(operation, "canvasId", path);
             var readLegacyIdentifierResult111 = ReadLegacyIdentifier(operation, "connectionId", path);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue112 = new(op, readLegacyIdentifierResult110, ConnectionId: readLegacyIdentifierResult111);
+            FlowPatchCanonicalOperationDto evaluatedValue112 = new(op, readLegacyIdentifierResult110, ConnectionId: readLegacyIdentifierResult111);
             return evaluatedValue112;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue113()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue113()
         {
             var readLegacyPayloadResult114 = ReadLegacyPayload<string>(operation, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue115 = new(op, EntryNodeId: readLegacyPayloadResult114);
+            FlowPatchCanonicalOperationDto evaluatedValue115 = new(op, EntryNodeId: readLegacyPayloadResult114);
             return evaluatedValue115;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue116()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue116()
         {
             var readLegacyPayloadResult117 = ReadLegacyPayload<FlowRunPolicyDto>(operation, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue118 = new(op, RunPolicy: readLegacyPayloadResult117);
+            FlowPatchCanonicalOperationDto evaluatedValue118 = new(op, RunPolicy: readLegacyPayloadResult117);
             return evaluatedValue118;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue119()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue119()
         {
             var readLegacyIdentifierResult120 = ReadLegacyIdentifier(operation, "canvasId", path);
             var readLegacyIdentifierResult121 = ReadLegacyIdentifier(operation, "nodeId", path);
             var readLegacyPayloadResult122 = ReadLegacyPayload<string>(operation, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue123 = new(op, readLegacyIdentifierResult120, readLegacyIdentifierResult121, Source: readLegacyPayloadResult122);
+            FlowPatchCanonicalOperationDto evaluatedValue123 = new(op, readLegacyIdentifierResult120, readLegacyIdentifierResult121, Source: readLegacyPayloadResult122);
             return evaluatedValue123;
         }
     }
@@ -473,7 +474,7 @@ public sealed class FlowPatchContractNormalizer
     {
         ArgumentNullException.ThrowIfNull(operation);
         var value = operation.Value;
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue188 = operation.Operation switch
+        FlowPatchCanonicalOperationDto evaluatedValue188 = operation.Operation switch
         {
             FlowPatchOperationKindDto.AddCanvas => resolveevaluatedValue125(),
             FlowPatchOperationKindDto.UpdateCanvas => resolveevaluatedValue127(),
@@ -492,128 +493,128 @@ public sealed class FlowPatchContractNormalizer
             FlowPatchOperationKindDto.ReplaceScriptSource => resolveevaluatedValue183(),
             _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a supported legacy operation", "Create a new schema 2.0 preview.")};
         return evaluatedValue188;
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue125()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue125()
         {
             var readPersistedPayloadResult = ReadPersistedPayload<CanvasDto>(value, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue126 = new("addCanvas", Canvas: readPersistedPayloadResult);
+            FlowPatchCanonicalOperationDto evaluatedValue126 = new("addCanvas", Canvas: readPersistedPayloadResult);
             return evaluatedValue126;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue127()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue127()
         {
             var requiredResult = Required(operation.CanvasId, $"{path}.canvasId");
             var readPersistedPayloadResult128 = ReadPersistedPayload<CanvasDto>(value, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue129 = new("updateCanvas", requiredResult, Canvas: readPersistedPayloadResult128);
+            FlowPatchCanonicalOperationDto evaluatedValue129 = new("updateCanvas", requiredResult, Canvas: readPersistedPayloadResult128);
             return evaluatedValue129;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue130()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue130()
         {
             var requiredResult131 = Required(operation.CanvasId, $"{path}.canvasId");
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue132 = new("removeCanvas", requiredResult131);
+            FlowPatchCanonicalOperationDto evaluatedValue132 = new("removeCanvas", requiredResult131);
             return evaluatedValue132;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue133()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue133()
         {
             var requiredResult134 = Required(operation.CanvasId, $"{path}.canvasId");
             var readPersistedPayloadResult135 = ReadPersistedPayload<NodeDto>(value, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue136 = new("addNode", requiredResult134, Node: readPersistedPayloadResult135);
+            FlowPatchCanonicalOperationDto evaluatedValue136 = new("addNode", requiredResult134, Node: readPersistedPayloadResult135);
             return evaluatedValue136;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue137()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue137()
         {
             var requiredResult138 = Required(operation.CanvasId, $"{path}.canvasId");
             var requiredResult139 = Required(operation.NodeId, $"{path}.nodeId");
             var readPersistedPayloadResult140 = ReadPersistedPayload<NodeDto>(value, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue141 = new("replaceNode", requiredResult138, requiredResult139, Node: readPersistedPayloadResult140);
+            FlowPatchCanonicalOperationDto evaluatedValue141 = new("replaceNode", requiredResult138, requiredResult139, Node: readPersistedPayloadResult140);
             return evaluatedValue141;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue142()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue142()
         {
             var requiredResult143 = Required(operation.CanvasId, $"{path}.canvasId");
             var requiredResult144 = Required(operation.NodeId, $"{path}.nodeId");
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue145 = new("removeNode", requiredResult143, requiredResult144);
+            FlowPatchCanonicalOperationDto evaluatedValue145 = new("removeNode", requiredResult143, requiredResult144);
             return evaluatedValue145;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue146()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue146()
         {
             var requiredResult147 = Required(operation.CanvasId, $"{path}.canvasId");
             var requiredResult148 = Required(operation.NodeId, $"{path}.nodeId");
             var requiredResult149 = Required(operation.ParameterId, $"{path}.parameterId");
             var readPersistedPayloadResult150 = ReadPersistedPayload<NodeParameterDto>(value, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue151 = new("setNodeParameter", requiredResult147, requiredResult148, ParameterId: requiredResult149, Parameter: readPersistedPayloadResult150);
+            FlowPatchCanonicalOperationDto evaluatedValue151 = new("setNodeParameter", requiredResult147, requiredResult148, ParameterId: requiredResult149, Parameter: readPersistedPayloadResult150);
             return evaluatedValue151;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue152()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue152()
         {
             var requiredResult153 = Required(operation.CanvasId, $"{path}.canvasId");
             var requiredResult154 = Required(operation.NodeId, $"{path}.nodeId");
             var readPersistedPayloadResult155 = ReadPersistedPayload<NodeParameterDto>(value, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue156 = new("addNodeParameter", requiredResult153, requiredResult154, Parameter: readPersistedPayloadResult155);
+            FlowPatchCanonicalOperationDto evaluatedValue156 = new("addNodeParameter", requiredResult153, requiredResult154, Parameter: readPersistedPayloadResult155);
             return evaluatedValue156;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue157()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue157()
         {
             var requiredResult158 = Required(operation.CanvasId, $"{path}.canvasId");
             var requiredResult159 = Required(operation.NodeId, $"{path}.nodeId");
             var requiredResult160 = Required(operation.ParameterId, $"{path}.parameterId");
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue161 = new("removeNodeParameter", requiredResult158, requiredResult159, ParameterId: requiredResult160);
+            FlowPatchCanonicalOperationDto evaluatedValue161 = new("removeNodeParameter", requiredResult158, requiredResult159, ParameterId: requiredResult160);
             return evaluatedValue161;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue162()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue162()
         {
             var requiredResult163 = Required(operation.CanvasId, $"{path}.canvasId");
             var readPersistedPayloadResult164 = ReadPersistedPayload<ConnectionDto>(value, path, legacyEnums: true);
             var normalizeConnectionResult165 = NormalizeConnection(readPersistedPayloadResult164);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue166 = new("addConnection", requiredResult163, Connection: normalizeConnectionResult165);
+            FlowPatchCanonicalOperationDto evaluatedValue166 = new("addConnection", requiredResult163, Connection: normalizeConnectionResult165);
             return evaluatedValue166;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue167()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue167()
         {
             var requiredResult168 = Required(operation.CanvasId, $"{path}.canvasId");
             var requiredResult169 = Required(operation.ConnectionId, $"{path}.connectionId");
             var readPersistedPayloadResult170 = ReadPersistedPayload<ConnectionDto>(value, path, legacyEnums: true);
             var normalizeConnectionResult171 = NormalizeConnection(readPersistedPayloadResult170);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue172 = new("replaceConnection", requiredResult168, ConnectionId: requiredResult169, Connection: normalizeConnectionResult171);
+            FlowPatchCanonicalOperationDto evaluatedValue172 = new("replaceConnection", requiredResult168, ConnectionId: requiredResult169, Connection: normalizeConnectionResult171);
             return evaluatedValue172;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue173()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue173()
         {
             var requiredResult174 = Required(operation.CanvasId, $"{path}.canvasId");
             var requiredResult175 = Required(operation.ConnectionId, $"{path}.connectionId");
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue176 = new("removeConnection", requiredResult174, ConnectionId: requiredResult175);
+            FlowPatchCanonicalOperationDto evaluatedValue176 = new("removeConnection", requiredResult174, ConnectionId: requiredResult175);
             return evaluatedValue176;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue177()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue177()
         {
             var readPersistedPayloadResult178 = ReadPersistedPayload<string>(value, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue179 = new("setEntryNode", EntryNodeId: readPersistedPayloadResult178);
+            FlowPatchCanonicalOperationDto evaluatedValue179 = new("setEntryNode", EntryNodeId: readPersistedPayloadResult178);
             return evaluatedValue179;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue180()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue180()
         {
             var readPersistedPayloadResult181 = ReadPersistedPayload<FlowRunPolicyDto>(value, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue182 = new("setRunPolicy", RunPolicy: readPersistedPayloadResult181);
+            FlowPatchCanonicalOperationDto evaluatedValue182 = new("setRunPolicy", RunPolicy: readPersistedPayloadResult181);
             return evaluatedValue182;
         }
 
-        global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto resolveevaluatedValue183()
+        FlowPatchCanonicalOperationDto resolveevaluatedValue183()
         {
             var requiredResult184 = Required(operation.CanvasId, $"{path}.canvasId");
             var requiredResult185 = Required(operation.NodeId, $"{path}.nodeId");
             var readPersistedPayloadResult186 = ReadPersistedPayload<string>(value, path, legacyEnums: true);
-            global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto evaluatedValue187 = new("replaceScriptSource", requiredResult184, requiredResult185, Source: readPersistedPayloadResult186);
+            FlowPatchCanonicalOperationDto evaluatedValue187 = new("replaceScriptSource", requiredResult184, requiredResult185, Source: readPersistedPayloadResult186);
             return evaluatedValue187;
         }
     }
@@ -1351,7 +1352,7 @@ public sealed class FlowPatchContractNormalizer
 
     private static FlowPatchContractException Invalid(string code, string fieldPath, string expected, string remediation)
     {
-        global::SereinFlow.Application.FlowPatchContractException evaluatedValue222 = new(code, fieldPath, expected, remediation);
+        FlowPatchContractException evaluatedValue222 = new(code, fieldPath, expected, remediation);
         return evaluatedValue222;
     }
 
@@ -1627,13 +1628,13 @@ public sealed class FlowPatchContractNormalizer
 
         private CanvasReferenceState RequireCanvas(string canvasId, string path)
         {
-            global::SereinFlow.Application.FlowPatchContractNormalizer.PatchReferenceState.CanvasReferenceState evaluatedValue240 = _canvases.TryGetValue(canvasId, out var canvas) ? canvas : throw ReferenceInvalid(path, "an existing canvas ID");
+            FlowPatchContractNormalizer.PatchReferenceState.CanvasReferenceState evaluatedValue240 = _canvases.TryGetValue(canvasId, out var canvas) ? canvas : throw ReferenceInvalid(path, "an existing canvas ID");
             return evaluatedValue240;
         }
 
         private static NodeReferenceState RequireNode(CanvasReferenceState canvas, string nodeId, string path)
         {
-            global::SereinFlow.Application.FlowPatchContractNormalizer.PatchReferenceState.NodeReferenceState evaluatedValue241 = canvas.Nodes.TryGetValue(nodeId, out var node) ? node : throw ReferenceInvalid(path, "an existing node ID");
+            FlowPatchContractNormalizer.PatchReferenceState.NodeReferenceState evaluatedValue241 = canvas.Nodes.TryGetValue(nodeId, out var node) ? node : throw ReferenceInvalid(path, "an existing node ID");
             return evaluatedValue241;
         }
 

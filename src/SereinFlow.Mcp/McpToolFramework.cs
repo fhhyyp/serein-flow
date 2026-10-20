@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
@@ -339,7 +341,7 @@ public sealed class McpToolAuditService
                 return getByteCountResult;
             }
 
-            global::System.Threading.Tasks.Task<global::SereinFlow.Application.Persistence.McpPreviewEntry?> resolveFindAsyncResult()
+            Task<McpPreviewEntry?> resolveFindAsyncResult()
             {
                 var getRequiredServiceResult5 = scope.ServiceProvider.GetRequiredService<IMcpPreviewStore>();
                 var findAsyncResult = getRequiredServiceResult5.FindAsync(previewId.Value, CancellationToken.None);
@@ -355,7 +357,7 @@ public sealed class McpToolAuditService
     private static Guid? TryGetGuid(JsonElement arguments, string name)
     {
         var value = TryGetString(arguments, name);
-        global::System.Guid? evaluatedValue7 = Guid.TryParse(value, out var parsed) ? parsed : null;
+        Guid? evaluatedValue7 = Guid.TryParse(value, out var parsed) ? parsed : null;
         return evaluatedValue7;
     }
 
@@ -383,7 +385,7 @@ public sealed class McpToolAuditService
     private static FlowVersionTrackDto? GetArgumentTrack(JsonElement arguments)
     {
         var value = TryGetString(arguments, "track");
-        global::SereinFlow.Contracts.FlowVersionTrackDto? evaluatedValue9 = Enum.TryParse<FlowVersionTrackDto>(value, true, out var parsed) && Enum.IsDefined(parsed) ? parsed : null;
+        FlowVersionTrackDto? evaluatedValue9 = Enum.TryParse<FlowVersionTrackDto>(value, true, out var parsed) && Enum.IsDefined(parsed) ? parsed : null;
         return evaluatedValue9;
     }
 

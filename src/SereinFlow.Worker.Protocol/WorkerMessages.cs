@@ -36,7 +36,7 @@ public sealed record WorkerMessage(int ProtocolVersion, string Kind, string Requ
     public static WorkerMessage Create(string kind, string? payloadJson = null, Guid? runId = null, DateTimeOffset? deadline = null, long? sequence = null, string? requestId = null)
     {
         var evaluatedValue = requestId ?? resolveToStringResult();
-        global::SereinFlow.Worker.Protocol.WorkerMessage evaluatedValue1 = new(WorkerProtocolConstants.Version, kind, evaluatedValue, runId, sequence, deadline, payloadJson);
+        WorkerMessage evaluatedValue1 = new(WorkerProtocolConstants.Version, kind, evaluatedValue, runId, sequence, deadline, payloadJson);
         return evaluatedValue1;
         string resolveToStringResult()
         {

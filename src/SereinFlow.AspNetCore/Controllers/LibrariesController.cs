@@ -41,7 +41,7 @@ public sealed class LibrariesController : ApiControllerBase
     public async Task<ActionResult> Get([FromRoute] string libraryId, CancellationToken cancellationToken)
     {
         var library = await _catalog.FindAsync(libraryId, cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue = library is null ? ApiProblem(StatusCodes.Status404NotFound, "Library not found. 未找到类库。") : Ok(library);
+        ActionResult evaluatedValue = library is null ? ApiProblem(StatusCodes.Status404NotFound, "Library not found. 未找到类库。") : Ok(library);
         return evaluatedValue;
     }
 
@@ -54,7 +54,7 @@ public sealed class LibrariesController : ApiControllerBase
         try
         {
             var family = await _catalog.AssignFamilyAsync(libraryId, request, cancellationToken);
-            global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue3 = family is null ? ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。") : Ok(family);
+            ActionResult evaluatedValue3 = family is null ? ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。") : Ok(family);
             return evaluatedValue3;
         }
         catch (ArgumentException exception)
@@ -76,7 +76,7 @@ public sealed class LibrariesController : ApiControllerBase
             return apiProblemResult4;
         }
 
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue5 = await _catalog.SetLifecycleAsync(libraryId, request.Lifecycle, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。");
+        ActionResult evaluatedValue5 = await _catalog.SetLifecycleAsync(libraryId, request.Lifecycle, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。");
         return evaluatedValue5;
     }
 
@@ -96,7 +96,7 @@ public sealed class LibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Archive([FromRoute] string libraryId, CancellationToken cancellationToken)
     {
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue6 = await _catalog.ArchiveAsync(libraryId, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Library not found. 未找到类库。");
+        ActionResult evaluatedValue6 = await _catalog.ArchiveAsync(libraryId, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Library not found. 未找到类库。");
         return evaluatedValue6;
     }
 
@@ -125,7 +125,7 @@ public sealed class LibrariesController : ApiControllerBase
     public async Task<ActionResult> GetLegacyNodes([FromRoute] string libraryId, CancellationToken cancellationToken)
     {
         var library = await _catalog.FindAsync(libraryId, cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue9 = library is null ? ApiProblem(StatusCodes.Status404NotFound, "Library not found. 未找到类库。") : Ok(library.Nodes);
+        ActionResult evaluatedValue9 = library is null ? ApiProblem(StatusCodes.Status404NotFound, "Library not found. 未找到类库。") : Ok(library.Nodes);
         return evaluatedValue9;
     }
 
@@ -173,7 +173,7 @@ public sealed class LibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> ArchiveEnvironment([FromRoute] string libraryId, CancellationToken cancellationToken)
     {
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue14 = await _catalog.ArchiveAsync(libraryId, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。");
+        ActionResult evaluatedValue14 = await _catalog.ArchiveAsync(libraryId, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。");
         return evaluatedValue14;
     }
 
@@ -186,7 +186,7 @@ public sealed class LibrariesController : ApiControllerBase
         try
         {
             var library = await _catalog.ReindexAsync(libraryId, cancellationToken);
-            global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue15 = library is null ? ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。") : Ok(library);
+            ActionResult evaluatedValue15 = library is null ? ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。") : Ok(library);
             return evaluatedValue15;
         }
         catch (LibraryUploadException exception)

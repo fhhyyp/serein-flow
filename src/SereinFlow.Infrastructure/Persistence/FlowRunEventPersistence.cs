@@ -166,7 +166,7 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
     {
         var parseResult = Guid.Parse(row.RunId);
         var parseResult10 = DateTimeOffset.Parse(row.Timestamp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        global::SereinFlow.Domain.FlowRunEvent evaluatedValue11 = new(parseResult, row.Sequence, parseResult10, row.Type, row.NodeId, row.PayloadJson);
+        FlowRunEvent evaluatedValue11 = new(parseResult, row.Sequence, parseResult10, row.Type, row.NodeId, row.PayloadJson);
         return evaluatedValue11;
     }
 }

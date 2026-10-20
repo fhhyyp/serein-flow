@@ -137,7 +137,7 @@ internal static class McpDebugToolHandlers
     private static FlowRunStatusDto? ReadOptionalRunStatus(JsonElement arguments)
     {
         var value = GetOptionalString(arguments, "status");
-        global::SereinFlow.Contracts.FlowRunStatusDto? evaluatedValue = string.IsNullOrWhiteSpace(value) ? null : Enum.TryParse<FlowRunStatusDto>(value, true, out var status) && Enum.IsDefined(status) ? status : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The run status must be pending, running, succeeded, failed, cancelled, timedOut or interrupted.", new { code = McpErrorCodes.InvalidArguments, path = "status" });
+        FlowRunStatusDto? evaluatedValue = string.IsNullOrWhiteSpace(value) ? null : Enum.TryParse<FlowRunStatusDto>(value, true, out var status) && Enum.IsDefined(status) ? status : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The run status must be pending, running, succeeded, failed, cancelled, timedOut or interrupted.", new { code = McpErrorCodes.InvalidArguments, path = "status" });
         return evaluatedValue;
     }
 

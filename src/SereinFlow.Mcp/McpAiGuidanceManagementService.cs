@@ -13,7 +13,7 @@ public sealed class McpAiGuidanceManagementService(McpAiGuidanceProvider provide
         var evaluatedValue1 = provider.CreateSnapshot().ById.Values;
         var selectResult = evaluatedValue1.Select(resource =>
         {
-            global::SereinFlow.Contracts.McpAiGuidanceSourceDto evaluatedValue = File.Exists(resource.FilePath) ? McpAiGuidanceSourceDto.Disk : McpAiGuidanceSourceDto.Embedded;
+            McpAiGuidanceSourceDto evaluatedValue = File.Exists(resource.FilePath) ? McpAiGuidanceSourceDto.Disk : McpAiGuidanceSourceDto.Embedded;
             var toResourceDtoResult = ToResourceDto(resource, evaluatedValue);
             return toResourceDtoResult;
         });
@@ -150,7 +150,7 @@ public sealed class McpAiGuidanceManagementService(McpAiGuidanceProvider provide
 
     private static McpAiGuidanceResourceDto ToResourceDto(ResolvedGuidanceResource resource, McpAiGuidanceSourceDto source)
     {
-        global::SereinFlow.Contracts.McpAiGuidanceResourceDto evaluatedValue12 = new(resource.Resource.Key, resource.Resource.Uri, resource.Resource.Name, resource.Resource.Description, source);
+        McpAiGuidanceResourceDto evaluatedValue12 = new(resource.Resource.Key, resource.Resource.Uri, resource.Resource.Name, resource.Resource.Description, source);
         return evaluatedValue12;
     }
 
@@ -161,7 +161,7 @@ public sealed class McpAiGuidanceManagementService(McpAiGuidanceProvider provide
         var hashDataResult = SHA256.HashData(getBytesResult);
         var revision = Convert.ToHexStringLower(hashDataResult);
         var toResourceDtoResult13 = ToResourceDto(resource, content.Source);
-        global::SereinFlow.Contracts.McpAiGuidanceContentDto evaluatedValue14 = new(toResourceDtoResult13, content.Text, revision, maxBytes);
+        McpAiGuidanceContentDto evaluatedValue14 = new(toResourceDtoResult13, content.Text, revision, maxBytes);
         return evaluatedValue14;
     }
 
@@ -219,13 +219,13 @@ public sealed class McpAiGuidanceManagementService(McpAiGuidanceProvider provide
 
     private static McpProtocolException AccessDenied()
     {
-        global::SereinFlow.Mcp.McpProtocolException evaluatedValue15 = new(McpProtocolErrorCodes.PermissionDenied, "The MCP skill override cannot be modified.", new { code = McpErrorCodes.AiGuidanceAccessDenied });
+        McpProtocolException evaluatedValue15 = new(McpProtocolErrorCodes.PermissionDenied, "The MCP skill override cannot be modified.", new { code = McpErrorCodes.AiGuidanceAccessDenied });
         return evaluatedValue15;
     }
 
     private static McpProtocolException SaveFailed()
     {
-        global::SereinFlow.Mcp.McpProtocolException evaluatedValue16 = new(McpProtocolErrorCodes.TransientFailure, "The MCP skill override could not be saved. Check the server directory and retry.", new { code = McpErrorCodes.AiGuidanceSaveFailed });
+        McpProtocolException evaluatedValue16 = new(McpProtocolErrorCodes.TransientFailure, "The MCP skill override could not be saved. Check the server directory and retry.", new { code = McpErrorCodes.AiGuidanceSaveFailed });
         return evaluatedValue16;
     }
 

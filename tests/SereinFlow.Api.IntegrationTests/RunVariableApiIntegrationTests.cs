@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -69,7 +70,7 @@ public sealed class RunVariableApiIntegrationTests
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ApiFactory.Key);
         var capturedAt = DateTimeOffset.UtcNow.AddMinutes(-1);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.RunVariableDto> evaluatedValue8 = [resolveevaluatedValue(), new("image", "OpenCvSharp.Mat", false, null, "unsupported_type")];
+        IReadOnlyList<RunVariableDto> evaluatedValue8 = [resolveevaluatedValue(), new("image", "OpenCvSharp.Mat", false, null, "unsupported_type")];
         var snapshot = new RunVariableSnapshotDto(factory.Run.Id, evaluatedValue8, 2, 0, false, capturedAt, IsFinal: true);
         await factory.SaveFinalAsync(snapshot);
         var path = $"/api/runs/{factory.Run.Id}/variables";
@@ -91,10 +92,10 @@ public sealed class RunVariableApiIntegrationTests
         var evaluatedValue14 = (await client.PutAsJsonAsync(path + "/count", new { value = 12, valueType = "int32" })).StatusCode;
         Assert.Equal(HttpStatusCode.Conflict, evaluatedValue14);
         Assert.Equal(0, factory.Worker.Calls);
-        global::SereinFlow.Contracts.RunVariableDto resolveevaluatedValue()
+        RunVariableDto resolveevaluatedValue()
         {
             var serializeToElementResult = JsonSerializer.SerializeToElement(11);
-            global::SereinFlow.Contracts.RunVariableDto evaluatedValue7 = new("count", "System.Int32", true, serializeToElementResult, ValueJson: "11");
+            RunVariableDto evaluatedValue7 = new("count", "System.Int32", true, serializeToElementResult, ValueJson: "11");
             return evaluatedValue7;
         }
     }
@@ -105,7 +106,7 @@ public sealed class RunVariableApiIntegrationTests
         using var factory = new ApiFactory();
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ApiFactory.Key);
-        global::SereinFlow.Contracts.RunVariableSnapshotDto evaluatedValue15 = new(factory.Run.Id, [], 0, 0, false, DateTimeOffset.UtcNow, IsFinal: true);
+        RunVariableSnapshotDto evaluatedValue15 = new(factory.Run.Id, [], 0, 0, false, DateTimeOffset.UtcNow, IsFinal: true);
         await factory.SaveFinalAsync(evaluatedValue15, completeRun: false);
         factory.Worker.Inactive = true;
         var snapshot = await client.GetFromJsonAsync<RunVariableSnapshotDto>($"/api/runs/{factory.Run.Id}/variables");
@@ -126,18 +127,18 @@ public sealed class RunVariableApiIntegrationTests
         {
             using var scope = Services.CreateScope();
             var getRequiredServiceResult = scope.ServiceProvider.GetRequiredService<IFlowRunEventStore>();
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.FlowRunEvent> evaluatedValue19 = [resolveevaluatedValue17()];
+            IReadOnlyList<FlowRunEvent> evaluatedValue19 = [resolveevaluatedValue17()];
             await getRequiredServiceResult.AppendAsync(evaluatedValue19);
             if (completeRun)
             {
                 Run.Complete(FlowRunStatus.Succeeded, DateTimeOffset.UtcNow);
             }
 
-            global::SereinFlow.Domain.FlowRunEvent resolveevaluatedValue17()
+            FlowRunEvent resolveevaluatedValue17()
             {
                 var createWebOptionsResult = SereinJsonSerialization.CreateWebOptions();
                 var serializeResult = JsonSerializer.Serialize(new { variables = snapshot }, createWebOptionsResult);
-                global::SereinFlow.Domain.FlowRunEvent evaluatedValue18 = new(Run.Id, 1, DateTimeOffset.UtcNow, RunErrorCodes.Completed, null, serializeResult);
+                FlowRunEvent evaluatedValue18 = new(Run.Id, 1, DateTimeOffset.UtcNow, RunErrorCodes.Completed, null, serializeResult);
                 return evaluatedValue18;
             }
         }
@@ -225,7 +226,7 @@ public sealed class RunVariableApiIntegrationTests
 
             if (request.Operation == "list")
             {
-                global::SereinFlow.Contracts.RunVariableSnapshotDto evaluatedValue20 = new(request.RunId, _value is null ? [] : [_value], _value is null ? 0 : 1, request.Offset, false, DateTimeOffset.UtcNow);
+                RunVariableSnapshotDto evaluatedValue20 = new(request.RunId, _value is null ? [] : [_value], _value is null ? 0 : 1, request.Offset, false, DateTimeOffset.UtcNow);
                 var workerVariableResponseDto21 = new WorkerVariableResponseDto(WorkerProtocol.Version, request.RunId, 200, Snapshot: evaluatedValue20);
                 var fromResultResult22 = Task.FromResult(workerVariableResponseDto21);
                 return fromResultResult22;

@@ -618,7 +618,7 @@ public sealed class FlowRunner
 
     private static NodeExecutionResult AttachInputs(NodeExecutionResult result, IReadOnlyDictionary<string, object?> fallbackInputs)
     {
-        global::SereinFlow.Runtime.Abstractions.NodeExecutionResult evaluatedValue30 = result.Inputs is null ? result with
+        NodeExecutionResult evaluatedValue30 = result.Inputs is null ? result with
         {
             Inputs = CopyInputs(fallbackInputs)
         }

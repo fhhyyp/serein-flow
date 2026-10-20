@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Domain;
 using SereinFlow.Contracts;
 
@@ -116,7 +117,7 @@ public sealed class ExecutionPlanBuilder
         {
             if (Visit(nodeId))
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.DomainDiagnostic> evaluatedValue8 = [new DomainDiagnostic(FlowErrorCodes.CycleDetected, "Execution connections must form a directed acyclic graph. 执行连接必须构成有向无环图。", $"nodes.{nodeId}")];
+                IReadOnlyList<DomainDiagnostic> evaluatedValue8 = [new DomainDiagnostic(FlowErrorCodes.CycleDetected, "Execution connections must form a directed acyclic graph. 执行连接必须构成有向无环图。", $"nodes.{nodeId}")];
                 throw new DomainValidationException(evaluatedValue8);
             }
         }
@@ -162,32 +163,32 @@ public sealed class ExecutionPlanBuilder
         {
             if (string.IsNullOrWhiteSpace(node.Runtime?.TargetNodeId))
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.DomainDiagnostic> evaluatedValue11 = [new DomainDiagnostic(FlowCallErrorCodes.TargetMissing, $"FlowCall node '{node.Id}' must define a target node. FlowCall 节点“{node.Id}”必须定义目标节点。", $"nodes.{node.Id}.runtime.targetNodeId")];
+                IReadOnlyList<DomainDiagnostic> evaluatedValue11 = [new DomainDiagnostic(FlowCallErrorCodes.TargetMissing, $"FlowCall node '{node.Id}' must define a target node. FlowCall 节点“{node.Id}”必须定义目标节点。", $"nodes.{node.Id}.runtime.targetNodeId")];
                 throw new DomainValidationException(evaluatedValue11);
             }
 
             if (!nodes.ContainsKey(node.Runtime.TargetNodeId))
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.DomainDiagnostic> evaluatedValue12 = [new DomainDiagnostic(FlowCallErrorCodes.TargetMissing, $"FlowCall target node '{node.Runtime.TargetNodeId}' does not exist. FlowCall 目标节点“{node.Runtime.TargetNodeId}”不存在。", $"nodes.{node.Id}.runtime.targetNodeId")];
+                IReadOnlyList<DomainDiagnostic> evaluatedValue12 = [new DomainDiagnostic(FlowCallErrorCodes.TargetMissing, $"FlowCall target node '{node.Runtime.TargetNodeId}' does not exist. FlowCall 目标节点“{node.Runtime.TargetNodeId}”不存在。", $"nodes.{node.Id}.runtime.targetNodeId")];
                 throw new DomainValidationException(evaluatedValue12);
             }
 
             if (node.Runtime.TargetFlowId is not null && node.Runtime.TargetFlowId != definition.Id)
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.DomainDiagnostic> evaluatedValue13 = [new DomainDiagnostic(FlowCallErrorCodes.TargetFlowUnavailable, "The target flow is not part of the current immutable run snapshot. 目标流程不在当前不可变运行快照中。", $"nodes.{node.Id}.runtime.targetFlowId")];
+                IReadOnlyList<DomainDiagnostic> evaluatedValue13 = [new DomainDiagnostic(FlowCallErrorCodes.TargetFlowUnavailable, "The target flow is not part of the current immutable run snapshot. 目标流程不在当前不可变运行快照中。", $"nodes.{node.Id}.runtime.targetFlowId")];
                 throw new DomainValidationException(evaluatedValue13);
             }
 
             var target = nodes[node.Runtime.TargetNodeId];
             if (target.Runtime?.IsPublic != true)
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.DomainDiagnostic> evaluatedValue14 = [new DomainDiagnostic(FlowCallErrorCodes.TargetNotPublic, $"FlowCall target node '{target.Id}' is not public. FlowCall 目标节点“{target.Id}”不是公开节点。", $"nodes.{node.Id}.runtime.targetNodeId")];
+                IReadOnlyList<DomainDiagnostic> evaluatedValue14 = [new DomainDiagnostic(FlowCallErrorCodes.TargetNotPublic, $"FlowCall target node '{target.Id}' is not public. FlowCall 目标节点“{target.Id}”不是公开节点。", $"nodes.{node.Id}.runtime.targetNodeId")];
                 throw new DomainValidationException(evaluatedValue14);
             }
 
             if (!string.IsNullOrWhiteSpace(node.Runtime.TargetCanvasId) && (!canvasByNodeId.TryGetValue(target.Id, out var targetCanvasId) || !string.Equals(node.Runtime.TargetCanvasId, targetCanvasId, StringComparison.Ordinal)))
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.DomainDiagnostic> evaluatedValue15 = [new DomainDiagnostic(FlowCallErrorCodes.TargetCanvasMismatch, "The FlowCall target canvas does not match the target node. FlowCall 目标画布与目标节点不匹配。", $"nodes.{node.Id}.runtime.targetCanvasId")];
+                IReadOnlyList<DomainDiagnostic> evaluatedValue15 = [new DomainDiagnostic(FlowCallErrorCodes.TargetCanvasMismatch, "The FlowCall target canvas does not match the target node. FlowCall 目标画布与目标节点不匹配。", $"nodes.{node.Id}.runtime.targetCanvasId")];
                 throw new DomainValidationException(evaluatedValue15);
             }
 
@@ -208,7 +209,7 @@ public sealed class ExecutionPlanBuilder
         {
             if (!callParameterIds.Contains(binding.CallParameterId) || !targetParameterIds.Contains(binding.TargetParameterId) || !boundCalls.Add(binding.CallParameterId) || !boundTargets.Add(binding.TargetParameterId))
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.DomainDiagnostic> evaluatedValue17 = [new DomainDiagnostic(FlowCallErrorCodes.ParameterBindingInvalid, "The FlowCall parameter binding is invalid. FlowCall 参数映射无效。", $"nodes.{callNode.Id}.runtime.flowCallParameterBindings")];
+                IReadOnlyList<DomainDiagnostic> evaluatedValue17 = [new DomainDiagnostic(FlowCallErrorCodes.ParameterBindingInvalid, "The FlowCall parameter binding is invalid. FlowCall 参数映射无效。", $"nodes.{callNode.Id}.runtime.flowCallParameterBindings")];
                 throw new DomainValidationException(evaluatedValue17);
             }
         }
@@ -220,7 +221,7 @@ public sealed class ExecutionPlanBuilder
         });
         if (missing is not null)
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.DomainDiagnostic> evaluatedValue19 = [new DomainDiagnostic(FlowCallErrorCodes.ParameterBindingMissing, $"Required target parameter '{missing.Name}' has no FlowCall input mapping. 目标必需参数“{missing.Name}”没有 FlowCall 输入映射。", $"nodes.{callNode.Id}.runtime.flowCallParameterBindings")];
+            IReadOnlyList<DomainDiagnostic> evaluatedValue19 = [new DomainDiagnostic(FlowCallErrorCodes.ParameterBindingMissing, $"Required target parameter '{missing.Name}' has no FlowCall input mapping. 目标必需参数“{missing.Name}”没有 FlowCall 输入映射。", $"nodes.{callNode.Id}.runtime.flowCallParameterBindings")];
             throw new DomainValidationException(evaluatedValue19);
         }
     }
@@ -260,7 +261,7 @@ public sealed class ExecutionPlanBuilder
         {
             if (Visit(nodeId))
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.DomainDiagnostic> evaluatedValue24 = [new DomainDiagnostic(FlowCallErrorCodes.CycleDetected, "FlowCall invocation graph must be acyclic. FlowCall 调用图必须无环。", $"nodes.{nodeId}")];
+                IReadOnlyList<DomainDiagnostic> evaluatedValue24 = [new DomainDiagnostic(FlowCallErrorCodes.CycleDetected, "FlowCall invocation graph must be acyclic. FlowCall 调用图必须无环。", $"nodes.{nodeId}")];
                 throw new DomainValidationException(evaluatedValue24);
             }
         }
@@ -307,7 +308,7 @@ public static class FlowCallReturnTypeAnalyzer
         ArgumentNullException.ThrowIfNull(plan);
         if (string.IsNullOrWhiteSpace(targetNodeId) || !plan.Nodes.ContainsKey(targetNodeId))
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.DomainDiagnostic> evaluatedValue27 = [new DomainDiagnostic(FlowCallErrorCodes.TargetMissing, $"FlowCall target node '{targetNodeId}' does not exist. FlowCall 目标节点“{targetNodeId}”不存在。", "targetNodeId")];
+            IReadOnlyList<DomainDiagnostic> evaluatedValue27 = [new DomainDiagnostic(FlowCallErrorCodes.TargetMissing, $"FlowCall target node '{targetNodeId}' does not exist. FlowCall 目标节点“{targetNodeId}”不存在。", "targetNodeId")];
             throw new DomainValidationException(evaluatedValue27);
         }
 
@@ -354,18 +355,18 @@ public static class FlowCallReturnTypeAnalyzer
 
         if (terminalTypes.Count == 0 || terminalTypes.SetEquals(["void"]))
         {
-            global::SereinFlow.Runtime.FlowCallReturnTypeAnalysis evaluatedValue28 = new("void", false);
+            FlowCallReturnTypeAnalysis evaluatedValue28 = new("void", false);
             return evaluatedValue28;
         }
 
         if (terminalTypes.Count == 1)
         {
             var singleResult = terminalTypes.Single();
-            global::SereinFlow.Runtime.FlowCallReturnTypeAnalysis evaluatedValue29 = new(singleResult, false);
+            FlowCallReturnTypeAnalysis evaluatedValue29 = new(singleResult, false);
             return evaluatedValue29;
         }
 
-        global::SereinFlow.Runtime.FlowCallReturnTypeAnalysis evaluatedValue30 = new("System.Object", true);
+        FlowCallReturnTypeAnalysis evaluatedValue30 = new("System.Object", true);
         return evaluatedValue30;
     }
 }

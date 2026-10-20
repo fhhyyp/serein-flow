@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Collections;
 using System.Globalization;
 using System.Reflection;
@@ -208,7 +210,7 @@ public static class ScriptValueConverter
             return evaluatedValue11;
         }
 
-        global::System.Exception resolveNotSupportedException()
+        Exception resolveNotSupportedException()
         {
             var evaluatedValue12 = $"Script number type '{value.GetType().Name}' has no numeric value. 脚本数值类型“{value.GetType().Name}”没有数值内容。";
             var notSupportedException = new NotSupportedException(evaluatedValue12);
@@ -218,7 +220,7 @@ public static class ScriptValueConverter
 
     private static Dictionary<string, object?> CreateClrObjectSummary(ClrObjectValue value)
     {
-        global::System.Collections.Generic.Dictionary<string, object> evaluatedValue14 = new(StringComparer.Ordinal)
+        Dictionary<string, object> evaluatedValue14 = new(StringComparer.Ordinal)
         {
             ["$kind"] = "ClrObject",
             ["clrType"] = value.Value?.GetType().FullName,
@@ -229,7 +231,7 @@ public static class ScriptValueConverter
 
     private static Dictionary<string, object?> CreateClrMethodSummary(ClrMethodValue value)
     {
-        global::System.Collections.Generic.Dictionary<string, object> evaluatedValue15 = new(StringComparer.Ordinal)
+        Dictionary<string, object> evaluatedValue15 = new(StringComparer.Ordinal)
         {
             ["$kind"] = "ClrMethod",
             ["declaringType"] = value.MethodInfo.DeclaringType?.FullName,
@@ -242,7 +244,7 @@ public static class ScriptValueConverter
 
     private static Dictionary<string, object?> CreateRuntimeValueSummary(Value value)
     {
-        global::System.Collections.Generic.Dictionary<string, object> evaluatedValue16 = new(StringComparer.Ordinal)
+        Dictionary<string, object> evaluatedValue16 = new(StringComparer.Ordinal)
         {
             ["$kind"] = value.GetType().Name,
             ["serializable"] = false

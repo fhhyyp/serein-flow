@@ -156,7 +156,7 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
 
     private IEndpointTopic? FindEndpoint(WorkerMessageChannelKindDto kind, string topic)
     {
-        global::SereinFlow.Worker.Runner.WorkerMessageService.IEndpointTopic? evaluatedValue = kind switch
+        WorkerMessageService.IEndpointTopic? evaluatedValue = kind switch
         {
             WorkerMessageChannelKindDto.Queue => _queues.TryGetValue(topic, out var queue) ? queue : null,
             WorkerMessageChannelKindDto.EventBus => _events.TryGetValue(topic, out var bus) ? bus : null,
@@ -557,7 +557,7 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
     private static WorkerMessageDeliveryResult Reject(WorkerMessageDeliveryDto delivery, string code, string message)
     {
         var evaluatedValue19 = delivery.Topic?.Trim() ?? string.Empty;
-        global::SereinFlow.Worker.Runner.WorkerMessageDeliveryResult evaluatedValue20 = new(false, false, code, message, delivery.MessageId, evaluatedValue19);
+        WorkerMessageDeliveryResult evaluatedValue20 = new(false, false, code, message, delivery.MessageId, evaluatedValue19);
         return evaluatedValue20;
     }
 

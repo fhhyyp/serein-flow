@@ -91,14 +91,14 @@ public sealed class WorkpiecesController : ApiControllerBase
             return apiProblemResult3;
         }
 
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue = download ? File(content, item.ContentType, item.Name, enableRangeProcessing: true) : File(content, item.ContentType, enableRangeProcessing: true);
+        ActionResult evaluatedValue = download ? File(content, item.ContentType, item.Name, enableRangeProcessing: true) : File(content, item.ContentType, enableRangeProcessing: true);
         return evaluatedValue;
     }
 
     private static FlowWorkpieceDto ToDto(FlowWorkpieceRecord item)
     {
         var runWorkpieceResult = SereinFlowApiUris.RunWorkpiece(item.RunId, item.Id);
-        global::SereinFlow.Contracts.FlowWorkpieceDto evaluatedValue4 = new(item.RunId, item.Id, item.Kind, item.Name, item.ContentType, item.Length, item.CreatedAt, runWorkpieceResult, item.NodeId, item.ExecutionId);
+        FlowWorkpieceDto evaluatedValue4 = new(item.RunId, item.Id, item.Kind, item.Name, item.ContentType, item.Length, item.CreatedAt, runWorkpieceResult, item.NodeId, item.ExecutionId);
         return evaluatedValue4;
     }
 }

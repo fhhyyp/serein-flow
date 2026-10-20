@@ -316,7 +316,7 @@ public static class ScriptValueTypeConverter
     {
         var evaluatedValue9 = value.GetType().Name;
         var evaluatedValue10 = $"Script value '{value.GetType().Name}' cannot be converted to '{targetType.FullName}'. 脚本值“{value.GetType().Name}”无法转换为“{targetType.FullName}”。 {detail}";
-        global::SereinFlow.ScriptAdapter.ScriptValueConversionException evaluatedValue11 = new(evaluatedValue9, targetType, evaluatedValue10, innerException);
+        ScriptValueConversionException evaluatedValue11 = new(evaluatedValue9, targetType, evaluatedValue10, innerException);
         return evaluatedValue11;
     }
 }

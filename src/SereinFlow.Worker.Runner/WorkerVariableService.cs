@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections;
 using System.Text;
 using System.Text.Json;
@@ -72,7 +73,7 @@ public static class WorkerVariableService
             }
         }
 
-        global::SereinFlow.Contracts.RunVariableSnapshotDto evaluatedValue = new(runId, entries, values.Count, 0, false, DateTimeOffset.UtcNow, IsFinal: true, IsTruncated: truncated);
+        RunVariableSnapshotDto evaluatedValue = new(runId, entries, values.Count, 0, false, DateTimeOffset.UtcNow, IsFinal: true, IsTruncated: truncated);
         return evaluatedValue;
     }
 
@@ -157,7 +158,7 @@ public static class WorkerVariableService
                     return projectResult13;
                 });
                 var entries = selectResult.ToArray();
-                global::SereinFlow.Contracts.RunVariableSnapshotDto evaluatedValue14 = new(runId, entries, snapshot.Count, request.Offset, request.Offset + entries.Length < snapshot.Count, DateTimeOffset.UtcNow);
+                RunVariableSnapshotDto evaluatedValue14 = new(runId, entries, snapshot.Count, request.Offset, request.Offset + entries.Length < snapshot.Count, DateTimeOffset.UtcNow);
                 response = new(WorkerProtocolConstants.Version, runId, 200, Snapshot: evaluatedValue14);
             }
         }
@@ -174,7 +175,7 @@ public static class WorkerVariableService
                         Variables = resolveToArrayResult()
                     }
                 };
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.RunVariableDto> resolveToArrayResult()
+                IReadOnlyList<RunVariableDto> resolveToArrayResult()
                 {
                     var selectResult15 = snapshot.Variables.Select(static item => item.ValueAvailable ? item with { Value = null, ValueJson = null, ValueAvailable = false, UnavailableReason = "snapshot_limit" } : item);
                     var toArrayResult = selectResult15.ToArray();
@@ -243,18 +244,18 @@ public static class WorkerVariableService
         {
             if (!TryProjectValue(value, 0, out var safe))
             {
-                global::SereinFlow.Contracts.RunVariableDto evaluatedValue25 = new(name, type, false, null, "unsupported_type");
+                RunVariableDto evaluatedValue25 = new(name, type, false, null, "unsupported_type");
                 return evaluatedValue25;
             }
 
             var json = JsonSerializer.SerializeToElement(safe, JsonOptions);
             var raw = json.GetRawText();
-            global::SereinFlow.Contracts.RunVariableDto evaluatedValue26 = Encoding.UTF8.GetByteCount(raw) <= MaxValueBytes ? new(name, type, true, json, ValueJson: raw) : new(name, type, false, null, "value_limit");
+            RunVariableDto evaluatedValue26 = Encoding.UTF8.GetByteCount(raw) <= MaxValueBytes ? new(name, type, true, json, ValueJson: raw) : new(name, type, false, null, "value_limit");
             return evaluatedValue26;
         }
         catch (Exception exception)when (exception is JsonException or NotSupportedException or InvalidOperationException or ObjectDisposedException or ArgumentException)
         {
-            global::SereinFlow.Contracts.RunVariableDto evaluatedValue27 = new(name, type, false, null, "not_json");
+            RunVariableDto evaluatedValue27 = new(name, type, false, null, "not_json");
             return evaluatedValue27;
         }
     }
@@ -341,7 +342,7 @@ public static class WorkerVariableService
 
     private static WorkerVariableResponseDto Failure(Guid runId, string code, string message, int status = 400)
     {
-        global::SereinFlow.Contracts.WorkerVariableResponseDto evaluatedValue29 = new(WorkerProtocolConstants.Version, runId, status, Code: code, Message: message);
+        WorkerVariableResponseDto evaluatedValue29 = new(WorkerProtocolConstants.Version, runId, status, Code: code, Message: message);
         return evaluatedValue29;
     }
 }

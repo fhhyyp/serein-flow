@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using System.Globalization;
 using SereinFlow.Application.Persistence;
 
@@ -34,7 +35,7 @@ public sealed class SqlSugarProjectLibraryReferenceRepository : IProjectLibraryR
     {
         var evaluatedValue1 = await resolveGetByIdAsyncResult()is not null;
         return evaluatedValue1;
-        global::System.Threading.Tasks.Task<global::SereinFlow.Infrastructure.Persistence.ProjectLibraryReferenceRecord?> resolveGetByIdAsyncResult()
+        Task<ProjectLibraryReferenceRecord?> resolveGetByIdAsyncResult()
         {
             var createIdResult = CreateId(projectId, libraryId);
             var getByIdAsyncResult = _references.GetByIdAsync(createIdResult, cancellationToken);
@@ -76,7 +77,7 @@ public sealed class SqlSugarProjectLibraryReferenceRepository : IProjectLibraryR
     {
         var parseResult = Guid.Parse(record.ProjectId);
         var parseResult3 = DateTimeOffset.Parse(record.ReferencedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        global::SereinFlow.Application.Persistence.ProjectLibraryReference evaluatedValue4 = new(parseResult, record.LibraryId, parseResult3);
+        ProjectLibraryReference evaluatedValue4 = new(parseResult, record.LibraryId, parseResult3);
         return evaluatedValue4;
     }
 

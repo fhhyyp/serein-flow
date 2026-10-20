@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Net.Http;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -68,7 +70,7 @@ public sealed class SereinFlowClientTests
         var handler = new RecordingHandler(_ =>
         {
             count++;
-            global::System.Net.Http.HttpResponseMessage conditionalValue;
+            HttpResponseMessage conditionalValue;
             if (count == 1)
             {
                 conditionalValue = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
@@ -136,7 +138,7 @@ public sealed class SereinFlowClientTests
     public async Task WaitForCompletionPollsUntilTerminalAndReadsOutputs()
     {
         var runId = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<HttpResponseMessage> evaluatedValue7 = [resolveJsonResponseResult(), resolveJsonResponseResult9(), resolveJsonResponseResult13(), ];
+        IEnumerable<HttpResponseMessage> evaluatedValue7 = [resolveJsonResponseResult(), resolveJsonResponseResult9(), resolveJsonResponseResult13(), ];
         var responses = new Queue<HttpResponseMessage>(evaluatedValue7);
         var handler = new RecordingHandler(_ =>
         {
@@ -149,7 +151,7 @@ public sealed class SereinFlowClientTests
         var result = await client.Runs.WaitForCompletionAsync(runId, timeout: fromSecondsResult, pollInterval: fromMillisecondsResult);
         Assert.True(result.IsSucceeded);
         Assert.Equal(3, handler.Requests.Count);
-        global::System.Net.Http.HttpResponseMessage resolveJsonResponseResult()
+        HttpResponseMessage resolveJsonResponseResult()
         {
             var newGuidResult6 = Guid.NewGuid();
             var flowRunDto7 = new FlowRunDto(runId, newGuidResult6, 1, FlowRunStatusDto.Pending, null, null, null);
@@ -157,7 +159,7 @@ public sealed class SereinFlowClientTests
             return jsonResponseResult8;
         }
 
-        global::System.Net.Http.HttpResponseMessage resolveJsonResponseResult9()
+        HttpResponseMessage resolveJsonResponseResult9()
         {
             var newGuidResult10 = Guid.NewGuid();
             var flowRunDto11 = new FlowRunDto(runId, newGuidResult10, 1, FlowRunStatusDto.Succeeded, null, DateTimeOffset.UtcNow, null);
@@ -165,7 +167,7 @@ public sealed class SereinFlowClientTests
             return jsonResponseResult12;
         }
 
-        global::System.Net.Http.HttpResponseMessage resolveJsonResponseResult13()
+        HttpResponseMessage resolveJsonResponseResult13()
         {
             var emptyResult = Array.Empty<FlowRunOutputDto>();
             var jsonResponseResult14 = JsonResponse(emptyResult);
@@ -214,7 +216,7 @@ public sealed class SereinFlowClientTests
         var value = await client.Runs.GetLatestNodeOutputAsync<OutputValue>(runId, "node-a");
         Assert.NotNull(value);
         Assert.Equal(5, value!.Value);
-        global::SereinFlow.Contracts.FlowRunOutputDto resolveFlowRunOutputDto()
+        FlowRunOutputDto resolveFlowRunOutputDto()
         {
             var serializeToElementResult = JsonSerializer.SerializeToElement(new { });
             var serializeToElementResult14 = JsonSerializer.SerializeToElement(new { value = 2 });
@@ -222,7 +224,7 @@ public sealed class SereinFlowClientTests
             return flowRunOutputDto;
         }
 
-        global::SereinFlow.Contracts.FlowRunOutputDto resolveFlowRunOutputDto15()
+        FlowRunOutputDto resolveFlowRunOutputDto15()
         {
             var serializeToElementResult16 = JsonSerializer.SerializeToElement(new { });
             var serializeToElementResult17 = JsonSerializer.SerializeToElement(new { value = 5 });
@@ -334,7 +336,7 @@ public sealed class SereinFlowClientTests
                 FileName = "artifact.txt"
             };
             return response;
-            global::System.Net.Http.HttpContent resolveByteArrayContent()
+            HttpContent resolveByteArrayContent()
             {
                 var getBytesResult = Encoding.UTF8.GetBytes("artifact");
                 var byteArrayContent = new ByteArrayContent(getBytesResult);
@@ -367,12 +369,12 @@ public sealed class SereinFlowClientTests
 
     private static HttpResponseMessage JsonResponse<T>(T value)
     {
-        global::System.Net.Http.HttpResponseMessage evaluatedValue15 = new(HttpStatusCode.OK)
+        HttpResponseMessage evaluatedValue15 = new(HttpStatusCode.OK)
         {
             Content = resolveStringContent()
         };
         return evaluatedValue15;
-        global::System.Net.Http.HttpContent resolveStringContent()
+        HttpContent resolveStringContent()
         {
             var createContractOptionsResult = SereinJsonSerialization.CreateContractOptions();
             var serializeResult = JsonSerializer.Serialize(value, createContractOptionsResult);

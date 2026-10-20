@@ -242,13 +242,13 @@ public sealed class ProjectLibraryService
 
     private static ProjectLibraryOperationResult ProjectNotFound()
     {
-        global::SereinFlow.Application.ProjectLibraryOperationResult evaluatedValue25 = new(false, 404, ProjectErrorCodes.NotFound, "Project was not found. 未找到项目。");
+        ProjectLibraryOperationResult evaluatedValue25 = new(false, 404, ProjectErrorCodes.NotFound, "Project was not found. 未找到项目。");
         return evaluatedValue25;
     }
 
     private static ProjectLibraryOperationResult ProjectArchived()
     {
-        global::SereinFlow.Application.ProjectLibraryOperationResult evaluatedValue26 = new(false, 409, ProjectErrorCodes.Archived, "Archived projects cannot change library references. 已归档项目不能修改类库引用。");
+        ProjectLibraryOperationResult evaluatedValue26 = new(false, 409, ProjectErrorCodes.Archived, "Archived projects cannot change library references. 已归档项目不能修改类库引用。");
         return evaluatedValue26;
     }
 

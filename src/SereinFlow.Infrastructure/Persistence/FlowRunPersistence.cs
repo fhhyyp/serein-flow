@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -179,7 +181,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
     {
         ArgumentNullException.ThrowIfNull(query);
         var optionalReceiver = query.Statuses;
-        global::System.Collections.Generic.HashSet<string>? optionalResult = default(global::System.Collections.Generic.HashSet<string>);
+        HashSet<string>? optionalResult = default(HashSet<string>);
         if (optionalReceiver is not null)
         {
             var selectResult = optionalReceiver.Select(static item =>
@@ -210,7 +212,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
     {
         var toStringResult6 = runId.ToString("D");
         var row = await _runs.GetByIdAsync(toStringResult6, cancellationToken);
-        global::SereinFlow.Domain.FlowRun? evaluatedValue7 = row is null ? null : Map(row);
+        FlowRun? evaluatedValue7 = row is null ? null : Map(row);
         return evaluatedValue7;
     }
 
@@ -223,7 +225,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
             var equalsResult = string.Equals(item.RunId, runKey, StringComparison.OrdinalIgnoreCase);
             return equalsResult;
         });
-        global::SereinFlow.Contracts.FlowDefinitionDto? evaluatedValue8 = row is null ? null : JsonSerializer.Deserialize<FlowDefinitionDto>(row.DefinitionJson, JsonOptions);
+        FlowDefinitionDto? evaluatedValue8 = row is null ? null : JsonSerializer.Deserialize<FlowDefinitionDto>(row.DefinitionJson, JsonOptions);
         return evaluatedValue8;
     }
 
@@ -315,7 +317,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         var getByIdAsyncResult = _runs.GetByIdAsync(toStringResult13);
         var getAwaiterResult14 = getByIdAsyncResult.GetAwaiter();
         var row = getAwaiterResult14.GetResult();
-        global::SereinFlow.Domain.FlowRun? evaluatedValue15 = row is null ? null : Map(row);
+        FlowRun? evaluatedValue15 = row is null ? null : Map(row);
         return evaluatedValue15;
     }
 
@@ -336,7 +338,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
             var equalsResult16 = string.Equals(item.RunId, runKey, StringComparison.OrdinalIgnoreCase);
             return equalsResult16;
         });
-        global::SereinFlow.Contracts.FlowDefinitionDto? evaluatedValue19 = row is null ? null : JsonSerializer.Deserialize<FlowDefinitionDto>(row.DefinitionJson, JsonOptions);
+        FlowDefinitionDto? evaluatedValue19 = row is null ? null : JsonSerializer.Deserialize<FlowDefinitionDto>(row.DefinitionJson, JsonOptions);
         return evaluatedValue19;
     }
 
@@ -373,17 +375,17 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
     private static FlowRun Map(FlowRunRecord row)
     {
         var parseResult = Guid.Parse(row.Id);
-        global::System.Guid evaluatedValue26 = Guid.TryParse(row.ProjectId, out var projectId) ? projectId : Guid.Empty;
+        Guid evaluatedValue26 = Guid.TryParse(row.ProjectId, out var projectId) ? projectId : Guid.Empty;
         var parseResult27 = Guid.Parse(row.FlowId);
         var parseResult28 = Enum.Parse<FlowRunStatus>(row.Status);
         var evaluatedValue29 = ParseNullable(row.CreatedAt) ?? ParseNullable(row.StartedAt) ?? DateTimeOffset.UtcNow;
         var parseNullableResult = ParseNullable(row.StartedAt);
         var parseNullableResult30 = ParseNullable(row.EndedAt);
-        global::SereinFlow.Domain.FlowConcurrencyMode evaluatedValue31 = Enum.TryParse<FlowConcurrencyMode>(row.ConcurrencyMode, out var concurrencyMode) ? concurrencyMode : FlowConcurrencyMode.Parallel;
+        FlowConcurrencyMode evaluatedValue31 = Enum.TryParse<FlowConcurrencyMode>(row.ConcurrencyMode, out var concurrencyMode) ? concurrencyMode : FlowConcurrencyMode.Parallel;
         var parseNullableResult32 = ParseNullable(row.QueuedAt);
         var parseNullableResult33 = ParseNullable(row.Deadline);
-        global::SereinFlow.Domain.FlowRunExecutionKind evaluatedValue34 = Enum.TryParse<FlowRunExecutionKind>(row.ExecutionKind, out var executionKind) ? executionKind : FlowRunExecutionKind.Production;
-        global::System.Guid? evaluatedValue35 = Guid.TryParse(row.DebugSessionId, out var debugSessionId) ? debugSessionId : null;
+        FlowRunExecutionKind evaluatedValue34 = Enum.TryParse<FlowRunExecutionKind>(row.ExecutionKind, out var executionKind) ? executionKind : FlowRunExecutionKind.Production;
+        Guid? evaluatedValue35 = Guid.TryParse(row.DebugSessionId, out var debugSessionId) ? debugSessionId : null;
         var rehydrateResult = FlowRun.Rehydrate(parseResult, evaluatedValue26, parseResult27, row.FlowVersion, parseResult28, evaluatedValue29, parseNullableResult, parseNullableResult30, row.CancellationReason, row.ErrorSummary, evaluatedValue31, row.IsListenerRun, parseNullableResult32, parseNullableResult33, evaluatedValue34, evaluatedValue35, row.DefinitionChecksum);
         return rehydrateResult;
     }
@@ -438,7 +440,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
 
     private static DateTimeOffset? ParseNullable(string? value)
     {
-        global::System.DateTimeOffset? evaluatedValue39 = string.IsNullOrWhiteSpace(value) ? null : Parse(value);
+        DateTimeOffset? evaluatedValue39 = string.IsNullOrWhiteSpace(value) ? null : Parse(value);
         return evaluatedValue39;
     }
 }

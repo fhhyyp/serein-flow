@@ -126,7 +126,7 @@ public sealed class FlowInterfacesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Delete([FromRoute] Guid interfaceId, CancellationToken cancellationToken)
     {
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue8 = await _interfaces.DeleteAsync(interfaceId, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Flow interface not found. 流程接口不存在。");
+        ActionResult evaluatedValue8 = await _interfaces.DeleteAsync(interfaceId, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Flow interface not found. 流程接口不存在。");
         return evaluatedValue8;
     }
 }

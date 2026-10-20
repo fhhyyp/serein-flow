@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -61,7 +62,7 @@ public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKe
         var getStringResult = getPropertyResult4.GetString();
         var isNullOrWhiteSpaceResult5 = string.IsNullOrWhiteSpace(getStringResult);
         Assert.False(isNullOrWhiteSpaceResult5);
-        global::System.Net.Http.HttpContent resolveStringContent()
+        HttpContent resolveStringContent()
         {
             var createMcpApiKeyRequestDto = new CreateMcpApiKeyRequestDto(null, "integration-client", ProjectReadPermission, null, IsAdministrator: true);
             var serializeResult = JsonSerializer.Serialize(createMcpApiKeyRequestDto);

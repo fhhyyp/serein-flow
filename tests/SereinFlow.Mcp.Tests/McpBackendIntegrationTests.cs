@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -429,7 +431,7 @@ public sealed class McpBackendIntegrationTests
                 var evaluatedValue94 = resolveGetPropertyResult()[0];
                 var getStringResult95 = evaluatedValue94.GetString();
                 return getStringResult95;
-                global::System.Text.Json.JsonElement resolveGetPropertyResult()
+                JsonElement resolveGetPropertyResult()
                 {
                     var getPropertyResult = item.GetProperty("properties");
                     var getPropertyResult92 = getPropertyResult.GetProperty("type");
@@ -452,12 +454,12 @@ public sealed class McpBackendIntegrationTests
         var getPropertyResult150 = evaluatedValue149.GetProperty("type");
         var getStringResult151 = getPropertyResult150.GetString();
         Assert.Equal("null", getStringResult151);
-        global::System.Text.Json.JsonElement resolveGetPropertyResult108()
+        JsonElement resolveGetPropertyResult108()
         {
             var evaluatedValue113 = resolveGetPropertyResult109()[0];
             var getPropertyResult114 = evaluatedValue113.GetProperty("oneOf");
             return getPropertyResult114;
-            global::System.Text.Json.JsonElement resolveGetPropertyResult109()
+            JsonElement resolveGetPropertyResult109()
             {
                 var getPropertyResult110 = connection.GetProperty("properties");
                 var getPropertyResult111 = getPropertyResult110.GetProperty("dataSource");
@@ -466,7 +468,7 @@ public sealed class McpBackendIntegrationTests
             }
         }
 
-        global::System.Text.Json.JsonElement resolveGetPropertyResult118()
+        JsonElement resolveGetPropertyResult118()
         {
             var getPropertyResult119 = connection.GetProperty("properties");
             var getPropertyResult120 = getPropertyResult119.GetProperty("dataSource");
@@ -474,7 +476,7 @@ public sealed class McpBackendIntegrationTests
             return getPropertyResult121;
         }
 
-        global::System.Text.Json.JsonElement resolveGetPropertyResult126()
+        JsonElement resolveGetPropertyResult126()
         {
             var getPropertyResult127 = runPolicy.GetProperty("properties");
             var getPropertyResult128 = getPropertyResult127.GetProperty("runPolicy");
@@ -484,7 +486,7 @@ public sealed class McpBackendIntegrationTests
             return getPropertyResult131;
         }
 
-        global::System.Text.Json.JsonElement resolveGetPropertyResult145()
+        JsonElement resolveGetPropertyResult145()
         {
             var getPropertyResult146 = script.GetProperty("properties");
             var getPropertyResult147 = getPropertyResult146.GetProperty("sourceHash");
@@ -661,7 +663,7 @@ public sealed class McpBackendIntegrationTests
         Assert.Empty(saved!.EntryNodeId);
         var evaluatedValue219 = Assert.Single(saved.Canvases).Nodes;
         Assert.Empty(evaluatedValue219);
-        global::System.Text.Json.JsonElement resolveGetPropertyResult206()
+        JsonElement resolveGetPropertyResult206()
         {
             var getPropertyResult207 = previewRoot.GetProperty("candidateDefinition");
             var getPropertyResult208 = getPropertyResult207.GetProperty("canvases");
@@ -1193,14 +1195,14 @@ public sealed class McpBackendIntegrationTests
         var evaluatedValue388 = (await versions.ListVersionsAsync(project.Id, flow.Id, FlowVersionTrackDto.Production));
         var evaluatedValue389 = evaluatedValue388.Single(item => item.IsCurrent).Track;
         Assert.Equal(FlowVersionTrackDto.Production, evaluatedValue389);
-        global::SereinFlow.Contracts.FlowUiMetadataDto resolveFlowUiMetadataDto()
+        FlowUiMetadataDto resolveFlowUiMetadataDto()
         {
             var flowConnectionLineTypesDto = new FlowConnectionLineTypesDto("orthogonal", "straight");
             var flowUiMetadataDto = new FlowUiMetadataDto(flowConnectionLineTypesDto);
             return flowUiMetadataDto;
         }
 
-        global::SereinFlow.Contracts.FlowUiMetadataDto resolveFlowUiMetadataDto375()
+        FlowUiMetadataDto resolveFlowUiMetadataDto375()
         {
             var flowConnectionLineTypesDto376 = new FlowConnectionLineTypesDto("bezier", "straight");
             var flowUiMetadataDto377 = new FlowUiMetadataDto(flowConnectionLineTypesDto376);
@@ -1292,10 +1294,10 @@ public sealed class McpBackendIntegrationTests
         var source = "return 0";
         var nodeId = "script-node";
         var computeSourceHashResult = SereinFlow.Domain.ScriptNodeDefinition.ComputeSourceHash(source);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ScriptValueContractDto> evaluatedValue401 = [new ScriptValueContractDto("result", "ScriptLang.Runtime.Value", false, "result")];
+        IReadOnlyList<ScriptValueContractDto> evaluatedValue401 = [new ScriptValueContractDto("result", "ScriptLang.Runtime.Value", false, "result")];
         var scriptNodeDataDto = new ScriptNodeDataDto(nodeId, source, "0.1", computeSourceHashResult, [], evaluatedValue401);
         var node = new NodeDto(nodeId, NodeTypeDto.Script, "Script", 0, 0, [], [], scriptNodeDataDto);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue402 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue402 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
         var flowRunPolicyDto = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var flowDefinitionDto = new FlowDefinitionDto(flowId, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue402, nodeId, "initial", RunPolicy: flowRunPolicyDto);
         return flowDefinitionDto;
@@ -1306,14 +1308,14 @@ public sealed class McpBackendIntegrationTests
         var nodeUiMetadataDto = new NodeUiMetadataDto("action", "Image transform", string.Empty, null, "ready", true, null, "image-library", artifactId, "Image.Nodes", "Transform", "Image.dll", "1.0.0", "System.String", LibraryNodeContractId: "image-transform");
         var node = new NodeDto("image-transform-node", NodeTypeDto.Action, "Image transform", 0, 0, [], [], null, nodeUiMetadataDto);
         var newGuidResult403 = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue404 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue404 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
         var flowDefinitionDto405 = new FlowDefinitionDto(newGuidResult403, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue404, node.Id, "initial");
         return flowDefinitionDto405;
     }
 
     private static LibraryDto CreateLibrary(string id, LibraryLifecycleDto lifecycle)
     {
-        global::SereinFlow.Contracts.LibraryDto evaluatedValue406 = new(id, id, "1.0.0", $"{id}.zip", 1, id, DateTimeOffset.UtcNow, [], lifecycle);
+        LibraryDto evaluatedValue406 = new(id, id, "1.0.0", $"{id}.zip", 1, id, DateTimeOffset.UtcNow, [], lifecycle);
         return evaluatedValue406;
     }
 
@@ -1475,7 +1477,7 @@ public sealed class McpBackendIntegrationTests
                     return equalsResult425;
                 }) ?? resolveLibraryFamilyDto();
                 _families[family.Id] = family;
-                global::SereinFlow.Contracts.LibraryFamilyDto resolveLibraryFamilyDto()
+                LibraryFamilyDto resolveLibraryFamilyDto()
                 {
                     var newGuidResult7 = Guid.NewGuid();
                     var toStringResult8 = newGuidResult7.ToString("N");
@@ -1511,7 +1513,7 @@ public sealed class McpBackendIntegrationTests
             }
 
             var evaluatedValue1 = optionalResult;
-            global::System.Version conditionalValue;
+            Version conditionalValue;
             if (Version.TryParse(evaluatedValue1, out var parsed))
             {
                 conditionalValue = parsed;
@@ -1521,7 +1523,7 @@ public sealed class McpBackendIntegrationTests
                 conditionalValue = new Version(0, 0);
             }
 
-            global::System.Version evaluatedValue428 = conditionalValue;
+            Version evaluatedValue428 = conditionalValue;
             return evaluatedValue428;
         }
     }

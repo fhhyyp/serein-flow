@@ -88,7 +88,7 @@ public sealed class ProjectArchiveServiceTests
 
         public Project? Find(Guid id)
         {
-            global::SereinFlow.Domain.Project? evaluatedValue5 = _projects.TryGetValue(id, out var project) ? Clone(project) : null;
+            Project? evaluatedValue5 = _projects.TryGetValue(id, out var project) ? Clone(project) : null;
             return evaluatedValue5;
         }
 

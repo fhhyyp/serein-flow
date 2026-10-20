@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
@@ -124,7 +125,7 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
             return authorizationFailure;
         }
 
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowNodeDataDto> evaluatedValue = run.IsTerminal ? await ReadNodeDataAsync(_outputs, run.Id, cancellationToken) : [];
+        IReadOnlyList<FlowNodeDataDto> evaluatedValue = run.IsTerminal ? await ReadNodeDataAsync(_outputs, run.Id, cancellationToken) : [];
         var publicFlowInvocationResponseDto6 = new PublicFlowInvocationResponseDto(run.Id, (FlowRunStatusDto)run.Status, run.IsTerminal, evaluatedValue);
         var okResult7 = Ok(publicFlowInvocationResponseDto6);
         return okResult7;

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
@@ -46,10 +47,10 @@ public sealed class LibraryNodeTemplateServiceTests
         Assert.Equal("values", flipflopParameter.Ui.VariadicGroupId);
         Assert.NotNull(flipflopParameter.Ui.EnumMetadata);
         var newGuidResult = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue = [new CanvasDto("main", CanvasLifecycleDto.Main, [], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue = [new CanvasDto("main", CanvasLifecycleDto.Main, [], [])];
         var definition = new FlowDefinitionDto(newGuidResult, 5, 1, evaluatedValue, string.Empty, "initial");
         var flowPatchService = new FlowPatchService();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowPatchCanonicalOperationDto> evaluatedValue3 = [new FlowPatchCanonicalOperationDto("addNode", CanvasId: "main", Node: action.Node)];
+        IReadOnlyList<FlowPatchCanonicalOperationDto> evaluatedValue3 = [new FlowPatchCanonicalOperationDto("addNode", CanvasId: "main", Node: action.Node)];
         var patched = flowPatchService.Apply(definition, evaluatedValue3);
         var evaluatedValue4 = patched.Canvases.Single().Nodes;
         Assert.Contains(evaluatedValue4, node => node.Id == action.Node.Id);
@@ -86,24 +87,24 @@ public sealed class LibraryNodeTemplateServiceTests
 
     private static LibraryDto CreateLibrary()
     {
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.LibraryNodeDto> evaluatedValue19 = [resolveLibraryNodeDto(), resolveLibraryNodeDto15()];
-        global::SereinFlow.Contracts.LibraryDto evaluatedValue20 = new("template-library", "Template library", "1.2.3", "Template.Library-1.2.3.zip", 1024, "package-sha256", DateTimeOffset.UtcNow, evaluatedValue19);
+        IReadOnlyList<LibraryNodeDto> evaluatedValue19 = [resolveLibraryNodeDto(), resolveLibraryNodeDto15()];
+        LibraryDto evaluatedValue20 = new("template-library", "Template library", "1.2.3", "Template.Library-1.2.3.zip", 1024, "package-sha256", DateTimeOffset.UtcNow, evaluatedValue19);
         return evaluatedValue20;
-        global::SereinFlow.Contracts.LibraryNodeDto resolveLibraryNodeDto()
+        LibraryNodeDto resolveLibraryNodeDto()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.LibraryParameterDto> evaluatedValue14 = [new LibraryParameterDto("pass-count", "passCount", "System.Int32", "Accepted items.", true, DefaultValue: "1")];
+            IReadOnlyList<LibraryParameterDto> evaluatedValue14 = [new LibraryParameterDto("pass-count", "passCount", "System.Int32", "Accepted items.", true, DefaultValue: "1")];
             var libraryNodeDto = new LibraryNodeDto("template-library:quality-rate", NodeTypeDto.Action, "Calculate quality rate", "Calculates the pass rate for a production batch.", "template-library", "Template.Library.QualityNodes", "CalculateQualityRate", "Template.Library.dll", "1.2.3", "System.Decimal", evaluatedValue14, ContractId: "quality-rate", FlowLibraryName: "Template library");
             return libraryNodeDto;
         }
 
-        global::SereinFlow.Contracts.LibraryNodeDto resolveLibraryNodeDto15()
+        LibraryNodeDto resolveLibraryNodeDto15()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.LibraryParameterDto> evaluatedValue17 = [resolveLibraryParameterDto()];
+            IReadOnlyList<LibraryParameterDto> evaluatedValue17 = [resolveLibraryParameterDto()];
             var libraryNodeDto18 = new LibraryNodeDto("template-library:wait-for-device", NodeTypeDto.Flipflop, "Wait for device", "Waits asynchronously for a device signal.", "template-library", "Template.Library.QualityNodes", "WaitForDevice", "Template.Library.dll", "1.2.3", "System.Threading.Tasks.Task<System.Boolean>", evaluatedValue17, IsAwaitable: true, ContractId: "wait-for-device", FlowLibraryName: "Template library");
             return libraryNodeDto18;
-            global::SereinFlow.Contracts.LibraryParameterDto resolveLibraryParameterDto()
+            LibraryParameterDto resolveLibraryParameterDto()
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.EnumValueOptionDto> evaluatedValue16 = [new EnumValueOptionDto("Auto", "0")];
+                IReadOnlyList<EnumValueOptionDto> evaluatedValue16 = [new EnumValueOptionDto("Auto", "0")];
                 var enumParameterMetadataDto = new EnumParameterMetadataDto("Template.Library.DeviceMode", false, "System.Int32", evaluatedValue16);
                 var libraryParameterDto = new LibraryParameterDto("values", "values", "System.Int32[]", "Observed values.", false, IsVariadic: true, VariadicGroupId: "values", ElementType: "System.Int32", EnumMetadata: enumParameterMetadataDto);
                 return libraryParameterDto;
@@ -169,7 +170,7 @@ public sealed class LibraryNodeTemplateServiceTests
         public IReadOnlyList<LibraryDto> List() => [library];
         public LibraryDto? Find(string libraryId)
         {
-            global::SereinFlow.Contracts.LibraryDto? evaluatedValue27 = string.Equals(library.Id, libraryId, StringComparison.OrdinalIgnoreCase) ? library : null;
+            LibraryDto? evaluatedValue27 = string.Equals(library.Id, libraryId, StringComparison.OrdinalIgnoreCase) ? library : null;
             return evaluatedValue27;
         }
 

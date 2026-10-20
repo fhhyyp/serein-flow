@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
@@ -132,7 +134,7 @@ internal static class McpFlowToolHandlers
         var preview = await getRequiredServiceResult12.CreateAsync(FlowErrorCodes.Patch, principal, request.ProjectId, request.FlowId, request.ExpectedDevelopmentVersion, stored, cancellationToken);
         var toFlowPatchPreviewResult = McpReadModelToolHandlers.ToFlowPatchPreview(preview, stored);
         return toFlowPatchPreviewResult;
-        global::System.Threading.Tasks.Task<global::SereinFlow.Application.FlowDefinitionPreparationResult?> resolvePrepareAsyncResult()
+        Task<FlowDefinitionPreparationResult?> resolvePrepareAsyncResult()
         {
             var getRequiredServiceResult10 = scope.ServiceProvider.GetRequiredService<FlowDefinitionWriteService>();
             var prepareAsyncResult = getRequiredServiceResult10.PrepareAsync(request.ProjectId, request.FlowId, candidate, cancellationToken);
@@ -292,7 +294,7 @@ internal static class McpFlowToolHandlers
             validation = result.Validation,
             diff = redactSensitiveResult22
         };
-        global::System.Threading.Tasks.Task<global::SereinFlow.Contracts.FlowDefinitionDto?> resolveFindAsyncResult()
+        Task<FlowDefinitionDto?> resolveFindAsyncResult()
         {
             var getRequiredServiceResult19 = scope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>();
             var findAsyncResult = getRequiredServiceResult19.FindAsync(request.ProjectId, request.FlowId, cancellationToken);
@@ -347,11 +349,11 @@ internal static class McpFlowToolHandlers
 
         await MarkPreviewAppliedAsync(preview, entry, cancellationToken);
         var redactSensitiveResult32 = FlowDiffService.RedactSensitive(stored.Diff);
-        global::SereinFlow.Contracts.FlowDefinitionDto? evaluatedValue33 = result.DevelopmentDefinition is null ? null : FlowDiffService.RedactSensitive(result.DevelopmentDefinition);
+        FlowDefinitionDto? evaluatedValue33 = result.DevelopmentDefinition is null ? null : FlowDiffService.RedactSensitive(result.DevelopmentDefinition);
         var response = new FlowVersionMutationDto(result.Version!, redactSensitiveResult32, evaluatedValue33);
         await idempotency.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, response, requestPayload, cancellationToken);
         return response;
-        global::System.Threading.Tasks.Task<global::SereinFlow.Contracts.FlowDefinitionDto?> resolveFindAsyncResult25()
+        Task<FlowDefinitionDto?> resolveFindAsyncResult25()
         {
             var getRequiredServiceResult26 = scope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>();
             var findAsyncResult27 = getRequiredServiceResult26.FindAsync(stored.Request.ProjectId, stored.Request.FlowId, cancellationToken);
@@ -401,7 +403,7 @@ internal static class McpFlowToolHandlers
         var diff = getRequiredServiceResult39.Compare(current.Definition, source.Definition);
         if (diff.Changes.Count == 0)
         {
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Contracts.ValidationDiagnosticDto> evaluatedValue34 = [new ValidationDiagnosticDto(FlowErrorCodes.RollbackNoChange, "The selected version is already the current track head. 选定版本已经是当前轨道头版本。", null)];
+            IEnumerable<ValidationDiagnosticDto> evaluatedValue34 = [new ValidationDiagnosticDto(FlowErrorCodes.RollbackNoChange, "The selected version is already the current track head. 选定版本已经是当前轨道头版本。", null)];
             var concatResult = diagnostics.Concat(evaluatedValue34);
             diagnostics = concatResult.ToArray();
         }
@@ -474,18 +476,18 @@ internal static class McpFlowToolHandlers
 
         await MarkPreviewAppliedAsync(preview, entry, cancellationToken);
         var redactSensitiveResult49 = FlowDiffService.RedactSensitive(stored.Diff);
-        global::SereinFlow.Contracts.FlowDefinitionDto? evaluatedValue50 = result.DevelopmentDefinition is null ? null : FlowDiffService.RedactSensitive(result.DevelopmentDefinition);
+        FlowDefinitionDto? evaluatedValue50 = result.DevelopmentDefinition is null ? null : FlowDiffService.RedactSensitive(result.DevelopmentDefinition);
         var response = new FlowVersionMutationDto(result.Version!, redactSensitiveResult49, evaluatedValue50);
         await idempotency.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, response, requestPayload, cancellationToken);
         return response;
-        global::System.Threading.Tasks.Task<long?> resolveFindProductionVersionAsyncResult()
+        Task<long?> resolveFindProductionVersionAsyncResult()
         {
             var getRequiredServiceResult46 = scope.ServiceProvider.GetRequiredService<IFlowVersionRepository>();
             var findProductionVersionAsyncResult = getRequiredServiceResult46.FindProductionVersionAsync(stored.Request.ProjectId, stored.Request.FlowId, cancellationToken);
             return findProductionVersionAsyncResult;
         }
 
-        global::System.Threading.Tasks.Task<global::SereinFlow.Contracts.FlowVersionDetailDto?> resolveFindVersionAsyncResult()
+        Task<FlowVersionDetailDto?> resolveFindVersionAsyncResult()
         {
             var getRequiredServiceResult47 = scope.ServiceProvider.GetRequiredService<IFlowVersionRepository>();
             var findVersionAsyncResult = getRequiredServiceResult47.FindVersionAsync(stored.Request.ProjectId, stored.Request.FlowId, stored.Request.SourceVersion, cancellationToken);

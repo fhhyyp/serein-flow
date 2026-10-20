@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -61,7 +62,7 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
         catch (TimeoutException)
         {
             stopwatch.Stop();
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ScriptCompileDiagnosticDto> evaluatedValue = [new ScriptCompileDiagnosticDto(ScriptErrorCodes.CompileTimeout, $"SereinLang compilation exceeded {DefaultTimeout.TotalSeconds:0} seconds. SereinLang 编译超过 {DefaultTimeout.TotalSeconds:0} 秒。", "error", sourceName)];
+            IReadOnlyList<ScriptCompileDiagnosticDto> evaluatedValue = [new ScriptCompileDiagnosticDto(ScriptErrorCodes.CompileTimeout, $"SereinLang compilation exceeded {DefaultTimeout.TotalSeconds:0} seconds. SereinLang 编译超过 {DefaultTimeout.TotalSeconds:0} 秒。", "error", sourceName)];
             var resultResult2 = Result(false, sourceHash, sourceName, languageVersion, stopwatch.Elapsed, evaluatedValue);
             return resultResult2;
         }
@@ -206,7 +207,7 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
 
     private static ScriptCompileResultDto Result(bool success, string sourceHash, string sourceName, string languageVersion, TimeSpan duration, IReadOnlyList<ScriptCompileDiagnosticDto> diagnostics)
     {
-        global::SereinFlow.Contracts.ScriptCompileResultDto evaluatedValue10 = new(success, sourceHash, languageVersion, sourceName, duration, diagnostics);
+        ScriptCompileResultDto evaluatedValue10 = new(success, sourceHash, languageVersion, sourceName, duration, diagnostics);
         return evaluatedValue10;
     }
 

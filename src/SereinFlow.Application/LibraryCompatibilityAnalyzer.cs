@@ -229,7 +229,7 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
 
     private static LibraryUpgradeIssueDto Issue(string id, LibraryCompatibilityClassificationDto classification, string code, string message, string? canvasId = null, string? nodeId = null, string? sourceNodeContractId = null, string? targetNodeContractId = null, string? sourceParameterId = null, string? targetParameterId = null, string? connectionId = null, bool requiresAcknowledgement = false, bool blocks = false)
     {
-        global::SereinFlow.Contracts.LibraryUpgradeIssueDto evaluatedValue25 = new(id, classification, code, message, canvasId, nodeId, sourceNodeContractId, targetNodeContractId, sourceParameterId, targetParameterId, connectionId, requiresAcknowledgement, blocks);
+        LibraryUpgradeIssueDto evaluatedValue25 = new(id, classification, code, message, canvasId, nodeId, sourceNodeContractId, targetNodeContractId, sourceParameterId, targetParameterId, connectionId, requiresAcknowledgement, blocks);
         return evaluatedValue25;
     }
 }

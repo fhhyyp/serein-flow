@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
@@ -139,20 +140,20 @@ public sealed class ProjectLibraryServiceTests
     private static ProjectLibraryService CreateService(IProjectRepository projects, IFlowDefinitionRepository flows, IProjectLibraryReferenceRepository references, LibraryDto library, IFlowVersionRepository? versions = null)
     {
         var inMemoryLibraryCatalogService = new InMemoryLibraryCatalogService(library);
-        global::SereinFlow.Application.ProjectLibraryService evaluatedValue = new(projects, flows, references, inMemoryLibraryCatalogService, versions);
+        ProjectLibraryService evaluatedValue = new(projects, flows, references, inMemoryLibraryCatalogService, versions);
         return evaluatedValue;
     }
 
     private static LibraryDto CreateLibrary(LibraryLifecycleDto lifecycle = LibraryLifecycleDto.Available)
     {
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.LibraryNodeDto> evaluatedValue13 = [CreateLibraryNode()];
-        global::SereinFlow.Contracts.LibraryDto evaluatedValue14 = new(LibraryId, "Production line library", "1.0.0", "SereinFlow.TestLibrary-1.0.0.zip", 1024, LibraryId, DateTimeOffset.UtcNow, evaluatedValue13, lifecycle);
+        IReadOnlyList<LibraryNodeDto> evaluatedValue13 = [CreateLibraryNode()];
+        LibraryDto evaluatedValue14 = new(LibraryId, "Production line library", "1.0.0", "SereinFlow.TestLibrary-1.0.0.zip", 1024, LibraryId, DateTimeOffset.UtcNow, evaluatedValue13, lifecycle);
         return evaluatedValue14;
     }
 
     private static LibraryNodeDto CreateLibraryNode()
     {
-        global::SereinFlow.Contracts.LibraryNodeDto evaluatedValue15 = new("quality-rate", NodeTypeDto.Action, "Calculate pass rate", null, LibraryId, "SereinFlow.TestLibrary.生产线节点", "计算合格率", "SereinFlow.TestLibrary.dll", "1.0.0", "System.Decimal", [], false, ContractId: "quality-rate");
+        LibraryNodeDto evaluatedValue15 = new("quality-rate", NodeTypeDto.Action, "Calculate pass rate", null, LibraryId, "SereinFlow.TestLibrary.生产线节点", "计算合格率", "SereinFlow.TestLibrary.dll", "1.0.0", "System.Decimal", [], false, ContractId: "quality-rate");
         return evaluatedValue15;
     }
 
@@ -161,7 +162,7 @@ public sealed class ProjectLibraryServiceTests
         var nodeUiMetadataDto = new NodeUiMetadataDto("library-action", "node.libraryAction.title", "node.libraryAction.subtitle", null, "ready", true, null, Category: "library", LibraryId: LibraryId, ClassName: "SereinFlow.TestLibrary.生产线节点", MethodName: "计算合格率", DllName: "SereinFlow.TestLibrary.dll", DllVersion: dllVersion, ReturnType: "System.Decimal");
         var node = new NodeDto("library-action", NodeTypeDto.Action, "Calculate pass rate", 0, 0, [], [], null, nodeUiMetadataDto);
         var newGuidResult = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue16 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue16 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
         var flowDefinitionDto = new FlowDefinitionDto(newGuidResult, 4, 1, evaluatedValue16, node.Id, "test-checksum");
         return flowDefinitionDto;
     }
@@ -293,10 +294,10 @@ public sealed class ProjectLibraryServiceTests
         private readonly Dictionary<Guid, Dictionary<string, ProjectLibraryReference>> _references = [];
         public Task<IReadOnlyList<ProjectLibraryReference>> ListByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Application.Persistence.ProjectLibraryReference> evaluatedValue27 = _references.TryGetValue(projectId, out var references) ? resolveToArrayResult() : [];
+            IReadOnlyList<ProjectLibraryReference> evaluatedValue27 = _references.TryGetValue(projectId, out var references) ? resolveToArrayResult() : [];
             var fromResultResult28 = Task.FromResult<IReadOnlyList<ProjectLibraryReference>>(evaluatedValue27);
             return fromResultResult28;
-            global::SereinFlow.Application.Persistence.ProjectLibraryReference[] resolveToArrayResult()
+            ProjectLibraryReference[] resolveToArrayResult()
             {
                 var orderByResult = references.Values.OrderBy(static item => item.LibraryId, StringComparer.OrdinalIgnoreCase);
                 var toArrayResult26 = orderByResult.ToArray();

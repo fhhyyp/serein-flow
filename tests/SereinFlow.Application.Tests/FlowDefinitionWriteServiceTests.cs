@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
@@ -86,16 +87,16 @@ public sealed class FlowDefinitionWriteServiceTests
         var references = new EmptyProjectLibraryReferenceRepository();
         var catalog = new EmptyLibraryCatalog();
         var projectLibraryService = new ProjectLibraryService(projects, flows, references, catalog);
-        global::SereinFlow.Application.FlowDefinitionWriteService evaluatedValue = new(projects, flows, projectLibraryService, publisher);
+        FlowDefinitionWriteService evaluatedValue = new(projects, flows, projectLibraryService, publisher);
         return evaluatedValue;
     }
 
     private static FlowDefinitionDto CreateDefinition()
     {
         var newGuidResult = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue1 = [new CanvasDto("main", CanvasLifecycleDto.Main, [], [], "Main")];
+        IReadOnlyList<CanvasDto> evaluatedValue1 = [new CanvasDto("main", CanvasLifecycleDto.Main, [], [], "Main")];
         var flowRunPolicyDto = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
-        global::SereinFlow.Contracts.FlowDefinitionDto evaluatedValue2 = new(newGuidResult, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue1, string.Empty, "checksum", RunPolicy: flowRunPolicyDto);
+        FlowDefinitionDto evaluatedValue2 = new(newGuidResult, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue1, string.Empty, "checksum", RunPolicy: flowRunPolicyDto);
         return evaluatedValue2;
     }
 

@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
@@ -53,7 +55,7 @@ internal static class McpToolSupport
     internal static DateTimeOffset? ReadOptionalDate(JsonElement arguments, string name)
     {
         var value = GetOptionalString(arguments, name);
-        global::System.DateTimeOffset? evaluatedValue = string.IsNullOrWhiteSpace(value) ? null : DateTimeOffset.TryParse(value, out var parsed) ? parsed : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be an ISO date.");
+        DateTimeOffset? evaluatedValue = string.IsNullOrWhiteSpace(value) ? null : DateTimeOffset.TryParse(value, out var parsed) ? parsed : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be an ISO date.");
         return evaluatedValue;
     }
 
@@ -92,20 +94,20 @@ internal static class McpToolSupport
 
     internal static McpProtocolException InvalidFlowPatchContract(FlowPatchContractException exception)
     {
-        global::SereinFlow.Mcp.McpProtocolException evaluatedValue3 = new(McpProtocolErrorCodes.InvalidParams, "The flow patch contract is invalid.", new { code = exception.Code, diagnosticId = exception.DiagnosticId, fieldPath = exception.FieldPath, expected = exception.Expected, schemaVersion = FlowPatchContract.CurrentSchemaVersion, remediation = exception.Remediation });
+        McpProtocolException evaluatedValue3 = new(McpProtocolErrorCodes.InvalidParams, "The flow patch contract is invalid.", new { code = exception.Code, diagnosticId = exception.DiagnosticId, fieldPath = exception.FieldPath, expected = exception.Expected, schemaVersion = FlowPatchContract.CurrentSchemaVersion, remediation = exception.Remediation });
         return evaluatedValue3;
     }
 
     internal static McpProtocolException InvalidLibraryNodeTemplate(LibraryNodeTemplateException exception)
     {
-        global::SereinFlow.Mcp.McpProtocolException evaluatedValue4 = new(McpProtocolErrorCodes.InvalidParams, "The library node template request is invalid.", new { code = exception.Code, diagnosticId = exception.DiagnosticId, fieldPath = exception.FieldPath, expected = exception.Expected, remediation = exception.Remediation, statusCode = exception.StatusCode });
+        McpProtocolException evaluatedValue4 = new(McpProtocolErrorCodes.InvalidParams, "The library node template request is invalid.", new { code = exception.Code, diagnosticId = exception.DiagnosticId, fieldPath = exception.FieldPath, expected = exception.Expected, remediation = exception.Remediation, statusCode = exception.StatusCode });
         return evaluatedValue4;
     }
 
     internal static Guid? TryGetGuid(JsonElement arguments, string name)
     {
         var value = GetOptionalString(arguments, name);
-        global::System.Guid? evaluatedValue5 = string.IsNullOrWhiteSpace(value) ? null : Guid.TryParse(value, out var parsed) ? parsed : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be a GUID.");
+        Guid? evaluatedValue5 = string.IsNullOrWhiteSpace(value) ? null : Guid.TryParse(value, out var parsed) ? parsed : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be a GUID.");
         return evaluatedValue5;
     }
 
@@ -117,7 +119,7 @@ internal static class McpToolSupport
 
     internal static FlowVersionTrackDto ParseTrack(string value)
     {
-        global::SereinFlow.Contracts.FlowVersionTrackDto evaluatedValue7 = Enum.TryParse<FlowVersionTrackDto>(value, true, out var track) && Enum.IsDefined(track) ? track : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow version track must be development or production.");
+        FlowVersionTrackDto evaluatedValue7 = Enum.TryParse<FlowVersionTrackDto>(value, true, out var track) && Enum.IsDefined(track) ? track : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow version track must be development or production.");
         return evaluatedValue7;
     }
 
@@ -136,7 +138,7 @@ internal static class McpToolSupport
 
     internal static McpProtocolException VersionConflict(long? currentVersion)
     {
-        global::SereinFlow.Mcp.McpProtocolException evaluatedValue8 = new(McpProtocolErrorCodes.Conflict, "The flow version changed before the MCP mutation was applied.", new { currentVersion });
+        McpProtocolException evaluatedValue8 = new(McpProtocolErrorCodes.Conflict, "The flow version changed before the MCP mutation was applied.", new { currentVersion });
         return evaluatedValue8;
     }
 
@@ -181,7 +183,7 @@ internal static class McpToolSupport
         }
 
         return project;
-        global::System.Threading.Tasks.Task<global::SereinFlow.Domain.Project?> resolveFindAsyncResult()
+        Task<Project?> resolveFindAsyncResult()
         {
             var getRequiredServiceResult10 = scope.ServiceProvider.GetRequiredService<IProjectRepository>();
             var findAsyncResult = getRequiredServiceResult10.FindAsync(projectId, cancellationToken);
@@ -205,7 +207,7 @@ internal static class McpToolSupport
     internal static bool IsPreviewPending(McpPreviewEntry entry) => entry.Status == McpMutationPreviewStatusDto.Pending && entry.ExpiresAt > DateTimeOffset.UtcNow;
     internal static McpToolDescriptor Tool(string name, string description, JsonElement inputSchema)
     {
-        global::SereinFlow.Mcp.McpToolDescriptor evaluatedValue11 = new(name, description, inputSchema);
+        McpToolDescriptor evaluatedValue11 = new(name, description, inputSchema);
         return evaluatedValue11;
     }
 
@@ -253,28 +255,28 @@ internal static class McpToolSupport
         var evaluatedValue15 = GetOptionalInt(arguments, "maxJsonBytes") ?? 64 * 1024;
         var evaluatedValue16 = GetOptionalBool(arguments, "includeFlowLiteralValues") ?? false;
         var evaluatedValue17 = GetOptionalBool(arguments, "includeScriptSource") ?? false;
-        global::SereinFlow.Contracts.AiReadModelOptions evaluatedValue18 = new(evaluatedValue14, evaluatedValue15, evaluatedValue16, evaluatedValue17);
+        AiReadModelOptions evaluatedValue18 = new(evaluatedValue14, evaluatedValue15, evaluatedValue16, evaluatedValue17);
         return evaluatedValue18;
     }
 
     internal static FlowVersionTrackDto ReadTrack(JsonElement arguments)
     {
         var value = GetOptionalString(arguments, "track");
-        global::SereinFlow.Contracts.FlowVersionTrackDto evaluatedValue19 = string.IsNullOrWhiteSpace(value) ? FlowVersionTrackDto.Development : Enum.TryParse<FlowVersionTrackDto>(value, true, out var track) && Enum.IsDefined(track) ? track : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow version track must be development or production.");
+        FlowVersionTrackDto evaluatedValue19 = string.IsNullOrWhiteSpace(value) ? FlowVersionTrackDto.Development : Enum.TryParse<FlowVersionTrackDto>(value, true, out var track) && Enum.IsDefined(track) ? track : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow version track must be development or production.");
         return evaluatedValue19;
     }
 
     internal static FlowVersionTrackDto? ReadOptionalTrack(JsonElement arguments)
     {
         var value = GetOptionalString(arguments, "track");
-        global::SereinFlow.Contracts.FlowVersionTrackDto? evaluatedValue20 = string.IsNullOrWhiteSpace(value) ? null : Enum.TryParse<FlowVersionTrackDto>(value, true, out var track) && Enum.IsDefined(track) ? track : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow version track must be development or production.");
+        FlowVersionTrackDto? evaluatedValue20 = string.IsNullOrWhiteSpace(value) ? null : Enum.TryParse<FlowVersionTrackDto>(value, true, out var track) && Enum.IsDefined(track) ? track : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow version track must be development or production.");
         return evaluatedValue20;
     }
 
     internal static Guid GetGuid(JsonElement arguments, string name)
     {
         var value = GetRequiredString(arguments, name);
-        global::System.Guid evaluatedValue21 = Guid.TryParse(value, out var parsed) ? parsed : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be a GUID.");
+        Guid evaluatedValue21 = Guid.TryParse(value, out var parsed) ? parsed : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be a GUID.");
         return evaluatedValue21;
     }
 

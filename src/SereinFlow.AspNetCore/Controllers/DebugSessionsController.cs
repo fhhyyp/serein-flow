@@ -19,9 +19,9 @@ public sealed class DebugSessionsController : ApiControllerBase
     public async Task<ActionResult> Get([FromRoute] Guid sessionId, CancellationToken cancellationToken)
     {
         var session = await _sessions.FindAsync(sessionId, cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue = session is null ? ApiProblem(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。") : resolveOkResult();
+        ActionResult evaluatedValue = session is null ? ApiProblem(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。") : resolveOkResult();
         return evaluatedValue;
-        global::Microsoft.AspNetCore.Mvc.ObjectResult resolveOkResult()
+        ObjectResult resolveOkResult()
         {
             var toFlowDebugSessionDtoResult = ToFlowDebugSessionDto(session);
             var okResult = Ok(toFlowDebugSessionDtoResult);
@@ -59,9 +59,9 @@ public sealed class DebugSessionsController : ApiControllerBase
 
         var fromSecondsResult = TimeSpan.FromSeconds(seconds);
         var result = await _sessions.WaitForChangeAsync(sessionId, revision, fromSecondsResult, cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue6 = result.Session is null ? ApiProblem(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。") : resolveOkResult3();
+        ActionResult evaluatedValue6 = result.Session is null ? ApiProblem(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。") : resolveOkResult3();
         return evaluatedValue6;
-        global::Microsoft.AspNetCore.Mvc.ObjectResult resolveOkResult3()
+        ObjectResult resolveOkResult3()
         {
             var toFlowDebugSessionDtoResult4 = ToFlowDebugSessionDto(result.Session);
             var flowDebugWaitResultDto = new FlowDebugWaitResultDto(result.HasChanged, result.TimedOut, toFlowDebugSessionDtoResult4);

@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -280,12 +281,12 @@ public sealed class ExternalHostIntegrationTests
 
     private static HttpRequestMessage CreateMcpRequest(string method, int id, object? parameters = null)
     {
-        global::System.Net.Http.HttpRequestMessage evaluatedValue1 = new(HttpMethod.Post, "/mcp")
+        HttpRequestMessage evaluatedValue1 = new(HttpMethod.Post, "/mcp")
         {
             Content = resolveStringContent()
         };
         return evaluatedValue1;
-        global::System.Net.Http.HttpContent resolveStringContent()
+        HttpContent resolveStringContent()
         {
             var serializeResult = JsonSerializer.Serialize(new { jsonrpc = "2.0", id, method, @params = parameters ?? new { } });
             var stringContent = new StringContent(serializeResult, Encoding.UTF8, "application/json");

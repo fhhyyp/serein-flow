@@ -35,7 +35,7 @@ public sealed record SereinFlowStorageOptions(string DataRoot, string DatabasePa
         Directory.CreateDirectory(scriptArtifactRoot);
         Directory.CreateDirectory(stagingDirectory);
         Directory.CreateDirectory(workpieceDirectory);
-        global::SereinFlow.Infrastructure.Configuration.SereinFlowStorageOptions evaluatedValue = new(dataRoot, databasePath, libraryDirectory, scriptArtifactRoot, stagingDirectory, workpieceDirectory);
+        SereinFlowStorageOptions evaluatedValue = new(dataRoot, databasePath, libraryDirectory, scriptArtifactRoot, stagingDirectory, workpieceDirectory);
         return evaluatedValue;
     }
 

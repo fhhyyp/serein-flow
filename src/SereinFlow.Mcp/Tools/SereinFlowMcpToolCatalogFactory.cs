@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
@@ -17,7 +18,7 @@ internal static class SereinFlowMcpToolCatalogFactory
     private static readonly IReadOnlyList<McpToolDescriptor> ToolDescriptors = createToolDescriptorsInitialValue();
     internal static McpToolCatalog Create()
     {
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Mcp.IMcpTool> evaluatedValue206 = [Read("sereinflow_list_projects", McpPermissionDto.ProjectRead, static (context, arguments, cancellationToken) =>
+        IEnumerable<IMcpTool> evaluatedValue206 = [Read("sereinflow_list_projects", McpPermissionDto.ProjectRead, static (context, arguments, cancellationToken) =>
         {
             var listProjectsAsyncResult = McpReadModelToolHandlers.ListProjectsAsync(context, arguments, cancellationToken);
             return listProjectsAsyncResult;
@@ -218,7 +219,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             var rotateAsyncResult = McpApiKeyToolHandlers.RotateAsync(context, arguments, cancellationToken);
             return rotateAsyncResult;
         }, requiresIdempotencyKey: true)];
-        global::SereinFlow.Mcp.McpToolCatalog evaluatedValue207 = new(evaluatedValue206);
+        McpToolCatalog evaluatedValue207 = new(evaluatedValue206);
         return evaluatedValue207;
     }
 
@@ -235,7 +236,7 @@ internal static class SereinFlowMcpToolCatalogFactory
     private static McpToolDefinition ReadAny<T>(string name, Func<McpToolContext, JsonElement, CancellationToken, Task<T>> execute)
     {
         var getToolDescriptorResult = GetToolDescriptor(name);
-        global::SereinFlow.Mcp.McpToolDefinition evaluatedValue210 = new(getToolDescriptorResult, McpToolExecutionKind.Read, async (context, arguments, cancellationToken) =>
+        McpToolDefinition evaluatedValue210 = new(getToolDescriptorResult, McpToolExecutionKind.Read, async (context, arguments, cancellationToken) =>
         {
             var evaluatedValue209 = (object? )await execute(context, arguments, cancellationToken);
             return evaluatedValue209;
@@ -260,7 +261,7 @@ internal static class SereinFlowMcpToolCatalogFactory
     private static McpToolDefinition Define(string name, McpToolExecutionKind executionKind, McpPermissionDto permission, Func<McpToolContext, JsonElement, CancellationToken, Task<object?>> execute, bool requiresIdempotencyKey, FlowVersionTrackDto? auditTrack)
     {
         var getToolDescriptorResult214 = GetToolDescriptor(name);
-        global::SereinFlow.Mcp.McpToolDefinition evaluatedValue215 = new(getToolDescriptorResult214, executionKind, execute, (context, arguments) =>
+        McpToolDefinition evaluatedValue215 = new(getToolDescriptorResult214, executionKind, execute, (context, arguments) =>
         {
             var tryGetGuidResult213 = TryGetGuid(arguments, "projectId");
             context.Security.Require(context.Principal, permission, tryGetGuidResult213);
@@ -282,7 +283,7 @@ internal static class SereinFlowMcpToolCatalogFactory
     {
         IReadOnlyList<McpToolDescriptor> toolDescriptorsInitialValue = [resolveToolResult(), resolveToolResult1(), resolveToolResult5(), resolveToolResult9(), resolveToolResult12(), resolveToolResult16(), resolveToolResult20(), resolveToolResult24(), resolveToolResult28(), resolveToolResult32(), resolveToolResult36(), resolveToolResult40(), resolveToolResult44(), resolveToolResult48(), resolveToolResult52(), resolveToolResult56(), resolveToolResult60(), resolveToolResult64(), resolveToolResult68(), resolveToolResult72(), resolveToolResult76(), resolveToolResult80(), resolveToolResult84(), resolveToolResult88(), resolveToolResult92(), resolveToolResult96(), resolveToolResult100(), resolveToolResult104(), resolveToolResult108(), resolveToolResult112(), resolveToolResult116(), resolveToolResult120(), resolveToolResult124(), resolveToolResult128(), resolveToolResult132(), resolveToolResult136(), resolveToolResult140(), resolveToolResult144(), resolveToolResult148(), resolveToolResult152(), resolveToolResult156(), resolveToolResult160(), resolveToolResult164(), resolveToolResult168(), resolveToolResult172(), resolveToolResult179(), resolveToolResult189(), resolveToolResult192(), resolveToolResult198(), resolveToolResult202()];
         return toolDescriptorsInitialValue;
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult()
+        McpToolDescriptor resolveToolResult()
         {
             var dictionary = new Dictionary<string, object?>
             {
@@ -293,7 +294,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult1()
+        McpToolDescriptor resolveToolResult1()
         {
             var dictionary2 = new Dictionary<string, object?>
             {
@@ -304,7 +305,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult4;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult5()
+        McpToolDescriptor resolveToolResult5()
         {
             var dictionary6 = new Dictionary<string, object?>
             {
@@ -316,7 +317,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult8;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult9()
+        McpToolDescriptor resolveToolResult9()
         {
             var applySchemaPropertiesResult = ApplySchemaProperties();
             var schemaResult10 = Schema(properties: applySchemaPropertiesResult, required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"]);
@@ -324,7 +325,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult11;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult12()
+        McpToolDescriptor resolveToolResult12()
         {
             var dictionary13 = new Dictionary<string, object?>
             {
@@ -335,7 +336,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult15;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult16()
+        McpToolDescriptor resolveToolResult16()
         {
             var dictionary17 = new Dictionary<string, object?>
             {
@@ -353,7 +354,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult19;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult20()
+        McpToolDescriptor resolveToolResult20()
         {
             var dictionary21 = new Dictionary<string, object?>
             {
@@ -365,7 +366,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult23;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult24()
+        McpToolDescriptor resolveToolResult24()
         {
             var dictionary25 = new Dictionary<string, object?>
             {
@@ -376,7 +377,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult27;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult28()
+        McpToolDescriptor resolveToolResult28()
         {
             var dictionary29 = new Dictionary<string, object?>
             {
@@ -387,7 +388,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult31;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult32()
+        McpToolDescriptor resolveToolResult32()
         {
             var dictionary33 = new Dictionary<string, object?>
             {
@@ -399,7 +400,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult35;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult36()
+        McpToolDescriptor resolveToolResult36()
         {
             var dictionary37 = new Dictionary<string, object?>
             {
@@ -410,7 +411,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult39;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult40()
+        McpToolDescriptor resolveToolResult40()
         {
             var dictionary41 = new Dictionary<string, object?>
             {
@@ -422,7 +423,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult43;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult44()
+        McpToolDescriptor resolveToolResult44()
         {
             var dictionary45 = new Dictionary<string, object?>
             {
@@ -434,7 +435,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult47;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult48()
+        McpToolDescriptor resolveToolResult48()
         {
             var dictionary49 = new Dictionary<string, object?>
             {
@@ -451,7 +452,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult51;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult52()
+        McpToolDescriptor resolveToolResult52()
         {
             var dictionary53 = new Dictionary<string, object?>
             {
@@ -465,7 +466,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult55;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult56()
+        McpToolDescriptor resolveToolResult56()
         {
             var dictionary57 = new Dictionary<string, object?>
             {
@@ -482,7 +483,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult59;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult60()
+        McpToolDescriptor resolveToolResult60()
         {
             var dictionary61 = new Dictionary<string, object?>
             {
@@ -493,7 +494,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult63;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult64()
+        McpToolDescriptor resolveToolResult64()
         {
             var dictionary65 = new Dictionary<string, object?>
             {
@@ -505,7 +506,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult67;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult68()
+        McpToolDescriptor resolveToolResult68()
         {
             var dictionary69 = new Dictionary<string, object?>
             {
@@ -532,7 +533,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult71;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult72()
+        McpToolDescriptor resolveToolResult72()
         {
             var dictionary73 = new Dictionary<string, object?>
             {
@@ -545,7 +546,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult75;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult76()
+        McpToolDescriptor resolveToolResult76()
         {
             var dictionary77 = new Dictionary<string, object?>
             {
@@ -557,7 +558,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult79;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult80()
+        McpToolDescriptor resolveToolResult80()
         {
             var dictionary81 = new Dictionary<string, object?>
             {
@@ -568,7 +569,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult83;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult84()
+        McpToolDescriptor resolveToolResult84()
         {
             var dictionary85 = new Dictionary<string, object?>
             {
@@ -581,7 +582,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult87;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult88()
+        McpToolDescriptor resolveToolResult88()
         {
             var dictionary89 = new Dictionary<string, object?>
             {
@@ -610,7 +611,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             }
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult92()
+        McpToolDescriptor resolveToolResult92()
         {
             var dictionary93 = new Dictionary<string, object?>
             {
@@ -622,7 +623,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult95;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult96()
+        McpToolDescriptor resolveToolResult96()
         {
             var dictionary97 = new Dictionary<string, object?>
             {
@@ -634,7 +635,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult99;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult100()
+        McpToolDescriptor resolveToolResult100()
         {
             var dictionary101 = new Dictionary<string, object?>
             {
@@ -646,7 +647,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult103;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult104()
+        McpToolDescriptor resolveToolResult104()
         {
             var dictionary105 = new Dictionary<string, object?>
             {
@@ -660,7 +661,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult107;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult108()
+        McpToolDescriptor resolveToolResult108()
         {
             var dictionary109 = new Dictionary<string, object?>
             {
@@ -674,7 +675,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult111;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult112()
+        McpToolDescriptor resolveToolResult112()
         {
             var dictionary113 = new Dictionary<string, object?>
             {
@@ -687,7 +688,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult115;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult116()
+        McpToolDescriptor resolveToolResult116()
         {
             var dictionary117 = new Dictionary<string, object?>
             {
@@ -703,7 +704,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult119;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult120()
+        McpToolDescriptor resolveToolResult120()
         {
             var applySchemaPropertiesResult121 = ApplySchemaProperties();
             var schemaResult122 = Schema(properties: applySchemaPropertiesResult121, required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"]);
@@ -711,7 +712,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult123;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult124()
+        McpToolDescriptor resolveToolResult124()
         {
             var dictionary125 = new Dictionary<string, object?>
             {
@@ -726,7 +727,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult127;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult128()
+        McpToolDescriptor resolveToolResult128()
         {
             var dictionary129 = new Dictionary<string, object?>
             {
@@ -740,7 +741,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult131;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult132()
+        McpToolDescriptor resolveToolResult132()
         {
             var applySchemaPropertiesResult133 = ApplySchemaProperties();
             var schemaResult134 = Schema(properties: applySchemaPropertiesResult133, required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"]);
@@ -748,7 +749,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult135;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult136()
+        McpToolDescriptor resolveToolResult136()
         {
             var dictionary137 = new Dictionary<string, object?>
             {
@@ -763,7 +764,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult139;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult140()
+        McpToolDescriptor resolveToolResult140()
         {
             var applySchemaPropertiesResult141 = ApplySchemaProperties();
             var schemaResult142 = Schema(properties: applySchemaPropertiesResult141, required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"]);
@@ -771,7 +772,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult143;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult144()
+        McpToolDescriptor resolveToolResult144()
         {
             var dictionary145 = new Dictionary<string, object?>
             {
@@ -785,7 +786,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult147;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult148()
+        McpToolDescriptor resolveToolResult148()
         {
             var dictionary149 = new Dictionary<string, object?>
             {
@@ -800,7 +801,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult151;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult152()
+        McpToolDescriptor resolveToolResult152()
         {
             var dictionary153 = new Dictionary<string, object?>
             {
@@ -816,7 +817,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult155;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult156()
+        McpToolDescriptor resolveToolResult156()
         {
             var dictionary157 = new Dictionary<string, object?>
             {
@@ -828,7 +829,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult159;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult160()
+        McpToolDescriptor resolveToolResult160()
         {
             var applySchemaPropertiesResult161 = ApplySchemaProperties();
             var schemaResult162 = Schema(properties: applySchemaPropertiesResult161, required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"]);
@@ -836,7 +837,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult163;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult164()
+        McpToolDescriptor resolveToolResult164()
         {
             var dictionary165 = new Dictionary<string, object?>
             {
@@ -850,7 +851,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult167;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult168()
+        McpToolDescriptor resolveToolResult168()
         {
             var applySchemaPropertiesResult169 = ApplySchemaProperties();
             var schemaResult170 = Schema(properties: applySchemaPropertiesResult169, required: ["previewId", "previewFingerprint", "confirmation", "idempotencyKey"]);
@@ -858,7 +859,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult171;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult172()
+        McpToolDescriptor resolveToolResult172()
         {
             var dictionary176 = new Dictionary<string, object?>
             {
@@ -878,7 +879,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             }
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult179()
+        McpToolDescriptor resolveToolResult179()
         {
             var dictionary186 = new Dictionary<string, object?>
             {
@@ -928,14 +929,14 @@ internal static class SereinFlowMcpToolCatalogFactory
             }
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult189()
+        McpToolDescriptor resolveToolResult189()
         {
             var schemaResult190 = Schema();
             var toolResult191 = Tool("sereinflow_list_mcp_api_keys", "List API keys visible to the administrator.", schemaResult190);
             return toolResult191;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult192()
+        McpToolDescriptor resolveToolResult192()
         {
             var dictionary195 = new Dictionary<string, object?>
             {
@@ -960,7 +961,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             }
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult198()
+        McpToolDescriptor resolveToolResult198()
         {
             var dictionary199 = new Dictionary<string, object?>
             {
@@ -972,7 +973,7 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult201;
         }
 
-        global::SereinFlow.Mcp.McpToolDescriptor resolveToolResult202()
+        McpToolDescriptor resolveToolResult202()
         {
             var dictionary203 = new Dictionary<string, object?>
             {

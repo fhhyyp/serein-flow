@@ -105,7 +105,7 @@ internal static class McpRunMessageToolHandlers
 
     private static McpProtocolException InvalidChannelKind()
     {
-        global::SereinFlow.Mcp.McpProtocolException evaluatedValue3 = new(McpProtocolErrorCodes.InvalidParams, "The message channel kind must be 'queue' or 'eventBus'. 消息通道类型必须是 queue 或 eventBus。", new { code = MessageErrorCodes.ChannelInvalid, path = "channelKind" });
+        McpProtocolException evaluatedValue3 = new(McpProtocolErrorCodes.InvalidParams, "The message channel kind must be 'queue' or 'eventBus'. 消息通道类型必须是 queue 或 eventBus。", new { code = MessageErrorCodes.ChannelInvalid, path = "channelKind" });
         return evaluatedValue3;
     }
 

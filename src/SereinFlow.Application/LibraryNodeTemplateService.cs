@@ -155,7 +155,7 @@ public sealed class LibraryNodeTemplateService
         var canonicalParameterIdResult11 = CanonicalParameterId(parameter.Id);
         string? evaluatedValue12 = parameter.IsVariadic ? CanonicalParameterId(parameter.VariadicGroupId ?? parameter.Id) : null;
         var nodeParameterUiMetadataDto = new NodeParameterUiMetadataDto(canonicalParameterIdResult11, parameter.Name, parameter.Type, parameter.DefaultValue, null, null, null, null, Type: parameter.Type, Description: parameter.Description, InputMode: parameter.EnumMetadata is null ? "manual" : "select", IsVariadic: parameter.IsVariadic, VariadicGroupId: evaluatedValue12, ElementType: parameter.ElementType, VariadicMode: parameter.IsVariadic ? "expanded" : null, EnumMetadata: parameter.EnumMetadata);
-        global::SereinFlow.Contracts.NodeParameterDto evaluatedValue13 = new(parameter.Name, parameter.DefaultValue, DataSourceDto.Literal, parameter.Required, nodeParameterUiMetadataDto);
+        NodeParameterDto evaluatedValue13 = new(parameter.Name, parameter.DefaultValue, DataSourceDto.Literal, parameter.Required, nodeParameterUiMetadataDto);
         return evaluatedValue13;
     }
 
@@ -168,7 +168,7 @@ public sealed class LibraryNodeTemplateService
 
     private static LibraryNodeTemplateException Invalid(string code, string fieldPath, string expected, string remediation, int statusCode = StatusCodes.Status400BadRequest)
     {
-        global::SereinFlow.Application.LibraryNodeTemplateException evaluatedValue15 = new(code, fieldPath, expected, remediation, statusCode);
+        LibraryNodeTemplateException evaluatedValue15 = new(code, fieldPath, expected, remediation, statusCode);
         return evaluatedValue15;
     }
 }

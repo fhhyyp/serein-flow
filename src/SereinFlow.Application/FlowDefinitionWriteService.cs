@@ -60,7 +60,7 @@ public sealed class FlowDefinitionWriteService
         diagnostics.AddRange(libraryValidation.Diagnostics);
         var validation = new FlowValidationResultDto(diagnostics.Count == 0, diagnostics);
         var normalized = validation.IsValid ? FlowDefinitionContractNormalizer.NormalizeForPersistence(candidate) : candidate;
-        global::SereinFlow.Application.FlowDefinitionPreparationResult evaluatedValue1 = new(current, normalized, validation);
+        FlowDefinitionPreparationResult evaluatedValue1 = new(current, normalized, validation);
         return evaluatedValue1;
     }
 
@@ -68,38 +68,38 @@ public sealed class FlowDefinitionWriteService
     {
         if (candidate.Id != flowId || expectedVersion < 1)
         {
-            global::SereinFlow.Application.FlowDefinitionWriteResult evaluatedValue2 = new(FlowDefinitionWriteStatus.Invalid, CurrentVersion: expectedVersion);
+            FlowDefinitionWriteResult evaluatedValue2 = new(FlowDefinitionWriteStatus.Invalid, CurrentVersion: expectedVersion);
             return evaluatedValue2;
         }
 
         var preparation = await PrepareAsync(projectId, flowId, candidate, cancellationToken);
         if (preparation is null)
         {
-            global::SereinFlow.Application.FlowDefinitionWriteResult evaluatedValue3 = new(FlowDefinitionWriteStatus.NotFound);
+            FlowDefinitionWriteResult evaluatedValue3 = new(FlowDefinitionWriteStatus.NotFound);
             return evaluatedValue3;
         }
 
         if (await _projects.FindAsync(projectId, cancellationToken)is { Status: SereinFlow.Domain.ProjectStatus.Archived })
         {
-            global::SereinFlow.Application.FlowDefinitionWriteResult evaluatedValue4 = new(FlowDefinitionWriteStatus.Archived, preparation);
+            FlowDefinitionWriteResult evaluatedValue4 = new(FlowDefinitionWriteStatus.Archived, preparation);
             return evaluatedValue4;
         }
 
         if (preparation.Current.Version != expectedVersion)
         {
-            global::SereinFlow.Application.FlowDefinitionWriteResult evaluatedValue5 = new(FlowDefinitionWriteStatus.Conflict, preparation, CurrentVersion: preparation.Current.Version);
+            FlowDefinitionWriteResult evaluatedValue5 = new(FlowDefinitionWriteStatus.Conflict, preparation, CurrentVersion: preparation.Current.Version);
             return evaluatedValue5;
         }
 
         if (!preparation.Validation.IsValid)
         {
-            global::SereinFlow.Application.FlowDefinitionWriteResult evaluatedValue6 = new(FlowDefinitionWriteStatus.Invalid, preparation);
+            FlowDefinitionWriteResult evaluatedValue6 = new(FlowDefinitionWriteStatus.Invalid, preparation);
             return evaluatedValue6;
         }
 
         if (resolveCompareResult().Changes.Count == 0)
         {
-            global::SereinFlow.Application.FlowDefinitionWriteResult evaluatedValue7 = new(FlowDefinitionWriteStatus.NoChange, preparation, preparation.Current, expectedVersion);
+            FlowDefinitionWriteResult evaluatedValue7 = new(FlowDefinitionWriteStatus.NoChange, preparation, preparation.Current, expectedVersion);
             return evaluatedValue7;
         }
 
@@ -107,7 +107,7 @@ public sealed class FlowDefinitionWriteService
         if (saved is null)
         {
             var evaluatedValue8 = (await _flows.FindAsync(projectId, flowId, cancellationToken))?.Version;
-            global::SereinFlow.Application.FlowDefinitionWriteResult evaluatedValue9 = new(FlowDefinitionWriteStatus.Conflict, preparation, CurrentVersion: evaluatedValue8);
+            FlowDefinitionWriteResult evaluatedValue9 = new(FlowDefinitionWriteStatus.Conflict, preparation, CurrentVersion: evaluatedValue8);
             return evaluatedValue9;
         }
 
@@ -120,9 +120,9 @@ public sealed class FlowDefinitionWriteService
             await _changePublisher.PublishAsync(workspaceChangeEventDto, CancellationToken.None);
         }
 
-        global::SereinFlow.Application.FlowDefinitionWriteResult evaluatedValue10 = new(FlowDefinitionWriteStatus.Saved, preparation, saved, saved.Version);
+        FlowDefinitionWriteResult evaluatedValue10 = new(FlowDefinitionWriteStatus.Saved, preparation, saved, saved.Version);
         return evaluatedValue10;
-        global::SereinFlow.Contracts.FlowDiffDto resolveCompareResult()
+        FlowDiffDto resolveCompareResult()
         {
             var flowDiffService = new FlowDiffService();
             var compareResult = flowDiffService.Compare(preparation.Current, preparation.Candidate);
@@ -240,7 +240,7 @@ public sealed class FlowDefinitionWriteService
         var toArrayResult26 = orderResult25.ToArray();
         var orderResult27 = parameterIds.Order(StringComparer.Ordinal);
         var toArrayResult28 = orderResult27.ToArray();
-        global::SereinFlow.Application.FlowDefinitionWriteService.ChangeScope evaluatedValue29 = new(toArrayResult, toArrayResult24, toArrayResult26, toArrayResult28);
+        FlowDefinitionWriteService.ChangeScope evaluatedValue29 = new(toArrayResult, toArrayResult24, toArrayResult26, toArrayResult28);
         return evaluatedValue29;
     }
 

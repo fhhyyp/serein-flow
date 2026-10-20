@@ -166,7 +166,7 @@ public sealed class McpSkillManagementIntegrationTests
             var getPropertyResult16 = evaluatedValue15.GetProperty("text");
             var getStringResult17 = getPropertyResult16.GetString();
             return getStringResult17;
-            global::System.Text.Json.JsonElement resolveGetPropertyResult()
+            JsonElement resolveGetPropertyResult()
             {
                 var getPropertyResult13 = document.RootElement.GetProperty("result");
                 var getPropertyResult14 = getPropertyResult13.GetProperty("contents");

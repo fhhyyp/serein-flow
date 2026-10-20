@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
@@ -96,13 +97,13 @@ public interface ILibraryCatalogService
     /// </summary>
     Task<bool> SetLifecycleAsync(string libraryId, LibraryLifecycleDto lifecycle, CancellationToken cancellationToken = default)
     {
-        global::System.Threading.Tasks.Task<bool> evaluatedValue = lifecycle == LibraryLifecycleDto.Archived ? ArchiveAsync(libraryId, cancellationToken) : Task.FromResult(false);
+        Task<bool> evaluatedValue = lifecycle == LibraryLifecycleDto.Archived ? ArchiveAsync(libraryId, cancellationToken) : Task.FromResult(false);
         return evaluatedValue;
     }
 
     Task<bool> SetLifecycleAsync(string libraryId, LibraryLifecycleDto lifecycle, CancellationToken cancellationToken, string origin)
     {
-        global::System.Threading.Tasks.Task<bool> evaluatedValue3 = lifecycle == LibraryLifecycleDto.Archived ? ArchiveAsync(libraryId, cancellationToken, origin) : Task.FromResult(false);
+        Task<bool> evaluatedValue3 = lifecycle == LibraryLifecycleDto.Archived ? ArchiveAsync(libraryId, cancellationToken, origin) : Task.FromResult(false);
         return evaluatedValue3;
     }
 }

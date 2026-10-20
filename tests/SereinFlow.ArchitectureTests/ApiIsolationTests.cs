@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using System.Xml.Linq;
 using SereinFlow.Api;
@@ -218,7 +219,7 @@ public sealed class ApiIsolationTests
             return getRelativePathResult41;
         });
         var owners = selectResult47.ToArray();
-        global::System.ReadOnlySpan<string> evaluatedValue48 = [Path.Combine("SereinFlow.Contracts", "ApiUris.cs")];
+        ReadOnlySpan<string> evaluatedValue48 = [Path.Combine("SereinFlow.Contracts", "ApiUris.cs")];
         Assert.Equal(evaluatedValue48, owners);
     }
 

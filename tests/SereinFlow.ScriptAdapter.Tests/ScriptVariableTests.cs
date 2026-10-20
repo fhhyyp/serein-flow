@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
 using SereinFlow.Runtime.Abstractions;
@@ -158,7 +159,7 @@ public sealed class ScriptVariableTests
                 var expected = deconstructedEntry.Item2;
                 var runtime = CreateRuntime(variables);
                 var dictionary16 = new Dictionary<string, object?>();
-                global::SereinFlow.Runtime.Abstractions.NodeExecutionRequest evaluatedValue17 = new(node, context, dictionary16, runtime);
+                NodeExecutionRequest evaluatedValue17 = new(node, context, dictionary16, runtime);
                 var result = await executor.ExecuteAsync(evaluatedValue17, CancellationToken.None);
                 Assert.True(result.IsSuccess, result.ErrorMessage);
                 var getResult18 = variables.Get<int>("count");
@@ -263,7 +264,7 @@ public sealed class ScriptVariableTests
 
     private static NodeDefinition CreateNode(string source)
     {
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue28 = [new ScriptValueContract("result", "object")];
+        IEnumerable<ScriptValueContract> evaluatedValue28 = [new ScriptValueContract("result", "object")];
         var createResult = ScriptNodeDefinition.Create("script", source, "1", outputs: evaluatedValue28);
         var createResult29 = NodeDefinition.Create("script", NodeType.Script, "Script", script: createResult);
         return createResult29;
@@ -274,7 +275,7 @@ public sealed class ScriptVariableTests
         var newGuidResult30 = Guid.NewGuid();
         var newGuidResult31 = Guid.NewGuid();
         var nodeExecutionEnvironment = new NodeExecutionEnvironment(newGuidResult30, "project", newGuidResult31, "main", "script", 0);
-        global::SereinFlow.Runtime.Abstractions.NodeExecutionRuntime evaluatedValue32 = new(nodeExecutionEnvironment, isCancellationRequested: cancellationProbe, variables: variables);
+        NodeExecutionRuntime evaluatedValue32 = new(nodeExecutionEnvironment, isCancellationRequested: cancellationProbe, variables: variables);
         return evaluatedValue32;
     }
 
@@ -285,7 +286,7 @@ public sealed class ScriptVariableTests
         var testContext = new TestContext();
         var dictionary33 = new Dictionary<string, object?>();
         var createRuntimeResult = CreateRuntime(variables, cancellationProbe);
-        global::SereinFlow.Runtime.Abstractions.NodeExecutionRequest evaluatedValue34 = new(createNodeResult, testContext, dictionary33, createRuntimeResult);
+        NodeExecutionRequest evaluatedValue34 = new(createNodeResult, testContext, dictionary33, createRuntimeResult);
         var executeAsyncResult = await sereinScriptNodeExecutor.ExecuteAsync(evaluatedValue34, CancellationToken.None);
         return executeAsyncResult;
     }

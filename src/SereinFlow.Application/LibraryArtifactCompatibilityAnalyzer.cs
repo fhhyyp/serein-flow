@@ -170,7 +170,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
 
     private static LibraryManifestNodeDto? FindSourceNode(LibraryManifestNodeDto target, IReadOnlyList<LibraryManifestNodeDto> sourceNodes)
     {
-        global::SereinFlow.Contracts.LibraryManifestNodeDto? evaluatedValue17 = sourceNodes.Any(node =>
+        LibraryManifestNodeDto? evaluatedValue17 = sourceNodes.Any(node =>
         {
             var equalsResult16 = string.Equals(node.ContractId, target.ContractId, StringComparison.Ordinal);
             return equalsResult16;
@@ -200,7 +200,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
 
     private static LibraryArtifactCompatibilityIssueDto Issue(string id, LibraryCompatibilityClassificationDto classification, string code, string message, string? sourceNodeContractId = null, string? targetNodeContractId = null, string? sourceParameterId = null, string? targetParameterId = null, bool blocks = false)
     {
-        global::SereinFlow.Contracts.LibraryArtifactCompatibilityIssueDto evaluatedValue21 = new(id, classification, code, message, sourceNodeContractId, targetNodeContractId, sourceParameterId, targetParameterId, blocks);
+        LibraryArtifactCompatibilityIssueDto evaluatedValue21 = new(id, classification, code, message, sourceNodeContractId, targetNodeContractId, sourceParameterId, targetParameterId, blocks);
         return evaluatedValue21;
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
@@ -105,10 +106,10 @@ public sealed class FlowPatchServiceTests
         });
         Assert.Contains("connectionId", exception.Message, StringComparison.Ordinal);
         Assert.Contains("does not match", exception.Message, StringComparison.Ordinal);
-        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto()
+        CanvasDto resolveCanvasDto()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> evaluatedValue = [CreateNode("node-a"), CreateNode("node-b")];
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ConnectionDto> evaluatedValue20 = [new ConnectionDto("edge-a", "node-a", "out", "node-b", "in", ConnectionKindDto.Execution, null, null, 0)];
+            IReadOnlyList<NodeDto> evaluatedValue = [CreateNode("node-a"), CreateNode("node-b")];
+            IReadOnlyList<ConnectionDto> evaluatedValue20 = [new ConnectionDto("edge-a", "node-a", "out", "node-b", "in", ConnectionKindDto.Execution, null, null, 0)];
             var canvasDto21 = new CanvasDto("main", CanvasLifecycleDto.Main, evaluatedValue, evaluatedValue20);
             return canvasDto21;
         }
@@ -137,20 +138,20 @@ public sealed class FlowPatchServiceTests
         var addedParameter = Parameter("value-2");
         var flowPatchService27 = new FlowPatchService();
         var createDefinitionResult28 = CreateDefinition();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowPatchOperationDto> evaluatedValue30 = [resolveOperationResult()];
+        IReadOnlyList<FlowPatchOperationDto> evaluatedValue30 = [resolveOperationResult()];
         var added = flowPatchService27.Apply(createDefinitionResult28, evaluatedValue30);
         var evaluatedValue31 = Assert.Single(added.Canvases).Nodes;
         var addedNode = evaluatedValue31.Single();
         var selectResult = addedNode.Parameters.Select(parameter => parameter.Ui!.Id);
         Assert.Equal(["value", "value-2"], selectResult);
         var flowPatchService32 = new FlowPatchService();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowPatchOperationDto> evaluatedValue33 = [new FlowPatchOperationDto(FlowPatchOperationKindDto.RemoveNodeParameter, CanvasId: "main", NodeId: "node-a", ParameterId: "value-2")];
+        IReadOnlyList<FlowPatchOperationDto> evaluatedValue33 = [new FlowPatchOperationDto(FlowPatchOperationKindDto.RemoveNodeParameter, CanvasId: "main", NodeId: "node-a", ParameterId: "value-2")];
         var removed = flowPatchService32.Apply(added, evaluatedValue33);
         var evaluatedValue34 = Assert.Single(removed.Canvases).Nodes;
         var evaluatedValue35 = evaluatedValue34.Single().Parameters;
         var selectResult36 = evaluatedValue35.Select(parameter => parameter.Ui!.Id);
         Assert.Equal(["value"], selectResult36);
-        global::SereinFlow.Contracts.FlowPatchOperationDto resolveOperationResult()
+        FlowPatchOperationDto resolveOperationResult()
         {
             var serializeToElementResult29 = JsonSerializer.SerializeToElement(addedParameter);
             var operationResult = Operation(FlowPatchOperationKindDto.AddNodeParameter, serializeToElementResult29, canvasId: "main", nodeId: "node-a");
@@ -174,10 +175,10 @@ public sealed class FlowPatchServiceTests
         });
         Assert.Contains("Data connections", exception.Message, StringComparison.Ordinal);
         Assert.Contains("must be removed first", exception.Message, StringComparison.Ordinal);
-        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto39()
+        CanvasDto resolveCanvasDto39()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> evaluatedValue40 = [CreateNode("node-a"), CreateNode("source")];
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ConnectionDto> evaluatedValue41 = [new ConnectionDto("data", "source", "data-out", "node-a", "value", ConnectionKindDto.Data, null, DataSourceDto.PreviousNode, 0)];
+            IReadOnlyList<NodeDto> evaluatedValue40 = [CreateNode("node-a"), CreateNode("source")];
+            IReadOnlyList<ConnectionDto> evaluatedValue41 = [new ConnectionDto("data", "source", "data-out", "node-a", "value", ConnectionKindDto.Data, null, DataSourceDto.PreviousNode, 0)];
             var canvasDto42 = new CanvasDto("main", CanvasLifecycleDto.Main, evaluatedValue40, evaluatedValue41);
             return canvasDto42;
         }
@@ -191,7 +192,7 @@ public sealed class FlowPatchServiceTests
         {
             Parameters = [Parameter("value"), Parameter("value")]
         };
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ConnectionDto> evaluatedValue46 = [new ConnectionDto("edge", "node-a", "out", "node-a", "in", ConnectionKindDto.Execution, null, null, 0), new ConnectionDto("edge", "node-a", "out", "node-a", "in", ConnectionKindDto.Execution, null, null, 0)];
+        IReadOnlyList<ConnectionDto> evaluatedValue46 = [new ConnectionDto("edge", "node-a", "out", "node-a", "in", ConnectionKindDto.Execution, null, null, 0), new ConnectionDto("edge", "node-a", "out", "node-a", "in", ConnectionKindDto.Execution, null, null, 0)];
         var canvas = new CanvasDto("sub", CanvasLifecycleDto.Custom, [node, duplicateNode], evaluatedValue46, "Sub");
         var serializeToElementResult47 = JsonSerializer.SerializeToElement(canvas);
         var operation = Operation(FlowPatchOperationKindDto.AddCanvas, serializeToElementResult47);
@@ -220,10 +221,10 @@ public sealed class FlowPatchServiceTests
             return applyResult49;
         });
         Assert.Contains("Connections", exception.Message, StringComparison.Ordinal);
-        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto50()
+        CanvasDto resolveCanvasDto50()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> evaluatedValue51 = [CreateNode("node-a"), CreateNode("node-b")];
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ConnectionDto> evaluatedValue52 = [new ConnectionDto("edge", "node-a", "out", "node-b", "in", ConnectionKindDto.Execution, null, null, 0)];
+            IReadOnlyList<NodeDto> evaluatedValue51 = [CreateNode("node-a"), CreateNode("node-b")];
+            IReadOnlyList<ConnectionDto> evaluatedValue52 = [new ConnectionDto("edge", "node-a", "out", "node-b", "in", ConnectionKindDto.Execution, null, null, 0)];
             var canvasDto53 = new CanvasDto("main", CanvasLifecycleDto.Main, evaluatedValue51, evaluatedValue52, "Main");
             return canvasDto53;
         }
@@ -234,7 +235,7 @@ public sealed class FlowPatchServiceTests
     {
         var flowPatchService54 = new FlowPatchService();
         var createDefinitionResult55 = CreateDefinition();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowPatchOperationDto> evaluatedValue56 = [new FlowPatchOperationDto(FlowPatchOperationKindDto.RemoveNode, CanvasId: "main", NodeId: "node-a")];
+        IReadOnlyList<FlowPatchOperationDto> evaluatedValue56 = [new FlowPatchOperationDto(FlowPatchOperationKindDto.RemoveNode, CanvasId: "main", NodeId: "node-a")];
         var result = flowPatchService54.Apply(createDefinitionResult55, evaluatedValue56);
         Assert.Empty(result.EntryNodeId);
         var evaluatedValue57 = Assert.Single(result.Canvases).Nodes;
@@ -249,15 +250,15 @@ public sealed class FlowPatchServiceTests
             Canvases = [resolveCanvasDto58()]
         };
         var flowPatchService61 = new FlowPatchService();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowPatchOperationDto> evaluatedValue62 = [new FlowPatchOperationDto(FlowPatchOperationKindDto.RemoveNode, CanvasId: "main", NodeId: "node-a")];
+        IReadOnlyList<FlowPatchOperationDto> evaluatedValue62 = [new FlowPatchOperationDto(FlowPatchOperationKindDto.RemoveNode, CanvasId: "main", NodeId: "node-a")];
         var result = flowPatchService61.Apply(definition, evaluatedValue62);
         Assert.Empty(result.EntryNodeId);
         var evaluatedValue63 = Assert.Single(result.Canvases).Nodes;
         var evaluatedValue64 = Assert.Single(evaluatedValue63).Id;
         Assert.Equal("node-b", evaluatedValue64);
-        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto58()
+        CanvasDto resolveCanvasDto58()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> evaluatedValue59 = [CreateNode("node-a"), CreateNode("node-b")];
+            IReadOnlyList<NodeDto> evaluatedValue59 = [CreateNode("node-a"), CreateNode("node-b")];
             var canvasDto60 = new CanvasDto("main", CanvasLifecycleDto.Main, evaluatedValue59, [], "Main");
             return canvasDto60;
         }
@@ -271,16 +272,16 @@ public sealed class FlowPatchServiceTests
             Canvases = [resolveCanvasDto65()]
         };
         var flowPatchService69 = new FlowPatchService();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowPatchOperationDto> evaluatedValue70 = [new FlowPatchOperationDto(FlowPatchOperationKindDto.RemoveConnection, CanvasId: "main", ConnectionId: "edge"), new FlowPatchOperationDto(FlowPatchOperationKindDto.RemoveNode, CanvasId: "main", NodeId: "node-a"), new FlowPatchOperationDto(FlowPatchOperationKindDto.RemoveNode, CanvasId: "main", NodeId: "node-b")];
+        IReadOnlyList<FlowPatchOperationDto> evaluatedValue70 = [new FlowPatchOperationDto(FlowPatchOperationKindDto.RemoveConnection, CanvasId: "main", ConnectionId: "edge"), new FlowPatchOperationDto(FlowPatchOperationKindDto.RemoveNode, CanvasId: "main", NodeId: "node-a"), new FlowPatchOperationDto(FlowPatchOperationKindDto.RemoveNode, CanvasId: "main", NodeId: "node-b")];
         var result = flowPatchService69.Apply(definition, evaluatedValue70);
         Assert.Empty(result.EntryNodeId);
         var canvas = Assert.Single(result.Canvases);
         Assert.Empty(canvas.Nodes);
         Assert.Empty(canvas.Connections);
-        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto65()
+        CanvasDto resolveCanvasDto65()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> evaluatedValue66 = [CreateNode("node-a"), CreateNode("node-b")];
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ConnectionDto> evaluatedValue67 = [new ConnectionDto("edge", "node-a", "out", "node-b", "in", ConnectionKindDto.Execution, null, null, 0)];
+            IReadOnlyList<NodeDto> evaluatedValue66 = [CreateNode("node-a"), CreateNode("node-b")];
+            IReadOnlyList<ConnectionDto> evaluatedValue67 = [new ConnectionDto("edge", "node-a", "out", "node-b", "in", ConnectionKindDto.Execution, null, null, 0)];
             var canvasDto68 = new CanvasDto("main", CanvasLifecycleDto.Main, evaluatedValue66, evaluatedValue67, "Main");
             return canvasDto68;
         }
@@ -307,7 +308,7 @@ public sealed class FlowPatchServiceTests
         };
         var connection = new ConnectionDto("data", "source", "data-out", "target", "value", ConnectionKindDto.Data, null, null, 0);
         var flowPatchService76 = new FlowPatchService();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowPatchOperationDto> evaluatedValue80 = [resolveOperationResult77()];
+        IReadOnlyList<FlowPatchOperationDto> evaluatedValue80 = [resolveOperationResult77()];
         var result = flowPatchService76.Apply(definition, evaluatedValue80);
         var canvas = Assert.Single(result.Canvases);
         var target = canvas.Nodes.Single(node => node.Id == "target");
@@ -317,9 +318,9 @@ public sealed class FlowPatchServiceTests
         Assert.Equal("source", parameter.Ui!.SourceNodeId);
         Assert.Equal("data-out", parameter.Ui.SourcePortId);
         Assert.Equal(DataSourceDto.PreviousNode, savedConnection.DataSource);
-        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto73()
+        CanvasDto resolveCanvasDto73()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> evaluatedValue74 = [CreateNode("source")with
+            IReadOnlyList<NodeDto> evaluatedValue74 = [CreateNode("source")with
             {
                 Ports = [new NodePortDto("data-out", "Data", "output", false)],
             }, CreateNode("target"), ];
@@ -327,7 +328,7 @@ public sealed class FlowPatchServiceTests
             return canvasDto75;
         }
 
-        global::SereinFlow.Contracts.FlowPatchOperationDto resolveOperationResult77()
+        FlowPatchOperationDto resolveOperationResult77()
         {
             var serializeToElementResult78 = JsonSerializer.SerializeToElement(connection);
             var operationResult79 = Operation(FlowPatchOperationKindDto.AddConnection, serializeToElementResult78, canvasId: "main");
@@ -353,7 +354,7 @@ public sealed class FlowPatchServiceTests
             Canvases = [resolveCanvasDto81()]
         };
         var flowPatchService85 = new FlowPatchService();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowPatchOperationDto> evaluatedValue89 = [resolveOperationResult86()];
+        IReadOnlyList<FlowPatchOperationDto> evaluatedValue89 = [resolveOperationResult86()];
         var result = flowPatchService85.Apply(definition, evaluatedValue89);
         var canvas = Assert.Single(result.Canvases);
         var evaluatedValue90 = canvas.Nodes.Single(node => node.Id == "target").Parameters;
@@ -362,21 +363,21 @@ public sealed class FlowPatchServiceTests
         Assert.Null(parameter.Ui!.SourceNodeId);
         Assert.Null(parameter.Ui.SourcePortId);
         Assert.Empty(canvas.Connections);
-        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto81()
+        CanvasDto resolveCanvasDto81()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> evaluatedValue82 = [CreateNode("source")with
+            IReadOnlyList<NodeDto> evaluatedValue82 = [CreateNode("source")with
             {
                 Ports = [new NodePortDto("data-out", "Data", "output", false)],
             }, CreateNode("target")with
             {
                 Parameters = [targetParameter],
             }, ];
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ConnectionDto> evaluatedValue83 = [new ConnectionDto("data", "source", "data-out", "target", "value", ConnectionKindDto.Data, null, DataSourceDto.PreviousNode, 0)];
+            IReadOnlyList<ConnectionDto> evaluatedValue83 = [new ConnectionDto("data", "source", "data-out", "target", "value", ConnectionKindDto.Data, null, DataSourceDto.PreviousNode, 0)];
             var canvasDto84 = new CanvasDto("main", CanvasLifecycleDto.Main, evaluatedValue82, evaluatedValue83, "Main");
             return canvasDto84;
         }
 
-        global::SereinFlow.Contracts.FlowPatchOperationDto resolveOperationResult86()
+        FlowPatchOperationDto resolveOperationResult86()
         {
             var serializeToElementResult87 = JsonSerializer.SerializeToElement("data");
             var operationResult88 = Operation(FlowPatchOperationKindDto.RemoveConnection, serializeToElementResult87, canvasId: "main", connectionId: "data");
@@ -386,19 +387,19 @@ public sealed class FlowPatchServiceTests
 
     private static FlowPatchOperationDto Operation(FlowPatchOperationKindDto kind, JsonElement value, string? canvasId = null, string? nodeId = null, string? parameterId = null, string? connectionId = null)
     {
-        global::SereinFlow.Contracts.FlowPatchOperationDto evaluatedValue91 = new(kind, canvasId, nodeId, ConnectionId: connectionId, ParameterId: parameterId, Value: value);
+        FlowPatchOperationDto evaluatedValue91 = new(kind, canvasId, nodeId, ConnectionId: connectionId, ParameterId: parameterId, Value: value);
         return evaluatedValue91;
     }
 
     private static FlowDefinitionDto CreateDefinition()
     {
         var newGuidResult = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue95 = [resolveCanvasDto92()];
-        global::SereinFlow.Contracts.FlowDefinitionDto evaluatedValue96 = new(newGuidResult, 1, 1, evaluatedValue95, "node-a", "checksum");
+        IReadOnlyList<CanvasDto> evaluatedValue95 = [resolveCanvasDto92()];
+        FlowDefinitionDto evaluatedValue96 = new(newGuidResult, 1, 1, evaluatedValue95, "node-a", "checksum");
         return evaluatedValue96;
-        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto92()
+        CanvasDto resolveCanvasDto92()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> evaluatedValue93 = [CreateNode("node-a")];
+            IReadOnlyList<NodeDto> evaluatedValue93 = [CreateNode("node-a")];
             var canvasDto94 = new CanvasDto("main", CanvasLifecycleDto.Main, evaluatedValue93, [], "Main");
             return canvasDto94;
         }
@@ -406,15 +407,15 @@ public sealed class FlowPatchServiceTests
 
     private static NodeDto CreateNode(string id)
     {
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeParameterDto> evaluatedValue97 = [Parameter("value")];
-        global::SereinFlow.Contracts.NodeDto evaluatedValue98 = new(id, NodeTypeDto.Action, "Action", 0, 0, [], evaluatedValue97, null);
+        IReadOnlyList<NodeParameterDto> evaluatedValue97 = [Parameter("value")];
+        NodeDto evaluatedValue98 = new(id, NodeTypeDto.Action, "Action", 0, 0, [], evaluatedValue97, null);
         return evaluatedValue98;
     }
 
     private static NodeParameterDto Parameter(string id)
     {
         var nodeParameterUiMetadataDto99 = new NodeParameterUiMetadataDto(id, id, "number", "1", null, null, null, null);
-        global::SereinFlow.Contracts.NodeParameterDto evaluatedValue100 = new(id, "1", DataSourceDto.Literal, true, nodeParameterUiMetadataDto99);
+        NodeParameterDto evaluatedValue100 = new(id, "1", DataSourceDto.Literal, true, nodeParameterUiMetadataDto99);
         return evaluatedValue100;
     }
 }

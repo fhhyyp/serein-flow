@@ -40,7 +40,7 @@ public sealed class McpAiGuidanceManagementTests : IDisposable
         using var management = new McpAiGuidanceManagementService(provider);
         var original = await management.ReadAsync("sereinlang");
         var unchanged = await management.ReadAsync("sereinflow");
-        global::SereinFlow.Contracts.SaveMcpAiGuidanceRequestDto evaluatedValue1 = new("# 自定义技能\n保持工具契约。", original.Revision);
+        SaveMcpAiGuidanceRequestDto evaluatedValue1 = new("# 自定义技能\n保持工具契约。", original.Revision);
         var saved = await management.SaveAsync("sereinlang", evaluatedValue1);
         Assert.Equal(McpAiGuidanceSourceDto.Disk, saved.Resource.Source);
         Assert.NotEqual(original.Revision, saved.Revision);
@@ -54,7 +54,7 @@ public sealed class McpAiGuidanceManagementTests : IDisposable
         Assert.Equal(unchanged, readAsyncResult);
         var enumerateFilesResult = _root.EnumerateFiles("*.tmp", SearchOption.AllDirectories);
         Assert.Empty(enumerateFilesResult);
-        global::SereinFlow.Contracts.ResetMcpAiGuidanceRequestDto evaluatedValue3 = new(saved.Revision);
+        ResetMcpAiGuidanceRequestDto evaluatedValue3 = new(saved.Revision);
         var reset = await management.ResetAsync("sereinlang", evaluatedValue3);
         Assert.Equal(original, reset);
         var combineResult4 = Path.Combine(_root.FullName, "custom/language.md");
@@ -69,17 +69,17 @@ public sealed class McpAiGuidanceManagementTests : IDisposable
     {
         using var management = CreateManagement();
         var original = await management.ReadAsync("sereinlang");
-        global::SereinFlow.Contracts.SaveMcpAiGuidanceRequestDto evaluatedValue8 = new("# first edit", original.Revision);
+        SaveMcpAiGuidanceRequestDto evaluatedValue8 = new("# first edit", original.Revision);
         var saved = await management.SaveAsync("sereinlang", evaluatedValue8);
         var saveError = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
-            global::SereinFlow.Contracts.SaveMcpAiGuidanceRequestDto evaluatedValue6 = new("# stale edit", original.Revision);
+            SaveMcpAiGuidanceRequestDto evaluatedValue6 = new("# stale edit", original.Revision);
             var saveAsyncResult = management.SaveAsync("sereinlang", evaluatedValue6);
             return saveAsyncResult;
         });
         var resetError = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
-            global::SereinFlow.Contracts.ResetMcpAiGuidanceRequestDto evaluatedValue7 = new(original.Revision);
+            ResetMcpAiGuidanceRequestDto evaluatedValue7 = new(original.Revision);
             var resetAsyncResult = management.ResetAsync("sereinlang", evaluatedValue7);
             return resetAsyncResult;
         });
@@ -105,7 +105,7 @@ public sealed class McpAiGuidanceManagementTests : IDisposable
         {
             try
             {
-                global::SereinFlow.Contracts.SaveMcpAiGuidanceRequestDto evaluatedValue10 = new(content, original.Revision);
+                SaveMcpAiGuidanceRequestDto evaluatedValue10 = new(content, original.Revision);
                 await management.SaveAsync("sereinlang", evaluatedValue10);
                 return 0;
             }
@@ -131,7 +131,7 @@ public sealed class McpAiGuidanceManagementTests : IDisposable
         await File.WriteAllTextAsync(combineResult18, "# external change");
         var externalError = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
-            global::SereinFlow.Contracts.SaveMcpAiGuidanceRequestDto evaluatedValue13 = new("# stale", original.Revision);
+            SaveMcpAiGuidanceRequestDto evaluatedValue13 = new("# stale", original.Revision);
             var saveAsyncResult14 = management.SaveAsync("sereinlang", evaluatedValue13);
             return saveAsyncResult14;
         });
@@ -140,7 +140,7 @@ public sealed class McpAiGuidanceManagementTests : IDisposable
         configuration["SereinFlow:Mcp:AiGuidance:Resources:sereinlang:FilePath"] = "custom/changed.md";
         var configError = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
-            global::SereinFlow.Contracts.ResetMcpAiGuidanceRequestDto evaluatedValue15 = new(current.Revision);
+            ResetMcpAiGuidanceRequestDto evaluatedValue15 = new(current.Revision);
             var resetAsyncResult16 = management.ResetAsync("sereinlang", evaluatedValue15);
             return resetAsyncResult16;
         });
@@ -171,7 +171,7 @@ public sealed class McpAiGuidanceManagementTests : IDisposable
         var original = await management.ReadAsync("sereinlang");
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
-            global::SereinFlow.Contracts.SaveMcpAiGuidanceRequestDto evaluatedValue23 = new(content, original.Revision);
+            SaveMcpAiGuidanceRequestDto evaluatedValue23 = new(content, original.Revision);
             var saveAsyncResult24 = management.SaveAsync("sereinlang", evaluatedValue23);
             return saveAsyncResult24;
         });
@@ -186,14 +186,14 @@ public sealed class McpAiGuidanceManagementTests : IDisposable
         using var management = CreateManagement();
         var unknown = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
-            global::SereinFlow.Contracts.SaveMcpAiGuidanceRequestDto evaluatedValue28 = new("# outside", "revision");
+            SaveMcpAiGuidanceRequestDto evaluatedValue28 = new("# outside", "revision");
             var saveAsyncResult29 = management.SaveAsync("../outside.md", evaluatedValue28);
             return saveAsyncResult29;
         });
         Assert.Equal(McpProtocolErrorCodes.ResourceNotFound, unknown.Code);
         var missingRevision = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
-            global::SereinFlow.Contracts.SaveMcpAiGuidanceRequestDto evaluatedValue30 = new("# content", "");
+            SaveMcpAiGuidanceRequestDto evaluatedValue30 = new("# content", "");
             var saveAsyncResult31 = management.SaveAsync("sereinlang", evaluatedValue30);
             return saveAsyncResult31;
         });
@@ -270,7 +270,7 @@ public sealed class McpAiGuidanceManagementTests : IDisposable
             var original = await management.ReadAsync("sereinlang");
             var error = await Assert.ThrowsAsync<McpProtocolException>(() =>
             {
-                global::SereinFlow.Contracts.SaveMcpAiGuidanceRequestDto evaluatedValue36 = new("# redirected write", original.Revision);
+                SaveMcpAiGuidanceRequestDto evaluatedValue36 = new("# redirected write", original.Revision);
                 var saveAsyncResult37 = management.SaveAsync("sereinlang", evaluatedValue36);
                 return saveAsyncResult37;
             });
@@ -289,7 +289,7 @@ public sealed class McpAiGuidanceManagementTests : IDisposable
     {
         var mcpAiGuidanceOptions42 = new McpAiGuidanceOptions();
         var mcpAiGuidanceProvider43 = new McpAiGuidanceProvider(mcpAiGuidanceOptions42, _root.FullName);
-        global::SereinFlow.Mcp.McpAiGuidanceManagementService evaluatedValue44 = new(mcpAiGuidanceProvider43);
+        McpAiGuidanceManagementService evaluatedValue44 = new(mcpAiGuidanceProvider43);
         return evaluatedValue44;
     }
 

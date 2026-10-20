@@ -16,7 +16,7 @@ internal static class McpRunVariableToolHandlers
         var getRequiredServiceResult = context.Services.GetRequiredService<IRunVariableService>();
         var evaluatedValue = GetOptionalInt(arguments, "offset") ?? 0;
         var evaluatedValue1 = GetOptionalInt(arguments, "take") ?? 100;
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue2 = new(WorkerProtocol.Version, runId, name is null ? "list" : "get", name, Offset: evaluatedValue, Take: evaluatedValue1);
+        WorkerVariableRequestDto evaluatedValue2 = new(WorkerProtocol.Version, runId, name is null ? "list" : "get", name, Offset: evaluatedValue, Take: evaluatedValue1);
         var response = await getRequiredServiceResult.AccessAsync(evaluatedValue2, cancellationToken);
         EnsureSuccess(response);
         return (object? )response.Snapshot ?? response.Variable!;
@@ -47,7 +47,7 @@ internal static class McpRunVariableToolHandlers
 
         var getRequiredServiceResult3 = context.Services.GetRequiredService<IRunVariableService>();
         var cloneResult = value.Clone();
-        global::SereinFlow.Contracts.WorkerVariableRequestDto evaluatedValue4 = new(WorkerProtocol.Version, runId, "set", name, cloneResult, valueType);
+        WorkerVariableRequestDto evaluatedValue4 = new(WorkerProtocol.Version, runId, "set", name, cloneResult, valueType);
         var response = await getRequiredServiceResult3.AccessAsync(evaluatedValue4, cancellationToken);
         EnsureSuccess(response);
         var result = response.Variable!;

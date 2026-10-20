@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
 
@@ -84,14 +85,14 @@ public sealed class LibraryCompatibilityAnalyzerTests
 
     private static FlowDefinitionDto CreateFlow(string artifactId, string parameterId, string? contractId = "quality-rate", string? valueJson = "10")
     {
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeParameterDto> evaluatedValue = [resolveNodeParameterDto()];
+        IReadOnlyList<NodeParameterDto> evaluatedValue = [resolveNodeParameterDto()];
         var nodeUiMetadataDto = new NodeUiMetadataDto("action", "Quality rate", "", null, "ready", true, null, "library", artifactId, "Quality.Nodes", "Calculate", "Quality.dll", "1.0.0", "System.Decimal", LibraryNodeContractId: contractId);
         var node = new NodeDto("quality-rate-node", NodeTypeDto.Action, "Quality rate", 100, 100, [], evaluatedValue, null, nodeUiMetadataDto);
         var newGuidResult = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue15 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
+        IReadOnlyList<CanvasDto> evaluatedValue15 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
         var flowDefinitionDto = new FlowDefinitionDto(newGuidResult, 5, 1, evaluatedValue15, node.Id, "checksum");
         return flowDefinitionDto;
-        global::SereinFlow.Contracts.NodeParameterDto resolveNodeParameterDto()
+        NodeParameterDto resolveNodeParameterDto()
         {
             var nodeParameterUiMetadataDto = new NodeParameterUiMetadataDto(parameterId, "Pass count", "System.Int32", "10", null, null, null, null);
             var nodeParameterDto = new NodeParameterDto("passCount", valueJson, DataSourceDto.Literal, true, nodeParameterUiMetadataDto);
@@ -120,13 +121,13 @@ public sealed class LibraryCompatibilityAnalyzerTests
 
     private static LibraryManifestNodeDto CreateNode(LibraryManifestParameterDto? parameter = null, LibraryContractIdentityConfidenceDto identity = LibraryContractIdentityConfidenceDto.Explicit)
     {
-        global::SereinFlow.Contracts.LibraryManifestNodeDto evaluatedValue17 = new("quality-rate", identity, NodeTypeDto.Action, "Quality.Nodes", "Calculate", "Quality.Nodes::Calculate(System.Int32)", "System.Decimal", false, parameter is null ? [] : [parameter]);
+        LibraryManifestNodeDto evaluatedValue17 = new("quality-rate", identity, NodeTypeDto.Action, "Quality.Nodes", "Calculate", "Quality.Nodes::Calculate(System.Int32)", "System.Decimal", false, parameter is null ? [] : [parameter]);
         return evaluatedValue17;
     }
 
     private static LibraryManifestParameterDto CreateParameter(string id, IReadOnlyList<string>? aliases = null)
     {
-        global::SereinFlow.Contracts.LibraryManifestParameterDto evaluatedValue18 = new(id, LibraryContractIdentityConfidenceDto.Explicit, aliases ?? [], "passCount", "Pass count", "System.Int32", true, null, false, null, null);
+        LibraryManifestParameterDto evaluatedValue18 = new(id, LibraryContractIdentityConfidenceDto.Explicit, aliases ?? [], "passCount", "Pass count", "System.Int32", true, null, false, null, null);
         return evaluatedValue18;
     }
 }

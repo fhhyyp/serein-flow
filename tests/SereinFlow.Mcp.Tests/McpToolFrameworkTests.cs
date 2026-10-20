@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using SereinFlow.Mcp;
 
@@ -17,7 +18,7 @@ public sealed class McpToolFrameworkTests
         Assert.Same(second, resolved);
         Assert.Throws<ArgumentException>(() =>
         {
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Mcp.IMcpTool> evaluatedValue = [first, CreateTool("first", McpToolExecutionKind.Read)];
+            IEnumerable<IMcpTool> evaluatedValue = [first, CreateTool("first", McpToolExecutionKind.Read)];
             var mcpToolCatalog = new McpToolCatalog(evaluatedValue);
             return mcpToolCatalog;
         });
@@ -43,7 +44,7 @@ public sealed class McpToolFrameworkTests
     {
         var serializeToElementResult2 = JsonSerializer.SerializeToElement(new { type = "object" });
         var mcpToolDescriptor = new McpToolDescriptor(name, name, serializeToElementResult2);
-        global::SereinFlow.Mcp.McpToolDefinition evaluatedValue3 = new(mcpToolDescriptor, executionKind, static (_, _, _) =>
+        McpToolDefinition evaluatedValue3 = new(mcpToolDescriptor, executionKind, static (_, _, _) =>
         {
             var fromResultResult1 = Task.FromResult<object?>(new { accepted = true });
             return fromResultResult1;

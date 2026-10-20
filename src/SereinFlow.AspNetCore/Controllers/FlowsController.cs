@@ -30,7 +30,7 @@ public sealed class FlowsController : ApiControllerBase
         }
 
         var flow = await _flows.FindAsync(projectId, flowId, cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue = flow is null ? ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。") : Ok(flow);
+        ActionResult evaluatedValue = flow is null ? ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。") : Ok(flow);
         return evaluatedValue;
     }
 
@@ -61,7 +61,7 @@ public sealed class FlowsController : ApiControllerBase
         }
 
         var result = await _flowWriter.WriteAsync(projectId, flowId, request.Definition, request.ExpectedVersion, cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue5 = result.Status switch
+        ActionResult evaluatedValue5 = result.Status switch
         {
             FlowDefinitionWriteStatus.Saved or FlowDefinitionWriteStatus.NoChange => Ok(result.Saved),
             FlowDefinitionWriteStatus.Invalid when result.Preparation is not null => BadRequest(result.Preparation.Validation),
@@ -70,7 +70,7 @@ public sealed class FlowsController : ApiControllerBase
             _ => ApiProblem(StatusCodes.Status400BadRequest, "The flow definition is invalid. 流程定义无效。"),
         };
         return evaluatedValue5;
-        global::Microsoft.AspNetCore.Mvc.ObjectResult resolveApiProblemResult()
+        ObjectResult resolveApiProblemResult()
         {
             var dictionary = new Dictionary<string, object?>
             {

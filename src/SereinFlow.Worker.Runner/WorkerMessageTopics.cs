@@ -263,13 +263,13 @@ public sealed partial class WorkerMessageService
     {
         public static MessageEnvelope Direct(Guid id, string topic, object value, DateTimeOffset createdAt, DateTimeOffset? expiresAt)
         {
-            global::SereinFlow.Worker.Runner.WorkerMessageService.MessageEnvelope evaluatedValue5 = new(id, topic, MessageSerializationMode.DirectObject, value, null, createdAt, expiresAt);
+            WorkerMessageService.MessageEnvelope evaluatedValue5 = new(id, topic, MessageSerializationMode.DirectObject, value, null, createdAt, expiresAt);
             return evaluatedValue5;
         }
 
         public static MessageEnvelope Json(Guid id, string topic, string json, DateTimeOffset createdAt, DateTimeOffset? expiresAt)
         {
-            global::SereinFlow.Worker.Runner.WorkerMessageService.MessageEnvelope evaluatedValue6 = new(id, topic, MessageSerializationMode.Json, null, json, createdAt, expiresAt);
+            WorkerMessageService.MessageEnvelope evaluatedValue6 = new(id, topic, MessageSerializationMode.Json, null, json, createdAt, expiresAt);
             return evaluatedValue6;
         }
 
@@ -278,7 +278,7 @@ public sealed partial class WorkerMessageService
 
     private static BoundedChannelFullMode ToFullMode(MessageOverflowStrategy strategy)
     {
-        global::System.Threading.Channels.BoundedChannelFullMode evaluatedValue7 = strategy switch
+        BoundedChannelFullMode evaluatedValue7 = strategy switch
         {
             MessageOverflowStrategy.Reject => BoundedChannelFullMode.Wait,
             MessageOverflowStrategy.DropOldest => BoundedChannelFullMode.DropOldest,

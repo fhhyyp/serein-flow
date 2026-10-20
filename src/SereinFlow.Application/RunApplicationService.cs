@@ -164,7 +164,7 @@ public sealed record RunPreparationResult(RunPreparation? Preparation, int Statu
 
     public static RunPreparationResult Success(RunPreparation preparation)
     {
-        global::SereinFlow.Application.RunPreparationResult evaluatedValue11 = new(preparation, 202, null);
+        RunPreparationResult evaluatedValue11 = new(preparation, 202, null);
         return evaluatedValue11;
     }
 
@@ -174,7 +174,7 @@ public sealed record RunPreparationResult(RunPreparation? Preparation, int Statu
 
     public static RunPreparationResult VersionConflict(long currentVersion)
     {
-        global::SereinFlow.Application.RunPreparationResult evaluatedValue12 = new(null, 409, "Flow definition was changed by another editor. 流程定义已被其他编辑器修改。", null, currentVersion);
+        RunPreparationResult evaluatedValue12 = new(null, 409, "Flow definition was changed by another editor. 流程定义已被其他编辑器修改。", null, currentVersion);
         return evaluatedValue12;
     }
 
@@ -182,13 +182,13 @@ public sealed record RunPreparationResult(RunPreparation? Preparation, int Statu
 
     public static RunPreparationResult Invalid(object validation)
     {
-        global::SereinFlow.Application.RunPreparationResult evaluatedValue13 = new(null, 400, null, validation);
+        RunPreparationResult evaluatedValue13 = new(null, 400, null, validation);
         return evaluatedValue13;
     }
 
     public static RunPreparationResult AlreadyActive(Guid? activeRunId)
     {
-        global::SereinFlow.Application.RunPreparationResult evaluatedValue14 = new(null, 409, "The flow already has an active run and does not allow concurrent execution. 该流程已有活动运行实例，不允许并发执行。", new { code = FlowErrorCodes.RunAlreadyActive, message = "The flow already has an active run and does not allow concurrent execution. 该流程已有活动运行实例，不允许并发执行。", activeRunId });
+        RunPreparationResult evaluatedValue14 = new(null, 409, "The flow already has an active run and does not allow concurrent execution. 该流程已有活动运行实例，不允许并发执行。", new { code = FlowErrorCodes.RunAlreadyActive, message = "The flow already has an active run and does not allow concurrent execution. 该流程已有活动运行实例，不允许并发执行。", activeRunId });
         return evaluatedValue14;
     }
 }

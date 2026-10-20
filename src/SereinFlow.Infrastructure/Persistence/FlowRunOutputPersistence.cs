@@ -107,7 +107,7 @@ public sealed class SqlSugarFlowRunOutputStore : IFlowRunOutputStore
     {
         var parseResult = Guid.Parse(row.RunId);
         var parseResult3 = DateTimeOffset.Parse(row.Timestamp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        global::SereinFlow.Domain.FlowRunOutput evaluatedValue4 = new(parseResult, row.Sequence, parseResult3, row.NodeId, row.Outcome, row.Branch, row.OutputsJson, row.ErrorCode, row.ErrorMessage, row.InputsJson);
+        FlowRunOutput evaluatedValue4 = new(parseResult, row.Sequence, parseResult3, row.NodeId, row.Outcome, row.Branch, row.OutputsJson, row.ErrorCode, row.ErrorMessage, row.InputsJson);
         return evaluatedValue4;
     }
 }

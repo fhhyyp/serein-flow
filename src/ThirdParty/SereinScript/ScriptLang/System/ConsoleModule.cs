@@ -11,23 +11,23 @@ namespace ScriptLang.System
 
         [PrototypeFunction]
         [LspDoc("输出信息到标准输出流")]
-        public static void Log(Value value) => global::System.Console.WriteLine(value?.ToString() ?? "null");
+        public static void Log(Value value) => Console.WriteLine(value?.ToString() ?? "null");
 
         [PrototypeFunction] 
         [LspDoc("输出错误信息到标准错误流")]
-        public static void Error(Value value) => global::System.Console.Error.WriteLine(value?.ToString() ?? "null");
+        public static void Error(Value value) => Console.Error.WriteLine(value?.ToString() ?? "null");
 
         [PrototypeFunction]
         [LspDoc("从标准输入异步读取一行文本")]
         public static async Task<StringValue> ReadLine()
         { 
-            var line = await Task.Run(() => global::System.Console.ReadLine()); 
+            var line = await Task.Run(() => Console.ReadLine());
             return StringValue.Create(line ?? "");
         }
 
         [PrototypeFunction] 
         [LspDoc("清空控制台所有输出")]
-        public static void Clear() => global::System.Console.Clear();
+        public static void Clear() => Console.Clear();
 
         [PrototypeFunction]
         [LspDoc("启动一个带标签的计时器")]
@@ -44,7 +44,7 @@ namespace ScriptLang.System
             { 
                 sw.Stop(); 
                 _stopwatches.Remove(label.Value); 
-                global::System.Console.WriteLine($"{label.Value}: {sw.ElapsedMilliseconds}ms");
+                Console.WriteLine($"{label.Value}: {sw.ElapsedMilliseconds}ms");
             }
         }
 

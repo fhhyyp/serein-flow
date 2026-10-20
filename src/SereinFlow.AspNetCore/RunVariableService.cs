@@ -79,7 +79,7 @@ public sealed class RunVariableService(IFlowRunStore runs, IWorkerVariableRunCli
         }
 
         var response = await client.AccessVariablesAsync(request, cancellationToken);
-        global::SereinFlow.Contracts.WorkerVariableResponseDto variableResponse = request.Operation != SetOperation && response.Code == WorkerErrorCodes.NotActive ? await ReadFinalAsync(request, cancellationToken) : response;
+        WorkerVariableResponseDto variableResponse = request.Operation != SetOperation && response.Code == WorkerErrorCodes.NotActive ? await ReadFinalAsync(request, cancellationToken) : response;
         // Completion can be persisted between the status read and the Worker request.
         // 状态读取与 Worker 请求之间可能恰好完成运行，回退到已保存的最终快照。
         return variableResponse;
@@ -115,14 +115,14 @@ public sealed class RunVariableService(IFlowRunStore runs, IWorkerVariableRunCli
                 if (request.Operation == GetOperation)
                 {
                     var variable = snapshot.Variables.FirstOrDefault(entry => entry.Name == request.Name);
-                    global::SereinFlow.Contracts.WorkerVariableResponseDto evaluatedValue7 = variable is not null ? new(WorkerProtocol.Version, request.RunId, StatusCodes.Status200OK, Variable: variable) : Failure(request.RunId, StatusCodes.Status404NotFound, VariableErrorCodes.NotFound, "Variable not found in the saved snapshot. 保存的快照中未找到变量。");
+                    WorkerVariableResponseDto evaluatedValue7 = variable is not null ? new(WorkerProtocol.Version, request.RunId, StatusCodes.Status200OK, Variable: variable) : Failure(request.RunId, StatusCodes.Status404NotFound, VariableErrorCodes.NotFound, "Variable not found in the saved snapshot. 保存的快照中未找到变量。");
                     return evaluatedValue7;
                 }
 
                 var skipResult = snapshot.Variables.Skip(request.Offset);
                 var takeResult = skipResult.Take(request.Take);
                 var page = takeResult.ToArray();
-                global::SereinFlow.Contracts.WorkerVariableResponseDto evaluatedValue8 = new(WorkerProtocol.Version, request.RunId, StatusCodes.Status200OK, Snapshot: snapshot with { Variables = page, Offset = request.Offset, HasMore = request.Offset + page.Length < snapshot.Variables.Count, });
+                WorkerVariableResponseDto evaluatedValue8 = new(WorkerProtocol.Version, request.RunId, StatusCodes.Status200OK, Snapshot: snapshot with { Variables = page, Offset = request.Offset, HasMore = request.Offset + page.Length < snapshot.Variables.Count, });
                 return evaluatedValue8;
             }
             catch (JsonException)
@@ -137,7 +137,7 @@ public sealed class RunVariableService(IFlowRunStore runs, IWorkerVariableRunCli
 
     private static WorkerVariableResponseDto Failure(Guid runId, int status, string code, string message)
     {
-        global::SereinFlow.Contracts.WorkerVariableResponseDto evaluatedValue10 = new(WorkerProtocol.Version, runId, status, Code: code, Message: message);
+        WorkerVariableResponseDto evaluatedValue10 = new(WorkerProtocol.Version, runId, status, Code: code, Message: message);
         return evaluatedValue10;
     }
 }

@@ -459,7 +459,7 @@ public sealed class McpAiGuidanceProvider
     internal sealed record GuidanceSnapshot(Dictionary<McpAiGuidanceId, ResolvedGuidanceResource> ById, Dictionary<string, ResolvedGuidanceResource> ByUri, long MaxBytes);
     private static McpProtocolException Unavailable()
     {
-        global::SereinFlow.Mcp.McpProtocolException evaluatedValue14 = new(McpProtocolErrorCodes.ResourceNotFound, "The SereinFlow AI guidance is not available.", new { code = McpErrorCodes.AiGuidanceUnavailable });
+        McpProtocolException evaluatedValue14 = new(McpProtocolErrorCodes.ResourceNotFound, "The SereinFlow AI guidance is not available.", new { code = McpErrorCodes.AiGuidanceUnavailable });
         return evaluatedValue14;
     }
 }

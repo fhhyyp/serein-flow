@@ -62,7 +62,7 @@ public sealed class LibraryArtifactCompatibilityAnalyzerTests
         var result = LibraryArtifactCompatibilityAnalyzer.Analyze(baseline, target);
         Assert.False(result.IsCompatible);
         Assert.Contains(result.Issues, issue => issue.Code == LibraryErrorCodes.PackageManifestMissing);
-        global::SereinFlow.Contracts.LibraryDto resolveCreateLibraryResult()
+        LibraryDto resolveCreateLibraryResult()
         {
             var createParameterResult8 = CreateParameter("input");
             var createNodeResult9 = CreateNode("library.node", createParameterResult8);
@@ -74,19 +74,19 @@ public sealed class LibraryArtifactCompatibilityAnalyzerTests
     private static LibraryDto CreateLibrary(string id, string version, params LibraryManifestNodeDto[] nodes)
     {
         var libraryArtifactManifestDto = new LibraryArtifactManifestDto(id, "TestLibrary", "1.0.0.0", version, nodes);
-        global::SereinFlow.Contracts.LibraryDto evaluatedValue = new(id, "TestLibrary", version, "TestLibrary.zip", 1, id, DateTimeOffset.UtcNow, [], CompatibilityManifest: libraryArtifactManifestDto);
+        LibraryDto evaluatedValue = new(id, "TestLibrary", version, "TestLibrary.zip", 1, id, DateTimeOffset.UtcNow, [], CompatibilityManifest: libraryArtifactManifestDto);
         return evaluatedValue;
     }
 
     private static LibraryManifestNodeDto CreateNode(string contractId, params LibraryManifestParameterDto[] parameters)
     {
-        global::SereinFlow.Contracts.LibraryManifestNodeDto evaluatedValue12 = new(contractId, LibraryContractIdentityConfidenceDto.Explicit, NodeTypeDto.Action, "TestLibrary.Nodes", "Execute", "TestLibrary.Nodes.Execute(System.String)", "System.String", false, parameters);
+        LibraryManifestNodeDto evaluatedValue12 = new(contractId, LibraryContractIdentityConfidenceDto.Explicit, NodeTypeDto.Action, "TestLibrary.Nodes", "Execute", "TestLibrary.Nodes.Execute(System.String)", "System.String", false, parameters);
         return evaluatedValue12;
     }
 
     private static LibraryManifestParameterDto CreateParameter(string contractId)
     {
-        global::SereinFlow.Contracts.LibraryManifestParameterDto evaluatedValue13 = new(contractId, LibraryContractIdentityConfidenceDto.Explicit, [], contractId, contractId, "System.String", true, null, false, null, null);
+        LibraryManifestParameterDto evaluatedValue13 = new(contractId, LibraryContractIdentityConfidenceDto.Explicit, [], contractId, contractId, "System.String", true, null, false, null, null);
         return evaluatedValue13;
     }
 }

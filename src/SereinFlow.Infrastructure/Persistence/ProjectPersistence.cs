@@ -138,7 +138,7 @@ public sealed class SqlSugarProjectRepository : IProjectRepository
 
     private static ProjectRecord ToRecord(Project project)
     {
-        global::SereinFlow.Infrastructure.Persistence.ProjectRecord evaluatedValue22 = new()
+        ProjectRecord evaluatedValue22 = new()
         {
             Id = project.Id.ToString("D"),
             Name = project.Name,

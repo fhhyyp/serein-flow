@@ -67,7 +67,7 @@ public sealed class McpSecurityService
         var bootstrap = _bootstrapAdminKey;
         if (!string.IsNullOrWhiteSpace(bootstrap) && resolveFixedTimeEqualsResult())
         {
-            global::SereinFlow.Application.McpPrincipal evaluatedValue1 = new("bootstrap-admin", null, AllPermissions, IsAdministrator: true);
+            McpPrincipal evaluatedValue1 = new("bootstrap-admin", null, AllPermissions, IsAdministrator: true);
             return evaluatedValue1;
         }
 
@@ -98,7 +98,7 @@ public sealed class McpSecurityService
             }
 
             var toHashSetResult = entry.Permissions.ToHashSet();
-            global::SereinFlow.Application.McpPrincipal evaluatedValue2 = new(entry.Id, entry.ProjectId, toHashSetResult, false, entry.IsAdministrator);
+            McpPrincipal evaluatedValue2 = new(entry.Id, entry.ProjectId, toHashSetResult, false, entry.IsAdministrator);
             return evaluatedValue2;
         }
 
@@ -212,7 +212,7 @@ public sealed class McpSecurityService
             return toLowerInvariantResult;
         }
 
-        global::SereinFlow.Contracts.CreatedMcpApiKeyDto resolveCreatedMcpApiKeyDto()
+        CreatedMcpApiKeyDto resolveCreatedMcpApiKeyDto()
         {
             var toDtoResult = ToDto(entry);
             var createdMcpApiKeyDto = new CreatedMcpApiKeyDto(toDtoResult, secret);
@@ -230,7 +230,7 @@ public sealed class McpSecurityService
 
     public static McpApiKeyDto ToDto(McpApiKeyEntry entry)
     {
-        global::SereinFlow.Contracts.McpApiKeyDto evaluatedValue9 = new(entry.Id, entry.ProjectId, entry.Name, entry.KeyPrefix, entry.Permissions, entry.CreatedAt, entry.ExpiresAt, entry.RevokedAt, entry.LastUsedAt, entry.IsAdministrator);
+        McpApiKeyDto evaluatedValue9 = new(entry.Id, entry.ProjectId, entry.Name, entry.KeyPrefix, entry.Permissions, entry.CreatedAt, entry.ExpiresAt, entry.RevokedAt, entry.LastUsedAt, entry.IsAdministrator);
         return evaluatedValue9;
     }
 

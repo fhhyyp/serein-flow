@@ -366,7 +366,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
 
     private static ServiceLifetime ToServiceLifetime(FlowServiceLifetime lifetime)
     {
-        global::Microsoft.Extensions.DependencyInjection.ServiceLifetime evaluatedValue20 = lifetime switch
+        ServiceLifetime evaluatedValue20 = lifetime switch
         {
             FlowServiceLifetime.Run => ServiceLifetime.Singleton,
             FlowServiceLifetime.Invocation => ServiceLifetime.Scoped,

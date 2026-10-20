@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Reflection;
@@ -30,7 +31,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         var toStringResult = runId.ToString("N");
         _runRoot = Path.Combine(getTempPathResult, "sereinflow-worker", toStringResult);
         _allowedLibraryIds = allowedLibraryIds is null ? null : resolveToHashSetResult();
-        global::System.Collections.Generic.HashSet<string> resolveToHashSetResult()
+        HashSet<string> resolveToHashSetResult()
         {
             var whereResult = allowedLibraryIds.Where(static id =>
             {
@@ -457,7 +458,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
             }
 
             var path = _resolver.ResolveAssemblyToPath(assemblyName);
-            global::System.Reflection.Assembly? evaluatedValue33 = path is null ? null : LoadFromAssemblyPath(path);
+            Assembly? evaluatedValue33 = path is null ? null : LoadFromAssemblyPath(path);
             return evaluatedValue33;
         }
 

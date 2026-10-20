@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
@@ -14,7 +15,7 @@ internal static class McpToolSchemas
 {
     internal static Dictionary<string, object?> ApplySchemaProperties()
     {
-        global::System.Collections.Generic.Dictionary<string, object> evaluatedValue = new(StringComparer.Ordinal)
+        Dictionary<string, object> evaluatedValue = new(StringComparer.Ordinal)
         {
             ["previewId"] = StringSchema(),
             ["previewFingerprint"] = StringSchema(),

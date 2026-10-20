@@ -91,7 +91,7 @@ public sealed class 生产线节点
     [FlowNode(AnotherName = "生成设备配置摘要", Desc = "同时接收运行模式和操作权限，便于验证普通枚举下拉、Flags 多选、保存重载及节点输出。")]
     public 设备配置摘要 生成设备配置摘要([NodeParam(Name = "运行模式")] 设备运行模式 运行模式 = 设备运行模式.自动, [NodeParam(Name = "操作权限")] 设备操作权限 操作权限 = 设备操作权限.读取状态)
     {
-        global::SereinFlow.TestLibrary.设备配置摘要 evaluatedValue5 = new(运行模式, 操作权限, DateTimeOffset.UtcNow);
+        设备配置摘要 evaluatedValue5 = new(运行模式, 操作权限, DateTimeOffset.UtcNow);
         return evaluatedValue5;
     }
 

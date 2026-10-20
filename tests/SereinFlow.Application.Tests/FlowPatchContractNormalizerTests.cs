@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using SereinFlow.Contracts;
 
@@ -621,7 +622,7 @@ public sealed class FlowPatchContractNormalizerTests
     };
     private static ConnectionDto DataConnectionDto(string id, string targetParameterId)
     {
-        global::SereinFlow.Contracts.ConnectionDto evaluatedValue66 = new(id, "node-existing", "data-out", "node-existing", targetParameterId, ConnectionKindDto.Data, null, DataSourceDto.PreviousNode, 0);
+        ConnectionDto evaluatedValue66 = new(id, "node-existing", "data-out", "node-existing", targetParameterId, ConnectionKindDto.Data, null, DataSourceDto.PreviousNode, 0);
         return evaluatedValue66;
     }
 
@@ -643,21 +644,21 @@ public sealed class FlowPatchContractNormalizerTests
     private static FlowDefinitionDto CurrentDefinition()
     {
         var newGuidResult69 = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue73 = [resolveCanvasDto()];
-        global::SereinFlow.Contracts.FlowDefinitionDto evaluatedValue74 = new(newGuidResult69, 5, 1, evaluatedValue73, "node-existing", "checksum");
+        IReadOnlyList<CanvasDto> evaluatedValue73 = [resolveCanvasDto()];
+        FlowDefinitionDto evaluatedValue74 = new(newGuidResult69, 5, 1, evaluatedValue73, "node-existing", "checksum");
         return evaluatedValue74;
-        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto()
+        CanvasDto resolveCanvasDto()
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> evaluatedValue72 = [resolveNodeDto()];
+            IReadOnlyList<NodeDto> evaluatedValue72 = [resolveNodeDto()];
             var canvasDto = new CanvasDto("main", CanvasLifecycleDto.Main, evaluatedValue72, []);
             return canvasDto;
-            global::SereinFlow.Contracts.NodeDto resolveNodeDto()
+            NodeDto resolveNodeDto()
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodePortDto> evaluatedValue70 = [new NodePortDto("exec-in", "Input", "input", false), new NodePortDto("exec-success", "Success", "output", false), new NodePortDto("data-out", "Data output", "output", false), new NodePortDto("param-amount", "amount", "input", false)];
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeParameterDto> evaluatedValue71 = [resolveNodeParameterDto()];
+                IReadOnlyList<NodePortDto> evaluatedValue70 = [new NodePortDto("exec-in", "Input", "input", false), new NodePortDto("exec-success", "Success", "output", false), new NodePortDto("data-out", "Data output", "output", false), new NodePortDto("param-amount", "amount", "input", false)];
+                IReadOnlyList<NodeParameterDto> evaluatedValue71 = [resolveNodeParameterDto()];
                 var nodeDto = new NodeDto("node-existing", NodeTypeDto.Action, "Existing", 0, 0, evaluatedValue70, evaluatedValue71, null);
                 return nodeDto;
-                global::SereinFlow.Contracts.NodeParameterDto resolveNodeParameterDto()
+                NodeParameterDto resolveNodeParameterDto()
                 {
                     var nodeParameterUiMetadataDto = new NodeParameterUiMetadataDto("amount", "amount", "System.Int32", "1", null, null, null, null);
                     var nodeParameterDto = new NodeParameterDto("amount", "1", DataSourceDto.Literal, true, nodeParameterUiMetadataDto);

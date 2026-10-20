@@ -1,3 +1,4 @@
+using System;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -49,7 +50,7 @@ foreach (var file in new[]
     }
 }
 
-global::System.Uri resolveUri()
+Uri resolveUri()
 {
     var singleResult = app.Urls.Single();
     var uri = new Uri(singleResult);

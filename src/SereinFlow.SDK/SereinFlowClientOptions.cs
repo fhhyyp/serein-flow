@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 using SereinFlow.Contracts;
 
@@ -48,7 +49,7 @@ public sealed class SereinFlowClientOptions
     private static Uri EnsureTrailingSlash(Uri value)
     {
         var text = value.ToString();
-        global::System.Uri evaluatedValue = text.EndsWith('/') ? value : new Uri(text + "/", UriKind.Absolute);
+        Uri evaluatedValue = text.EndsWith('/') ? value : new Uri(text + "/", UriKind.Absolute);
         return evaluatedValue;
     }
 }

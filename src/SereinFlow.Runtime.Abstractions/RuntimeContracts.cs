@@ -80,21 +80,21 @@ public sealed record NodeExecutionResult(bool IsSuccess, IReadOnlyDictionary<str
     public static NodeExecutionResult Success(IReadOnlyDictionary<string, object?>? outputs = null)
     {
         var evaluatedValue = outputs ?? new Dictionary<string, object?>();
-        global::SereinFlow.Runtime.Abstractions.NodeExecutionResult evaluatedValue1 = new(true, evaluatedValue, ExecutionBranch.Success);
+        NodeExecutionResult evaluatedValue1 = new(true, evaluatedValue, ExecutionBranch.Success);
         return evaluatedValue1;
     }
 
     public static NodeExecutionResult Failure(string errorCode, string errorMessage)
     {
         var dictionary = new Dictionary<string, object?>();
-        global::SereinFlow.Runtime.Abstractions.NodeExecutionResult evaluatedValue2 = new(false, dictionary, ExecutionBranch.Failure, errorCode, errorMessage);
+        NodeExecutionResult evaluatedValue2 = new(false, dictionary, ExecutionBranch.Failure, errorCode, errorMessage);
         return evaluatedValue2;
     }
 
     public static NodeExecutionResult Error(string errorCode, string errorMessage)
     {
         var dictionary3 = new Dictionary<string, object?>();
-        global::SereinFlow.Runtime.Abstractions.NodeExecutionResult evaluatedValue4 = new(false, dictionary3, ExecutionBranch.Error, errorCode, errorMessage);
+        NodeExecutionResult evaluatedValue4 = new(false, dictionary3, ExecutionBranch.Error, errorCode, errorMessage);
         return evaluatedValue4;
     }
 }

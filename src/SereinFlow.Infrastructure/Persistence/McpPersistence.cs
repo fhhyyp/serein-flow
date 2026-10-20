@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
@@ -27,7 +28,7 @@ public sealed class SqlSugarMcpApiKeyStore : IMcpApiKeyStore
         }
 
         var record = await _records.GetByIdAsync(id, cancellationToken);
-        global::SereinFlow.Application.Persistence.McpApiKeyEntry? evaluatedValue1 = record is null ? null : Map(record);
+        McpApiKeyEntry? evaluatedValue1 = record is null ? null : Map(record);
         return evaluatedValue1;
     }
 
@@ -47,19 +48,19 @@ public sealed class SqlSugarMcpApiKeyStore : IMcpApiKeyStore
 
     private static McpApiKeyEntry Map(McpApiKeyRecord record)
     {
-        global::System.Guid? evaluatedValue3 = Guid.TryParse(record.ProjectId, out var projectId) ? projectId : null;
+        Guid? evaluatedValue3 = Guid.TryParse(record.ProjectId, out var projectId) ? projectId : null;
         var deserializePermissionsResult = DeserializePermissions(record.PermissionsJson);
         var parseDateResult = ParseDate(record.CreatedAt);
         var parseNullableDateResult = ParseNullableDate(record.ExpiresAt);
         var parseNullableDateResult4 = ParseNullableDate(record.RevokedAt);
         var parseNullableDateResult5 = ParseNullableDate(record.LastUsedAt);
-        global::SereinFlow.Application.Persistence.McpApiKeyEntry evaluatedValue6 = new(record.Id, evaluatedValue3, record.Name, record.KeyPrefix, record.SecretHash, record.Salt, deserializePermissionsResult, parseDateResult, parseNullableDateResult, parseNullableDateResult4, parseNullableDateResult5, record.IsAdministrator);
+        McpApiKeyEntry evaluatedValue6 = new(record.Id, evaluatedValue3, record.Name, record.KeyPrefix, record.SecretHash, record.Salt, deserializePermissionsResult, parseDateResult, parseNullableDateResult, parseNullableDateResult4, parseNullableDateResult5, record.IsAdministrator);
         return evaluatedValue6;
     }
 
     private static McpApiKeyRecord Map(McpApiKeyEntry entry)
     {
-        global::SereinFlow.Infrastructure.Persistence.McpApiKeyRecord evaluatedValue7 = new()
+        McpApiKeyRecord evaluatedValue7 = new()
         {
             Id = entry.Id,
             ProjectId = entry.ProjectId?.ToString("D"),
@@ -85,13 +86,13 @@ public sealed class SqlSugarMcpApiKeyStore : IMcpApiKeyStore
 
     private static DateTimeOffset ParseDate(string value)
     {
-        global::System.DateTimeOffset evaluatedValue9 = DateTimeOffset.TryParse(value, out var parsed) ? parsed : DateTimeOffset.UtcNow;
+        DateTimeOffset evaluatedValue9 = DateTimeOffset.TryParse(value, out var parsed) ? parsed : DateTimeOffset.UtcNow;
         return evaluatedValue9;
     }
 
     private static DateTimeOffset? ParseNullableDate(string? value)
     {
-        global::System.DateTimeOffset? evaluatedValue10 = DateTimeOffset.TryParse(value, out var parsed) ? parsed : null;
+        DateTimeOffset? evaluatedValue10 = DateTimeOffset.TryParse(value, out var parsed) ? parsed : null;
         return evaluatedValue10;
     }
 }
@@ -108,7 +109,7 @@ public sealed class SqlSugarMcpPreviewStore : IMcpPreviewStore
     {
         var toStringResult = id.ToString("D");
         var record = await _records.GetByIdAsync(toStringResult, cancellationToken);
-        global::SereinFlow.Application.Persistence.McpPreviewEntry? evaluatedValue11 = record is null ? null : Map(record);
+        McpPreviewEntry? evaluatedValue11 = record is null ? null : Map(record);
         return evaluatedValue11;
     }
 
@@ -129,19 +130,19 @@ public sealed class SqlSugarMcpPreviewStore : IMcpPreviewStore
     private static McpPreviewEntry Map(McpPreviewRecord record)
     {
         var parseResult = Guid.Parse(record.Id);
-        global::System.Guid? evaluatedValue16 = Guid.TryParse(record.ProjectId, out var projectId) ? projectId : null;
-        global::System.Guid? evaluatedValue17 = Guid.TryParse(record.FlowId, out var flowId) ? flowId : null;
-        global::SereinFlow.Contracts.McpMutationPreviewStatusDto evaluatedValue18 = Enum.TryParse<McpMutationPreviewStatusDto>(record.Status, true, out var status) ? status : McpMutationPreviewStatusDto.Pending;
-        global::System.DateTimeOffset evaluatedValue19 = DateTimeOffset.TryParse(record.CreatedAt, out var createdAt) ? createdAt : DateTimeOffset.UtcNow;
-        global::System.DateTimeOffset evaluatedValue20 = DateTimeOffset.TryParse(record.ExpiresAt, out var expiresAt) ? expiresAt : DateTimeOffset.UtcNow;
-        global::System.DateTimeOffset? evaluatedValue21 = DateTimeOffset.TryParse(record.AppliedAt, out var appliedAt) ? appliedAt : null;
-        global::SereinFlow.Application.Persistence.McpPreviewEntry evaluatedValue22 = new(parseResult, record.Operation, record.PrincipalId, evaluatedValue16, evaluatedValue17, record.ExpectedVersion, record.PayloadJson, record.PreviewFingerprint, evaluatedValue18, evaluatedValue19, evaluatedValue20, evaluatedValue21);
+        Guid? evaluatedValue16 = Guid.TryParse(record.ProjectId, out var projectId) ? projectId : null;
+        Guid? evaluatedValue17 = Guid.TryParse(record.FlowId, out var flowId) ? flowId : null;
+        McpMutationPreviewStatusDto evaluatedValue18 = Enum.TryParse<McpMutationPreviewStatusDto>(record.Status, true, out var status) ? status : McpMutationPreviewStatusDto.Pending;
+        DateTimeOffset evaluatedValue19 = DateTimeOffset.TryParse(record.CreatedAt, out var createdAt) ? createdAt : DateTimeOffset.UtcNow;
+        DateTimeOffset evaluatedValue20 = DateTimeOffset.TryParse(record.ExpiresAt, out var expiresAt) ? expiresAt : DateTimeOffset.UtcNow;
+        DateTimeOffset? evaluatedValue21 = DateTimeOffset.TryParse(record.AppliedAt, out var appliedAt) ? appliedAt : null;
+        McpPreviewEntry evaluatedValue22 = new(parseResult, record.Operation, record.PrincipalId, evaluatedValue16, evaluatedValue17, record.ExpectedVersion, record.PayloadJson, record.PreviewFingerprint, evaluatedValue18, evaluatedValue19, evaluatedValue20, evaluatedValue21);
         return evaluatedValue22;
     }
 
     private static McpPreviewRecord Map(McpPreviewEntry entry)
     {
-        global::SereinFlow.Infrastructure.Persistence.McpPreviewRecord evaluatedValue23 = new()
+        McpPreviewRecord evaluatedValue23 = new()
         {
             Id = entry.Id.ToString("D"),
             Operation = entry.Operation,
@@ -229,8 +230,8 @@ public sealed class SqlSugarMcpIdempotencyStore : IMcpIdempotencyStore
     private static McpIdempotencyEntry Map(McpIdempotencyRecord record)
     {
         var parseResult28 = Guid.Parse(record.Id);
-        global::System.DateTimeOffset evaluatedValue29 = DateTimeOffset.TryParse(record.CreatedAt, out var createdAt) ? createdAt : DateTimeOffset.UtcNow;
-        global::SereinFlow.Application.Persistence.McpIdempotencyEntry evaluatedValue30 = new(parseResult28, record.PrincipalId, record.Operation, record.KeyHash, record.RequestHash, record.ResponseJson, evaluatedValue29);
+        DateTimeOffset evaluatedValue29 = DateTimeOffset.TryParse(record.CreatedAt, out var createdAt) ? createdAt : DateTimeOffset.UtcNow;
+        McpIdempotencyEntry evaluatedValue30 = new(parseResult28, record.PrincipalId, record.Operation, record.KeyHash, record.RequestHash, record.ResponseJson, evaluatedValue29);
         return evaluatedValue30;
     }
 }

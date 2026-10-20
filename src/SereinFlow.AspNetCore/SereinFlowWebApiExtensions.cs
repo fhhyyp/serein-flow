@@ -33,7 +33,7 @@ public static class SereinFlowWebApiExtensions
             var evaluatedValue2 = provider.GetService<McpAiGuidanceProvider>() ?? resolveMcpAiGuidanceProvider();
             var mcpAiGuidanceManagementService = new McpAiGuidanceManagementService(evaluatedValue2);
             return mcpAiGuidanceManagementService;
-            global::SereinFlow.Mcp.McpAiGuidanceProvider resolveMcpAiGuidanceProvider()
+            McpAiGuidanceProvider resolveMcpAiGuidanceProvider()
             {
                 var getRequiredServiceResult = provider.GetRequiredService<IConfiguration>();
                 var evaluatedValue = provider.GetRequiredService<IHostEnvironment>().ContentRootPath;

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
@@ -11,7 +12,7 @@ internal static class ApiEndpointHelpers
     internal static ProjectDto ToProjectDto(Project project)
     {
         var toProjectStatusValueResult = ToProjectStatusValue(project.Status);
-        global::SereinFlow.Contracts.ProjectDto evaluatedValue = new(project.Id, project.Name, project.Version, toProjectStatusValueResult, project.CreatedAt, project.UpdatedAt);
+        ProjectDto evaluatedValue = new(project.Id, project.Name, project.Version, toProjectStatusValueResult, project.CreatedAt, project.UpdatedAt);
         return evaluatedValue;
     }
 
@@ -29,24 +30,24 @@ internal static class ApiEndpointHelpers
 
     internal static FlowRunDto ToRunDto(FlowRun run)
     {
-        global::SereinFlow.Contracts.FlowRunDto evaluatedValue2 = new(run.Id, run.FlowId, run.FlowVersion, (FlowRunStatusDto)run.Status, run.StartedAt, run.EndedAt, run.ErrorSummary, run.ProjectId == Guid.Empty ? null : run.ProjectId, run.CreatedAt, run.CancellationReason, (FlowConcurrencyModeDto)run.ConcurrencyMode, run.IsListenerRun, run.QueuedAt, (FlowRunExecutionKindDto)run.ExecutionKind, run.DebugSessionId, run.DefinitionChecksum);
+        FlowRunDto evaluatedValue2 = new(run.Id, run.FlowId, run.FlowVersion, (FlowRunStatusDto)run.Status, run.StartedAt, run.EndedAt, run.ErrorSummary, run.ProjectId == Guid.Empty ? null : run.ProjectId, run.CreatedAt, run.CancellationReason, (FlowConcurrencyModeDto)run.ConcurrencyMode, run.IsListenerRun, run.QueuedAt, (FlowRunExecutionKindDto)run.ExecutionKind, run.DebugSessionId, run.DefinitionChecksum);
         return evaluatedValue2;
     }
 
     internal static FlowDebugSessionDto ToFlowDebugSessionDto(FlowDebugSession session)
     {
-        global::SereinFlow.Contracts.FlowDebugPauseStateDto? evaluatedValue3 = session.PauseState is null ? null : resolveFlowDebugPauseStateDto();
-        global::SereinFlow.Contracts.FlowDebugNodeResultDto? evaluatedValue6 = session.LastNodeResult is null ? null : resolveFlowDebugNodeResultDto();
-        global::SereinFlow.Contracts.FlowDebugSessionDto evaluatedValue7 = new(session.Id, session.RunId, session.ProjectId, session.FlowId, (FlowDebugSessionStatusDto)session.Status, session.BreakpointNodeIds, session.CurrentNodeId, session.ActiveInvocationId, session.ActiveFlipflopNodeId, session.QueuedTriggerCount, session.LastCommandSequence, session.FailureMessage, session.CreatedAt, session.UpdatedAt, session.StateRevision, evaluatedValue3, evaluatedValue6);
+        FlowDebugPauseStateDto? evaluatedValue3 = session.PauseState is null ? null : resolveFlowDebugPauseStateDto();
+        FlowDebugNodeResultDto? evaluatedValue6 = session.LastNodeResult is null ? null : resolveFlowDebugNodeResultDto();
+        FlowDebugSessionDto evaluatedValue7 = new(session.Id, session.RunId, session.ProjectId, session.FlowId, (FlowDebugSessionStatusDto)session.Status, session.BreakpointNodeIds, session.CurrentNodeId, session.ActiveInvocationId, session.ActiveFlipflopNodeId, session.QueuedTriggerCount, session.LastCommandSequence, session.FailureMessage, session.CreatedAt, session.UpdatedAt, session.StateRevision, evaluatedValue3, evaluatedValue6);
         return evaluatedValue7;
-        global::SereinFlow.Contracts.FlowDebugPauseStateDto resolveFlowDebugPauseStateDto()
+        FlowDebugPauseStateDto resolveFlowDebugPauseStateDto()
         {
             var parseDebugJsonResult = ParseDebugJson(session.PauseState.InputsJson);
             var flowDebugPauseStateDto = new FlowDebugPauseStateDto(session.PauseState.NodeId, session.PauseState.NodeType, session.PauseState.Step, session.PauseState.FrameDepth, session.PauseState.InvocationId, session.PauseState.BoundarySequence, parseDebugJsonResult, session.PauseState.PausedAt, session.PauseState.ExecutionId);
             return flowDebugPauseStateDto;
         }
 
-        global::SereinFlow.Contracts.FlowDebugNodeResultDto resolveFlowDebugNodeResultDto()
+        FlowDebugNodeResultDto resolveFlowDebugNodeResultDto()
         {
             var parseDebugJsonResult4 = ParseDebugJson(session.LastNodeResult.InputsJson);
             var parseDebugJsonResult5 = ParseDebugJson(session.LastNodeResult.OutputsJson);
@@ -85,7 +86,7 @@ internal static class ApiEndpointHelpers
     internal static FlowDefinitionSummaryDto ToFlowSummaryDto(FlowDefinitionDto definition, long? productionVersion = null)
     {
         var sumResult = definition.Canvases.Sum(static canvas => canvas.Nodes.Count);
-        global::SereinFlow.Contracts.FlowDefinitionSummaryDto evaluatedValue10 = new(definition.Id, definition.Version, definition.EntryNodeId, definition.Canvases.Count, sumResult, productionVersion);
+        FlowDefinitionSummaryDto evaluatedValue10 = new(definition.Id, definition.Version, definition.EntryNodeId, definition.Canvases.Count, sumResult, productionVersion);
         return evaluatedValue10;
     }
 
@@ -116,7 +117,7 @@ internal static class ApiEndpointHelpers
             return jsonResult;
         }
 
-        global::System.Collections.Generic.Dictionary<string, object>? evaluatedValue12 = submission.CurrentVersion is null ? null : new Dictionary<string, object?>
+        Dictionary<string, object>? evaluatedValue12 = submission.CurrentVersion is null ? null : new Dictionary<string, object?>
         {
             ["currentVersion"] = submission.CurrentVersion
         };
@@ -132,7 +133,7 @@ internal static class ApiEndpointHelpers
             return okResult;
         }
 
-        global::System.Collections.Generic.Dictionary<string, object>? evaluatedValue13 = string.IsNullOrWhiteSpace(result.Code) ? null : new Dictionary<string, object?>
+        Dictionary<string, object>? evaluatedValue13 = string.IsNullOrWhiteSpace(result.Code) ? null : new Dictionary<string, object?>
         {
             ["code"] = result.Code
         };

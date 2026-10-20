@@ -117,7 +117,7 @@ public sealed class RunsController : ApiControllerBase
         var failure = ToAuthorizationFailure(authorization);
         var evaluatedValue = failure ?? resolveOkResult();
         return evaluatedValue;
-        global::Microsoft.AspNetCore.Mvc.ActionResult resolveOkResult()
+        ActionResult resolveOkResult()
         {
             var toRunDtoResult = ToRunDto(run);
             var okResult12 = Ok(toRunDtoResult);
@@ -131,9 +131,9 @@ public sealed class RunsController : ApiControllerBase
     public async Task<ActionResult> GetDebugSession([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
         var session = await _debugSessions.FindByRunIdAsync(runId, cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue15 = session is null ? ApiProblem(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。") : resolveOkResult13();
+        ActionResult evaluatedValue15 = session is null ? ApiProblem(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。") : resolveOkResult13();
         return evaluatedValue15;
-        global::Microsoft.AspNetCore.Mvc.ObjectResult resolveOkResult13()
+        ObjectResult resolveOkResult13()
         {
             var toFlowDebugSessionDtoResult = ToFlowDebugSessionDto(session);
             var okResult14 = Ok(toFlowDebugSessionDtoResult);
@@ -169,7 +169,7 @@ public sealed class RunsController : ApiControllerBase
         }
 
         var snapshot = await _runs.GetSnapshotAsync(runId, cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue17 = snapshot is null ? ApiProblem(StatusCodes.Status404NotFound, "Run snapshot not found. 未找到运行快照。") : Ok(snapshot);
+        ActionResult evaluatedValue17 = snapshot is null ? ApiProblem(StatusCodes.Status404NotFound, "Run snapshot not found. 未找到运行快照。") : Ok(snapshot);
         return evaluatedValue17;
     }
 
@@ -241,7 +241,7 @@ public sealed class RunsController : ApiControllerBase
             return apiProblemResult23;
         }
 
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue24 = _queue.Cancel(runId, RunCancellationSources.Api) ? Accepted($"/api/runs/{runId:D}") : ApiProblem(StatusCodes.Status409Conflict, "Run is not currently cancellable. 当前运行实例不可取消。");
+        ActionResult evaluatedValue24 = _queue.Cancel(runId, RunCancellationSources.Api) ? Accepted($"/api/runs/{runId:D}") : ApiProblem(StatusCodes.Status409Conflict, "Run is not currently cancellable. 当前运行实例不可取消。");
         return evaluatedValue24;
     }
 
@@ -280,14 +280,14 @@ public sealed class RunsController : ApiControllerBase
         var firstOrDefaultResult = Request.Headers["Idempotency-Key"].FirstOrDefault();
         var command = new RunMessageDeliveryCommand(runId, topic, request?.Payload ?? default, request?.MessageId, firstOrDefaultResult, request?.ContractId, request?.ChannelKind ?? WorkerMessageChannelKindDto.Queue);
         var result = await _messageDelivery.DeliverAsync(command, cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue29 = result.Disposition switch
+        ActionResult evaluatedValue29 = result.Disposition switch
         {
             RunMessageDeliveryDisposition.Accepted => resolveAcceptedResult(),
             RunMessageDeliveryDisposition.TimedOut => StatusCode(result.StatusCode, result.Response),
             RunMessageDeliveryDisposition.EndpointForbidden or RunMessageDeliveryDisposition.ChannelFull => StatusCode(result.StatusCode, result.Response),
             _ => resolveApiProblemResult()};
         return evaluatedValue29;
-        global::Microsoft.AspNetCore.Mvc.ObjectResult resolveAcceptedResult()
+        ObjectResult resolveAcceptedResult()
         {
             var evaluatedValue26 = $"/api/runs/{runId:D}/messages/{resolveEscapeDataStringResult()}";
             var acceptedResult = Accepted(evaluatedValue26, result.Response);
@@ -300,7 +300,7 @@ public sealed class RunsController : ApiControllerBase
             }
         }
 
-        global::Microsoft.AspNetCore.Mvc.ObjectResult resolveApiProblemResult()
+        ObjectResult resolveApiProblemResult()
         {
             var dictionary27 = new Dictionary<string, object?>
             {
@@ -358,7 +358,7 @@ public sealed class RunsController : ApiControllerBase
         }
 
         var result = await _interruptions.InterruptAsync(runId, "operator_reconciliation", RunErrorCodes.OperatorInterrupted, "The orphaned run was marked as interrupted by an operator. 孤儿运行实例已由操作人员标记为中断。", cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue37 = result.Disposition switch
+        ActionResult evaluatedValue37 = result.Disposition switch
         {
             RunInterruptionDisposition.Interrupted => resolveAcceptedResult34(),
             RunInterruptionDisposition.NotFound => ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。"),
@@ -367,7 +367,7 @@ public sealed class RunsController : ApiControllerBase
             _ => ApiProblem(StatusCodes.Status409Conflict, "The run could not be marked as interrupted. 无法将运行实例标记为中断。"),
         };
         return evaluatedValue37;
-        global::Microsoft.AspNetCore.Mvc.ObjectResult resolveAcceptedResult34()
+        ObjectResult resolveAcceptedResult34()
         {
             var toRunDtoResult35 = ToRunDto(result.Run!);
             var acceptedResult36 = Accepted($"/api/runs/{runId:D}", toRunDtoResult35);

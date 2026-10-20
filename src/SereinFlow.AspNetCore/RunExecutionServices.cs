@@ -1,3 +1,5 @@
+using System;
+using System.Threading;
 using System.Text.Json;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
@@ -41,7 +43,7 @@ public sealed class RunExecutionOptions
 
     internal RunExecutionOptions Normalize()
     {
-        global::SereinFlow.Api.RunExecutionOptions evaluatedValue = new()
+        RunExecutionOptions evaluatedValue = new()
         {
             QueueCapacity = Math.Clamp(QueueCapacity, MinimumPositiveSetting, QueueCapacityLimit),
             MaxConcurrentRuns = Math.Clamp(MaxConcurrentRuns, MinimumPositiveSetting, ConcurrentRunCountLimit),
@@ -57,7 +59,7 @@ public sealed class RunExecutionOptions
 
     public RunExecutionSettingsDto ToDto()
     {
-        global::SereinFlow.Contracts.RunExecutionSettingsDto evaluatedValue1 = new(QueueCapacity, MaxConcurrentRuns, MaxConcurrentListenerRuns, MaxConcurrentRunsPerProject, QueueWaitTimeoutSeconds, ShutdownGracePeriodSeconds, SynchronousInvocationTimeoutSeconds, MaxLibraryUploadBytes);
+        RunExecutionSettingsDto evaluatedValue1 = new(QueueCapacity, MaxConcurrentRuns, MaxConcurrentListenerRuns, MaxConcurrentRunsPerProject, QueueWaitTimeoutSeconds, ShutdownGracePeriodSeconds, SynchronousInvocationTimeoutSeconds, MaxLibraryUploadBytes);
         return evaluatedValue1;
     }
 
@@ -260,7 +262,7 @@ public sealed class RunExecutionQueue
     {
         lock (_gate)
         {
-            global::System.Threading.CancellationToken evaluatedValue8 = _cancellations.TryGetValue(runId, out var source) ? source.Token : new CancellationToken(canceled: true);
+            CancellationToken evaluatedValue8 = _cancellations.TryGetValue(runId, out var source) ? source.Token : new CancellationToken(canceled: true);
             return evaluatedValue8;
         }
     }
@@ -432,7 +434,7 @@ public sealed class RunExecutionQueue
             var readResult = Volatile.Read(ref _queuedCount);
             var maxResult = Math.Max(0, readResult);
             var countResult = _activeRuns.Values.Count(static item => item.IsListenerRun);
-            global::SereinFlow.Api.RunExecutionSnapshot evaluatedValue15 = new(_options.QueueCapacity, maxResult, _activeRuns.Count, countResult, _options.MaxConcurrentRuns, _options.MaxConcurrentListenerRuns, _options.MaxConcurrentRunsPerProject);
+            RunExecutionSnapshot evaluatedValue15 = new(_options.QueueCapacity, maxResult, _activeRuns.Count, countResult, _options.MaxConcurrentRuns, _options.MaxConcurrentListenerRuns, _options.MaxConcurrentRunsPerProject);
             return evaluatedValue15;
         }
     }
@@ -908,7 +910,7 @@ public sealed class RunExecutionHostedService : BackgroundService
             var addSecondsResult = item.QueuedAt.AddSeconds(_queue.Options.QueueWaitTimeoutSeconds);
             return addSecondsResult;
         });
-        global::System.TimeSpan? evaluatedValue23 = deadline <= now ? TimeSpan.FromMilliseconds(1) : deadline - now;
+        TimeSpan? evaluatedValue23 = deadline <= now ? TimeSpan.FromMilliseconds(1) : deadline - now;
         return evaluatedValue23;
     }
 

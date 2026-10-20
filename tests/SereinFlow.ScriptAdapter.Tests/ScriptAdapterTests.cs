@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Domain;
 using SereinFlow.Contracts;
 using SereinFlow.Runtime.Abstractions;
@@ -11,7 +12,7 @@ public sealed class ScriptAdapterTests
     public async Task CompilerReturnsSuccessWithoutPersistingOrExecutingScript()
     {
         var sereinLangCompiler = new SereinLangCompiler();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ScriptValueContractDto> evaluatedValue = [new ScriptValueContractDto("amount", "number", true)];
+        IReadOnlyList<ScriptValueContractDto> evaluatedValue = [new ScriptValueContractDto("amount", "number", true)];
         var scriptCompileRequestDto = new ScriptCompileRequestDto("return amount + 1", "mcp-test.serein", SereinLangCompiler.SupportedLanguageVersion, evaluatedValue);
         var result = await sereinLangCompiler.CompileAsync(scriptCompileRequestDto);
         Assert.True(result.IsSuccess);
@@ -71,8 +72,8 @@ public sealed class ScriptAdapterTests
     [Fact]
     public async Task ExecutesSingleOutputScript()
     {
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue5 = [new("amount", "number", true)];
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue6 = [new("result", "number")];
+        IEnumerable<ScriptValueContract> evaluatedValue5 = [new("amount", "number", true)];
+        IEnumerable<ScriptValueContract> evaluatedValue6 = [new("result", "number")];
         var node = CreateScriptNode("return amount + 1", evaluatedValue5, evaluatedValue6);
         var dictionary7 = new Dictionary<string, object?>
         {
@@ -94,8 +95,8 @@ public sealed class ScriptAdapterTests
         var root = Path.Combine(getTempPathResult, "sereinflow-script-tests", toStringResult);
         try
         {
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue8 = [new("input1", "System.Object", true, Id: "input-1")];
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue9 = [new("result", "ScriptLang.Runtime.Value", false, Id: "result")];
+            IEnumerable<ScriptValueContract> evaluatedValue8 = [new("input1", "System.Object", true, Id: "input-1")];
+            IEnumerable<ScriptValueContract> evaluatedValue9 = [new("result", "ScriptLang.Runtime.Value", false, Id: "result")];
             var definition = CreateScriptDefinition("return input1", evaluatedValue8, evaluatedValue9);
             var node = NodeDefinition.Create("node", NodeType.Script, "Script", script: definition);
             var store = new ScriptArtifactStore(root);
@@ -140,8 +141,8 @@ public sealed class ScriptAdapterTests
         var root = Path.Combine(getTempPathResult19, "sereinflow-script-tests", toStringResult21);
         try
         {
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue13 = [new("input1", "System.Object", false, Id: "input-1")];
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue14 = [new("result", "ScriptLang.Runtime.Value", false, Id: "result")];
+            IEnumerable<ScriptValueContract> evaluatedValue13 = [new("input1", "System.Object", false, Id: "input-1")];
+            IEnumerable<ScriptValueContract> evaluatedValue14 = [new("result", "ScriptLang.Runtime.Value", false, Id: "result")];
             var definition = CreateScriptDefinition("return 0", evaluatedValue13, evaluatedValue14);
             var node = NodeDefinition.Create("node", NodeType.Script, "Script", script: definition);
             var store = new ScriptArtifactStore(root);
@@ -176,8 +177,8 @@ public sealed class ScriptAdapterTests
     [Fact]
     public async Task MapsObjectToMultipleOutputs()
     {
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue22 = [new("left", "number"), new("right", "number")];
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue23 = [new("sum", "number"), new("label", "string")];
+        IEnumerable<ScriptValueContract> evaluatedValue22 = [new("left", "number"), new("right", "number")];
+        IEnumerable<ScriptValueContract> evaluatedValue23 = [new("sum", "number"), new("label", "string")];
         var node = CreateScriptNode("return { sum = left + right, label = \"done\" }", evaluatedValue22, evaluatedValue23);
         var dictionary24 = new Dictionary<string, object?>
         {
@@ -197,8 +198,8 @@ public sealed class ScriptAdapterTests
     [Fact]
     public async Task RejectsMissingAndUnknownInputs()
     {
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue28 = [new("amount", "number", true)];
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue29 = [new("result", "number")];
+        IEnumerable<ScriptValueContract> evaluatedValue28 = [new("amount", "number", true)];
+        IEnumerable<ScriptValueContract> evaluatedValue29 = [new("result", "number")];
         var node = CreateScriptNode("return amount", evaluatedValue28, evaluatedValue29);
         var dictionary30 = new Dictionary<string, object?>();
         var missing = await Execute(node, dictionary30);
@@ -217,7 +218,7 @@ public sealed class ScriptAdapterTests
     [Fact]
     public async Task CancellationIsReturnedAsStructuredFailure()
     {
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue32 = [new("result", "number")];
+        IEnumerable<ScriptValueContract> evaluatedValue32 = [new("result", "number")];
         var node = CreateScriptNode("for i in range(0, 1000000000) { var keep = i }", [], evaluatedValue32);
         var fromMillisecondsResult = TimeSpan.FromMilliseconds(100);
         using var cancellation = new CancellationTokenSource(fromMillisecondsResult);
@@ -230,7 +231,7 @@ public sealed class ScriptAdapterTests
     [Fact]
     public async Task ScriptExceptionsUseErrorBranch()
     {
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue34 = [new("result", "number")];
+        IEnumerable<ScriptValueContract> evaluatedValue34 = [new("result", "number")];
         var node = CreateScriptNode("return missing_value", [], evaluatedValue34);
         var dictionary35 = new Dictionary<string, object?>();
         var result = await Execute(node, dictionary35);
@@ -243,7 +244,7 @@ public sealed class ScriptAdapterTests
     public async Task ImportsSereinFlowLogAndEnvironmentWithoutWritingToConsole()
     {
         const string nodeId = "script-node";
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue36 = [new ScriptValueContract("result", "System.String")];
+        IEnumerable<ScriptValueContract> evaluatedValue36 = [new ScriptValueContract("result", "System.String")];
         var createResult = ScriptNodeDefinition.Create(nodeId, """
                 import { log, env } from "sereinflow"
                 log.info("Started")
@@ -286,7 +287,7 @@ public sealed class ScriptAdapterTests
         var root = Path.Combine(getTempPathResult56, "sereinflow-script-tests", toStringResult58);
         try
         {
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue41 = [new ScriptValueContract("runId", "System.String"), new ScriptValueContract("projectId", "System.String"), new ScriptValueContract("flowId", "System.String"), new ScriptValueContract("canvasId", "System.String"), new ScriptValueContract("nodeId", "System.String"), new ScriptValueContract("frameDepth", "System.Int32"), new ScriptValueContract("isCancellationRequested", "System.Boolean")];
+            IEnumerable<ScriptValueContract> evaluatedValue41 = [new ScriptValueContract("runId", "System.String"), new ScriptValueContract("projectId", "System.String"), new ScriptValueContract("flowId", "System.String"), new ScriptValueContract("canvasId", "System.String"), new ScriptValueContract("nodeId", "System.String"), new ScriptValueContract("frameDepth", "System.Int32"), new ScriptValueContract("isCancellationRequested", "System.Boolean")];
             var definition = ScriptNodeDefinition.Create(nodeId, """
                 import { env } from "sereinflow"
                 return {
@@ -350,7 +351,7 @@ public sealed class ScriptAdapterTests
         try
         {
             var store = new ScriptArtifactStore(root);
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue59 = [new("result", "number")];
+            IEnumerable<ScriptValueContract> evaluatedValue59 = [new("result", "number")];
             var valid = CreateScriptDefinition("return 1", [], evaluatedValue59);
             var first = store.RebuildProject("project", [valid]);
             Assert.True(first.IsSuccess);
@@ -358,7 +359,7 @@ public sealed class ScriptAdapterTests
             var combineResult = Path.Combine(getProjectPathResult, NodeErrorCodes.Ssc);
             var existsResult = File.Exists(combineResult);
             Assert.True(existsResult);
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue60 = [new("result", "number")];
+            IEnumerable<ScriptValueContract> evaluatedValue60 = [new("result", "number")];
             var invalid = CreateScriptDefinition("return (", [], evaluatedValue60);
             var second = store.RebuildProject("project", [invalid]);
             Assert.False(second.IsSuccess);
@@ -386,11 +387,11 @@ public sealed class ScriptAdapterTests
         try
         {
             var store = new ScriptArtifactStore(root);
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue67 = [new("amount", "number", Id: "amount-id")];
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue68 = [new("result", "number")];
+            IEnumerable<ScriptValueContract> evaluatedValue67 = [new("amount", "number", Id: "amount-id")];
+            IEnumerable<ScriptValueContract> evaluatedValue68 = [new("result", "number")];
             var first = CreateScriptDefinition("return 1", evaluatedValue67, evaluatedValue68);
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue69 = [new("quantity", "number", Id: "quantity-id")];
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ScriptValueContract> evaluatedValue70 = [new("result", "number")];
+            IEnumerable<ScriptValueContract> evaluatedValue69 = [new("quantity", "number", Id: "quantity-id")];
+            IEnumerable<ScriptValueContract> evaluatedValue70 = [new("result", "number")];
             var changedContract = CreateScriptDefinition("return 1", evaluatedValue69, evaluatedValue70);
             var evaluatedValue71 = store.RebuildProject("project", [first]).IsSuccess;
             Assert.True(evaluatedValue71);
@@ -412,7 +413,7 @@ public sealed class ScriptAdapterTests
         var dateTime = new DateTime(2026, 8, 27, 9, 30, 0, DateTimeKind.Utc);
         var timeSpan = TimeSpan.FromMinutes(5);
         var value = NumberValueFactory.Create(42);
-        global::System.Collections.Generic.List<global::ScriptLang.Runtime.Value> evaluatedValue75 = [NumberValueFactory.Create(1), NumberValueFactory.Create(2)];
+        List<Value> evaluatedValue75 = [NumberValueFactory.Create(1), NumberValueFactory.Create(2)];
         var array = new ArrayValue(evaluatedValue75);
         var dictionary76 = new Dictionary<string, Value>
         {
@@ -447,7 +448,7 @@ public sealed class ScriptAdapterTests
         Assert.Equal("Ada", evaluatedValue89);
         var evaluatedValue93 = resolveIsTypeResult()["name"];
         Assert.Equal("Ada", evaluatedValue93);
-        global::System.Collections.Generic.Dictionary<string, string> resolveIsTypeResult()
+        Dictionary<string, string> resolveIsTypeResult()
         {
             var dictionary90 = new Dictionary<string, Value>
             {

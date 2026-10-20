@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Concurrent;
 using SereinFlow.Domain;
 using SereinFlow.Runtime;
@@ -9,7 +10,7 @@ public sealed class DebugExecutionGateTests
     [Fact]
     public async Task BreakpointPausesBeforeTheNodeExecutorAndExposesResolvedInputs()
     {
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.NodeParameterDefinition> evaluatedValue = [new NodeParameterDefinition("count", "42")];
+        IEnumerable<NodeParameterDefinition> evaluatedValue = [new NodeParameterDefinition("count", "42")];
         var node = NodeDefinition.Create("action", NodeType.Action, "Action", parameters: evaluatedValue);
         var definition = CreateDefinition([node], [], node.Id);
         var pause = new TaskCompletionSource<NodeExecutionBoundary>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -124,7 +125,7 @@ public sealed class DebugExecutionGateTests
     {
         var trigger = NodeDefinition.Create("trigger", NodeType.Flipflop, "Trigger");
         var action = NodeDefinition.Create("action", NodeType.Action, "Action");
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ConnectionDefinition> evaluatedValue15 = [ConnectionDefinition.Execution(trigger.Id, "success", action.Id, "execute", ExecutionBranch.Success)];
+        IEnumerable<ConnectionDefinition> evaluatedValue15 = [ConnectionDefinition.Execution(trigger.Id, "success", action.Id, "execute", ExecutionBranch.Success)];
         var definition = CreateDefinition([trigger, action], evaluatedValue15, string.Empty);
         var firstPause = new TaskCompletionSource<NodeExecutionBoundary>(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondPause = new TaskCompletionSource<NodeExecutionBoundary>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -182,7 +183,7 @@ public sealed class DebugExecutionGateTests
     private static FlowDefinition CreateDefinition(IEnumerable<NodeDefinition> nodes, IEnumerable<ConnectionDefinition> connections, string entryNodeId)
     {
         var newGuidResult = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue22 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, nodes, connections)];
+        IEnumerable<CanvasDefinition> evaluatedValue22 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, nodes, connections)];
         var createResult = FlowDefinition.Create(newGuidResult, 1, evaluatedValue22, entryNodeId);
         return createResult;
     }
@@ -191,7 +192,7 @@ public sealed class DebugExecutionGateTests
     {
         var executionPlanBuilder23 = new ExecutionPlanBuilder();
         var nodeExecutorRegistry24 = new NodeExecutorRegistry([executor]);
-        global::SereinFlow.Runtime.FlowRunner evaluatedValue25 = new(executionPlanBuilder23, nodeExecutorRegistry24, executionGate: gate);
+        FlowRunner evaluatedValue25 = new(executionPlanBuilder23, nodeExecutorRegistry24, executionGate: gate);
         return evaluatedValue25;
     }
 

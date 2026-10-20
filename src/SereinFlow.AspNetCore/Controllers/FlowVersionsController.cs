@@ -60,7 +60,7 @@ public sealed class FlowVersionsController : ApiControllerBase
         }
 
         var item = await _versions.FindVersionAsync(projectId, flowId, version, cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue = item is null ? ApiProblem(StatusCodes.Status404NotFound, "Flow version not found. 未找到流程版本。") : Ok(item);
+        ActionResult evaluatedValue = item is null ? ApiProblem(StatusCodes.Status404NotFound, "Flow version not found. 未找到流程版本。") : Ok(item);
         return evaluatedValue;
     }
 
@@ -117,9 +117,9 @@ public sealed class FlowVersionsController : ApiControllerBase
 
         var findProductionVersionAsyncResult = await _versions.FindProductionVersionAsync(projectId, flowId, cancellationToken);
         var published = await _versions.PublishAsync(projectId, flowId, request.ExpectedDevelopmentVersion, request.Remark, findProductionVersionAsyncResult, cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue11 = published.IsCommitted ? Ok(published.Version) : resolveApiProblemResult();
+        ActionResult evaluatedValue11 = published.IsCommitted ? Ok(published.Version) : resolveApiProblemResult();
         return evaluatedValue11;
-        global::Microsoft.AspNetCore.Mvc.ObjectResult resolveApiProblemResult()
+        ObjectResult resolveApiProblemResult()
         {
             var dictionary9 = new Dictionary<string, object?>
             {
@@ -178,9 +178,9 @@ public sealed class FlowVersionsController : ApiControllerBase
         }
 
         var rolledBack = await _versions.RollbackAsync(projectId, flowId, version, request.Track, request.ExpectedHeadVersion, cancellationToken);
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue21 = rolledBack.IsCommitted ? Ok(rolledBack.Version) : resolveApiProblemResult18();
+        ActionResult evaluatedValue21 = rolledBack.IsCommitted ? Ok(rolledBack.Version) : resolveApiProblemResult18();
         return evaluatedValue21;
-        global::Microsoft.AspNetCore.Mvc.ObjectResult resolveApiProblemResult18()
+        ObjectResult resolveApiProblemResult18()
         {
             var dictionary19 = new Dictionary<string, object?>
             {

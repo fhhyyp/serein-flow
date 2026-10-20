@@ -23,20 +23,20 @@ public static class FlowDebugSessionWaiter
             var session = await store.FindAsync(sessionId, cancellationToken);
             if (session is null)
             {
-                global::SereinFlow.Application.FlowDebugStateWaitResult evaluatedValue = new(null, false, false);
+                FlowDebugStateWaitResult evaluatedValue = new(null, false, false);
                 return evaluatedValue;
             }
 
             if (session.StateRevision > afterRevision || session.IsTerminal)
             {
-                global::SereinFlow.Application.FlowDebugStateWaitResult evaluatedValue1 = new(session, session.StateRevision > afterRevision, false);
+                FlowDebugStateWaitResult evaluatedValue1 = new(session, session.StateRevision > afterRevision, false);
                 return evaluatedValue1;
             }
 
             var remaining = deadline - DateTimeOffset.UtcNow;
             if (remaining <= TimeSpan.Zero)
             {
-                global::SereinFlow.Application.FlowDebugStateWaitResult evaluatedValue2 = new(session, false, true);
+                FlowDebugStateWaitResult evaluatedValue2 = new(session, false, true);
                 return evaluatedValue2;
             }
 

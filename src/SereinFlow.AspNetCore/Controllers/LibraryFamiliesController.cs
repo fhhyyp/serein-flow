@@ -31,7 +31,7 @@ public sealed class LibraryFamiliesController : ApiControllerBase
             var equalsResult = string.Equals(item.Id, familyId, StringComparison.OrdinalIgnoreCase);
             return equalsResult;
         });
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue1 = family is null ? ApiProblem(StatusCodes.Status404NotFound, "Library family not found. 未找到类库族。") : Ok(family.Artifacts ?? []);
+        ActionResult evaluatedValue1 = family is null ? ApiProblem(StatusCodes.Status404NotFound, "Library family not found. 未找到类库族。") : Ok(family.Artifacts ?? []);
         return evaluatedValue1;
     }
 }

@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
@@ -57,7 +59,7 @@ internal static class McpReadModelToolHandlers
     internal static Task<object> ListLibrariesAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
     {
         var readModelsResult7 = ReadModels(context);
-        global::SereinFlow.Mcp.McpReadModelToolHandlers.LibraryListScope evaluatedValue = GetOptionalBool(arguments, "includeArchived") == true ? LibraryListScope.All : LibraryListScope.Active;
+        McpReadModelToolHandlers.LibraryListScope evaluatedValue = GetOptionalBool(arguments, "includeArchived") == true ? LibraryListScope.All : LibraryListScope.Active;
         var readOptionsResult8 = ReadOptions(arguments);
         var readLibrariesAsyncResult = ReadLibrariesAsync(context.Scope, readModelsResult7, context.Security, context.Principal, cancellationToken, evaluatedValue, readOptionsResult8);
         return readLibrariesAsyncResult;
@@ -233,7 +235,7 @@ internal static class McpReadModelToolHandlers
 
     internal static Task<object> ReadLibraryFamiliesResourceAsync(McpToolContext context, CancellationToken cancellationToken)
     {
-        global::SereinFlow.Contracts.AiReadModelOptions evaluatedValue48 = new();
+        AiReadModelOptions evaluatedValue48 = new();
         var readLibraryFamiliesAsyncResult49 = ReadLibraryFamiliesAsync(context.Scope, context.Security, context.Principal, includeArchivedArtifacts: true, evaluatedValue48, cancellationToken);
         return readLibraryFamiliesAsyncResult49;
     }
@@ -246,7 +248,7 @@ internal static class McpReadModelToolHandlers
 
     internal static Task<object> ReadProjectLibrariesResourceAsync(McpToolContext context, Guid projectId, CancellationToken cancellationToken)
     {
-        global::SereinFlow.Contracts.AiReadModelOptions evaluatedValue51 = new();
+        AiReadModelOptions evaluatedValue51 = new();
         var readProjectLibrariesAsyncResult52 = ReadProjectLibrariesAsync(context.Scope, context.Security, context.Principal, projectId, evaluatedValue51, cancellationToken);
         return readProjectLibrariesAsyncResult52;
     }
@@ -312,7 +314,7 @@ internal static class McpReadModelToolHandlers
     private static FlowWorkpieceDto ToWorkpieceDto(FlowWorkpieceRecord item)
     {
         var runWorkpieceResult = SereinFlowApiUris.RunWorkpiece(item.RunId, item.Id);
-        global::SereinFlow.Contracts.FlowWorkpieceDto evaluatedValue60 = new(item.RunId, item.Id, item.Kind, item.Name, item.ContentType, item.Length, item.CreatedAt, runWorkpieceResult, item.NodeId, item.ExecutionId);
+        FlowWorkpieceDto evaluatedValue60 = new(item.RunId, item.Id, item.Kind, item.Name, item.ContentType, item.Length, item.CreatedAt, runWorkpieceResult, item.NodeId, item.ExecutionId);
         return evaluatedValue60;
     }
 
@@ -428,7 +430,7 @@ internal static class McpReadModelToolHandlers
         var visible = hasMore ? resolveToArrayResult() : items.ToArray();
         var aiPageDto69 = new AiPageDto<AiLibrarySummaryDto>(AiReadModelContract.SchemaVersion, visible, hasMore, hasMore && visible.Length > 0 ? visible[^1].Id : null);
         return aiPageDto69;
-        global::SereinFlow.Contracts.AiLibrarySummaryDto[] resolveToArrayResult()
+        AiLibrarySummaryDto[] resolveToArrayResult()
         {
             var takeResult = items.Take(maxItems);
             var toArrayResult68 = takeResult.ToArray();
@@ -497,7 +499,7 @@ internal static class McpReadModelToolHandlers
         var visible = hasMore ? resolveToArrayResult81() : items;
         var aiPageDto84 = new AiPageDto<LibraryFamilyDto>(AiReadModelContract.SchemaVersion, visible, hasMore, hasMore && visible.Length > 0 ? visible[^1].Id : null);
         return aiPageDto84;
-        global::SereinFlow.Contracts.LibraryFamilyDto[] resolveToArrayResult81()
+        LibraryFamilyDto[] resolveToArrayResult81()
         {
             var takeResult82 = items.Take(normalized.MaxItems);
             var toArrayResult83 = takeResult82.ToArray();
@@ -580,7 +582,7 @@ internal static class McpReadModelToolHandlers
         }
 
         var evaluatedValue1 = optionalResult;
-        global::System.Version conditionalValue;
+        Version conditionalValue;
         if (Version.TryParse(evaluatedValue1, out var version))
         {
             conditionalValue = version;
@@ -590,7 +592,7 @@ internal static class McpReadModelToolHandlers
             conditionalValue = new Version(0, 0);
         }
 
-        global::System.Version evaluatedValue96 = conditionalValue;
+        Version evaluatedValue96 = conditionalValue;
         return evaluatedValue96;
     }
 
@@ -612,7 +614,7 @@ internal static class McpReadModelToolHandlers
         var visible = hasMore ? resolveToArrayResult99() : items;
         var aiPageDto102 = new AiPageDto<ProjectLibraryReferenceDto>(AiReadModelContract.SchemaVersion, visible, hasMore, hasMore && visible.Length > 0 ? visible[^1].LibraryId : null);
         return aiPageDto102;
-        global::SereinFlow.Contracts.ProjectLibraryReferenceDto[] resolveToArrayResult99()
+        ProjectLibraryReferenceDto[] resolveToArrayResult99()
         {
             var takeResult100 = items.Take(normalized.MaxItems);
             var toArrayResult101 = takeResult100.ToArray();
@@ -718,7 +720,7 @@ internal static class McpReadModelToolHandlers
             _ => descriptor,
         };
         return evaluatedValue107;
-        global::System.Threading.Tasks.Task<global::SereinFlow.Application.Persistence.McpPreviewEntry?> resolveFindAsyncResult()
+        Task<McpPreviewEntry?> resolveFindAsyncResult()
         {
             var getRequiredServiceResult106 = scope.ServiceProvider.GetRequiredService<IMcpPreviewStore>();
             var findAsyncResult = getRequiredServiceResult106.FindAsync(previewId, cancellationToken);
@@ -754,7 +756,7 @@ internal static class McpReadModelToolHandlers
         var redactSensitiveResult111 = FlowDiffService.RedactSensitive(stored.CandidateDefinition);
         var flowPatchPreviewDto = new FlowPatchPreviewDto(previewId, stored.Request.ProjectId, stored.Request.FlowId, stored.Request.ExpectedDevelopmentVersion, expiresAt, previewFingerprint, isPending && stored.Validation.IsValid && stored.Diff.Changes.Count > 0, stored.Validation, redactSensitiveResult, redactSensitiveResult111, SchemaVersion: FlowPatchContract.CurrentSchemaVersion, EnumEncoding: FlowPatchContract.EnumEncoding, NormalizedOperations: normalized.Request.Operations, NormalizationWarnings: normalized.Warnings);
         return flowPatchPreviewDto;
-        global::SereinFlow.Application.NormalizedFlowPatchRequest resolveNormalizeLegacyRequestResult()
+        NormalizedFlowPatchRequest resolveNormalizeLegacyRequestResult()
         {
             var flowPatchContractNormalizer = new FlowPatchContractNormalizer();
             var normalizeLegacyRequestResult = flowPatchContractNormalizer.NormalizeLegacyRequest(stored.Request);

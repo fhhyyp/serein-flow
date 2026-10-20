@@ -102,7 +102,7 @@ internal sealed partial class LibraryNodeExecutor
 
     private static LibraryInputException InvalidInput(ParameterInfo parameter, string name, Exception exception)
     {
-        global::SereinFlow.Worker.Runner.LibraryInputException evaluatedValue3 = new(NodeErrorCodes.InputInvalid, $"Library input '{name}' cannot be converted to '{parameter.ParameterType.Name}'. 类库输入“{name}”无法转换为“{parameter.ParameterType.Name}”。 {exception.Message}", exception);
+        LibraryInputException evaluatedValue3 = new(NodeErrorCodes.InputInvalid, $"Library input '{name}' cannot be converted to '{parameter.ParameterType.Name}'. 类库输入“{name}”无法转换为“{parameter.ParameterType.Name}”。 {exception.Message}", exception);
         return evaluatedValue3;
     }
 

@@ -56,7 +56,7 @@ public sealed class FlowDefinition
         var diagnostics = new List<DomainDiagnostic>();
         if (SchemaVersion != CurrentSchemaVersion)
         {
-            global::SereinFlow.Domain.DomainDiagnostic evaluatedValue1 = new(DomainErrorCodes.NodeTypeRemoved, $"Flow schema version {SchemaVersion} is no longer supported; schema {CurrentSchemaVersion} is required. 流程 Schema 版本 {SchemaVersion} 已不再支持，必须使用 Schema {CurrentSchemaVersion}。", "schemaVersion");
+            DomainDiagnostic evaluatedValue1 = new(DomainErrorCodes.NodeTypeRemoved, $"Flow schema version {SchemaVersion} is no longer supported; schema {CurrentSchemaVersion} is required. 流程 Schema 版本 {SchemaVersion} 已不再支持，必须使用 Schema {CurrentSchemaVersion}。", "schemaVersion");
             // Schema v5 removes Condition and makes parameter IDs the binding identity.
             // Older payloads are intentionally rejected instead of being silently upgraded.
             // Schema v5 移除了 Condition，并将参数 ID 作为绑定身份；旧流程明确拒绝，不再静默升级。
@@ -86,7 +86,7 @@ public sealed class FlowDefinition
         {
             if (!canvasIds.Add(canvas.Id))
             {
-                global::SereinFlow.Domain.DomainDiagnostic evaluatedValue3 = new(DomainErrorCodes.DuplicateCanvasId, $"Canvas '{canvas.Id}' is duplicated. 画布“{canvas.Id}”重复。", $"canvases.{canvas.Id}");
+                DomainDiagnostic evaluatedValue3 = new(DomainErrorCodes.DuplicateCanvasId, $"Canvas '{canvas.Id}' is duplicated. 画布“{canvas.Id}”重复。", $"canvases.{canvas.Id}");
                 diagnostics.Add(evaluatedValue3);
             }
 
@@ -94,13 +94,13 @@ public sealed class FlowDefinition
             {
                 if (!Enum.IsDefined(node.Type))
                 {
-                    global::SereinFlow.Domain.DomainDiagnostic evaluatedValue4 = new(DomainErrorCodes.NodeTypeRemoved, $"Node type '{(int)node.Type}' has been removed and cannot execute. 节点类型“{(int)node.Type}”已移除，不能执行。", $"nodes.{node.Id}.type");
+                    DomainDiagnostic evaluatedValue4 = new(DomainErrorCodes.NodeTypeRemoved, $"Node type '{(int)node.Type}' has been removed and cannot execute. 节点类型“{(int)node.Type}”已移除，不能执行。", $"nodes.{node.Id}.type");
                     diagnostics.Add(evaluatedValue4);
                 }
 
                 if (!nodeIds.Add(node.Id))
                 {
-                    global::SereinFlow.Domain.DomainDiagnostic evaluatedValue5 = new(DomainErrorCodes.DuplicateNodeId, $"Node '{node.Id}' is duplicated. 节点“{node.Id}”重复。", $"nodes.{node.Id}");
+                    DomainDiagnostic evaluatedValue5 = new(DomainErrorCodes.DuplicateNodeId, $"Node '{node.Id}' is duplicated. 节点“{node.Id}”重复。", $"nodes.{node.Id}");
                     diagnostics.Add(evaluatedValue5);
                 }
 
@@ -110,19 +110,19 @@ public sealed class FlowDefinition
                 {
                     if (!parameterNames.Add(parameter.Name))
                     {
-                        global::SereinFlow.Domain.DomainDiagnostic evaluatedValue6 = new(DomainErrorCodes.DuplicateParameterName, $"Parameter '{parameter.Name}' is duplicated on node '{node.Id}'. 节点“{node.Id}”中参数“{parameter.Name}”重复。", $"nodes.{node.Id}.parameters.{parameter.Name}");
+                        DomainDiagnostic evaluatedValue6 = new(DomainErrorCodes.DuplicateParameterName, $"Parameter '{parameter.Name}' is duplicated on node '{node.Id}'. 节点“{node.Id}”中参数“{parameter.Name}”重复。", $"nodes.{node.Id}.parameters.{parameter.Name}");
                         diagnostics.Add(evaluatedValue6);
                     }
 
                     if (!parameterIds.Add(parameter.Id))
                     {
-                        global::SereinFlow.Domain.DomainDiagnostic evaluatedValue7 = new(DomainErrorCodes.DuplicateParameterName, $"Parameter ID '{parameter.Id}' is duplicated on node '{node.Id}'. 节点“{node.Id}”中参数 ID“{parameter.Id}”重复。", $"nodes.{node.Id}.parameters.{parameter.Id}");
+                        DomainDiagnostic evaluatedValue7 = new(DomainErrorCodes.DuplicateParameterName, $"Parameter ID '{parameter.Id}' is duplicated on node '{node.Id}'. 节点“{node.Id}”中参数 ID“{parameter.Id}”重复。", $"nodes.{node.Id}.parameters.{parameter.Id}");
                         diagnostics.Add(evaluatedValue7);
                     }
 
                     if (parameter.Source == DataSource.Literal && parameter.EnumMetadata is not null && !string.IsNullOrWhiteSpace(parameter.ValueJson) && !IsValidEnumLiteral(parameter.ValueJson, parameter.EnumMetadata))
                     {
-                        global::SereinFlow.Domain.DomainDiagnostic evaluatedValue8 = new(DomainErrorCodes.InvalidEnumLiteral, $"Enum literal '{parameter.ValueJson}' is not valid for parameter '{parameter.Name}'. 枚举字面量“{parameter.ValueJson}”不是参数“{parameter.Name}”的有效选项。", $"nodes.{node.Id}.parameters.{parameter.Name}");
+                        DomainDiagnostic evaluatedValue8 = new(DomainErrorCodes.InvalidEnumLiteral, $"Enum literal '{parameter.ValueJson}' is not valid for parameter '{parameter.Name}'. 枚举字面量“{parameter.ValueJson}”不是参数“{parameter.Name}”的有效选项。", $"nodes.{node.Id}.parameters.{parameter.Name}");
                         diagnostics.Add(evaluatedValue8);
                     }
 
@@ -133,7 +133,7 @@ public sealed class FlowDefinition
                     // ExecutionPlanBuilder 解析目标节点后校验。
                     && !flowCallTargetNodes.Contains(node.Id))
                     {
-                        global::SereinFlow.Domain.DomainDiagnostic evaluatedValue9 = new(DomainErrorCodes.MissingRequiredParameter, $"Required parameter '{parameter.Name}' on node '{node.Id}' has no literal value. 节点“{node.Id}”的必需参数“{parameter.Name}”没有字面量值。", $"nodes.{node.Id}.parameters.{parameter.Name}");
+                        DomainDiagnostic evaluatedValue9 = new(DomainErrorCodes.MissingRequiredParameter, $"Required parameter '{parameter.Name}' on node '{node.Id}' has no literal value. 节点“{node.Id}”的必需参数“{parameter.Name}”没有字面量值。", $"nodes.{node.Id}.parameters.{parameter.Name}");
                         diagnostics.Add(evaluatedValue9);
                     }
 
@@ -149,7 +149,7 @@ public sealed class FlowDefinition
 
         if (!string.IsNullOrWhiteSpace(EntryNodeId) && !nodeIds.Contains(EntryNodeId))
         {
-            global::SereinFlow.Domain.DomainDiagnostic evaluatedValue11 = new(DomainErrorCodes.UnknownEntryNode, $"Entry node '{EntryNodeId}' does not exist. 入口节点“{EntryNodeId}”不存在。", "entryNodeId");
+            DomainDiagnostic evaluatedValue11 = new(DomainErrorCodes.UnknownEntryNode, $"Entry node '{EntryNodeId}' does not exist. 入口节点“{EntryNodeId}”不存在。", "entryNodeId");
             diagnostics.Add(evaluatedValue11);
         }
 
@@ -159,13 +159,13 @@ public sealed class FlowDefinition
             {
                 if (!connectionIds.Add(connection.Id))
                 {
-                    global::SereinFlow.Domain.DomainDiagnostic evaluatedValue12 = new(DomainErrorCodes.DuplicateConnectionId, $"Connection '{connection.Id}' is duplicated. 连接“{connection.Id}”重复。", $"connections.{connection.Id}");
+                    DomainDiagnostic evaluatedValue12 = new(DomainErrorCodes.DuplicateConnectionId, $"Connection '{connection.Id}' is duplicated. 连接“{connection.Id}”重复。", $"connections.{connection.Id}");
                     diagnostics.Add(evaluatedValue12);
                 }
 
                 if (!nodeIds.Contains(connection.FromNodeId) || !nodeIds.Contains(connection.ToNodeId))
                 {
-                    global::SereinFlow.Domain.DomainDiagnostic evaluatedValue13 = new(DomainErrorCodes.UnknownConnectionEndpoint, $"Connection '{connection.Id}' references an unknown node. 连接“{connection.Id}”引用了未知节点。", $"connections.{connection.Id}");
+                    DomainDiagnostic evaluatedValue13 = new(DomainErrorCodes.UnknownConnectionEndpoint, $"Connection '{connection.Id}' references an unknown node. 连接“{connection.Id}”引用了未知节点。", $"connections.{connection.Id}");
                     diagnostics.Add(evaluatedValue13);
                 }
 
@@ -183,7 +183,7 @@ public sealed class FlowDefinition
                         return equalsResult14;
                     }))
                     {
-                        global::SereinFlow.Domain.DomainDiagnostic evaluatedValue15 = new(DomainErrorCodes.UnknownConnectionEndpoint, $"Data connection '{connection.Id}' targets an unknown parameter ID '{connection.ToPortId}'. 数据连接“{connection.Id}”指向未知参数 ID“{connection.ToPortId}”。", $"connections.{connection.Id}.toPortId");
+                        DomainDiagnostic evaluatedValue15 = new(DomainErrorCodes.UnknownConnectionEndpoint, $"Data connection '{connection.Id}' targets an unknown parameter ID '{connection.ToPortId}'. 数据连接“{connection.Id}”指向未知参数 ID“{connection.ToPortId}”。", $"connections.{connection.Id}.toPortId");
                         diagnostics.Add(evaluatedValue15);
                     }
                 }

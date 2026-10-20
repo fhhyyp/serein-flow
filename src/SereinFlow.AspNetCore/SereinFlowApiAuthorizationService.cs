@@ -61,7 +61,7 @@ public sealed class SereinFlowApiAuthorizationService
 
     private static SereinFlowApiAuthorizationResult Unauthorized()
     {
-        global::SereinFlow.Api.SereinFlowApiAuthorizationResult evaluatedValue = new(false, StatusCodes.Status401Unauthorized, McpErrorCodes.Unauthenticated, "SereinFlow API authentication is required. SereinFlow API 需要鉴权。");
+        SereinFlowApiAuthorizationResult evaluatedValue = new(false, StatusCodes.Status401Unauthorized, McpErrorCodes.Unauthenticated, "SereinFlow API authentication is required. SereinFlow API 需要鉴权。");
         return evaluatedValue;
     }
 }

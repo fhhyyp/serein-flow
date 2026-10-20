@@ -51,7 +51,7 @@ public sealed class FlowExecutionController : ApiControllerBase
             return acceptedResult;
         }
 
-        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue = result.ErrorBody is not null ? new JsonResult(result.ErrorBody)
+        ActionResult evaluatedValue = result.ErrorBody is not null ? new JsonResult(result.ErrorBody)
         {
             StatusCode = result.StatusCode
         }

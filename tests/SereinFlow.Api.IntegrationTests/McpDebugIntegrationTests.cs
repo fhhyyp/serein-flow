@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
@@ -112,7 +113,7 @@ public sealed class McpDebugIntegrationTests : IClassFixture<McpHostIntegrationT
         var first = CreateScriptNode("first", "First", firstSource);
         var second = CreateScriptNode("second", "Second", secondSource);
         var connection = new ConnectionDto("first:success->second:execute", first.Id, "success", second.Id, "execute", ConnectionKindDto.Execution, ExecutionBranchDto.Success, null, 0);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue12 = [new CanvasDto("main", CanvasLifecycleDto.Main, [first, second], [connection])];
+        IReadOnlyList<CanvasDto> evaluatedValue12 = [new CanvasDto("main", CanvasLifecycleDto.Main, [first, second], [connection])];
         var flowRunPolicyDto = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var flowDefinitionDto = new FlowDefinitionDto(flowId, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue12, first.Id, "MCP debug integration", RunPolicy: flowRunPolicyDto);
         return flowDefinitionDto;
@@ -122,7 +123,7 @@ public sealed class McpDebugIntegrationTests : IClassFixture<McpHostIntegrationT
     {
         var computeSourceHashResult = ScriptNodeDefinition.ComputeSourceHash(source);
         var scriptNodeDataDto = new ScriptNodeDataDto(id, source, "1", computeSourceHashResult, [], []);
-        global::SereinFlow.Contracts.NodeDto evaluatedValue13 = new(id, NodeTypeDto.Script, displayName, 0, 0, [], [], scriptNodeDataDto);
+        NodeDto evaluatedValue13 = new(id, NodeTypeDto.Script, displayName, 0, 0, [], [], scriptNodeDataDto);
         return evaluatedValue13;
     }
 }

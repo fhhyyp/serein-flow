@@ -92,7 +92,7 @@ public sealed record MessageChannelOptions
     {
         get
         {
-            global::SereinFlow.Library.MessageChannelOptions evaluatedValue = new();
+            MessageChannelOptions evaluatedValue = new();
             return evaluatedValue;
         }
     }
@@ -105,7 +105,7 @@ public sealed record MessageChannelOptions
     {
         get
         {
-            global::SereinFlow.Library.MessageChannelOptions evaluatedValue1 = new()
+            MessageChannelOptions evaluatedValue1 = new()
             {
                 SerializationMode = MessageSerializationMode.DirectObject
             };

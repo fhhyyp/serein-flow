@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Library;
@@ -151,7 +152,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
 
     private NodeExecutionResult MissingMetadataResult()
     {
-        global::SereinFlow.Runtime.Abstractions.NodeExecutionResult evaluatedValue7 = _nodeType == NodeType.Action ? NodeExecutionResult.Success() : NodeExecutionResult.Error(FlipFlopErrorCodes.MetadataMissing, "Flipflop method metadata is missing. Flipflop 方法元数据缺失。");
+        NodeExecutionResult evaluatedValue7 = _nodeType == NodeType.Action ? NodeExecutionResult.Success() : NodeExecutionResult.Error(FlipFlopErrorCodes.MetadataMissing, "Flipflop method metadata is missing. Flipflop 方法元数据缺失。");
         return evaluatedValue7;
     }
 
@@ -169,8 +170,8 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
 
     private LibraryFlowContext CreateFlowContext(NodeExecutionRequest request, CancellationToken cancellationToken)
     {
-        global::System.Guid evaluatedValue8 = request.ExecutionId == Guid.Empty ? Guid.NewGuid() : request.ExecutionId;
-        global::SereinFlow.Worker.Runner.LibraryFlowContext evaluatedValue9 = new(request.Context is FlowExecutionSession session ? session.RunId : Guid.Empty, request.Node.Id, cancellationToken, evaluatedValue8, _services.Variables);
+        Guid evaluatedValue8 = request.ExecutionId == Guid.Empty ? Guid.NewGuid() : request.ExecutionId;
+        LibraryFlowContext evaluatedValue9 = new(request.Context is FlowExecutionSession session ? session.RunId : Guid.Empty, request.Node.Id, cancellationToken, evaluatedValue8, _services.Variables);
         return evaluatedValue9;
     }
 
@@ -203,7 +204,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
 
     private NodeExecutionResult CreateInvocationError(string detail, IReadOnlyDictionary<string, object?> auditInputs)
     {
-        global::SereinFlow.Runtime.Abstractions.NodeExecutionResult evaluatedValue12 = _nodeType == NodeType.Flipflop ? NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutionFailed, $"Flipflop method invocation failed. Flipflop 方法调用失败。 {detail}")with
+        NodeExecutionResult evaluatedValue12 = _nodeType == NodeType.Flipflop ? NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutionFailed, $"Flipflop method invocation failed. Flipflop 方法调用失败。 {detail}")with
         {
             Inputs = SnapshotInputs(auditInputs)
         }
@@ -217,7 +218,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
 
     private NodeExecutionResult CreateExecutionError(string detail, IReadOnlyDictionary<string, object?> auditInputs)
     {
-        global::SereinFlow.Runtime.Abstractions.NodeExecutionResult evaluatedValue13 = _nodeType == NodeType.Flipflop ? NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutionFailed, $"Flipflop execution failed. Flipflop 执行失败。 {detail}")with
+        NodeExecutionResult evaluatedValue13 = _nodeType == NodeType.Flipflop ? NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutionFailed, $"Flipflop execution failed. Flipflop 执行失败。 {detail}")with
         {
             Inputs = SnapshotInputs(auditInputs)
         }
@@ -279,7 +280,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
             var transferMethod = contract.GetMethod(nameof(INodeResultConverter<object, object>.Transfer)) ?? throw new LibraryResultConverterException(LibraryErrorCodes.ResultConverterInvalid, $"Result converter '{converterType.FullName ?? converterType.Name}' has no Transfer method. 节点结果转换器缺少 Transfer 方法。");
             var invokeResult = transferMethod.Invoke(converter, [primitive]);
             return invokeResult;
-            global::System.Type? resolveSingleOrDefaultResult()
+            Type? resolveSingleOrDefaultResult()
             {
                 var getInterfacesResult = converterType.GetInterfaces();
                 var singleOrDefaultResult = getInterfacesResult.SingleOrDefault(static item =>

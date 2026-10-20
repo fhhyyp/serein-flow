@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
@@ -123,28 +124,28 @@ public sealed class McpProtocolTests
             response.Dispose();
         }
 
-        global::System.Text.Json.JsonElement resolveGetPropertyResult()
+        JsonElement resolveGetPropertyResult()
         {
             var getPropertyResult32 = responses[3].RootElement.GetProperty("result");
             var getPropertyResult33 = getPropertyResult32.GetProperty("contents");
             return getPropertyResult33;
         }
 
-        global::System.Text.Json.JsonElement resolveGetPropertyResult36()
+        JsonElement resolveGetPropertyResult36()
         {
             var getPropertyResult37 = responses[4].RootElement.GetProperty("result");
             var getPropertyResult38 = getPropertyResult37.GetProperty("contents");
             return getPropertyResult38;
         }
 
-        global::System.Text.Json.JsonElement resolveGetPropertyResult41()
+        JsonElement resolveGetPropertyResult41()
         {
             var getPropertyResult42 = responses[5].RootElement.GetProperty("result");
             var getPropertyResult43 = getPropertyResult42.GetProperty("contents");
             return getPropertyResult43;
         }
 
-        global::System.Text.Json.JsonElement resolveGetPropertyResult49()
+        JsonElement resolveGetPropertyResult49()
         {
             var getPropertyResult50 = responses[7].RootElement.GetProperty("result");
             var getPropertyResult51 = getPropertyResult50.GetProperty("messages");
@@ -238,38 +239,38 @@ public sealed class McpProtocolTests
 
         public Task<IReadOnlyList<McpResourceDescriptor>> ListResourcesAsync(CancellationToken cancellationToken)
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpResourceDescriptor> evaluatedValue84 = [new("sereinflow://ai/guide", "ai-guide", "AI guide", "text/markdown"), new("sereinflow://ai/skills/sereinflow", "sereinflow", "SereinFlow skill", "text/markdown"), new("sereinflow://ai/skills/sereinlang", "sereinlang", "SereinLang skill", "text/markdown"), new("sereinflow://ai/skills/sereinflow-library-package", "sereinflow-library-package", "Library skill", "text/markdown"), new("sereinflow://projects", "projects", "Projects")];
+            IReadOnlyList<McpResourceDescriptor> evaluatedValue84 = [new("sereinflow://ai/guide", "ai-guide", "AI guide", "text/markdown"), new("sereinflow://ai/skills/sereinflow", "sereinflow", "SereinFlow skill", "text/markdown"), new("sereinflow://ai/skills/sereinlang", "sereinlang", "SereinLang skill", "text/markdown"), new("sereinflow://ai/skills/sereinflow-library-package", "sereinflow-library-package", "Library skill", "text/markdown"), new("sereinflow://projects", "projects", "Projects")];
             var fromResultResult = Task.FromResult<IReadOnlyList<McpResourceDescriptor>>(evaluatedValue84);
             return fromResultResult;
         }
 
         public Task<IReadOnlyList<McpResourceTemplateDescriptor>> ListResourceTemplatesAsync(CancellationToken cancellationToken)
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpResourceTemplateDescriptor> evaluatedValue85 = [new("sereinflow://projects/{projectId}", "project", "Project")];
+            IReadOnlyList<McpResourceTemplateDescriptor> evaluatedValue85 = [new("sereinflow://projects/{projectId}", "project", "Project")];
             var fromResultResult86 = Task.FromResult<IReadOnlyList<McpResourceTemplateDescriptor>>(evaluatedValue85);
             return fromResultResult86;
         }
 
         public Task<IReadOnlyList<McpPromptDescriptor>> ListPromptsAsync(CancellationToken cancellationToken)
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpPromptDescriptor> evaluatedValue89 = [resolveevaluatedValue()];
+            IReadOnlyList<McpPromptDescriptor> evaluatedValue89 = [resolveevaluatedValue()];
             var fromResultResult90 = Task.FromResult<IReadOnlyList<McpPromptDescriptor>>(evaluatedValue89);
             return fromResultResult90;
-            global::SereinFlow.Mcp.McpPromptDescriptor resolveevaluatedValue()
+            McpPromptDescriptor resolveevaluatedValue()
             {
-                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpPromptArgumentDescriptor> evaluatedValue87 = [new("request", "Request")];
-                global::SereinFlow.Mcp.McpPromptDescriptor evaluatedValue88 = new("sereinflow.inspect", "Inspect", evaluatedValue87);
+                IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue87 = [new("request", "Request")];
+                McpPromptDescriptor evaluatedValue88 = new("sereinflow.inspect", "Inspect", evaluatedValue87);
                 return evaluatedValue88;
             }
         }
 
         public Task<McpPromptResult> GetPromptAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpPromptMessage> evaluatedValue94 = [resolveMcpPromptMessage()];
+            IReadOnlyList<McpPromptMessage> evaluatedValue94 = [resolveMcpPromptMessage()];
             var mcpPromptResult = new McpPromptResult("Inspection", evaluatedValue94);
             var fromResultResult95 = Task.FromResult(mcpPromptResult);
             return fromResultResult95;
-            global::SereinFlow.Mcp.McpPromptMessage resolveMcpPromptMessage()
+            McpPromptMessage resolveMcpPromptMessage()
             {
                 var evaluatedValue93 = $"Inspect: {resolveGetStringResult()}";
                 var mcpPromptContent = new McpPromptContent("text", evaluatedValue93);
@@ -286,20 +287,20 @@ public sealed class McpProtocolTests
 
         public Task<IReadOnlyList<McpToolDescriptor>> ListToolsAsync(CancellationToken cancellationToken)
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Mcp.McpToolDescriptor> evaluatedValue98 = [resolveevaluatedValue96()];
+            IReadOnlyList<McpToolDescriptor> evaluatedValue98 = [resolveevaluatedValue96()];
             var fromResultResult99 = Task.FromResult<IReadOnlyList<McpToolDescriptor>>(evaluatedValue98);
             return fromResultResult99;
-            global::SereinFlow.Mcp.McpToolDescriptor resolveevaluatedValue96()
+            McpToolDescriptor resolveevaluatedValue96()
             {
                 var serializeToElementResult = JsonSerializer.SerializeToElement(new { type = "object" });
-                global::SereinFlow.Mcp.McpToolDescriptor evaluatedValue97 = new("example", "Example", serializeToElementResult);
+                McpToolDescriptor evaluatedValue97 = new("example", "Example", serializeToElementResult);
                 return evaluatedValue97;
             }
         }
 
         public Task<McpResourceReadResult> ReadResourceAsync(string uri, CancellationToken cancellationToken)
         {
-            global::SereinFlow.Mcp.McpResourceReadResult evaluatedValue100 = uri switch
+            McpResourceReadResult evaluatedValue100 = uri switch
             {
                 "sereinflow://ai/guide" => new McpResourceReadResult(uri, "# SereinFlow MCP AI Guide\n", "text/markdown"),
                 "sereinflow://ai/skills/sereinlang" => new McpResourceReadResult(uri, "# SereinLang MCP Skill\n", "text/markdown"),

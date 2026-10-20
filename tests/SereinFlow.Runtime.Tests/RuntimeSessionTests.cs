@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
 using SereinFlow.Runtime;
@@ -48,10 +49,10 @@ public sealed class RuntimeSessionTests
     {
         var node = NodeDefinition.Create("action", NodeType.Action, "Action");
         var newGuidResult = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
         var definition = FlowDefinition.Create(newGuidResult, 1, evaluatedValue, "action");
         var executionPlanBuilder = new ExecutionPlanBuilder();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Runtime.Abstractions.INodeExecutor> evaluatedValue4 = [new ContextWritingExecutor()];
+        IEnumerable<INodeExecutor> evaluatedValue4 = [new ContextWritingExecutor()];
         var nodeExecutorRegistry = new NodeExecutorRegistry(evaluatedValue4);
         var runner = new FlowRunner(executionPlanBuilder, nodeExecutorRegistry);
         await using var first = new FlowExecutionSession();
@@ -72,14 +73,14 @@ public sealed class RuntimeSessionTests
     [Fact]
     public async Task TerminalEventRetainsResolvedInputsForTraceability()
     {
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.NodeParameterDefinition> evaluatedValue9 = [new NodeParameterDefinition("count", "42")];
+        IEnumerable<NodeParameterDefinition> evaluatedValue9 = [new NodeParameterDefinition("count", "42")];
         var node = NodeDefinition.Create("action", NodeType.Action, "Action", parameters: evaluatedValue9);
         var newGuidResult10 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue11 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue11 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
         var definition = FlowDefinition.Create(newGuidResult10, 1, evaluatedValue11, "action");
         var publisher = new RecordingPublisher();
         var executionPlanBuilder12 = new ExecutionPlanBuilder();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Runtime.Abstractions.INodeExecutor> evaluatedValue13 = [new ContextWritingExecutor()];
+        IEnumerable<INodeExecutor> evaluatedValue13 = [new ContextWritingExecutor()];
         var nodeExecutorRegistry14 = new NodeExecutorRegistry(evaluatedValue13);
         var runner = new FlowRunner(executionPlanBuilder12, nodeExecutorRegistry14, publisher);
         await using var session = new FlowExecutionSession();
@@ -94,7 +95,7 @@ public sealed class RuntimeSessionTests
     {
         var node = NodeDefinition.Create("action", NodeType.Action, "Action");
         var newGuidResult15 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue16 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue16 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
         var definition = FlowDefinition.Create(newGuidResult15, 1, evaluatedValue16, "action");
         var executor = new CapturingExecutionIdentityExecutor();
         var publisher = new RecordingPublisher();
@@ -132,14 +133,14 @@ public sealed class RuntimeSessionTests
     [Fact]
     public async Task BindingFailureRetainsInputsResolvedBeforeTheMissingParameter()
     {
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.NodeParameterDefinition> evaluatedValue20 = [new NodeParameterDefinition("first", "10"), new NodeParameterDefinition("second", null, DataSource.ProjectInput, required: true, projectInputKey: "second")];
+        IEnumerable<NodeParameterDefinition> evaluatedValue20 = [new NodeParameterDefinition("first", "10"), new NodeParameterDefinition("second", null, DataSource.ProjectInput, required: true, projectInputKey: "second")];
         var node = NodeDefinition.Create("action", NodeType.Action, "Action", parameters: evaluatedValue20);
         var newGuidResult21 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue22 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue22 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
         var definition = FlowDefinition.Create(newGuidResult21, 1, evaluatedValue22, "action");
         var publisher = new RecordingPublisher();
         var executionPlanBuilder23 = new ExecutionPlanBuilder();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Runtime.Abstractions.INodeExecutor> evaluatedValue24 = [new ContextWritingExecutor()];
+        IEnumerable<INodeExecutor> evaluatedValue24 = [new ContextWritingExecutor()];
         var nodeExecutorRegistry25 = new NodeExecutorRegistry(evaluatedValue24);
         var runner = new FlowRunner(executionPlanBuilder23, nodeExecutorRegistry25, publisher);
         await using var session = new FlowExecutionSession();
@@ -156,7 +157,7 @@ public sealed class RuntimeSessionTests
         var parameter = new NodeParameterDefinition("retryCount", string.Empty, DataSource.Literal, required: false);
         var node = NodeDefinition.Create("action", NodeType.Action, "Action", parameters: [parameter]);
         var newGuidResult26 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue27 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue27 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
         var definition = FlowDefinition.Create(newGuidResult26, 1, evaluatedValue27, node.Id);
         var executionPlanBuilder28 = new ExecutionPlanBuilder();
         var plan = executionPlanBuilder28.Build(definition);
@@ -172,7 +173,7 @@ public sealed class RuntimeSessionTests
         var parameter = new NodeParameterDefinition("retryCount", "  ", DataSource.Literal, required: false);
         var node = NodeDefinition.Create("action", NodeType.Action, "Action", parameters: [parameter]);
         var newGuidResult29 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue30 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue30 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
         var definition = FlowDefinition.Create(newGuidResult29, 1, evaluatedValue30, node.Id);
         var executionPlanBuilder31 = new ExecutionPlanBuilder();
         var plan = executionPlanBuilder31.Build(definition);
@@ -188,7 +189,7 @@ public sealed class RuntimeSessionTests
         var parameter = new NodeParameterDefinition("value", "\"\"", DataSource.Literal, required: false);
         var node = NodeDefinition.Create("action", NodeType.Action, "Action", parameters: [parameter]);
         var newGuidResult33 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue34 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue34 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
         var definition = FlowDefinition.Create(newGuidResult33, 1, evaluatedValue34, node.Id);
         var executionPlanBuilder35 = new ExecutionPlanBuilder();
         var plan = executionPlanBuilder35.Build(definition);
@@ -202,10 +203,10 @@ public sealed class RuntimeSessionTests
     public async Task DataConnectionReadsTheConnectedNodeOutputInsteadOfTheMostRecentlyExecutedNode()
     {
         var producer = NodeDefinition.Create("producer", NodeType.Action, "Producer");
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.NodeParameterDefinition> evaluatedValue37 = [new NodeParameterDefinition("value", null, DataSource.PreviousNode, sourceNodeId: "other", sourcePortId: "data-out")];
+        IEnumerable<NodeParameterDefinition> evaluatedValue37 = [new NodeParameterDefinition("value", null, DataSource.PreviousNode, sourceNodeId: "other", sourcePortId: "data-out")];
         var consumer = NodeDefinition.Create("consumer", NodeType.Action, "Consumer", parameters: evaluatedValue37);
         var newGuidResult38 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue40 = [resolveCreateResult()];
+        IEnumerable<CanvasDefinition> evaluatedValue40 = [resolveCreateResult()];
         var definition = FlowDefinition.Create(newGuidResult38, 1, evaluatedValue40, producer.Id);
         var executionPlanBuilder41 = new ExecutionPlanBuilder();
         var plan = executionPlanBuilder41.Build(definition);
@@ -215,9 +216,9 @@ public sealed class RuntimeSessionTests
         var dataConnectionResolver42 = new DataConnectionResolver();
         var inputs = dataConnectionResolver42.Resolve(consumer, plan, session);
         Assert.Equal("connected-output", inputs["value"]);
-        global::SereinFlow.Domain.CanvasDefinition resolveCreateResult()
+        CanvasDefinition resolveCreateResult()
         {
-            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ConnectionDefinition> evaluatedValue39 = [ConnectionDefinition.Data(producer.Id, "data-out", consumer.Id, "value", DataSource.PreviousNode)];
+            IEnumerable<ConnectionDefinition> evaluatedValue39 = [ConnectionDefinition.Data(producer.Id, "data-out", consumer.Id, "value", DataSource.PreviousNode)];
             var createResult = CanvasDefinition.Create("main", CanvasLifecycle.Main, [producer, consumer], evaluatedValue39);
             return createResult;
         }
@@ -229,7 +230,7 @@ public sealed class RuntimeSessionTests
         var parameter = new NodeParameterDefinition("userId", null, DataSource.ProjectInput, required: true, projectInputKey: "request.userId");
         var node = NodeDefinition.Create("consumer", NodeType.Action, "Consumer", parameters: [parameter]);
         var newGuidResult43 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue44 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue44 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
         var definition = FlowDefinition.Create(newGuidResult43, 1, evaluatedValue44, node.Id);
         var executionPlanBuilder45 = new ExecutionPlanBuilder();
         var plan = executionPlanBuilder45.Build(definition);
@@ -243,10 +244,10 @@ public sealed class RuntimeSessionTests
     [Fact]
     public async Task DynamicReferenceParsesJsonBeforeResolvingContextReferences()
     {
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.NodeParameterDefinition> evaluatedValue47 = [new NodeParameterDefinition("decimal", null, DataSource.Expression, expression: "1.5"), new NodeParameterDefinition("quoted", null, DataSource.Expression, expression: "\"a.b\""), new NodeParameterDefinition("reference", null, DataSource.Expression, expression: "producer.data-out"), new NodeParameterDefinition("jsonNull", null, DataSource.Expression, expression: "null")];
+        IEnumerable<NodeParameterDefinition> evaluatedValue47 = [new NodeParameterDefinition("decimal", null, DataSource.Expression, expression: "1.5"), new NodeParameterDefinition("quoted", null, DataSource.Expression, expression: "\"a.b\""), new NodeParameterDefinition("reference", null, DataSource.Expression, expression: "producer.data-out"), new NodeParameterDefinition("jsonNull", null, DataSource.Expression, expression: "null")];
         var node = NodeDefinition.Create("consumer", NodeType.Action, "Consumer", parameters: evaluatedValue47);
         var newGuidResult48 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue49 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue49 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
         var definition = FlowDefinition.Create(newGuidResult48, 1, evaluatedValue49, node.Id);
         var executionPlanBuilder50 = new ExecutionPlanBuilder();
         var plan = executionPlanBuilder50.Build(definition);
@@ -266,11 +267,11 @@ public sealed class RuntimeSessionTests
     {
         var node = NodeDefinition.Create("action", NodeType.Action, "Action");
         var newGuidResult52 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue53 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue53 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], [])];
         var definition = FlowDefinition.Create(newGuidResult52, 1, evaluatedValue53, node.Id);
         var publisher = new RecordingPublisher();
         var executionPlanBuilder54 = new ExecutionPlanBuilder();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Runtime.Abstractions.INodeExecutor> evaluatedValue55 = [new LoggingActionExecutor()];
+        IEnumerable<INodeExecutor> evaluatedValue55 = [new LoggingActionExecutor()];
         var nodeExecutorRegistry56 = new NodeExecutorRegistry(evaluatedValue55);
         var runner = new FlowRunner(executionPlanBuilder54, nodeExecutorRegistry56, publisher);
         await using var session = new FlowExecutionSession();
@@ -295,19 +296,19 @@ public sealed class RuntimeSessionTests
     [Fact]
     public async Task FlowCallUsesAnIsolatedFrameAndOnlyPassesExplicitBindings()
     {
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.NodeParameterDefinition> evaluatedValue58 = [new NodeParameterDefinition("value", null, required: true, id: "target-value")];
+        IEnumerable<NodeParameterDefinition> evaluatedValue58 = [new NodeParameterDefinition("value", null, required: true, id: "target-value")];
         var nodeRuntimeDefinition = new NodeRuntimeDefinition(IsPublic: true, ReturnType: "System.Int64");
         var target = NodeDefinition.Create("target", NodeType.Action, "Target", parameters: evaluatedValue58, runtime: nodeRuntimeDefinition);
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.NodeParameterDefinition> evaluatedValue59 = [new NodeParameterDefinition("value", "7", id: "call-value")];
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.FlowCallParameterBinding> evaluatedValue60 = [new FlowCallParameterBinding("call-value", "target-value")];
+        IEnumerable<NodeParameterDefinition> evaluatedValue59 = [new NodeParameterDefinition("value", "7", id: "call-value")];
+        IReadOnlyList<FlowCallParameterBinding> evaluatedValue60 = [new FlowCallParameterBinding("call-value", "target-value")];
         var nodeRuntimeDefinition61 = new NodeRuntimeDefinition(TargetNodeId: target.Id, FlowCallParameterBindings: evaluatedValue60);
         var call = NodeDefinition.Create("call", NodeType.FlowCall, "Call", parameters: evaluatedValue59, runtime: nodeRuntimeDefinition61);
         var newGuidResult62 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue63 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call, target], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue63 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call, target], [])];
         var definition = FlowDefinition.Create(newGuidResult62, 1, evaluatedValue63, call.Id);
         var action = new CapturingActionExecutor();
         var executionPlanBuilder64 = new ExecutionPlanBuilder();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Runtime.Abstractions.INodeExecutor> evaluatedValue65 = [action, new FlowCallNodeExecutor()];
+        IEnumerable<INodeExecutor> evaluatedValue65 = [action, new FlowCallNodeExecutor()];
         var nodeExecutorRegistry66 = new NodeExecutorRegistry(evaluatedValue65);
         var runner = new FlowRunner(executionPlanBuilder64, nodeExecutorRegistry66);
         await using var session = new FlowExecutionSession();
@@ -335,10 +336,10 @@ public sealed class RuntimeSessionTests
         var nodeRuntimeDefinition71 = new NodeRuntimeDefinition(TargetNodeId: target.Id);
         var call = NodeDefinition.Create("call", NodeType.FlowCall, "Call", runtime: nodeRuntimeDefinition71);
         var newGuidResult72 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue73 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call, target], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue73 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call, target], [])];
         var definition = FlowDefinition.Create(newGuidResult72, 1, evaluatedValue73, call.Id);
         var executionPlanBuilder74 = new ExecutionPlanBuilder();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Runtime.Abstractions.INodeExecutor> evaluatedValue75 = [new MismatchedReturnActionExecutor(), new FlowCallNodeExecutor()];
+        IEnumerable<INodeExecutor> evaluatedValue75 = [new MismatchedReturnActionExecutor(), new FlowCallNodeExecutor()];
         var nodeExecutorRegistry76 = new NodeExecutorRegistry(evaluatedValue75);
         var runner = new FlowRunner(executionPlanBuilder74, nodeExecutorRegistry76);
         await using var session = new FlowExecutionSession();
@@ -356,10 +357,10 @@ public sealed class RuntimeSessionTests
         var nodeRuntimeDefinition78 = new NodeRuntimeDefinition(TargetNodeId: target.Id);
         var call = NodeDefinition.Create("call", NodeType.FlowCall, "Call", runtime: nodeRuntimeDefinition78);
         var newGuidResult79 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue80 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call, target], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue80 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [call, target], [])];
         var definition = FlowDefinition.Create(newGuidResult79, 1, evaluatedValue80, call.Id);
         var executionPlanBuilder81 = new ExecutionPlanBuilder();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Runtime.Abstractions.INodeExecutor> evaluatedValue82 = [new AssignableReturnActionExecutor(), new FlowCallNodeExecutor()];
+        IEnumerable<INodeExecutor> evaluatedValue82 = [new AssignableReturnActionExecutor(), new FlowCallNodeExecutor()];
         var nodeExecutorRegistry83 = new NodeExecutorRegistry(evaluatedValue82);
         var runner = new FlowRunner(executionPlanBuilder81, nodeExecutorRegistry83);
         await using var session = new FlowExecutionSession();
@@ -373,7 +374,7 @@ public sealed class RuntimeSessionTests
     {
         var trigger = NodeDefinition.Create("trigger", NodeType.Flipflop, "Trigger");
         var newGuidResult84 = Guid.NewGuid();
-        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue85 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [trigger], [])];
+        IEnumerable<CanvasDefinition> evaluatedValue85 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [trigger], [])];
         var definition = FlowDefinition.Create(newGuidResult84, 1, evaluatedValue85, "");
         var executor = new WaitingFlipflopExecutor();
         var publisher = new RecordingPublisher();

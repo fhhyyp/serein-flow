@@ -1,3 +1,4 @@
+using System;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
@@ -107,10 +108,10 @@ public sealed class LibraryUpgradeService
         var savePlanAsyncResult = await _store.SavePlanAsync(plan, cancellationToken);
         var libraryUpgradeOperationResult7 = new LibraryUpgradeOperationResult<LibraryUpgradePlanDto>(true, 201, savePlanAsyncResult);
         return libraryUpgradeOperationResult7;
-        global::System.Guid[]? resolveevaluatedValue()
+        Guid[]? resolveevaluatedValue()
         {
             var optionalReceiver = request.FlowIds;
-            global::System.Guid[]? optionalResult = default(global::System.Guid[]);
+            Guid[]? optionalResult = default(Guid[]);
             if (optionalReceiver is not null)
             {
                 var distinctResult = optionalReceiver.Distinct();
@@ -125,7 +126,7 @@ public sealed class LibraryUpgradeService
     public async Task<LibraryUpgradeOperationResult<LibraryUpgradePlanDto>> GetPlanAsync(Guid projectId, Guid planId, CancellationToken cancellationToken = default)
     {
         var plan = await _store.FindPlanAsync(projectId, planId, cancellationToken);
-        global::SereinFlow.Application.LibraryUpgradeOperationResult<global::SereinFlow.Contracts.LibraryUpgradePlanDto> evaluatedValue8 = plan is null ? NotFound<LibraryUpgradePlanDto>(LibraryErrorCodes.UpgradeNotFound, "The library upgrade preview was not found. 未找到类库升级预览。") : new LibraryUpgradeOperationResult<LibraryUpgradePlanDto>(true, 200, plan);
+        LibraryUpgradeOperationResult<LibraryUpgradePlanDto> evaluatedValue8 = plan is null ? NotFound<LibraryUpgradePlanDto>(LibraryErrorCodes.UpgradeNotFound, "The library upgrade preview was not found. 未找到类库升级预览。") : new LibraryUpgradeOperationResult<LibraryUpgradePlanDto>(true, 200, plan);
         return evaluatedValue8;
     }
 
@@ -374,13 +375,13 @@ public sealed class LibraryUpgradeService
 
     private static LibraryUpgradeOperationResult<T> NotFound<T>(string code, string message)
     {
-        global::SereinFlow.Application.LibraryUpgradeOperationResult<T> evaluatedValue40 = new(false, 404, Code: code, Message: message);
+        LibraryUpgradeOperationResult<T> evaluatedValue40 = new(false, 404, Code: code, Message: message);
         return evaluatedValue40;
     }
 
     private static LibraryUpgradeOperationResult<T> Conflict<T>(string code, string message)
     {
-        global::SereinFlow.Application.LibraryUpgradeOperationResult<T> evaluatedValue41 = new(false, 409, Code: code, Message: message);
+        LibraryUpgradeOperationResult<T> evaluatedValue41 = new(false, 409, Code: code, Message: message);
         return evaluatedValue41;
     }
 
@@ -473,7 +474,7 @@ public sealed class LibraryUpgradeService
                 parameterMap[sourceManifestParameter.ContractId] = targetManifestParameter.ContractId;
             }
 
-            global::SereinFlow.Contracts.NodeParameterDto evaluatedValue48 = existing is null ? CreateAddedParameter(targetManifestParameter, targetCatalogParameter) : TransformParameter(existing, targetManifestParameter, targetCatalogParameter);
+            NodeParameterDto evaluatedValue48 = existing is null ? CreateAddedParameter(targetManifestParameter, targetCatalogParameter) : TransformParameter(existing, targetManifestParameter, targetCatalogParameter);
             transformedParameters.Add(evaluatedValue48);
         }
 
@@ -519,7 +520,7 @@ public sealed class LibraryUpgradeService
     private static NodeParameterDto CreateAddedParameter(LibraryManifestParameterDto targetManifest, LibraryParameterDto targetCatalog)
     {
         var nodeParameterUiMetadataDto = new NodeParameterUiMetadataDto(targetManifest.ContractId, targetManifest.DisplayName, targetManifest.Type, targetManifest.DefaultValue, null, null, null, null, Type: targetManifest.Type, Description: targetCatalog.Description, InputMode: targetManifest.EnumMetadata is null ? "manual" : "select", IsVariadic: targetManifest.IsVariadic, VariadicGroupId: targetManifest.IsVariadic ? targetManifest.ContractId : null, ElementType: targetManifest.ElementType, EnumMetadata: targetManifest.EnumMetadata);
-        global::SereinFlow.Contracts.NodeParameterDto evaluatedValue49 = new(targetManifest.ClrName, targetManifest.DefaultValue, DataSourceDto.Literal, targetManifest.Required, nodeParameterUiMetadataDto);
+        NodeParameterDto evaluatedValue49 = new(targetManifest.ClrName, targetManifest.DefaultValue, DataSourceDto.Literal, targetManifest.Required, nodeParameterUiMetadataDto);
         return evaluatedValue49;
     }
 

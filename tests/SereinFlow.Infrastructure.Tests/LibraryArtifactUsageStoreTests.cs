@@ -128,7 +128,7 @@ public sealed class LibraryArtifactUsageStoreTests
 
     private static LibraryRecord CreateLibrary(string id)
     {
-        global::SereinFlow.Infrastructure.Persistence.LibraryRecord evaluatedValue15 = new()
+        LibraryRecord evaluatedValue15 = new()
         {
             Id = id,
             Name = id,
@@ -151,7 +151,7 @@ public sealed class LibraryArtifactUsageStoreTests
 
     private static FlowLibraryBindingRecord CreateFlowBinding(string projectId, string flowId, long flowVersion, string artifactId)
     {
-        global::SereinFlow.Infrastructure.Persistence.FlowLibraryBindingRecord evaluatedValue16 = new()
+        FlowLibraryBindingRecord evaluatedValue16 = new()
         {
             Id = resolveToStringResult(),
             ProjectId = projectId,
@@ -171,7 +171,7 @@ public sealed class LibraryArtifactUsageStoreTests
 
     private static RunLibraryBindingRecord CreateRunBinding(string runId, string artifactId)
     {
-        global::SereinFlow.Infrastructure.Persistence.RunLibraryBindingRecord evaluatedValue17 = new()
+        RunLibraryBindingRecord evaluatedValue17 = new()
         {
             Id = resolveToStringResult3(),
             RunId = runId,
@@ -189,7 +189,7 @@ public sealed class LibraryArtifactUsageStoreTests
 
     private static FlowRunRecord CreateRun(string runId, string projectId, string flowId)
     {
-        global::SereinFlow.Infrastructure.Persistence.FlowRunRecord evaluatedValue18 = new()
+        FlowRunRecord evaluatedValue18 = new()
         {
             Id = runId,
             ProjectId = projectId,

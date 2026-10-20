@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
@@ -169,7 +170,7 @@ public sealed class AiReadModelServiceTests
         var archived = CreateLibrary("000-archived", LibraryLifecycleDto.Archived);
         var firstAvailable = CreateLibrary("100-available", LibraryLifecycleDto.Available);
         var secondAvailable = CreateLibrary("200-available", LibraryLifecycleDto.Available);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.Project> evaluatedValue26 = [Project.Create("Catalog project")];
+        IReadOnlyList<Project> evaluatedValue26 = [Project.Create("Catalog project")];
         var service = CreateCatalogService(evaluatedValue26, [archived, firstAvailable, secondAvailable]);
         var aiReadModelOptions27 = new AiReadModelOptions(MaxItems: 1);
         var activePage = await service.ListLibrariesAsync(options: aiReadModelOptions27);
@@ -207,7 +208,7 @@ public sealed class AiReadModelServiceTests
         var evaluatedValue32 = events ?? new InMemoryEventStore();
         var evaluatedValue33 = outputs ?? new InMemoryOutputStore();
         var evaluatedValue34 = debugStore ?? new EmptyDebugSessionStore();
-        global::SereinFlow.Application.AiReadModelService evaluatedValue35 = new(singleProjectRepository, singleFlowRepository, singleVersionRepository, emptyLibraryCatalog, inMemoryRunStore, evaluatedValue32, evaluatedValue33, evaluatedValue34);
+        AiReadModelService evaluatedValue35 = new(singleProjectRepository, singleFlowRepository, singleVersionRepository, emptyLibraryCatalog, inMemoryRunStore, evaluatedValue32, evaluatedValue33, evaluatedValue34);
         return evaluatedValue35;
     }
 
@@ -222,29 +223,29 @@ public sealed class AiReadModelServiceTests
         var inMemoryEventStore = new InMemoryEventStore();
         var inMemoryOutputStore = new InMemoryOutputStore();
         var emptyDebugSessionStore = new EmptyDebugSessionStore();
-        global::SereinFlow.Application.AiReadModelService evaluatedValue38 = new(projectListRepository, emptyFlowRepository, singleVersionRepository36, testLibraryCatalog, inMemoryRunStore37, inMemoryEventStore, inMemoryOutputStore, emptyDebugSessionStore);
+        AiReadModelService evaluatedValue38 = new(projectListRepository, emptyFlowRepository, singleVersionRepository36, testLibraryCatalog, inMemoryRunStore37, inMemoryEventStore, inMemoryOutputStore, emptyDebugSessionStore);
         return evaluatedValue38;
     }
 
     private static LibraryDto CreateLibrary(string id, LibraryLifecycleDto lifecycle)
     {
-        global::SereinFlow.Contracts.LibraryDto evaluatedValue39 = new(id, id, "1.0.0", $"{id}.zip", 1, id, DateTimeOffset.UtcNow, [], lifecycle);
+        LibraryDto evaluatedValue39 = new(id, id, "1.0.0", $"{id}.zip", 1, id, DateTimeOffset.UtcNow, [], lifecycle);
         return evaluatedValue39;
     }
 
     private static FlowDefinitionDto CreateDefinition(Guid projectId)
     {
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ScriptValueContractDto> evaluatedValue40 = [new ScriptValueContractDto("amount", "number", true, "amount")];
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.ScriptValueContractDto> evaluatedValue41 = [new ScriptValueContractDto("result", "number", true, "result")];
+        IReadOnlyList<ScriptValueContractDto> evaluatedValue40 = [new ScriptValueContractDto("amount", "number", true, "amount")];
+        IReadOnlyList<ScriptValueContractDto> evaluatedValue41 = [new ScriptValueContractDto("result", "number", true, "result")];
         var script = new ScriptNodeDataDto("node", "return amount", "1", "source-hash", evaluatedValue40, evaluatedValue41);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeParameterDto> evaluatedValue42 = [resolveNodeParameterDto()];
+        IReadOnlyList<NodeParameterDto> evaluatedValue42 = [resolveNodeParameterDto()];
         var node = new NodeDto("node", NodeTypeDto.Script, "Calculate", 0, 0, [], evaluatedValue42, script);
         var newGuidResult43 = Guid.NewGuid();
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue44 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [], "Main")];
+        IReadOnlyList<CanvasDto> evaluatedValue44 = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [], "Main")];
         var flowRunPolicyDto = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
         var flowDefinitionDto = new FlowDefinitionDto(newGuidResult43, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue44, node.Id, "checksum", RunPolicy: flowRunPolicyDto);
         return flowDefinitionDto;
-        global::SereinFlow.Contracts.NodeParameterDto resolveNodeParameterDto()
+        NodeParameterDto resolveNodeParameterDto()
         {
             var nodeParameterUiMetadataDto = new NodeParameterUiMetadataDto("amount", "amount", "number", "42", "secret-input", "secret-expression", null, null, Type: "System.Int32");
             var nodeParameterDto = new NodeParameterDto("amount", "42", DataSourceDto.Literal, true, nodeParameterUiMetadataDto);

@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Collections.Concurrent;
 using System.Text;
@@ -312,9 +313,9 @@ public sealed partial class WorkerSupervisor
     public Task<WorkerMessageDeliveryResponseDto> DeliverMessageAsync(WorkerMessageDeliveryDto delivery, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(delivery);
-        global::System.Threading.Tasks.Task<global::SereinFlow.Contracts.WorkerMessageDeliveryResponseDto> evaluatedValue22 = _messageSessions.TryGetValue(delivery.RunId, out var session) ? session.DeliverAsync(delivery, cancellationToken) : resolveFromResultResult();
+        Task<WorkerMessageDeliveryResponseDto> evaluatedValue22 = _messageSessions.TryGetValue(delivery.RunId, out var session) ? session.DeliverAsync(delivery, cancellationToken) : resolveFromResultResult();
         return evaluatedValue22;
-        global::System.Threading.Tasks.Task<global::SereinFlow.Contracts.WorkerMessageDeliveryResponseDto> resolveFromResultResult()
+        Task<WorkerMessageDeliveryResponseDto> resolveFromResultResult()
         {
             var workerMessageDeliveryResponseDto = new WorkerMessageDeliveryResponseDto(WorkerMessageDeliveryStatusDto.NotFound, WorkerProtocolConstants.Version, delivery.RunId, delivery.MessageId, delivery.Topic, WorkerErrorCodes.NotFound, "The Worker run is not active. Worker 运行当前不活动。");
             var fromResultResult = Task.FromResult(workerMessageDeliveryResponseDto);
@@ -631,7 +632,7 @@ public sealed partial class WorkerSupervisor
 
         var terminateAndReturnAsyncResult46 = await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner did not stop before the cancellation grace period elapsed. Worker Runner 在取消宽限期结束前未停止。", fallbackStatus);
         return terminateAndReturnAsyncResult46;
-        global::System.Threading.Tasks.Task<global::SereinFlow.Worker.Protocol.WorkerMessage?> resolveAsTaskResult()
+        Task<WorkerMessage?> resolveAsTaskResult()
         {
             var receiveAsyncResult44 = transport.ReceiveAsync(CancellationToken.None);
             var asTaskResult45 = receiveAsyncResult44.AsTask();
@@ -763,7 +764,7 @@ public sealed partial class WorkerSupervisor
 
     private static WorkerRunResultDto Failure(Guid runId, string code, string message)
     {
-        global::SereinFlow.Contracts.WorkerRunResultDto evaluatedValue55 = new(WorkerProtocolConstants.Version, runId, FlowRunStatusDto.Failed, code, message);
+        WorkerRunResultDto evaluatedValue55 = new(WorkerProtocolConstants.Version, runId, FlowRunStatusDto.Failed, code, message);
         return evaluatedValue55;
     }
 
@@ -1111,13 +1112,13 @@ internal sealed partial class WorkerMessageSession
 
     private static WorkerMessageDeliveryResponseDto NotFound(WorkerMessageDeliveryDto delivery)
     {
-        global::SereinFlow.Contracts.WorkerMessageDeliveryResponseDto evaluatedValue80 = new(WorkerMessageDeliveryStatusDto.NotFound, WorkerProtocolConstants.Version, delivery.RunId, delivery.MessageId, delivery.Topic, WorkerErrorCodes.NotFound, "The Worker run is not active. Worker 运行当前不活动。");
+        WorkerMessageDeliveryResponseDto evaluatedValue80 = new(WorkerMessageDeliveryStatusDto.NotFound, WorkerProtocolConstants.Version, delivery.RunId, delivery.MessageId, delivery.Topic, WorkerErrorCodes.NotFound, "The Worker run is not active. Worker 运行当前不活动。");
         return evaluatedValue80;
     }
 
     private static WorkerMessageDeliveryResponseDto Rejected(WorkerMessageDeliveryDto delivery, string code, string message)
     {
-        global::SereinFlow.Contracts.WorkerMessageDeliveryResponseDto evaluatedValue81 = new(WorkerMessageDeliveryStatusDto.Rejected, WorkerProtocolConstants.Version, delivery.RunId, delivery.MessageId, delivery.Topic, code, message);
+        WorkerMessageDeliveryResponseDto evaluatedValue81 = new(WorkerMessageDeliveryStatusDto.Rejected, WorkerProtocolConstants.Version, delivery.RunId, delivery.MessageId, delivery.Topic, code, message);
         return evaluatedValue81;
     }
 

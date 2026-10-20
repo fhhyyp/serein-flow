@@ -15,13 +15,13 @@ public sealed record ScriptCompilationResult(bool IsSuccess, ScriptLang.Runtime.
 {
     public static ScriptCompilationResult Success(ScriptLang.Runtime.ByteCode.ByteCodeChunk chunk)
     {
-        global::SereinFlow.ScriptAdapter.ScriptCompilationResult evaluatedValue = new(true, chunk, []);
+        ScriptCompilationResult evaluatedValue = new(true, chunk, []);
         return evaluatedValue;
     }
 
     public static ScriptCompilationResult Failure(params ScriptExecutionDiagnostic[] diagnostics)
     {
-        global::SereinFlow.ScriptAdapter.ScriptCompilationResult evaluatedValue1 = new(false, null, diagnostics);
+        ScriptCompilationResult evaluatedValue1 = new(false, null, diagnostics);
         return evaluatedValue1;
     }
 }

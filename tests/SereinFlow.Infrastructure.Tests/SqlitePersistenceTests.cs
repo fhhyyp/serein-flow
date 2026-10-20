@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
 using SereinFlow.Infrastructure.Persistence;
@@ -330,11 +331,11 @@ public sealed class SqlitePersistenceTests
         var toStringResult69 = flowId.ToString("D");
         var sugarParameter70 = new SqlSugar.SugarParameter("@flowId", toStringResult69);
         database.Execute("INSERT INTO FlowRuns (Id, FlowId, FlowVersion, Status) VALUES (@id, @flowId, 1, 'Running')", sugarParameter68, sugarParameter70);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.FlowRunEvent> evaluatedValue71 = [new FlowRunEvent(runId, 1, DateTimeOffset.UtcNow, "run.started", null, "{}"), new FlowRunEvent(runId, 2, DateTimeOffset.UtcNow, "node.completed", "node-1", "{\"ok\":true}")];
+        IReadOnlyList<FlowRunEvent> evaluatedValue71 = [new FlowRunEvent(runId, 1, DateTimeOffset.UtcNow, "run.started", null, "{}"), new FlowRunEvent(runId, 2, DateTimeOffset.UtcNow, "node.completed", "node-1", "{\"ok\":true}")];
         store.Append(evaluatedValue71);
         Assert.Throws<InvalidOperationException>(() =>
         {
-            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.FlowRunEvent> evaluatedValue55 = [new FlowRunEvent(runId, 2, DateTimeOffset.UtcNow, "duplicate", null, "{}")];
+            IReadOnlyList<FlowRunEvent> evaluatedValue55 = [new FlowRunEvent(runId, 2, DateTimeOffset.UtcNow, "duplicate", null, "{}")];
             store.Append(evaluatedValue55);
         });
         var events = store.GetAfter(runId, 0);
@@ -370,9 +371,9 @@ public sealed class SqlitePersistenceTests
         var sugarParameter87 = new SqlSugar.SugarParameter("@flowId", toStringResult86);
         database.Execute("INSERT INTO FlowRuns (Id, FlowId, FlowVersion, Status) VALUES (@id, @flowId, 1, 'Running')", sugarParameter85, sugarParameter87);
         var store = new SqlSugarFlowRunOutputStore(database);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.FlowRunOutput> evaluatedValue88 = [new FlowRunOutput(runId, 3, now, "node-1", "completed", "Success", "{\"result\":42}", null, null, "{\"left\":10,\"right\":20}"), resolveFlowRunOutput()];
+        IReadOnlyList<FlowRunOutput> evaluatedValue88 = [new FlowRunOutput(runId, 3, now, "node-1", "completed", "Success", "{\"result\":42}", null, null, "{\"left\":10,\"right\":20}"), resolveFlowRunOutput()];
         await store.AppendAsync(evaluatedValue88);
-        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.FlowRunOutput> evaluatedValue89 = [new FlowRunOutput(runId, 3, now, "node-1", "completed", "Success", "{\"result\":42}", null, null, "{\"left\":999}")];
+        IReadOnlyList<FlowRunOutput> evaluatedValue89 = [new FlowRunOutput(runId, 3, now, "node-1", "completed", "Success", "{\"result\":42}", null, null, "{\"left\":999}")];
         await store.AppendAsync(evaluatedValue89);
         var outputs = await store.ListAsync(runId);
         var selectResult90 = outputs.Select(static item => item.Sequence);
@@ -381,7 +382,7 @@ public sealed class SqlitePersistenceTests
         Assert.Equal("{\"left\":10,\"right\":20}", outputs[0].InputsJson);
         Assert.Equal("{\"result\":42}", outputs[0].OutputsJson);
         Assert.Equal(NodeErrorCodes.InputMissing, outputs[1].ErrorCode);
-        global::SereinFlow.Domain.FlowRunOutput resolveFlowRunOutput()
+        FlowRunOutput resolveFlowRunOutput()
         {
             var addSecondsResult = now.AddSeconds(1);
             var flowRunOutput = new FlowRunOutput(runId, 5, addSecondsResult, "node-2", "error", "Error", "{}", NodeErrorCodes.InputMissing, "Input is missing. 缺少输入。", "{\"value\":null}");
@@ -467,7 +468,7 @@ public sealed class SqlitePersistenceTests
         restored.Initialize();
         var evaluatedValue118 = resolveFindResult()!.Name;
         Assert.Equal(project.Name, evaluatedValue118);
-        global::SereinFlow.Domain.Project? resolveFindResult()
+        Project? resolveFindResult()
         {
             var sqlSugarProjectRepository117 = new SqlSugarProjectRepository(restored);
             var findResult = sqlSugarProjectRepository117.Find(project.Id);
