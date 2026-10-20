@@ -1,0 +1,482 @@
+using System.Diagnostics;
+using System.Text.Json;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+const int SuccessExitCode = 0;
+const int ViolationExitCode = 1;
+const int FirstPosition = 1;
+const int EmptyPosition = 0;
+var repositoryRoot = args.Length > EmptyPosition ? Path.GetFullPath(args[EmptyPosition]) : Directory.GetCurrentDirectory();
+var selfTest = args.Contains("--self-test", StringComparer.Ordinal);
+if (selfTest)
+{
+    var runResult = ConventionTests.Run();
+    return runResult;
+}
+
+var processStart = new ProcessStartInfo("git")
+{
+    WorkingDirectory = repositoryRoot,
+    RedirectStandardOutput = true,
+    UseShellExecute = false
+};
+processStart.ArgumentList.Add("ls-files");
+processStart.ArgumentList.Add("--cached");
+processStart.ArgumentList.Add("--others");
+processStart.ArgumentList.Add("--exclude-standard");
+processStart.ArgumentList.Add("-z");
+using var gitProcess = Process.Start(processStart)!;
+var trackedOutput = gitProcess.StandardOutput.ReadToEnd();
+gitProcess.WaitForExit();
+if (gitProcess.ExitCode != SuccessExitCode)
+{
+    throw new InvalidOperationException("Unable to enumerate repository sources.");
+}
+
+var paths = trackedOutput.Split('\0', StringSplitOptions.RemoveEmptyEntries);
+var sourceTrees = new Dictionary<string, SyntaxTree>(StringComparer.Ordinal);
+foreach (var path in paths.Distinct(StringComparer.Ordinal))
+{
+    if (path.EndsWith(".cs", StringComparison.Ordinal) && !path.StartsWith("src/ThirdParty/", StringComparison.Ordinal))
+    {
+        var sourcePath = Path.Combine(repositoryRoot, path);
+        var sourceText = File.ReadAllText(sourcePath);
+        var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
+        sourceTrees[path] = CSharpSyntaxTree.ParseText(sourceText, parseOptions, path);
+    }
+}
+var compilation = LinqConventions.CreateCompilation(sourceTrees.Values);
+var exceptionPath = Path.Combine(repositoryRoot, "eng", "code-conventions", "exceptions.json");
+List<ConventionException> ReadExceptions()
+{
+    var manifestJson = File.ReadAllText(exceptionPath);
+    var serializerOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true
+    };
+    var registeredExceptions = JsonSerializer.Deserialize<List<ConventionException>>(manifestJson, serializerOptions) ?? throw new InvalidDataException("The convention exception manifest must be an array.");
+    return registeredExceptions;
+}
+
+var exceptions = File.Exists(exceptionPath) ? ReadExceptions() : [];
+var violationCount = EmptyPosition;
+var fileCount = EmptyPosition;
+foreach (var file in paths.Distinct(StringComparer.Ordinal))
+{
+    if (!file.EndsWith(".cs", StringComparison.Ordinal) || file.StartsWith("src/ThirdParty/", StringComparison.Ordinal))
+    {
+        continue;
+    }
+
+    fileCount += FirstPosition;
+    var absolutePath = Path.Combine(repositoryRoot, file);
+    var source = File.ReadAllText(absolutePath);
+    var semanticModel = compilation.GetSemanticModel(sourceTrees[file]);
+    var diagnostics = CSharpRules.Check(source, file, exceptions, semanticModel);
+    foreach (var diagnostic in diagnostics)
+    {
+        Console.Error.WriteLine($"{file}({diagnostic.Line},{diagnostic.Column}): {diagnostic.Rule} {diagnostic.Message}");
+        violationCount += FirstPosition;
+    }
+}
+
+Console.WriteLine($"C# conventions: {fileCount} files, {violationCount} violations.");
+return violationCount == EmptyPosition ? SuccessExitCode : ViolationExitCode;
+internal sealed record ConventionException(string File, string Expression, string Reason);
+internal sealed record ConventionDiagnostic(string Rule, int Line, int Column, string Message);
+internal static class CSharpRules
+{
+    private const int PositionOffset = 1;
+    private const int SingleVariable = 1;
+    public static List<ConventionDiagnostic> Check(string source, string file, IReadOnlyList<ConventionException>? exceptions = null, SemanticModel? semanticModel = null)
+    {
+        var options = new CSharpParseOptions(LanguageVersion.Preview);
+        var tree = semanticModel?.SyntaxTree ?? CSharpSyntaxTree.ParseText(source, options);
+        if (semanticModel is null)
+        {
+            var compilation = LinqConventions.CreateCompilation([tree]);
+            semanticModel = compilation.GetSemanticModel(tree);
+        }
+        var root = tree.GetRoot();
+        var diagnostics = new List<ConventionDiagnostic>();
+        var statementLines = new HashSet<int>();
+        var syntaxDiagnostics = tree.GetDiagnostics();
+        foreach (var syntaxDiagnostic in syntaxDiagnostics)
+        {
+            if (syntaxDiagnostic.Severity != DiagnosticSeverity.Error)
+            {
+                continue;
+            }
+
+            var location = tree.GetLineSpan(syntaxDiagnostic.Location.SourceSpan);
+            var position = location.StartLinePosition;
+            var message = syntaxDiagnostic.GetMessage();
+            var diagnostic = new ConventionDiagnostic("PARSE001", position.Line + PositionOffset, position.Character + PositionOffset, message);
+            diagnostics.Add(diagnostic);
+        }
+
+        if (diagnostics.Count > 0)
+        {
+            return diagnostics;
+        }
+        var exceptionExpressions = new HashSet<string>(StringComparer.Ordinal);
+        if (exceptions is not null)
+        {
+            foreach (var exception in exceptions)
+            {
+                if (exception.File != file || string.IsNullOrWhiteSpace(exception.Reason))
+                {
+                    continue;
+                }
+
+                var expression = SyntaxFactory.ParseExpression(exception.Expression);
+                var normalized = Normalize(expression);
+                exceptionExpressions.Add(normalized);
+            }
+        }
+
+        Visit(root);
+        return diagnostics;
+        void Report(string rule, SyntaxNode node, string message)
+        {
+            var position = tree.GetLineSpan(node.Span).StartLinePosition;
+            var conventionDiagnostic = new ConventionDiagnostic(rule, position.Line + PositionOffset, position.Character + PositionOffset, message);
+            diagnostics.Add(conventionDiagnostic);
+        }
+
+        void Visit(SyntaxNode node)
+        {
+            if (node is StatementSyntax and not (BlockSyntax or EmptyStatementSyntax))
+            {
+                var statementLine = tree.GetLineSpan(node.Span).StartLinePosition.Line;
+                if (!statementLines.Add(statementLine))
+                {
+                    Report("LINE001", node, "Put each statement on a separate line.");
+                }
+            }
+            if (node is AnonymousFunctionExpressionSyntax)
+            {
+                var normalized = Normalize(node);
+                if (exceptionExpressions.Contains(normalized))
+                {
+                    return;
+                }
+            }
+
+            var arguments = node switch
+            {
+                InvocationExpressionSyntax invocation => invocation.ArgumentList.Arguments,
+                ObjectCreationExpressionSyntax { ArgumentList: { } argumentList } => argumentList.Arguments,
+                ImplicitObjectCreationExpressionSyntax creation => creation.ArgumentList.Arguments,
+                ConstructorInitializerSyntax initializer => initializer.ArgumentList.Arguments,
+                _ => default
+            };
+            if (IsCall(node))
+            {
+                foreach (var argument in arguments)
+                {
+                    if (HasCall(argument.Expression))
+                    {
+                        Report("CALL001", argument, "Store argument call results before invoking another method.");
+                    }
+                }
+            }
+
+            if (node is InvocationExpressionSyntax invocationNode && HasReceiverCall(invocationNode) && !LinqConventions.IsLinqChain(invocationNode, semanticModel))
+            {
+                Report("CALL002", node, "Store the receiver before chaining calls.");
+            }
+
+            if (node is ReturnStatementSyntax { Expression: { } returned } && HasCall(returned) || node is ArrowExpressionClauseSyntax arrow && HasCall(arrow.Expression) || node is LambdaExpressionSyntax { Body: ExpressionSyntax lambdaBody } && HasCall(lambdaBody))
+            {
+                Report("RETURN001", node, "Store the result in a named variable before returning.");
+            }
+
+            if (node is VariableDeclarationSyntax declaration && declaration.Variables.Count > SingleVariable || node is DeclarationExpressionSyntax { Designation: ParenthesizedVariableDesignationSyntax designation } && designation.Variables.Count > SingleVariable)
+            {
+                Report("DECL001", node, "Declare each variable separately.");
+            }
+
+            if (node is TupleExpressionSyntax tuple)
+            {
+                var declaredBindings = tuple.Arguments.Count(static argument => argument.Expression is DeclarationExpressionSyntax);
+                if (declaredBindings > SingleVariable)
+                {
+                    Report("DECL001", node, "Declare each destructured variable separately.");
+                }
+            }
+
+            if (node is IfStatementSyntax condition)
+            {
+                if (condition.Statement is not BlockSyntax)
+                {
+                    Report("FLOW001", node, "Use braces for every conditional branch.");
+                }
+
+                if (condition.Else is { } alternative)
+                {
+                    if (alternative.Statement is not (BlockSyntax or IfStatementSyntax))
+                    {
+                        Report("FLOW001", alternative, "Use braces for every else branch.");
+                    }
+
+                    var previousLine = tree.GetLineSpan(condition.Statement.Span).EndLinePosition.Line;
+                    var elseLine = tree.GetLineSpan(alternative.ElseKeyword.Span).StartLinePosition.Line;
+                    if (previousLine == elseLine)
+                    {
+                        Report("FLOW002", alternative, "Place else on a separate line.");
+                    }
+                }
+            }
+
+            var statements = node switch
+            {
+                BlockSyntax block => block.Statements,
+                SwitchSectionSyntax section => section.Statements,
+                _ => default
+            };
+            CheckStatementLines(statements);
+            if (node is CompilationUnitSyntax compilation)
+            {
+                var globalMembers = compilation.Members.OfType<GlobalStatementSyntax>();
+                var globalStatements = globalMembers.Select(static member => member.Statement);
+                CheckStatementLines(globalStatements);
+            }
+
+            foreach (var child in node.ChildNodes())
+            {
+                Visit(child);
+            }
+        }
+
+        void CheckStatementLines(IEnumerable<StatementSyntax> statements)
+        {
+            var previousStartLine = -PositionOffset;
+            var previousEndLine = -PositionOffset;
+            foreach (var statement in statements)
+            {
+                var span = tree.GetLineSpan(statement.Span);
+                var startLine = span.StartLinePosition.Line;
+                if (startLine == previousEndLine && startLine != previousStartLine)
+                {
+                    Report("LINE001", statement, "Put each statement on a separate line.");
+                }
+                previousStartLine = startLine;
+                previousEndLine = span.EndLinePosition.Line;
+            }
+        }
+
+    }
+
+    private static bool HasReceiverCall(InvocationExpressionSyntax invocation)
+    {
+        if (HasCall(invocation.Expression))
+        {
+            return true;
+        }
+
+        ExpressionSyntax receiver = invocation.Expression;
+        while (receiver is MemberAccessExpressionSyntax member)
+        {
+            receiver = member.Expression;
+        }
+
+        if (receiver is not MemberBindingExpressionSyntax)
+        {
+            return false;
+        }
+
+        for (var ancestor = invocation.Parent; ancestor is ExpressionSyntax; ancestor = ancestor.Parent)
+        {
+            if (ancestor is ConditionalAccessExpressionSyntax conditional)
+            {
+                var containsReceiverCall = HasCall(conditional.Expression);
+                return containsReceiverCall;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsCall(SyntaxNode node)
+    {
+        var isCall = node is InvocationExpressionSyntax { Expression: not IdentifierNameSyntax { Identifier.ValueText: "nameof" } } or ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax or ConstructorInitializerSyntax;
+        return isCall;
+    }
+
+    private static bool HasCall(SyntaxNode node)
+    {
+        if (node is AnonymousFunctionExpressionSyntax)
+        {
+            return false;
+        }
+
+        if (IsCall(node))
+        {
+            return true;
+        }
+
+        foreach (var child in node.ChildNodes())
+        {
+            if (HasCall(child))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string Normalize(SyntaxNode node)
+    {
+        var tokens = node.DescendantTokens();
+        var selectResult = tokens.Select(static token => token.Text);
+        var text = string.Join(" ", selectResult);
+        return text;
+    }
+}
+
+internal static class ConventionTests
+{
+    private const int FailureExitCode = 1;
+    private const int SuccessExitCode = 0;
+    public static int Run()
+    {
+        var invalidCases = new Dictionary<string, string>
+        {
+            ["PARSE001"] = "class C { void M() { var value = ; } }",
+            ["CALL001"] = "class C { void M() { Outer(Inner()); } }",
+            ["CALL002"] = "class C { void M() { Source().Next(); } }",
+            ["RETURN001"] = "class C { object M() { return Create(); } }",
+            ["DECL001"] = "class C { void M() { int first = 1, second = 2; } }",
+            ["FLOW001"] = "class C { void M() { if (enabled) Run(); } }",
+            ["FLOW002"] = "class C { void M() { if (enabled) { Run(); } else { Stop(); } } }",
+            ["LINE001"] = "class C { void M() { Run(); Stop(); } }"
+        };
+        foreach (var testCase in invalidCases)
+        {
+            var diagnostics = CSharpRules.Check(testCase.Value, "test.cs");
+            var found = diagnostics.Exists(diagnostic => diagnostic.Rule == testCase.Key);
+            if (!found)
+            {
+                Console.Error.WriteLine($"Missing expected diagnostic {testCase.Key}.");
+                return FailureExitCode;
+            }
+        }
+
+        const string validSource = """
+            class C
+            {
+                object M()
+                {
+                    var value = Source();
+                    var result = Next(value);
+                    return result;
+                }
+                void Configure()
+                {
+                    Register(() =>
+                    {
+                        var result = Create();
+                        return result;
+                    });
+                }
+            }
+            """;
+        var validDiagnostics = CSharpRules.Check(validSource, "test.cs");
+        if (validDiagnostics.Count != SuccessExitCode)
+        {
+            Console.Error.WriteLine("Valid code produced convention diagnostics.");
+            return FailureExitCode;
+        }
+
+        const string expressionSource = "class C { void M() { Query(row => row.Id.ToString()); } }";
+        const string queryExpression = "row => row.Id.ToString()";
+        var unregisteredDiagnostics = CSharpRules.Check(expressionSource, "test.cs");
+        var reportsImplicitReturn = unregisteredDiagnostics.Exists(static diagnostic => diagnostic.Rule == "RETURN001");
+        if (!reportsImplicitReturn)
+        {
+            Console.Error.WriteLine("An unregistered expression callback escaped checking.");
+            return FailureExitCode;
+        }
+
+        var exemption = new ConventionException("test.cs", queryExpression, "The query provider requires an expression tree.");
+        ConventionException[] exemptions = [exemption];
+        var exemptedDiagnostics = CSharpRules.Check(expressionSource, "test.cs", exemptions);
+        var otherFileDiagnostics = CSharpRules.Check(expressionSource, "other.cs", exemptions);
+        if (exemptedDiagnostics.Count != SuccessExitCode || otherFileDiagnostics.Count == SuccessExitCode)
+        {
+            Console.Error.WriteLine("Expression exceptions must apply only to the registered expression and file.");
+            return FailureExitCode;
+        }
+
+        const string awaitedSource = "class C { async Task<object> M() { return await Read(); } }";
+        const string constructorSource = "class C { void M() { var value = new Container(Create()); } }";
+        var awaitedDiagnostics = CSharpRules.Check(awaitedSource, "test.cs");
+        var constructorDiagnostics = CSharpRules.Check(constructorSource, "test.cs");
+        var reportsAwaitedReturn = awaitedDiagnostics.Exists(static diagnostic => diagnostic.Rule == "RETURN001");
+        var reportsConstructorNesting = constructorDiagnostics.Exists(static diagnostic => diagnostic.Rule == "CALL001");
+        if (!reportsAwaitedReturn || !reportsConstructorNesting)
+        {
+            Console.Error.WriteLine("Awaited returns and nested constructors must be checked.");
+            return FailureExitCode;
+        }
+
+        const string optionalSource = "class C { void M() { var value = Read()?.Trim(); } }";
+        const string deconstructionSource = "class C { void M() { (var first, var second) = Read(); } }";
+        const string globalSource = "Read(); Write();";
+        const string initializerSource = "class C { C() : this(Create()) { } }";
+        const string nestedStatementSource = "class C { void M() { if (enabled) { Run(); } } }";
+        const string sharedEndSource = "class C { void M() { var first = Read(\n value); var second = value; } }";
+        var optionalDiagnostics = CSharpRules.Check(optionalSource, "test.cs");
+        var deconstructionDiagnostics = CSharpRules.Check(deconstructionSource, "test.cs");
+        var globalDiagnostics = CSharpRules.Check(globalSource, "test.cs");
+        var initializerDiagnostics = CSharpRules.Check(initializerSource, "test.cs");
+        var nestedStatementDiagnostics = CSharpRules.Check(nestedStatementSource, "test.cs");
+        var sharedEndDiagnostics = CSharpRules.Check(sharedEndSource, "test.cs");
+        var reportsOptionalChain = optionalDiagnostics.Exists(static diagnostic => diagnostic.Rule == "CALL002");
+        var reportsDeconstruction = deconstructionDiagnostics.Exists(static diagnostic => diagnostic.Rule == "DECL001");
+        var reportsGlobalStatements = globalDiagnostics.Exists(static diagnostic => diagnostic.Rule == "LINE001");
+        var reportsInitializerNesting = initializerDiagnostics.Exists(static diagnostic => diagnostic.Rule == "CALL001");
+        var reportsNestedStatements = nestedStatementDiagnostics.Exists(static diagnostic => diagnostic.Rule == "LINE001");
+        var reportsSharedEnd = sharedEndDiagnostics.Exists(static diagnostic => diagnostic.Rule == "LINE001");
+        if (!reportsOptionalChain || !reportsDeconstruction || !reportsGlobalStatements || !reportsInitializerNesting || !reportsNestedStatements || !reportsSharedEnd)
+        {
+            Console.Error.WriteLine("Optional chains, deconstruction and top-level statements must be checked.");
+            return FailureExitCode;
+        }
+
+        var linqCases = new (string Source, string? ExpectedRule)[]
+        {
+            ("var result = items.Where(x => x > 0).OrderBy(x => x).Take(2).ToArray();", null),
+            ("var result = items.Select(x => x).ToHashSet();", null),
+            ("var result = items.AsQueryable().Where(x => x > 0).Select(x => x).ToArray();", null),
+            ("var result = items.Select(x => Transform(x)).ToArray();", "RETURN001"),
+            ("var result = items.Where(x => x > Limit()).ToArray();", "RETURN001"),
+            ("var result = items.Take(Limit()).ToArray();", "CALL001"),
+            ("var result = items.Select(x => {\nOuter(Transform(x));\nreturn x;\n}).ToArray();", "CALL001"),
+            ("var result = Read().Where(x => x > 0).ToArray();", "CALL002"),
+            ("var result = new Custom().Where().ToArray();", "CALL002"),
+            ("var result = items.Where(x => x > 0).ToArray().Clone();", "CALL002")
+        };
+        foreach (var testCase in linqCases)
+        {
+            var linqSource = "using System.Linq;\nclass C {\nvoid Outer(int x) { }\nint Limit() {\nreturn 1;\n}\nint Transform(int x) {\nreturn x;\n}\nint[] Read() {\nreturn [];\n}\nvoid M(int[] items) {\n" + testCase.Source + "\n}\n}\nclass Custom {\npublic Custom Where() {\nreturn this;\n}\npublic Custom ToArray() {\nreturn this;\n}\n}";
+            var linqDiagnostics = CSharpRules.Check(linqSource, "test.cs");
+            var expectedRule = testCase.ExpectedRule;
+            var passed = expectedRule is null
+                ? linqDiagnostics.Count == SuccessExitCode
+                : linqDiagnostics.Exists(diagnostic => diagnostic.Rule == expectedRule);
+            if (!passed)
+            {
+                Console.Error.WriteLine($"LINQ exception regression: {testCase.Source}");
+                return FailureExitCode;
+            }
+        }
+
+        Console.WriteLine("C# convention self-tests passed.");
+        return SuccessExitCode;
+    }
+}

@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   aspnetcore-package:
-    name: ASP.NET Core package smoke (${{ matrix.os }})
+    name: ASP.NET Core package validation (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -37,7 +37,7 @@ jobs:
         shell: pwsh
         run: ./eng/pack-aspnetcore.ps1 -OutputDirectory ./artifacts/aspnetcore-package
 
-      - name: Publish and run a clean consumer
+      - name: Verify package contents and dependencies
         shell: pwsh
         run: ./eng/verify-aspnetcore-package.ps1 -FeedDirectory ./artifacts/aspnetcore-package
 
