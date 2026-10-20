@@ -349,10 +349,8 @@ internal static class McpToolSchemas
                 }
             }
         };
-        foreach (var deconstructedEntry in fields)
+        foreach (var (name, schema) in fields)
         {
-            var name = deconstructedEntry.Item1;
-            var schema = deconstructedEntry.Item2;
             properties[name] = schema;
         }
 
@@ -378,10 +376,8 @@ internal static class McpToolSchemas
                 }
             }
         };
-        foreach (var deconstructedEntry1 in fields)
+        foreach (var (name, schema) in fields)
         {
-            var name = deconstructedEntry1.Item1;
-            var schema = deconstructedEntry1.Item2;
             properties[name] = schema;
         }
 

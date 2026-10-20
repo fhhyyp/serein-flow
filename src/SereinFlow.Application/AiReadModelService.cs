@@ -513,24 +513,15 @@ public sealed class AiReadModelService
 
     private static AiRunEventDto MapEvent(FlowRunEvent item, int maxJsonBytes)
     {
-        var deconstructedValues = ParsePayload(item.PayloadJson, maxJsonBytes);
-        var payload = deconstructedValues.Item1;
-        var malformed = deconstructedValues.Item2;
-        var truncated = deconstructedValues.Item3;
+        var (payload, malformed, truncated) = ParsePayload(item.PayloadJson, maxJsonBytes);
         AiRunEventDto evaluatedValue101 = new(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, payload, malformed, truncated);
         return evaluatedValue101;
     }
 
     private static AiNodeExecutionRecordDto MapOutput(FlowRunOutput item, int maxJsonBytes)
     {
-        var deconstructedValues102 = ParsePayload(item.InputsJson, maxJsonBytes);
-        var inputs = deconstructedValues102.Item1;
-        var inputsMalformed = deconstructedValues102.Item2;
-        var inputsTruncated = deconstructedValues102.Item3;
-        var deconstructedValues103 = ParsePayload(item.OutputsJson, maxJsonBytes);
-        var outputs = deconstructedValues103.Item1;
-        var outputsMalformed = deconstructedValues103.Item2;
-        var outputsTruncated = deconstructedValues103.Item3;
+        var (inputs, inputsMalformed, inputsTruncated) = ParsePayload(item.InputsJson, maxJsonBytes);
+        var (outputs, outputsMalformed, outputsTruncated) = ParsePayload(item.OutputsJson, maxJsonBytes);
         AiNodeExecutionRecordDto evaluatedValue104 = new(item.RunId, item.Sequence, item.Timestamp, item.NodeId, item.Outcome, item.Branch, inputs, outputs, item.ErrorCode, item.ErrorMessage, inputsMalformed, outputsMalformed, inputsTruncated, outputsTruncated);
         return evaluatedValue104;
     }

@@ -77,7 +77,7 @@ public sealed class McpSkillManagementIntegrationTests
     {
         using var factory = new ApiFactory();
         using var client = factory.CreateClient();
-        foreach (var deconstructedEntry in new[]
+        foreach (var (method, path) in new[]
         {
             (HttpMethod.Get, SkillsPath),
             (HttpMethod.Get, $"{SkillsPath}/sereinlang"),
@@ -87,8 +87,6 @@ public sealed class McpSkillManagementIntegrationTests
 
         )
         {
-            var method = deconstructedEntry.Item1;
-            var path = deconstructedEntry.Item2;
             using var request = new HttpRequestMessage(method, path)
             {
                 Content = method == HttpMethod.Get ? null : JsonContent.Create(new { content = "# attempt", expectedRevision = "stale" })

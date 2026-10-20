@@ -212,9 +212,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         var temporaryPath = Path.Combine(_options.RootPath, evaluatedValue);
         try
         {
-            var deconstructedValues = await CopyToTemporaryFileAsync(package, temporaryPath, cancellationToken);
-            var size = deconstructedValues.Item1;
-            var sha256 = deconstructedValues.Item2;
+            (long size, string sha256) = await CopyToTemporaryFileAsync(package, temporaryPath, cancellationToken);
             if (expectedSha256 is not null && (size != declaredLength || !string.Equals(sha256, expectedSha256, StringComparison.OrdinalIgnoreCase)))
             {
                 throw new LibraryUploadException("The staged library package changed after preview.", 409);
@@ -307,9 +305,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         var temporaryPath = Path.Combine(_options.RootPath, evaluatedValue8);
         try
         {
-            var deconstructedValues6 = await CopyToTemporaryFileAsync(package, temporaryPath, cancellationToken);
-            var size = deconstructedValues6.Item1;
-            var sha256 = deconstructedValues6.Item2;
+            var (size, sha256) = await CopyToTemporaryFileAsync(package, temporaryPath, cancellationToken);
             var existing = await FindAsyncCore(sha256, cancellationToken);
             if (existing is not null)
             {
@@ -884,9 +880,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
     private async Task<LibraryDto> InspectPackageAsync(string packagePath, string fileName, string sha256, long size, CancellationToken cancellationToken)
     {
-        var deconstructedValues62 = ParsePackageName(fileName);
-        var libraryName = deconstructedValues62.Item1;
-        var version = deconstructedValues62.Item2;
+        var (libraryName, version) = ParsePackageName(fileName);
         await using var packageStream = new FileStream(packagePath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
         using var archive = new ZipArchive(packageStream, ZipArchiveMode.Read, leaveOpen: false);
         if (archive.Entries.Count == 0 || archive.Entries.Count > _options.MaxEntries)

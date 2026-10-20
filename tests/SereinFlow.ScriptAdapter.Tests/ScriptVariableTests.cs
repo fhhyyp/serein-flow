@@ -146,7 +146,7 @@ public sealed class ScriptVariableTests
             var secondRun = new LibraryVariableService();
             firstRun.Set("count", 40);
             secondRun.Set("count", 7);
-            foreach (var deconstructedEntry in new[]
+            foreach (var (variables, expected) in new[]
             {
                 (firstRun, 41),
                 (secondRun, 8),
@@ -155,8 +155,6 @@ public sealed class ScriptVariableTests
 
             )
             {
-                var variables = deconstructedEntry.Item1;
-                var expected = deconstructedEntry.Item2;
                 var runtime = CreateRuntime(variables);
                 var dictionary16 = new Dictionary<string, object?>();
                 NodeExecutionRequest evaluatedValue17 = new(node, context, dictionary16, runtime);

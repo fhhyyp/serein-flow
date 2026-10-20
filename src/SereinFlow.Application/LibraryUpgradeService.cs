@@ -55,9 +55,7 @@ public sealed class LibraryUpgradeService
             return conflictResult1;
         }
 
-        var deconstructedValues = pair;
-        var source = deconstructedValues.Item1;
-        var target = deconstructedValues.Item2;
+        var (source, target) = pair;
         var family = ValidateFamily(source, target);
         if (family is not null)
         {
@@ -198,9 +196,7 @@ public sealed class LibraryUpgradeService
             return conflictResult18;
         }
 
-        var deconstructedValues30 = pair;
-        var source = deconstructedValues30.Item1;
-        var target = deconstructedValues30.Item2;
+        var (source, target) = pair;
         var family = ValidateFamily(source, target);
         if (family is not null)
         {
