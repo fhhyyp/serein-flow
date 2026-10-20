@@ -36,18 +36,6 @@ if (gitProcess.ExitCode != SuccessExitCode)
 }
 
 var paths = trackedOutput.Split('\0', StringSplitOptions.RemoveEmptyEntries);
-var sourceTrees = new Dictionary<string, SyntaxTree>(StringComparer.Ordinal);
-foreach (var path in paths.Distinct(StringComparer.Ordinal))
-{
-    if (path.EndsWith(".cs", StringComparison.Ordinal) && !path.StartsWith("src/ThirdParty/", StringComparison.Ordinal))
-    {
-        var sourcePath = Path.Combine(repositoryRoot, path);
-        var sourceText = File.ReadAllText(sourcePath);
-        var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
-        sourceTrees[path] = CSharpSyntaxTree.ParseText(sourceText, parseOptions, path);
-    }
-}
-var compilation = LinqConventions.CreateCompilation(sourceTrees.Values);
 var exceptionPath = Path.Combine(repositoryRoot, "eng", "code-conventions", "exceptions.json");
 List<ConventionException> ReadExceptions()
 {
@@ -70,11 +58,15 @@ foreach (var file in paths.Distinct(StringComparer.Ordinal))
         continue;
     }
 
-    fileCount += FirstPosition;
     var absolutePath = Path.Combine(repositoryRoot, file);
+    if (!File.Exists(absolutePath))
+    {
+        continue;
+    }
+
+    fileCount += FirstPosition;
     var source = File.ReadAllText(absolutePath);
-    var semanticModel = compilation.GetSemanticModel(sourceTrees[file]);
-    var diagnostics = CSharpRules.Check(source, file, exceptions, semanticModel);
+    var diagnostics = CSharpRules.Check(source, file, exceptions);
     foreach (var diagnostic in diagnostics)
     {
         Console.Error.WriteLine($"{file}({diagnostic.Line},{diagnostic.Column}): {diagnostic.Rule} {diagnostic.Message}");
@@ -90,15 +82,10 @@ internal static class CSharpRules
 {
     private const int PositionOffset = 1;
     private const int SingleVariable = 1;
-    public static List<ConventionDiagnostic> Check(string source, string file, IReadOnlyList<ConventionException>? exceptions = null, SemanticModel? semanticModel = null)
+    public static List<ConventionDiagnostic> Check(string source, string file, IReadOnlyList<ConventionException>? exceptions = null)
     {
         var options = new CSharpParseOptions(LanguageVersion.Preview);
-        var tree = semanticModel?.SyntaxTree ?? CSharpSyntaxTree.ParseText(source, options);
-        if (semanticModel is null)
-        {
-            var compilation = LinqConventions.CreateCompilation([tree]);
-            semanticModel = compilation.GetSemanticModel(tree);
-        }
+        var tree = CSharpSyntaxTree.ParseText(source, options);
         var root = tree.GetRoot();
         var diagnostics = new List<ConventionDiagnostic>();
         var statementLines = new HashSet<int>();
@@ -184,11 +171,6 @@ internal static class CSharpRules
                 }
             }
 
-            if (node is InvocationExpressionSyntax invocationNode && HasReceiverCall(invocationNode) && !LinqConventions.IsLinqChain(invocationNode, semanticModel))
-            {
-                Report("CALL002", node, "Store the receiver before chaining calls.");
-            }
-
             if (node is ReturnStatementSyntax { Expression: { } returned } && HasCall(returned) || node is ArrowExpressionClauseSyntax arrow && HasCall(arrow.Expression) || node is LambdaExpressionSyntax { Body: ExpressionSyntax lambdaBody } && HasCall(lambdaBody))
             {
                 Report("RETURN001", node, "Store the result in a named variable before returning.");
@@ -270,36 +252,6 @@ internal static class CSharpRules
 
     }
 
-    private static bool HasReceiverCall(InvocationExpressionSyntax invocation)
-    {
-        if (HasCall(invocation.Expression))
-        {
-            return true;
-        }
-
-        ExpressionSyntax receiver = invocation.Expression;
-        while (receiver is MemberAccessExpressionSyntax member)
-        {
-            receiver = member.Expression;
-        }
-
-        if (receiver is not MemberBindingExpressionSyntax)
-        {
-            return false;
-        }
-
-        for (var ancestor = invocation.Parent; ancestor is ExpressionSyntax; ancestor = ancestor.Parent)
-        {
-            if (ancestor is ConditionalAccessExpressionSyntax conditional)
-            {
-                var containsReceiverCall = HasCall(conditional.Expression);
-                return containsReceiverCall;
-            }
-        }
-
-        return false;
-    }
-
     private static bool IsCall(SyntaxNode node)
     {
         var isCall = node is InvocationExpressionSyntax { Expression: not IdentifierNameSyntax { Identifier.ValueText: "nameof" } } or ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax or ConstructorInitializerSyntax;
@@ -348,7 +300,6 @@ internal static class ConventionTests
         {
             ["PARSE001"] = "class C { void M() { var value = ; } }",
             ["CALL001"] = "class C { void M() { Outer(Inner()); } }",
-            ["CALL002"] = "class C { void M() { Source().Next(); } }",
             ["RETURN001"] = "class C { object M() { return Create(); } }",
             ["DECL001"] = "class C { void M() { int first = 1, second = 2; } }",
             ["FLOW001"] = "class C { void M() { if (enabled) Run(); } }",
@@ -436,13 +387,13 @@ internal static class ConventionTests
         var initializerDiagnostics = CSharpRules.Check(initializerSource, "test.cs");
         var nestedStatementDiagnostics = CSharpRules.Check(nestedStatementSource, "test.cs");
         var sharedEndDiagnostics = CSharpRules.Check(sharedEndSource, "test.cs");
-        var reportsOptionalChain = optionalDiagnostics.Exists(static diagnostic => diagnostic.Rule == "CALL002");
+        var permitsOptionalChain = optionalDiagnostics.Count == SuccessExitCode;
         var reportsDeconstruction = deconstructionDiagnostics.Exists(static diagnostic => diagnostic.Rule == "DECL001");
         var reportsGlobalStatements = globalDiagnostics.Exists(static diagnostic => diagnostic.Rule == "LINE001");
         var reportsInitializerNesting = initializerDiagnostics.Exists(static diagnostic => diagnostic.Rule == "CALL001");
         var reportsNestedStatements = nestedStatementDiagnostics.Exists(static diagnostic => diagnostic.Rule == "LINE001");
         var reportsSharedEnd = sharedEndDiagnostics.Exists(static diagnostic => diagnostic.Rule == "LINE001");
-        if (!reportsOptionalChain || !reportsDeconstruction || !reportsGlobalStatements || !reportsInitializerNesting || !reportsNestedStatements || !reportsSharedEnd)
+        if (!permitsOptionalChain || !reportsDeconstruction || !reportsGlobalStatements || !reportsInitializerNesting || !reportsNestedStatements || !reportsSharedEnd)
         {
             Console.Error.WriteLine("Optional chains, deconstruction and top-level statements must be checked.");
             return FailureExitCode;
@@ -457,9 +408,15 @@ internal static class ConventionTests
             ("var result = items.Where(x => x > Limit()).ToArray();", "RETURN001"),
             ("var result = items.Take(Limit()).ToArray();", "CALL001"),
             ("var result = items.Select(x => {\nOuter(Transform(x));\nreturn x;\n}).ToArray();", "CALL001"),
-            ("var result = Read().Where(x => x > 0).ToArray();", "CALL002"),
-            ("var result = new Custom().Where().ToArray();", "CALL002"),
-            ("var result = items.Where(x => x > 0).ToArray().Clone();", "CALL002")
+            ("var result = Read().Where(x => x > 0).ToArray();", null),
+            ("var result = new Custom().Where().ToArray();", null),
+            ("var result = items.Where(x => x > 0).ToArray().Clone();", null),
+            ("var result = (await ReadAsync()).OrderBy(x => x).ToArray();", null),
+            ("var result = Enum.GetValues<DayOfWeek>().ToHashSet();", null),
+            ("var result = element.EnumerateArray().Select(x => x).ToArray();", null),
+            ("var result = Read()?.Where(x => x > 0).ToArray();", null),
+            ("var result = Source().Next(Transform(1));", "CALL001"),
+            ("var result = items.Select(x => Source().Next()).ToArray();", "RETURN001")
         };
         foreach (var testCase in linqCases)
         {
@@ -471,7 +428,7 @@ internal static class ConventionTests
                 : linqDiagnostics.Exists(diagnostic => diagnostic.Rule == expectedRule);
             if (!passed)
             {
-                Console.Error.WriteLine($"LINQ exception regression: {testCase.Source}");
+                Console.Error.WriteLine($"Chain convention regression: {testCase.Source}");
                 return FailureExitCode;
             }
         }

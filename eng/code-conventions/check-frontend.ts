@@ -80,9 +80,6 @@ export function checkScript(source: string, file: string, offset = emptyOffset):
       if (hasNestedArgument) {
         report('CALL001', node, 'Store argument call results before invoking another function.');
       }
-      if (callsWithin(node.expression)) {
-        report('CALL002', node, 'Store the receiver before chaining calls.');
-      }
     }
     if (ts.isReturnStatement(node) && node.expression && callsWithin(node.expression)) {
       report('RETURN001', node, 'Store the returned result in a named variable.');

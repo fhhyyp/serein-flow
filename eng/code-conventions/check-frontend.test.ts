@@ -39,16 +39,15 @@ function hasRule(diagnostics: any[], rule: string): boolean {
   const matchingDiagnostic = diagnostics.some((diagnostic) => diagnostic.rule === rule);
   return matchingDiagnostic;
 }
-test('reports parameter nesting, constructors and receiver chains', () => {
+test('reports parameter nesting and constructors while permitting receiver chains', () => {
   const parameterDiagnostics = checkScript('const value = outer(inner())', fixtureName);
   const constructorDiagnostics = checkScript('const value = new Container(createValue())', fixtureName);
   const receiverDiagnostics = checkScript('const value = source().next()', fixtureName);
   const hasParameterDiagnostic = hasRule(parameterDiagnostics, 'CALL001');
   const hasConstructorDiagnostic = hasRule(constructorDiagnostics, 'CALL001');
-  const hasReceiverDiagnostic = hasRule(receiverDiagnostics, 'CALL002');
   assert.ok(hasParameterDiagnostic);
   assert.ok(hasConstructorDiagnostic);
-  assert.ok(hasReceiverDiagnostic);
+  assert.deepEqual(receiverDiagnostics, []);
 });
 test('checks callback bodies without treating callback execution as parameter nesting', () => {
   const validSource = `register(() => {
@@ -63,12 +62,33 @@ test('checks callback bodies without treating callback execution as parameter ne
   assert.ok(hasReturnDiagnostic);
   assert.equal(hasParameterDiagnostic, false);
 });
+
+test('permits fluent and awaited chains while checking arguments and callbacks', () => {
+  const chainSources = [
+    'const values = read().filter(item => item.enabled).map(item => item.id)',
+    'const values = (await read()).filter(item => item.enabled)',
+    'const builder = new Builder().configure().finish()',
+    'const value = source()?.next()?.finish()',
+  ];
+  for (const source of chainSources) {
+    const diagnostics = checkScript(source, fixtureName);
+    assert.deepEqual(diagnostics, []);
+  }
+  const nestedDiagnostics = checkScript('const value = source().next(read())', fixtureName);
+  const callbackDiagnostics = checkScript('const values = read().map(item => item.toString())', fixtureName);
+  const returnDiagnostics = checkScript('function run() { return source().next() }', fixtureName);
+  const hasNestedDiagnostic = hasRule(nestedDiagnostics, 'CALL001');
+  const hasCallbackDiagnostic = hasRule(callbackDiagnostics, 'RETURN001');
+  const hasReturnDiagnostic = hasRule(returnDiagnostics, 'RETURN001');
+  assert.ok(hasNestedDiagnostic);
+  assert.ok(hasCallbackDiagnostic);
+  assert.ok(hasReturnDiagnostic);
+});
 test('checks optional chains and awaited return values', () => {
   const optionalDiagnostics = checkScript('const value = source()?.next()', fixtureName);
   const awaitedDiagnostics = checkScript('async function run() { return await read() }', fixtureName);
-  const hasOptionalDiagnostic = hasRule(optionalDiagnostics, 'CALL002');
   const hasAwaitDiagnostic = hasRule(awaitedDiagnostics, 'RETURN001');
-  assert.ok(hasOptionalDiagnostic);
+  assert.deepEqual(optionalDiagnostics, []);
   assert.ok(hasAwaitDiagnostic);
 });
 test('checks callback destructuring and TypeScript module variants', () => {
