@@ -4,6 +4,9 @@ For execution problems, discover runs with `sereinflow_list_runs` or active
 debug sessions with `sereinflow_list_debug_sessions`. Start an interactive
 session with `sereinflow_start_debug_session`, then use
 `sereinflow_wait_debug_state` and `sereinflow_get_debug_state` to observe it.
+The wait tool returns the next pause after the supplied revision or a terminal
+state; running node progress does not finish the wait. A timeout returns the
+current state. Use the get tool to inspect intermediate running progress.
 When the state is paused, send `sereinflow_step_debug` or
 `sereinflow_continue_debug` with the next strictly increasing
 `commandSequence`; use `sereinflow_stop_debug` to cancel it. Only the

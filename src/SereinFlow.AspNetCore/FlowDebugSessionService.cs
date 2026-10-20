@@ -120,14 +120,22 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             var getLibraryIdsResult = ProjectLibraryService.GetLibraryIds(prepared.Definition);
             var workerDebugOptionsDto = new WorkerDebugOptionsDto(session.Id, session.BreakpointNodeIds, request.MaxQueuedFlipflopTriggers ?? 64);
             var workerRequest = new WorkerRunRequestDto(WorkerProtocol.Version, prepared.Run.Id, prepared.Definition.Id, prepared.Definition.Version, serializeResult, prepared.Run.Deadline!.Value, toStringResult, prepared.ProjectInputs, prepared.MaxSteps, _scriptRoot, _libraryRoot, prepared.MaxNodeVisits, getLibraryIdsResult, workerDebugOptionsDto, _workpieceRoot);
-            var delegateWorkerRunEventSink = new DelegateWorkerRunEventSink((workerEvent, token) =>
+            var stateGate = new SemaphoreSlim(1, 1);
+            var delegateWorkerRunEventSink = new DelegateWorkerRunEventSink(async (workerEvent, token) =>
             {
-                var handleWorkerEventAsyncResult = HandleWorkerEventAsync(session.Id, workerEvent, token);
-                return handleWorkerEventAsyncResult;
+                await stateGate.WaitAsync(token);
+                try
+                {
+                    await HandleWorkerEventAsync(session.Id, workerEvent, token);
+                }
+                finally
+                {
+                    stateGate.Release();
+                }
             });
             var getCancellationTokenResult = _queue.GetCancellationToken(prepared.Run.Id);
             var handle = await _workerClient.StartDebugAsync(workerRequest, delegateWorkerRunEventSink, getCancellationTokenResult);
-            var active = new ActiveDebugSession(handle, lease!);
+            var active = new ActiveDebugSession(handle, lease!, stateGate);
             if (!_active.TryAdd(session.Id, active))
             {
                 await handle.DisposeAsync();
@@ -320,7 +328,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
                     _queue.Cancel(session.RunId, DebugErrorCodes.Stop);
                 }
 
-                var flowDebugSessionCommandResult19 = new FlowDebugSessionCommandResult(StatusCodes.Status202Accepted);
+                var flowDebugSessionCommandResult19 = new FlowDebugSessionCommandResult(StatusCodes.Status202Accepted, Session: session);
                 return flowDebugSessionCommandResult19;
             }
 
@@ -332,7 +340,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             }
 
             await store.SaveAsync(session, cancellationToken);
-            var flowDebugSessionCommandResult20 = new FlowDebugSessionCommandResult(StatusCodes.Status202Accepted);
+            var flowDebugSessionCommandResult20 = new FlowDebugSessionCommandResult(StatusCodes.Status202Accepted, Session: session);
             return flowDebugSessionCommandResult20;
         }
         catch (InvalidOperationException exception) when (exception.Message.Contains("strictly increasing", StringComparison.OrdinalIgnoreCase))
@@ -364,6 +372,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             result = new WorkerRunResultDto(WorkerProtocol.Version, active.Handle.RunId, FlowRunStatusDto.Failed, DebugErrorCodes.WorkerMonitorFailed, exception.Message);
         }
 
+        await active.CommandGate.WaitAsync();
         try
         {
             using var scope = _scopeFactory.CreateScope();
@@ -401,6 +410,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         }
         finally
         {
+            active.CommandGate.Release();
             _active.TryRemove(sessionId, out _);
             active.Lease.Dispose();
             await active.Handle.DisposeAsync();
@@ -631,11 +641,13 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         return evaluatedValue37;
     }
 
-    private sealed class ActiveDebugSession(IWorkerDebugRunHandle handle, RunExecutionQueue.RunExecutionLease lease)
+    private sealed class ActiveDebugSession(IWorkerDebugRunHandle handle, RunExecutionQueue.RunExecutionLease lease, SemaphoreSlim stateGate)
     {
         public IWorkerDebugRunHandle Handle { get; } = handle;
         public RunExecutionQueue.RunExecutionLease Lease { get; } = lease;
-        public SemaphoreSlim CommandGate { get; } = new(1, 1);
+        // Commands, Worker events and completion all replace the durable state.
+        // Serialize their read/modify/write cycles to preserve pauses and revisions.
+        public SemaphoreSlim CommandGate { get; } = stateGate;
     }
 
     private static Action<ILogger, Guid, Exception?> CreateDebugWorkerStartupFailedLogInitialValue()

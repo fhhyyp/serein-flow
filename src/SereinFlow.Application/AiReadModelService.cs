@@ -350,7 +350,7 @@ public sealed class AiReadModelService
 
     public async Task<AiDebugStateWaitResultDto?> WaitForDebugStateChangeAsync(Guid sessionId, long afterRevision, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
-        var result = await FlowDebugSessionWaiter.WaitAsync(_debugSessions, sessionId, afterRevision, timeout, cancellationToken);
+        var result = await FlowDebugSessionWaiter.WaitAsync(_debugSessions, sessionId, afterRevision, timeout, waitForPauseOrCompletion: true, cancellationToken: cancellationToken);
         AiDebugStateWaitResultDto? evaluatedValue53 = result.Session is null ? null : resolveevaluatedValue();
         return evaluatedValue53;
         AiDebugStateWaitResultDto resolveevaluatedValue()

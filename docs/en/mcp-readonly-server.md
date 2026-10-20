@@ -311,6 +311,11 @@ an `idempotencyKey`; list, state, and wait reads accept `debug.read` or
 `run.read`, while control commands require a strictly increasing
 `commandSequence`.
 
+`sereinflow_wait_debug_state` waits for a newer paused state or a terminal
+state. Running node progress does not finish this wait; use
+`sereinflow_get_debug_state` to inspect it. On timeout, the wait returns the
+current state with `timedOut: true`.
+
 Run queries use `development` or `production` for `track`; topology queries
 default to `development` when omitted. The optional `status` filter of
 `sereinflow_list_runs` accepts `pending`, `running`, `succeeded`, `failed`,

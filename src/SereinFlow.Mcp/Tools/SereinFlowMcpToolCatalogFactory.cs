@@ -578,7 +578,7 @@ internal static class SereinFlowMcpToolCatalogFactory
                 ["timeoutSeconds"] = NumberSchema()
             };
             var schemaResult86 = Schema(properties: dictionary85, required: ["sessionId", "afterRevision"]);
-            var toolResult87 = Tool("sereinflow_wait_debug_state", "Wait for a debug session state revision to change or reach a terminal state.", schemaResult86);
+            var toolResult87 = Tool("sereinflow_wait_debug_state", "Wait for a newer paused debug state or a terminal state. Running progress remains available through sereinflow_get_debug_state.", schemaResult86);
             return toolResult87;
         }
 

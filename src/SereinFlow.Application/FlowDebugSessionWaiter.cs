@@ -12,7 +12,10 @@ public sealed record FlowDebugStateWaitResult(FlowDebugSession? Session, bool Ha
 public static class FlowDebugSessionWaiter
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(100);
-    public static async Task<FlowDebugStateWaitResult> WaitAsync(IFlowDebugSessionStore store, Guid sessionId, long afterRevision, TimeSpan timeout, CancellationToken cancellationToken = default)
+    public static Task<FlowDebugStateWaitResult> WaitAsync(IFlowDebugSessionStore store, Guid sessionId, long afterRevision, TimeSpan timeout, CancellationToken cancellationToken = default)
+        => WaitAsync(store, sessionId, afterRevision, timeout, waitForPauseOrCompletion: false, cancellationToken: cancellationToken);
+
+    public static async Task<FlowDebugStateWaitResult> WaitAsync(IFlowDebugSessionStore store, Guid sessionId, long afterRevision, TimeSpan timeout, bool waitForPauseOrCompletion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentOutOfRangeException.ThrowIfLessThan(afterRevision, -1);
@@ -27,7 +30,11 @@ public static class FlowDebugSessionWaiter
                 return evaluatedValue;
             }
 
-            if (session.StateRevision > afterRevision || session.IsTerminal)
+            // Interactive control needs the next boundary where another command
+            // can be issued. Node telemetry can advance the revision while running.
+            var observableChange = session.StateRevision > afterRevision
+                && (!waitForPauseOrCompletion || session.Status == FlowDebugSessionStatus.Paused);
+            if (observableChange || session.IsTerminal)
             {
                 FlowDebugStateWaitResult evaluatedValue1 = new(session, session.StateRevision > afterRevision, false);
                 return evaluatedValue1;

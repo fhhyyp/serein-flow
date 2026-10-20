@@ -129,7 +129,9 @@ internal static class McpDebugToolHandlers
             ThrowCommandFailure(result);
         }
 
-        var latest = await service.FindAsync(sessionId, cancellationToken) ?? session;
+        // Keep the acknowledgement cursor at command acceptance, so a fast
+        // Worker pause remains visible to the next wait-for-state request.
+        var latest = result.Session ?? await service.FindAsync(sessionId, cancellationToken) ?? session;
         var mcpDebugCommandAcceptedDto = new McpDebugCommandAcceptedDto(latest.Id, latest.RunId, command, commandSequence, (FlowDebugSessionStatusDto)latest.Status, latest.StateRevision);
         return mcpDebugCommandAcceptedDto;
     }

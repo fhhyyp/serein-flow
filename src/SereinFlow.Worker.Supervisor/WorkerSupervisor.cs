@@ -533,6 +533,7 @@ public sealed partial class WorkerSupervisor
         var callerCancellationTask = Task.Delay(Timeout.InfiniteTimeSpan, callerCancellationToken);
         var deadlineTask = Task.Delay(Timeout.InfiniteTimeSpan, deadlineCancellation.Token);
         long lastSequence = 0;
+        WorkerTransportException? heartbeatFailure = null;
         while (true)
         {
             var completed = await Task.WhenAny(readTask, heartbeatTask, callerCancellationTask, deadlineTask);
@@ -546,8 +547,27 @@ public sealed partial class WorkerSupervisor
 
             if (completed == heartbeatTask)
             {
+                if (heartbeatFailure is not null)
+                {
+                    RecordDiagnostic(request.RunId, "heartbeat", heartbeatFailure.Message, heartbeatFailure);
+                    return Failure(request.RunId, WorkerErrorCodes.Crashed, "The runner did not return a result after its input stream closed. Worker Runner 在输入流关闭后未返回结果。");
+                }
+
                 var createResult34 = WorkerMessage.Create(WorkerProtocolConstants.HeartbeatKind, runId: request.RunId);
-                await transport.SendAsync(createResult34, CancellationToken.None);
+                try
+                {
+                    await transport.SendAsync(createResult34, CancellationToken.None);
+                }
+                catch (WorkerTransportException exception) when (exception.Code == WorkerTransportErrorCodes.SendFailed)
+                {
+                    // The runner can close stdin after flushing its result while
+                    // stdout still contains events. Drain that stream before
+                    // declaring a crash, with a bounded grace period.
+                    heartbeatFailure = exception;
+                    heartbeatTask = Task.Delay(_launchOptions.EffectiveCancellationGracePeriod, heartbeatCancellation.Token);
+                    continue;
+                }
+
                 heartbeatTask = Task.Delay(_launchOptions.EffectiveHeartbeatInterval, heartbeatCancellation.Token);
                 continue;
             }

@@ -106,7 +106,7 @@ internal static class ScriptPrototypeExtension
                               {
                                   var isTargertMethodName = "IsTarget";
                                   var dictName = $"_prototypeMethods";
-                                  generator.AppendCode($"private static Dictionary<string, Func<{ScriptValue}, {ScriptEngine}, {ScriptValue}>> {dictName} = [];")
+                                  generator.AppendCode($"private readonly Dictionary<string, Func<{ScriptValue}, {ScriptEngine}, {ScriptValue}>> {dictName} = [];")
                                            .AppendCode()
                                            .AppendCode($"bool _isLoad = false;")
                                            .AppendCode()

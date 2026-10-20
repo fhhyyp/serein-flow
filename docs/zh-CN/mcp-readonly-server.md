@@ -260,6 +260,10 @@ sereinlang.compile
 `idempotencyKey`；列表、状态和等待读取接受 `debug.read` 或 `run.read`，
 控制命令要求严格递增的 `commandSequence`。
 
+`sereinflow_wait_debug_state` 等待指定修订号之后的暂停状态或任意终态；
+运行期间的节点进度不会提前结束等待，可通过 `sereinflow_get_debug_state`
+读取。等待超时会返回当前状态，并标记 `timedOut: true`。
+
 运行查询的 `track` 使用 `development` 或 `production` 字符串；拓扑查询
 省略时默认为 `development`。`sereinflow_list_runs` 的可选 `status` 过滤值为
 `pending`、`running`、`succeeded`、`failed`、`cancelled`、`timedOut` 或

@@ -22,7 +22,7 @@ public sealed record FlowDebugSessionStartResult(FlowDebugSession? Session, int 
     public bool IsAccepted => Session is not null;
 }
 
-public sealed record FlowDebugSessionCommandResult(int StatusCode, string? ErrorTitle = null, string? ErrorCode = null)
+public sealed record FlowDebugSessionCommandResult(int StatusCode, string? ErrorTitle = null, string? ErrorCode = null, FlowDebugSession? Session = null)
 {
     public bool IsAccepted => StatusCode is >= 200 and < 300;
 }
