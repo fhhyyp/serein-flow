@@ -343,29 +343,24 @@ public sealed class SereinFlowMcpServer
 
     private async Task WriteResponseAsync(TextWriter output, JsonElement? id, object? result, McpProtocolException? error, CancellationToken cancellationToken)
     {
-        var response = new Dictionary<string, object?>(StringComparer.Ordinal)
-        {
-            ["jsonrpc"] = McpProtocolConstants.JsonRpcVersion,
-            ["id"] = id
-        };
+        string serialized;
         if (error is null)
         {
-            response["result"] = result;
+            var response = new McpJsonRpcSuccessResponse(id, result);
+            serialized = JsonSerializer.Serialize(response, JsonOptions);
         }
         else
         {
-            response["error"] = new
-            {
-                code = error.Code,
-                message = error.Message,
-                data = error.ErrorData
-            };
+            var responseError = new McpJsonRpcError(error.Code, error.Message, error.ErrorData);
+            var response = new McpJsonRpcErrorResponse<McpJsonRpcError>(id, responseError);
+            serialized = JsonSerializer.Serialize(response, JsonOptions);
         }
 
-        var serialized = JsonSerializer.Serialize(response, JsonOptions);
         if (Encoding.UTF8.GetByteCount(serialized) > _maxResponseBytes)
         {
-            serialized = JsonSerializer.Serialize(new { jsonrpc = McpProtocolConstants.JsonRpcVersion, id, error = new { code = McpProtocolErrorCodes.ResponseTooLarge, message = "The MCP response exceeds the configured size limit." } }, JsonOptions);
+            var responseError = new McpJsonRpcErrorSummary(McpProtocolErrorCodes.ResponseTooLarge, "The MCP response exceeds the configured size limit.");
+            var response = new McpJsonRpcErrorResponse<McpJsonRpcErrorSummary>(id, responseError);
+            serialized = JsonSerializer.Serialize(response, JsonOptions);
         }
 
         await output.WriteLineAsync(serialized);

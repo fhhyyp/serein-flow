@@ -43,17 +43,9 @@ internal sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runI
 
     public ValueTask PublishDebugPausedAsync(WorkerDebugPauseDto pause, long sequence, CancellationToken cancellationToken)
     {
-        var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
+        var payload = pause with
         {
-            ["debugSessionId"] = pause.DebugSessionId,
-            ["runId"] = pause.RunId,
-            ["nodeId"] = pause.NodeId,
-            ["nodeType"] = pause.NodeType,
-            ["step"] = pause.Step,
-            ["inputs"] = ScriptValueConverter.ToAuditValue(pause.Inputs),
-            ["frameDepth"] = pause.FrameDepth,
-            ["triggerInvocationId"] = pause.TriggerInvocationId,
-            ["executionId"] = pause.ExecutionId
+            Inputs = ScriptValueConverter.ToAuditValue(pause.Inputs)
         };
         var createWebOptionsResult1 = SereinJsonSerialization.CreateWebOptions();
         var serializeResult = JsonSerializer.Serialize(payload, createWebOptionsResult1);

@@ -132,12 +132,8 @@ public sealed class FlowRunner
                 return errorResult1;
             }
 
-            var dictionary = new Dictionary<string, object?>
-            {
-                ["step"] = step,
-                ["triggerInvocationId"] = session.InvocationId
-            };
-            await PublishAsync(session, NodeErrorCodes.Started, node.Id, dictionary, executionId);
+            var startedPayload = new NodeStartedEventPayload(step, session.InvocationId);
+            await PublishAsync(session, NodeErrorCodes.Started, node.Id, startedPayload, executionId);
             IReadOnlyDictionary<string, object?> inputs = EmptyInputs;
             try
             {
@@ -192,17 +188,8 @@ public sealed class FlowRunner
                 session.Write($"{node.Id}.data-out", firstResult);
             }
 
-            var dictionary2 = new Dictionary<string, object?>
-            {
-                ["success"] = lastResult.IsSuccess,
-                ["branch"] = lastResult.NextBranch.ToString(),
-                ["errorCode"] = lastResult.ErrorCode,
-                ["errorMessage"] = lastResult.ErrorMessage,
-                ["inputs"] = lastResult.Inputs ?? inputs,
-                ["outputs"] = lastResult.TransferOutputs ?? lastResult.Outputs,
-                ["triggerInvocationId"] = session.InvocationId
-            };
-            await PublishAsync(session, lastResult.IsSuccess ? NodeErrorCodes.Completed : lastResult.NextBranch == ExecutionBranch.Error ? NodeErrorCodes.Error : NodeErrorCodes.Failed, node.Id, dictionary2, executionId);
+            var completedPayload = NodeResultEventPayload.FromResult(lastResult, inputs, session.InvocationId);
+            await PublishAsync(session, lastResult.IsSuccess ? NodeErrorCodes.Completed : lastResult.NextBranch == ExecutionBranch.Error ? NodeErrorCodes.Error : NodeErrorCodes.Failed, node.Id, completedPayload, executionId);
             var branch = lastResult.NextBranch;
             var selected = plan.GetOutgoing(node.Id, branch);
             PushReverse(stack, selected);
@@ -216,15 +203,8 @@ public sealed class FlowRunner
         var executor = _executors.Get(node.Type);
         if (executor is not IGlobalFlipflopExecutor trigger)
         {
-            var dictionary3 = new Dictionary<string, object?>
-            {
-                ["success"] = false,
-                ["inputs"] = EmptyInputs,
-                ["outputs"] = EmptyInputs,
-                ["errorCode"] = FlipFlopErrorCodes.ExecutorInvalid,
-                ["errorMessage"] = "The global Flipflop executor is invalid. 全局 Flipflop 执行器无效。"
-            };
-            await PublishAsync(session, NodeErrorCodes.Failed, node.Id, dictionary3);
+            var invalidExecutorPayload = new NodeResultEventPayload(false, null, FlipFlopErrorCodes.ExecutorInvalid, "The global Flipflop executor is invalid. 全局 Flipflop 执行器无效。", EmptyInputs, EmptyInputs, null, IncludeInvocationId: false);
+            await PublishAsync(session, NodeErrorCodes.Failed, node.Id, invalidExecutorPayload);
             var errorResult4 = NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutorInvalid, "The global Flipflop executor is invalid. 全局 Flipflop 执行器无效。");
             return errorResult4;
         }
@@ -239,17 +219,8 @@ public sealed class FlowRunner
             {
                 if (!session.TryBeginStep(node.Id, out step, out executionId, out var limitError))
                 {
-                    var dictionary5 = new Dictionary<string, object?>
-                    {
-                        ["global"] = true,
-                        ["success"] = false,
-                        ["branch"] = ExecutionBranch.Error.ToString(),
-                        ["inputs"] = EmptyInputs,
-                        ["outputs"] = EmptyInputs,
-                        ["errorCode"] = limitError,
-                        ["errorMessage"] = "The global Flipflop execution limit was exceeded. 全局 Flipflop 执行限制已超出。"
-                    };
-                    await PublishAsync(session, NodeErrorCodes.Failed, node.Id, dictionary5);
+                    var limitPayload = new NodeResultEventPayload(false, ExecutionBranch.Error, limitError, "The global Flipflop execution limit was exceeded. 全局 Flipflop 执行限制已超出。", EmptyInputs, EmptyInputs, null, Global: true, IncludeInvocationId: false);
+                    await PublishAsync(session, NodeErrorCodes.Failed, node.Id, limitPayload);
                     var errorResult6 = NodeExecutionResult.Error(limitError!, "The global Flipflop execution limit was exceeded. 全局 Flipflop 执行限制已超出。");
                     return errorResult6;
                 }
@@ -264,13 +235,8 @@ public sealed class FlowRunner
                 var triggerSessionOwnedByListener = true;
                 try
                 {
-                    var dictionary11 = new Dictionary<string, object?>
-                    {
-                        ["global"] = true,
-                        ["step"] = step,
-                        ["triggerInvocationId"] = invocationId
-                    };
-                    await PublishAsync(session, NodeErrorCodes.Started, node.Id, dictionary11, executionId);
+                    var startedPayload = new NodeStartedEventPayload(step, invocationId, Global: true);
+                    await PublishAsync(session, NodeErrorCodes.Started, node.Id, startedPayload, executionId);
                     inputs = _dataResolver.Resolve(node, plan, triggerSession);
                     var createExecutionRequestResult12 = CreateExecutionRequest(node, plan, triggerSession, inputs, step, executionId);
                     var result = await trigger.WaitForTriggerAsync(createExecutionRequestResult12, cancellationToken);
@@ -286,18 +252,8 @@ public sealed class FlowRunner
                         triggerSession.Write($"{node.Id}.data-out", firstResult7);
                     }
 
-                    var dictionary13 = new Dictionary<string, object?>
-                    {
-                        ["global"] = true,
-                        ["success"] = result.IsSuccess,
-                        ["branch"] = result.NextBranch.ToString(),
-                        ["errorCode"] = result.ErrorCode,
-                        ["errorMessage"] = result.ErrorMessage,
-                        ["inputs"] = result.Inputs ?? inputs,
-                        ["outputs"] = result.TransferOutputs ?? result.Outputs,
-                        ["triggerInvocationId"] = invocationId
-                    };
-                    await PublishAsync(session, result.IsSuccess ? NodeErrorCodes.Completed : result.NextBranch == ExecutionBranch.Error ? NodeErrorCodes.Error : NodeErrorCodes.Failed, node.Id, dictionary13, executionId);
+                    var completedPayload = NodeResultEventPayload.FromResult(result, inputs, invocationId, global: true);
+                    await PublishAsync(session, result.IsSuccess ? NodeErrorCodes.Completed : result.NextBranch == ExecutionBranch.Error ? NodeErrorCodes.Error : NodeErrorCodes.Failed, node.Id, completedPayload, executionId);
                     if (_debugInvocationScheduler is null)
                     {
                         foreach (var connection in plan.GetOutgoing(node.Id, result.NextBranch))
@@ -308,13 +264,8 @@ public sealed class FlowRunner
                     else
                     {
                         var debugInputs = CopyInputs(result.Inputs ?? inputs);
-                        var dictionary10 = new Dictionary<string, object?>
-                        {
-                            ["triggerInvocationId"] = invocationId,
-                            ["flipflopNodeId"] = node.Id,
-                            ["inputs"] = debugInputs
-                        };
-                        await PublishAsync(session, DebugErrorCodes.TriggerReceived, node.Id, dictionary10);
+                        var receivedPayload = new TriggerReceivedEventPayload(invocationId, node.Id, debugInputs);
+                        await PublishAsync(session, DebugErrorCodes.TriggerReceived, node.Id, receivedPayload);
                         if (_debugInvocationScheduler.TrySchedule(() =>
                         {
                             var executeScheduledTriggerAsyncResult = ExecuteScheduledTriggerAsync(node, plan, session, triggerSession, result.NextBranch, debugInputs, step, executionId, cancellationToken);
@@ -329,25 +280,14 @@ public sealed class FlowRunner
                             triggerSessionOwnedByListener = false;
                             if (queuePosition > 0)
                             {
-                                var dictionary8 = new Dictionary<string, object?>
-                                {
-                                    ["triggerInvocationId"] = invocationId,
-                                    ["flipflopNodeId"] = node.Id,
-                                    ["queuePosition"] = queuePosition
-                                };
-                                await PublishAsync(session, DebugErrorCodes.TriggerQueued, node.Id, dictionary8);
+                                var queuedPayload = new TriggerQueuedEventPayload(invocationId, node.Id, queuePosition);
+                                await PublishAsync(session, DebugErrorCodes.TriggerQueued, node.Id, queuedPayload);
                             }
                         }
                         else
                         {
-                            var dictionary9 = new Dictionary<string, object?>
-                            {
-                                ["triggerInvocationId"] = invocationId,
-                                ["flipflopNodeId"] = node.Id,
-                                ["reason"] = DebugErrorCodes.TriggerQueueFull,
-                                ["maximumQueuedTriggers"] = _debugInvocationScheduler.MaximumQueuedInvocations
-                            };
-                            await PublishAsync(session, DebugErrorCodes.TriggerRejected, node.Id, dictionary9);
+                            var rejectedPayload = new TriggerRejectedEventPayload(invocationId, node.Id, DebugErrorCodes.TriggerQueueFull, _debugInvocationScheduler.MaximumQueuedInvocations);
+                            await PublishAsync(session, DebugErrorCodes.TriggerRejected, node.Id, rejectedPayload);
                         }
                     }
                 }
@@ -366,18 +306,8 @@ public sealed class FlowRunner
             catch (FlowDataBindingException exception)
             {
                 inputs = exception.ResolvedInputs;
-                var dictionary14 = new Dictionary<string, object?>
-                {
-                    ["global"] = true,
-                    ["success"] = false,
-                    ["branch"] = ExecutionBranch.Failure.ToString(),
-                    ["inputs"] = inputs,
-                    ["outputs"] = EmptyInputs,
-                    ["errorCode"] = exception.Code,
-                    ["errorMessage"] = exception.Message,
-                    ["triggerInvocationId"] = invocationId
-                };
-                await PublishAsync(session, NodeErrorCodes.Failed, node.Id, dictionary14, executionId);
+                var bindingFailurePayload = new NodeResultEventPayload(false, ExecutionBranch.Failure, exception.Code, exception.Message, inputs, EmptyInputs, invocationId, Global: true);
+                await PublishAsync(session, NodeErrorCodes.Failed, node.Id, bindingFailurePayload, executionId);
                 foreach (var connection in plan.GetOutgoing(node.Id, ExecutionBranch.Failure))
                 {
                     await RunStackAsync(connection.ToNodeId, plan, session, cancellationToken);
@@ -387,18 +317,8 @@ public sealed class FlowRunner
             }
             catch (Exception exception)
             {
-                var dictionary15 = new Dictionary<string, object?>
-                {
-                    ["global"] = true,
-                    ["success"] = false,
-                    ["branch"] = ExecutionBranch.Error.ToString(),
-                    ["inputs"] = inputs,
-                    ["outputs"] = EmptyInputs,
-                    ["errorCode"] = FlipFlopErrorCodes.ExecutionFailed,
-                    ["errorMessage"] = $"Global Flipflop execution failed. 全局 Flipflop 执行失败。 {exception.Message}",
-                    ["triggerInvocationId"] = invocationId
-                };
-                await PublishAsync(session, NodeErrorCodes.Failed, node.Id, dictionary15, executionId);
+                var listenerFailurePayload = new NodeResultEventPayload(false, ExecutionBranch.Error, FlipFlopErrorCodes.ExecutionFailed, $"Global Flipflop execution failed. 全局 Flipflop 执行失败。 {exception.Message}", inputs, EmptyInputs, invocationId, Global: true);
+                await PublishAsync(session, NodeErrorCodes.Failed, node.Id, listenerFailurePayload, executionId);
                 // An exception escaping a global listener still follows the
                 // node's Error branch before the listener waits again.
                 // 全局监听器发生未处理异常时，先进入 Error 分支，再继续等待下一次触发。
@@ -421,12 +341,8 @@ public sealed class FlowRunner
         var invocationId = triggerSession.InvocationId;
         try
         {
-            var dictionary17 = new Dictionary<string, object?>
-            {
-                ["triggerInvocationId"] = invocationId,
-                ["flipflopNodeId"] = flipflopNode.Id
-            };
-            await PublishAsync(rootSession, DebugErrorCodes.TriggerAdmitted, flipflopNode.Id, dictionary17);
+            var admittedPayload = new TriggerAdmittedEventPayload(invocationId, flipflopNode.Id);
+            await PublishAsync(rootSession, DebugErrorCodes.TriggerAdmitted, flipflopNode.Id, admittedPayload);
             var copyInputsResult18 = CopyInputs(inputs);
             var nodeExecutionBoundary19 = new NodeExecutionBoundary(rootSession.RunId, flipflopNode.Id, flipflopNode.Type, step, copyInputsResult18, triggerSession.FrameDepth, invocationId, executionId);
             var decision = await _executionGate.BeforeNodeAsync(nodeExecutionBoundary19, cancellationToken);
@@ -442,16 +358,8 @@ public sealed class FlowRunner
                 lastResult = await RunStackAsync(connection.ToNodeId, plan, triggerSession, cancellationToken);
             }
 
-            var dictionary20 = new Dictionary<string, object?>
-            {
-                ["triggerInvocationId"] = invocationId,
-                ["flipflopNodeId"] = flipflopNode.Id,
-                ["success"] = lastResult.IsSuccess,
-                ["branch"] = lastResult.NextBranch.ToString(),
-                ["errorCode"] = lastResult.ErrorCode,
-                ["errorMessage"] = lastResult.ErrorMessage
-            };
-            await PublishAsync(rootSession, DebugErrorCodes.TriggerCompleted, flipflopNode.Id, dictionary20);
+            var completedPayload = new TriggerCompletedEventPayload(invocationId, flipflopNode.Id, lastResult);
+            await PublishAsync(rootSession, DebugErrorCodes.TriggerCompleted, flipflopNode.Id, completedPayload);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || rootSession.CancellationToken.IsCancellationRequested)
         {
@@ -459,14 +367,8 @@ public sealed class FlowRunner
         }
         catch (Exception exception)
         {
-            var dictionary21 = new Dictionary<string, object?>
-            {
-                ["triggerInvocationId"] = invocationId,
-                ["flipflopNodeId"] = flipflopNode.Id,
-                ["errorCode"] = DebugErrorCodes.TriggerExecutionFailed,
-                ["errorMessage"] = exception.Message
-            };
-            await PublishAsync(rootSession, DebugErrorCodes.TriggerFailed, flipflopNode.Id, dictionary21);
+            var failedPayload = new TriggerFailedEventPayload(invocationId, flipflopNode.Id, DebugErrorCodes.TriggerExecutionFailed, exception.Message);
+            await PublishAsync(rootSession, DebugErrorCodes.TriggerFailed, flipflopNode.Id, failedPayload);
         }
     }
 
@@ -644,30 +546,15 @@ public sealed class FlowRunner
         public ValueTask PublishLogAsync(NodeExecutionLogEntry entry, CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(entry);
-            var dictionary32 = new Dictionary<string, object?>(StringComparer.Ordinal)
-            {
-                ["level"] = entry.Level,
-                ["message"] = entry.Message,
-                ["value"] = entry.Value
-            };
-            var publishAsyncResult = runner.PublishAsync(session, NodeErrorCodes.Log, nodeId, dictionary32, executionId);
+            var logPayload = new NodeLogEventPayload(entry);
+            var publishAsyncResult = runner.PublishAsync(session, NodeErrorCodes.Log, nodeId, logPayload, executionId);
             return publishAsyncResult;
         }
     }
 
-    private async ValueTask PublishAsync(FlowExecutionSession session, string type, string nodeId, IReadOnlyDictionary<string, object?> payload, Guid? executionId = null)
+    private async ValueTask PublishAsync(FlowExecutionSession session, string type, string nodeId, RuntimeEventPayload payload, Guid? executionId = null)
     {
-        var payloadWithFrame = new Dictionary<string, object?>(payload, StringComparer.Ordinal)
-        {
-            ["frameDepth"] = session.FrameDepth
-        };
-        if (executionId is Guid id)
-        {
-            payloadWithFrame["executionId"] = id;
-        }
-
-        var nextSequenceResult = session.NextSequence();
-        var runtimeEvent = new RuntimeEvent(session.RunId, nextSequenceResult, DateTimeOffset.UtcNow, type, nodeId, payloadWithFrame);
+        var runtimeEvent = RuntimeEventFactory.Create(session, type, nodeId, payload, executionId);
         await _eventPublisher.PublishAsync(runtimeEvent, session.CancellationToken);
     }
 }

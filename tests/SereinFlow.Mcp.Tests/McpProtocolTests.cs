@@ -233,6 +233,79 @@ public sealed class McpProtocolTests
         Assert.Null(accessor.Current.RequestId);
     }
 
+    [Theory]
+    [InlineData("42")]
+    [InlineData("9007199254740993")]
+    [InlineData("\"request-中文\"")]
+    [InlineData("null")]
+    public async Task NullResultsRetainTheOriginalIdAndExcludeErrors(string idJson)
+    {
+        var backend = new FakeBackend();
+        var server = new SereinFlowMcpServer(backend);
+        var request = $"{{\"jsonrpc\":\"2.0\",\"id\":{idJson},\"method\":\"shutdown\"}}";
+        var response = await server.HandleRequestAsync(request);
+        Assert.NotNull(response);
+        using var actual = JsonDocument.Parse(response);
+        var expectedJson = $"{{\"jsonrpc\":\"2.0\",\"id\":{idJson},\"result\":null}}";
+        using var expected = JsonDocument.Parse(expectedJson);
+        var matches = JsonElement.DeepEquals(expected.RootElement, actual.RootElement);
+        Assert.True(matches, response);
+    }
+
+    [Theory]
+    [InlineData("42")]
+    [InlineData("9007199254740993")]
+    [InlineData("\"request-中文\"")]
+    [InlineData("null")]
+    public async Task ErrorsRetainTheOriginalIdAndExplicitNullData(string idJson)
+    {
+        var backend = new FakeBackend();
+        var server = new SereinFlowMcpServer(backend);
+        var request = $"{{\"jsonrpc\":\"2.0\",\"id\":{idJson},\"method\":\"unknown\"}}";
+        var response = await server.HandleRequestAsync(request);
+        Assert.NotNull(response);
+        using var actual = JsonDocument.Parse(response);
+        var expectedJson = $"{{\"jsonrpc\":\"2.0\",\"id\":{idJson},\"error\":{{\"code\":-32601,\"message\":\"MCP method 'unknown' is not supported.\",\"data\":null}}}}";
+        using var expected = JsonDocument.Parse(expectedJson);
+        var matches = JsonElement.DeepEquals(expected.RootElement, actual.RootElement);
+        Assert.True(matches, response);
+    }
+
+    [Fact]
+    public async Task SizeLimitRetainsUtf8ByteBoundaryAndCompactErrorShape()
+    {
+        var backend = new FakeBackend();
+        var server = new SereinFlowMcpServer(backend);
+        const string request = "{\"jsonrpc\":\"2.0\",\"id\":\"中文\",\"method\":\"ping\"}";
+        var response = await server.HandleRequestAsync(request);
+        Assert.NotNull(response);
+        var byteCount = System.Text.Encoding.UTF8.GetByteCount(response);
+        var exactLimitServer = new SereinFlowMcpServer(backend, maxResponseBytes: byteCount);
+        var exactResponse = await exactLimitServer.HandleRequestAsync(request);
+        Assert.Equal(response, exactResponse);
+        var smallerLimitServer = new SereinFlowMcpServer(backend, maxResponseBytes: byteCount - 1);
+        var limitedResponse = await smallerLimitServer.HandleRequestAsync(request);
+        Assert.NotNull(limitedResponse);
+        using var actual = JsonDocument.Parse(limitedResponse);
+        const string expectedJson = "{\"jsonrpc\":\"2.0\",\"id\":\"中文\",\"error\":{\"code\":-32013,\"message\":\"The MCP response exceeds the configured size limit.\"}}";
+        using var expected = JsonDocument.Parse(expectedJson);
+        var matches = JsonElement.DeepEquals(expected.RootElement, actual.RootElement);
+        Assert.True(matches, limitedResponse);
+    }
+
+    [Theory]
+    [InlineData("ping")]
+    [InlineData("unknown")]
+    [InlineData("shutdown")]
+    public async Task NotificationsDoNotProduceAnEnvelope(string method)
+    {
+        var backend = new FakeBackend();
+        var server = new SereinFlowMcpServer(backend);
+        var request = $"{{\"jsonrpc\":\"2.0\",\"method\":\"{method}\"}}";
+        var response = await server.HandleRequestAsync(request);
+        Assert.Null(response);
+    }
+
     private sealed class FakeBackend : ISereinFlowMcpBackend
     {
         public int CallCount { get; private set; }

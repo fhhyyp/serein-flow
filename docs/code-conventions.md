@@ -37,6 +37,8 @@ pwsh -File ./eng/check-code-conventions.ps1 -SelfTest
 - 固定结构的 JSON 合同优先使用具名类型；不要用 `Dictionary<string, object?>` 隐式声明字段结构。
 - MCP 工具 Schema 保持手工声明，使用 `McpJsonSchema` 和现有 Schema 构建方法。动态属性名使用 `Dictionary<string, McpJsonSchema>`，采用集合添加初始化方式检测重复键；对象 Schema 构建时检查 `required` 是否重复或引用未声明属性。调整后使用工具目录兼容性基线验证 JSON 结构。
 - API 错误通过 `ApiProblemDetailsFactory` 生成 `ProblemDetails`；控制器使用 `ApiProblemWithCode`、`ApiVersionProblem` 和通用 `ApiProblem`。显式空值与字段缺失分别处理，保留任意扩展数据入口。
+- JSON-RPC 成功和错误使用独立响应类型，保证 `result` 与 `error` 互斥。成功的 `result: null`、普通错误的 `data: null` 与超限回退中省略 `data` 的既有合同分别保留。
+- Runtime 内部使用具名事件载荷，经 `RuntimeEventFactory` 显式映射为公共 `RuntimeEvent.Payload` 字典；不要直接序列化包含脚本值的载荷模型。调试暂停复用 `WorkerDebugPauseDto`，先投影 `Inputs` 再序列化。
 - 节点输入输出、运行变量和脚本对象仍可使用动态字典。它们可以持有 CLR 或脚本实例，不应提前转成 JSON；跨 Worker、持久化和客户端边界时继续执行审计投影。
 
 ## 必要语法例外
