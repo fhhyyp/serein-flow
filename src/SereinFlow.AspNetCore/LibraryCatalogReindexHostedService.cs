@@ -8,8 +8,8 @@ namespace SereinFlow.Api;
 /// </summary>
 public sealed class LibraryCatalogReindexHostedService(IServiceScopeFactory scopeFactory, ILogger<LibraryCatalogReindexHostedService> logger) : BackgroundService
 {
-    private static readonly Action<ILogger, int, Exception?> ReindexCompletedLog = createReindexCompletedLogInitialValue();
-    private static readonly Action<ILogger, Exception?> ReindexFailedLog = createReindexFailedLogInitialValue();
+    private static readonly Action<ILogger, int, Exception?> ReindexCompletedLog = CreateReindexCompletedLogInitialValue();
+    private static readonly Action<ILogger, Exception?> ReindexFailedLog = CreateReindexFailedLogInitialValue();
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await Task.Yield();
@@ -32,14 +32,14 @@ public sealed class LibraryCatalogReindexHostedService(IServiceScopeFactory scop
         }
     }
 
-    private static Action<ILogger, int, Exception?> createReindexCompletedLogInitialValue()
+    private static Action<ILogger, int, Exception?> CreateReindexCompletedLogInitialValue()
     {
         var eventId = new EventId(1001, nameof(ReindexCompletedLog));
         Action<ILogger, int, Exception?> reindexCompletedLogInitialValue = LoggerMessage.Define<int>(LogLevel.Information, eventId, "Reindexed {LibraryCount} outdated library catalogs. 已完成过期类库目录重新索引。");
         return reindexCompletedLogInitialValue;
     }
 
-    private static Action<ILogger, Exception?> createReindexFailedLogInitialValue()
+    private static Action<ILogger, Exception?> CreateReindexFailedLogInitialValue()
     {
         var eventId1 = new EventId(1002, nameof(ReindexFailedLog));
         Action<ILogger, Exception?> reindexFailedLogInitialValue = LoggerMessage.Define(LogLevel.Error, eventId1, "Library catalog background reindex failed. 类库目录后台重新索引失败。");

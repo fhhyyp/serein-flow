@@ -94,9 +94,9 @@ public sealed class McpRunVariableToolTests
 
     private sealed class TestHost : IDisposable
     {
-        private readonly string _root = createrootInitialValue();
+        private readonly string _root = CreaterootInitialValue();
         private readonly ServiceProvider _services;
-        public FlowRun Run { get; } = createRunInitialValue();
+        public FlowRun Run { get; } = CreateRunInitialValue();
         public RecordingVariables Variables { get; } = new();
 
         public SereinFlowMcpBackend Backend
@@ -154,7 +154,7 @@ public sealed class McpRunVariableToolTests
             }
         }
 
-        private static string createrootInitialValue()
+        private static string CreaterootInitialValue()
         {
             var getTempPathResult = Path.GetTempPath();
             var evaluatedValue14 = $"sereinflow-variable-mcp-{Guid.NewGuid():N}";
@@ -162,7 +162,7 @@ public sealed class McpRunVariableToolTests
             return rootInitialValue;
         }
 
-        private static FlowRun createRunInitialValue()
+        private static FlowRun CreateRunInitialValue()
         {
             var newGuidResult1 = Guid.NewGuid();
             var newGuidResult2 = Guid.NewGuid();

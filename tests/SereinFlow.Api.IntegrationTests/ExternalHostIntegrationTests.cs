@@ -310,7 +310,7 @@ public sealed class ExternalHostIntegrationTests
 
     private sealed class TemporaryDirectory : IDisposable
     {
-        public string Path { get; } = createPathInitialValue();
+        public string Path { get; } = CreatePathInitialValue();
 
         public TemporaryDirectory()
         {
@@ -335,7 +335,7 @@ public sealed class ExternalHostIntegrationTests
             }
         }
 
-        private static string createPathInitialValue()
+        private static string CreatePathInitialValue()
         {
             var getTempPathResult = System.IO.Path.GetTempPath();
             var evaluatedValue2 = $"sereinflow-external-host-{Guid.NewGuid():N}";

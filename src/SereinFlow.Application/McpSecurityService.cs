@@ -49,7 +49,7 @@ public sealed class McpPrincipalAccessor : IMcpPrincipalAccessor
 
 public sealed class McpSecurityService
 {
-    private static readonly IReadOnlySet<McpPermissionDto> AllPermissions = createAllPermissionsInitialValue();
+    private static readonly IReadOnlySet<McpPermissionDto> AllPermissions = CreateAllPermissionsInitialValue();
     private readonly IMcpApiKeyStore _keys;
     private readonly string? _bootstrapAdminKey;
     public McpSecurityService(IMcpApiKeyStore keys, string? bootstrapAdminKey = null)
@@ -254,7 +254,7 @@ public sealed class McpSecurityService
         return fixedTimeEqualsResult15;
     }
 
-    private static IReadOnlySet<McpPermissionDto> createAllPermissionsInitialValue()
+    private static IReadOnlySet<McpPermissionDto> CreateAllPermissionsInitialValue()
     {
         IReadOnlySet<McpPermissionDto> allPermissionsInitialValue = Enum.GetValues<McpPermissionDto>()
             .ToHashSet();

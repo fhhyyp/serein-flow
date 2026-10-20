@@ -32,10 +32,10 @@ public sealed class RunInterruptionService
     // events without retaining one lock object for every historical run.
     // 对账和人工中断都属于低频控制面操作。短暂的全局临界区可避免重复审计事件，且无需为每个历史运行实例长期保留锁对象。
     private static readonly SemaphoreSlim InterruptionGate = new(1, 1);
-    private static readonly Action<ILogger, Guid, Exception?> SaveFailedLog = createSaveFailedLogInitialValue();
-    private static readonly Action<ILogger, Guid, Exception?> AuditAppendFailedLog = createAuditAppendFailedLogInitialValue();
-    private static readonly Action<ILogger, Guid, Exception?> BroadcastFailedLog = createBroadcastFailedLogInitialValue();
-    private static readonly Action<ILogger, Guid, Exception?> SignalRPushFailedLog = createSignalRPushFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> SaveFailedLog = CreateSaveFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> AuditAppendFailedLog = CreateAuditAppendFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> BroadcastFailedLog = CreateBroadcastFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> SignalRPushFailedLog = CreateSignalRPushFailedLogInitialValue();
     private readonly IFlowRunStore _runStore;
     private readonly IFlowRunEventStore _eventStore;
     private readonly RunEventBroadcaster _broadcaster;
@@ -138,28 +138,28 @@ public sealed class RunInterruptionService
         }
     }
 
-    private static Action<ILogger, Guid, Exception?> createSaveFailedLogInitialValue()
+    private static Action<ILogger, Guid, Exception?> CreateSaveFailedLogInitialValue()
     {
         var eventId = new EventId(4201, "InterruptedRunSaveFailed");
         Action<ILogger, Guid, Exception?> saveFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Warning, eventId, "Interrupted flow run {RunId} could not be saved because it no longer exists. 已中断的流程实例无法保存，实例可能已不存在。");
         return saveFailedLogInitialValue;
     }
 
-    private static Action<ILogger, Guid, Exception?> createAuditAppendFailedLogInitialValue()
+    private static Action<ILogger, Guid, Exception?> CreateAuditAppendFailedLogInitialValue()
     {
         var eventId1 = new EventId(4202, "InterruptedRunAuditAppendFailed");
         Action<ILogger, Guid, Exception?> auditAppendFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Error, eventId1, "Interrupted flow run {RunId} could not append its audit event. 已中断流程实例无法追加审计事件。");
         return auditAppendFailedLogInitialValue;
     }
 
-    private static Action<ILogger, Guid, Exception?> createBroadcastFailedLogInitialValue()
+    private static Action<ILogger, Guid, Exception?> CreateBroadcastFailedLogInitialValue()
     {
         var eventId2 = new EventId(4203, "InterruptedRunBroadcastFailed");
         Action<ILogger, Guid, Exception?> broadcastFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Warning, eventId2, "Interrupted run event broadcast failed for {RunId}. 中断运行事件广播失败。");
         return broadcastFailedLogInitialValue;
     }
 
-    private static Action<ILogger, Guid, Exception?> createSignalRPushFailedLogInitialValue()
+    private static Action<ILogger, Guid, Exception?> CreateSignalRPushFailedLogInitialValue()
     {
         var eventId3 = new EventId(4204, "InterruptedRunSignalRPushFailed");
         Action<ILogger, Guid, Exception?> signalRPushFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Warning, eventId3, "Interrupted SignalR event push failed for {RunId}. 中断 SignalR 事件推送失败。");

@@ -1812,9 +1812,9 @@ public sealed class FlowPatchContractException(string code, string fieldPath, st
     public string FieldPath { get; } = fieldPath;
     public string Expected { get; } = expected;
     public string Remediation { get; } = remediation;
-    public string DiagnosticId { get; } = createDiagnosticIdInitialValue();
+    public string DiagnosticId { get; } = CreateDiagnosticIdInitialValue();
 
-    private static string createDiagnosticIdInitialValue()
+    private static string CreateDiagnosticIdInitialValue()
     {
         var newGuidResult = Guid.NewGuid();
         string diagnosticIdInitialValue = newGuidResult.ToString("N");

@@ -286,7 +286,7 @@ public sealed class DebugExecutionGateTests
     private sealed class QueuedFlipflopExecutor : INodeExecutor, IGlobalFlipflopExecutor
     {
         private readonly System.Threading.Channels.Channel<long> _triggers = System.Threading.Channels.Channel.CreateUnbounded<long>();
-        private readonly TaskCompletionSource[] _waits = createwaitsInitialValue();
+        private readonly TaskCompletionSource[] _waits = CreatewaitsInitialValue();
         private int _waitCount;
         public NodeType NodeType => NodeType.Flipflop;
 
@@ -323,7 +323,7 @@ public sealed class DebugExecutionGateTests
             return successResult32;
         }
 
-        private static TaskCompletionSource[] createwaitsInitialValue()
+        private static TaskCompletionSource[] CreatewaitsInitialValue()
         {
             TaskCompletionSource[] waitsInitialValue = Enumerable.Range(0, 8)
                 .Select(static _ =>

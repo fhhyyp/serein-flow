@@ -115,7 +115,7 @@ public sealed class LibraryNodeTemplateServiceTests
 
     private sealed class ReferenceRepository(params (Guid ProjectId, string LibraryId)[] references) : IProjectLibraryReferenceRepository
     {
-        private readonly List<ProjectLibraryReference> _references = createreferencesInitialValue(references);
+        private readonly List<ProjectLibraryReference> _references = CreatereferencesInitialValue(references);
         public Task<IReadOnlyList<ProjectLibraryReference>> ListByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
             var toArrayResult = _references
@@ -155,7 +155,7 @@ public sealed class LibraryNodeTemplateServiceTests
             return fromResultResult26;
         }
 
-        private static List<ProjectLibraryReference> createreferencesInitialValue((Guid ProjectId, string LibraryId)[] references)
+        private static List<ProjectLibraryReference> CreatereferencesInitialValue((Guid ProjectId, string LibraryId)[] references)
         {
             List<ProjectLibraryReference> referencesInitialValue = references
                 .Select(static item =>

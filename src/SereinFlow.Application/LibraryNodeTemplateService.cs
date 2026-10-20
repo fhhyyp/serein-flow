@@ -182,9 +182,9 @@ public sealed class LibraryNodeTemplateException(string code, string fieldPath, 
     public string Expected { get; } = expected;
     public string Remediation { get; } = remediation;
     public int StatusCode { get; } = statusCode;
-    public string DiagnosticId { get; } = createDiagnosticIdInitialValue();
+    public string DiagnosticId { get; } = CreateDiagnosticIdInitialValue();
 
-    private static string createDiagnosticIdInitialValue()
+    private static string CreateDiagnosticIdInitialValue()
     {
         var newGuidResult = Guid.NewGuid();
         string diagnosticIdInitialValue = newGuidResult.ToString("N");

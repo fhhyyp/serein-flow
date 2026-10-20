@@ -18,12 +18,12 @@ namespace SereinFlow.Api;
 public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionService
 {
     private const string DebugStoppedMessage = "The debug session was stopped. 调试会话已停止。";
-    private static readonly Action<ILogger, Guid, Exception?> DebugWorkerStartupFailedLog = createDebugWorkerStartupFailedLogInitialValue();
-    private static readonly Action<ILogger, Exception?> DebugWorkerShutdownFailedLog = createDebugWorkerShutdownFailedLogInitialValue();
-    private static readonly Action<ILogger, Guid, Exception?> DebugWorkerMonitoringFailedLog = createDebugWorkerMonitoringFailedLogInitialValue();
-    private static readonly Action<ILogger, Guid, Exception?> DebugCompletionPersistenceFailedLog = createDebugCompletionPersistenceFailedLogInitialValue();
-    private static readonly Action<ILogger, Guid, Exception?> LiveDebugBroadcastFailedLog = createLiveDebugBroadcastFailedLogInitialValue();
-    private static readonly Action<ILogger, Guid, Exception?> DebugSignalRPushFailedLog = createDebugSignalRPushFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> DebugWorkerStartupFailedLog = CreateDebugWorkerStartupFailedLogInitialValue();
+    private static readonly Action<ILogger, Exception?> DebugWorkerShutdownFailedLog = CreateDebugWorkerShutdownFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> DebugWorkerMonitoringFailedLog = CreateDebugWorkerMonitoringFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> DebugCompletionPersistenceFailedLog = CreateDebugCompletionPersistenceFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> LiveDebugBroadcastFailedLog = CreateLiveDebugBroadcastFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> DebugSignalRPushFailedLog = CreateDebugSignalRPushFailedLogInitialValue();
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IWorkerDebugRunClient _workerClient;
     private readonly RunExecutionQueue _queue;
@@ -638,42 +638,42 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         public SemaphoreSlim CommandGate { get; } = new(1, 1);
     }
 
-    private static Action<ILogger, Guid, Exception?> createDebugWorkerStartupFailedLogInitialValue()
+    private static Action<ILogger, Guid, Exception?> CreateDebugWorkerStartupFailedLogInitialValue()
     {
         var eventId = new EventId(4101, nameof(DebugWorkerStartupFailedLog));
         Action<ILogger, Guid, Exception?> debugWorkerStartupFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Error, eventId, "Debug Worker startup failed for session {DebugSessionId}. 调试 Worker 启动失败。");
         return debugWorkerStartupFailedLogInitialValue;
     }
 
-    private static Action<ILogger, Exception?> createDebugWorkerShutdownFailedLogInitialValue()
+    private static Action<ILogger, Exception?> CreateDebugWorkerShutdownFailedLogInitialValue()
     {
         var eventId1 = new EventId(4102, nameof(DebugWorkerShutdownFailedLog));
         Action<ILogger, Exception?> debugWorkerShutdownFailedLogInitialValue = LoggerMessage.Define(LogLevel.Warning, eventId1, "Debug Worker shutdown failed. 调试 Worker 关闭失败。");
         return debugWorkerShutdownFailedLogInitialValue;
     }
 
-    private static Action<ILogger, Guid, Exception?> createDebugWorkerMonitoringFailedLogInitialValue()
+    private static Action<ILogger, Guid, Exception?> CreateDebugWorkerMonitoringFailedLogInitialValue()
     {
         var eventId2 = new EventId(4103, nameof(DebugWorkerMonitoringFailedLog));
         Action<ILogger, Guid, Exception?> debugWorkerMonitoringFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Error, eventId2, "Debug Worker monitoring failed for session {DebugSessionId}. 调试 Worker 监控失败。");
         return debugWorkerMonitoringFailedLogInitialValue;
     }
 
-    private static Action<ILogger, Guid, Exception?> createDebugCompletionPersistenceFailedLogInitialValue()
+    private static Action<ILogger, Guid, Exception?> CreateDebugCompletionPersistenceFailedLogInitialValue()
     {
         var eventId3 = new EventId(4104, nameof(DebugCompletionPersistenceFailedLog));
         Action<ILogger, Guid, Exception?> debugCompletionPersistenceFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Error, eventId3, "Debug completion persistence failed for session {DebugSessionId}. 调试完成状态持久化失败。");
         return debugCompletionPersistenceFailedLogInitialValue;
     }
 
-    private static Action<ILogger, Guid, Exception?> createLiveDebugBroadcastFailedLogInitialValue()
+    private static Action<ILogger, Guid, Exception?> CreateLiveDebugBroadcastFailedLogInitialValue()
     {
         var eventId4 = new EventId(4105, nameof(LiveDebugBroadcastFailedLog));
         Action<ILogger, Guid, Exception?> liveDebugBroadcastFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Warning, eventId4, "Live debug event broadcast failed for {RunId}. 实时调试事件广播失败。");
         return liveDebugBroadcastFailedLogInitialValue;
     }
 
-    private static Action<ILogger, Guid, Exception?> createDebugSignalRPushFailedLogInitialValue()
+    private static Action<ILogger, Guid, Exception?> CreateDebugSignalRPushFailedLogInitialValue()
     {
         var eventId5 = new EventId(4106, nameof(DebugSignalRPushFailedLog));
         Action<ILogger, Guid, Exception?> debugSignalRPushFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Warning, eventId5, "Debug SignalR event push failed for {RunId}. 调试 SignalR 事件推送失败。");

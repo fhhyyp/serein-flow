@@ -54,7 +54,7 @@ public sealed class RunMessageApiIntegrationTests
 
     private sealed class ApiFactory(FlowRun run, RecordingWorkerClient worker) : WebApplicationFactory<Program>
     {
-        private readonly string _dataRoot = createdataRootInitialValue();
+        private readonly string _dataRoot = CreatedataRootInitialValue();
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing");
@@ -99,7 +99,7 @@ public sealed class RunMessageApiIntegrationTests
             }
         }
 
-        private static string createdataRootInitialValue()
+        private static string CreatedataRootInitialValue()
         {
             var getTempPathResult = Path.GetTempPath();
             var evaluatedValue = $"sereinflow-run-message-api-{Guid.NewGuid():N}";

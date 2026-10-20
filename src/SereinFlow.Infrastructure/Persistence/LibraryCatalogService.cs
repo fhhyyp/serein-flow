@@ -63,7 +63,7 @@ public sealed record LibraryCatalogOptions
 public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDisposable
 {
     internal const int CurrentCatalogSchemaVersion = 6;
-    private static readonly Action<ILogger, string, Exception?> ReindexSkippedLog = createReindexSkippedLogInitialValue();
+    private static readonly Action<ILogger, string, Exception?> ReindexSkippedLog = CreateReindexSkippedLogInitialValue();
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions(options =>
     {
         options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
@@ -1124,7 +1124,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         // request.
     }
 
-    private static Action<ILogger, string, Exception?> createReindexSkippedLogInitialValue()
+    private static Action<ILogger, string, Exception?> CreateReindexSkippedLogInitialValue()
     {
         var eventId = new EventId(1001, nameof(ReindexSkippedLog));
         Action<ILogger, string, Exception?> reindexSkippedLogInitialValue = LoggerMessage.Define<string>(LogLevel.Warning, eventId, "Library catalog reindex skipped library {LibraryId}; the saved catalog remains unchanged. 类库目录重建已跳过该类库；已保存目录保持不变。");

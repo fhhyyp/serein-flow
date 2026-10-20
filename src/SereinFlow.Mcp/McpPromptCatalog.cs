@@ -5,7 +5,7 @@ namespace SereinFlow.Mcp;
 internal static class McpPromptCatalog
 {
     private const int MaxRequestLength = 4_000;
-    public static IReadOnlyList<McpPromptDescriptor> Descriptors { get; } = createDescriptorsInitialValue();
+    public static IReadOnlyList<McpPromptDescriptor> Descriptors { get; } = CreateDescriptorsInitialValue();
 
     public static async Task<McpPromptResult> GetAsync(string name, JsonElement arguments, McpAiGuidanceProvider guidanceProvider, CancellationToken cancellationToken)
     {
@@ -116,7 +116,7 @@ internal static class McpPromptCatalog
         }
     }
 
-    private static IReadOnlyList<McpPromptDescriptor> createDescriptorsInitialValue()
+    private static IReadOnlyList<McpPromptDescriptor> CreateDescriptorsInitialValue()
     {
         IReadOnlyList<McpPromptDescriptor> descriptorsInitialValue = [resolveevaluatedValue(), resolveevaluatedValue6(), resolveevaluatedValue9(), resolveevaluatedValue12(), resolveevaluatedValue15(), resolveevaluatedValue18(), resolveevaluatedValue21()];
         return descriptorsInitialValue;

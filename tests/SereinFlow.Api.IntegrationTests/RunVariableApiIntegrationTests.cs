@@ -119,8 +119,8 @@ public sealed class RunVariableApiIntegrationTests
     private sealed class ApiFactory : WebApplicationFactory<Program>
     {
         public const string Key = "variable-api-test-bootstrap-key";
-        private readonly string _root = createrootInitialValue();
-        public FlowRun Run { get; } = createRunInitialValue();
+        private readonly string _root = CreaterootInitialValue();
+        public FlowRun Run { get; } = CreateRunInitialValue();
         public RecordingWorker Worker { get; } = new();
         public TestEventStore Events { get; } = new();
 
@@ -187,7 +187,7 @@ public sealed class RunVariableApiIntegrationTests
             }
         }
 
-        private static string createrootInitialValue()
+        private static string CreaterootInitialValue()
         {
             var getTempPathResult = Path.GetTempPath();
             var evaluatedValue16 = $"sereinflow-variable-api-{Guid.NewGuid():N}";
@@ -195,7 +195,7 @@ public sealed class RunVariableApiIntegrationTests
             return rootInitialValue;
         }
 
-        private static FlowRun createRunInitialValue()
+        private static FlowRun CreateRunInitialValue()
         {
             var newGuidResult = Guid.NewGuid();
             var newGuidResult1 = Guid.NewGuid();

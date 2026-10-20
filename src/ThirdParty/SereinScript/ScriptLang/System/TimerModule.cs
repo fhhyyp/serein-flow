@@ -49,7 +49,7 @@ namespace ScriptLang.System
             }
             if (timer is ClrObjectValue clr1 && clr1.Value is TimerWrapper w1)
             {
-                w1.stop();
+                w1.Stop();
             }
 
 
@@ -76,12 +76,12 @@ namespace ScriptLang.System
 
         private TaskCompletionSource _tcs = new();
 
-        public async Task wait()
+        public async Task Wait()
         {
             await _tcs.Task;
         }
 
-        public void stop()
+        public void Stop()
         {
             this.Dispose();
         }
@@ -92,8 +92,8 @@ namespace ScriptLang.System
             return new ObjectValue(new()
             {
                 [nameof(timer)] = new ClrObjectValue(wrapper),
-                [nameof(wait)] = new FunctionValue(nameof(wait), wrapper.wait),
-                [nameof(stop)] = new FunctionValue(nameof(stop), wrapper.stop)
+                ["wait"] = new FunctionValue("wait", wrapper.Wait),
+                ["stop"] = new FunctionValue("stop", wrapper.Stop)
             });
         }
     }

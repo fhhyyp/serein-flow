@@ -715,8 +715,8 @@ public sealed class RunEventsHub : Hub
 
 public sealed class RunExecutionHostedService : BackgroundService
 {
-    private static readonly Action<ILogger, Guid, Exception?> WorkerRunFailedLog = createWorkerRunFailedLogInitialValue();
-    private static readonly Action<ILogger, Guid, Exception?> ReconciliationFailedLog = createReconciliationFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> WorkerRunFailedLog = CreateWorkerRunFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> ReconciliationFailedLog = CreateReconciliationFailedLogInitialValue();
     private readonly RunExecutionQueue _queue;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IWorkerRunClient _workerClient;
@@ -1219,14 +1219,14 @@ public sealed class RunExecutionHostedService : BackgroundService
         FlowRunStatusDto.TimedOut => FlowRunStatus.TimedOut,
         _ => FlowRunStatus.Failed
     };
-    private static Action<ILogger, Guid, Exception?> createWorkerRunFailedLogInitialValue()
+    private static Action<ILogger, Guid, Exception?> CreateWorkerRunFailedLogInitialValue()
     {
         var eventId = new EventId(4101, "WorkerRunFailed");
         Action<ILogger, Guid, Exception?> workerRunFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Error, eventId, "Worker run {RunId} failed before completion. Worker 运行在完成前失败。");
         return workerRunFailedLogInitialValue;
     }
 
-    private static Action<ILogger, Guid, Exception?> createReconciliationFailedLogInitialValue()
+    private static Action<ILogger, Guid, Exception?> CreateReconciliationFailedLogInitialValue()
     {
         var eventId21 = new EventId(4103, "InterruptedRunReconciliationFailed");
         Action<ILogger, Guid, Exception?> reconciliationFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Error, eventId21, "Interrupted run reconciliation failed for {RunId}. 中断运行实例对账失败。");

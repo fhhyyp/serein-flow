@@ -15,7 +15,7 @@ namespace SereinFlow.Mcp;
 /// </summary>
 internal static class SereinFlowMcpToolCatalogFactory
 {
-    private static readonly IReadOnlyList<McpToolDescriptor> ToolDescriptors = createToolDescriptorsInitialValue();
+    private static readonly IReadOnlyList<McpToolDescriptor> ToolDescriptors = CreateToolDescriptorsInitialValue();
     internal static McpToolCatalog Create()
     {
         IEnumerable<IMcpTool> evaluatedValue206 = [Read("sereinflow_list_projects", McpPermissionDto.ProjectRead, static (context, arguments, cancellationToken) =>
@@ -279,7 +279,7 @@ internal static class SereinFlowMcpToolCatalogFactory
         return singleResult;
     }
 
-    private static IReadOnlyList<McpToolDescriptor> createToolDescriptorsInitialValue()
+    private static IReadOnlyList<McpToolDescriptor> CreateToolDescriptorsInitialValue()
     {
         IReadOnlyList<McpToolDescriptor> toolDescriptorsInitialValue = [resolveToolResult(), resolveToolResult1(), resolveToolResult5(), resolveToolResult9(), resolveToolResult12(), resolveToolResult16(), resolveToolResult20(), resolveToolResult24(), resolveToolResult28(), resolveToolResult32(), resolveToolResult36(), resolveToolResult40(), resolveToolResult44(), resolveToolResult48(), resolveToolResult52(), resolveToolResult56(), resolveToolResult60(), resolveToolResult64(), resolveToolResult68(), resolveToolResult72(), resolveToolResult76(), resolveToolResult80(), resolveToolResult84(), resolveToolResult88(), resolveToolResult92(), resolveToolResult96(), resolveToolResult100(), resolveToolResult104(), resolveToolResult108(), resolveToolResult112(), resolveToolResult116(), resolveToolResult120(), resolveToolResult124(), resolveToolResult128(), resolveToolResult132(), resolveToolResult136(), resolveToolResult140(), resolveToolResult144(), resolveToolResult148(), resolveToolResult152(), resolveToolResult156(), resolveToolResult160(), resolveToolResult164(), resolveToolResult168(), resolveToolResult172(), resolveToolResult179(), resolveToolResult189(), resolveToolResult192(), resolveToolResult198(), resolveToolResult202()];
         return toolDescriptorsInitialValue;
