@@ -9,6 +9,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 public sealed class SqlSugarFlowRunStore : IFlowRunStore
 {
     private const int MinimumRunPageSize = 1;
@@ -70,11 +71,11 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
             var flowRunAdmissionResult = new FlowRunAdmissionResult(saved);
             return flowRunAdmissionResult;
         }
-        catch (SqlSugarException exception)when (IsExclusiveConflict(exception))
+        catch (SqlSugarException exception) when (IsExclusiveConflict(exception))
         {
             var flowRunQuery = new FlowRunQuery([FlowRunStatus.Pending, FlowRunStatus.Running]);
-            var evaluatedValue = (await ListAsync(flowRunQuery, cancellationToken));
-            var active = evaluatedValue.FirstOrDefault(item => item.FlowId == run.FlowId && item.ConcurrencyMode == FlowConcurrencyMode.ExclusiveReject);
+            var active = (await ListAsync(flowRunQuery, cancellationToken))
+                .FirstOrDefault(item => item.FlowId == run.FlowId && item.ConcurrencyMode == FlowConcurrencyMode.ExclusiveReject);
             var flowRunAdmissionResult1 = new FlowRunAdmissionResult(null, active?.Id);
             return flowRunAdmissionResult1;
         }
@@ -171,9 +172,10 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
             pending.Add(pendingFlowRun);
         }
 
-        var orderByResult = pending.OrderBy(static item => item.Run.QueuedAt);
-        var thenByResult = orderByResult.ThenBy(static item => item.Run.Id);
-        var toArrayResult = thenByResult.ToArray();
+        var toArrayResult = pending
+            .OrderBy(static item => item.Run.QueuedAt)
+            .ThenBy(static item => item.Run.Id)
+            .ToArray();
         return toArrayResult;
     }
 
@@ -195,16 +197,18 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         var statuses = optionalResult;
         var projectId = query.ProjectId?.ToString("D");
         var rows = await _runs.ListAsync(projectId is not null ? row => row.ProjectId == projectId : null, cancellationToken);
-        var whereResult = rows.Where(row =>
-        {
-            var evaluatedValue3 = statuses is null || statuses.Contains(row.Status);
-            return evaluatedValue3;
-        });
-        var selectResult4 = whereResult.Select(Map);
-        var orderByDescendingResult = selectResult4.OrderByDescending(static item => item.CreatedAt);
+        var orderByDescendingResult = rows
+            .Where(row =>
+            {
+                var evaluatedValue3 = statuses is null || statuses.Contains(row.Status);
+                return evaluatedValue3;
+            })
+            .Select(Map)
+            .OrderByDescending(static item => item.CreatedAt);
         var clampResult = Math.Clamp(query.Take, MinimumRunPageSize, MaximumRunPageSize);
-        var takeResult = orderByDescendingResult.Take(clampResult);
-        var toArrayResult5 = takeResult.ToArray();
+        var toArrayResult5 = orderByDescendingResult
+            .Take(clampResult)
+            .ToArray();
         return toArrayResult5;
     }
 
@@ -332,12 +336,12 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         var runKey = runId.ToString("D");
         var listAsyncResult = _definitions.ListAsync();
         var getAwaiterResult17 = listAsyncResult.GetAwaiter();
-        var getResultResult18 = getAwaiterResult17.GetResult();
-        var row = getResultResult18.SingleOrDefault(item =>
-        {
-            var equalsResult16 = string.Equals(item.RunId, runKey, StringComparison.OrdinalIgnoreCase);
-            return equalsResult16;
-        });
+        var row = getAwaiterResult17.GetResult()
+            .SingleOrDefault(item =>
+            {
+                var equalsResult16 = string.Equals(item.RunId, runKey, StringComparison.OrdinalIgnoreCase);
+                return equalsResult16;
+            });
         FlowDefinitionDto? evaluatedValue19 = row is null ? null : JsonSerializer.Deserialize<FlowDefinitionDto>(row.DefinitionJson, JsonOptions);
         return evaluatedValue19;
     }
@@ -410,7 +414,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
             // immutable run snapshot itself from being retained.
             // 运行快照可能包含目录中已不存在的旧绑定。该索引只是可选的审计
             // 元数据，不能妨碍不可变运行快照本身被保留。
-            if (await _libraries.GetByIdAsync(artifactId, cancellationToken)is null)
+            if (await _libraries.GetByIdAsync(artifactId, cancellationToken) is null)
             {
                 continue;
             }

@@ -10,6 +10,7 @@ using SereinFlow.Infrastructure.Persistence;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Mcp.Tests;
+
 public sealed class McpRunVariableToolTests
 {
     [Fact]
@@ -35,12 +36,12 @@ public sealed class McpRunVariableToolTests
         var evaluatedValue3 = (await host.Backend.ListToolsAsync(CancellationToken.None));
         var schema = evaluatedValue3.Single(tool => tool.Name == "sereinflow_set_run_variable").InputSchema;
         var getPropertyResult4 = schema.GetProperty("required");
-        var enumerateArrayResult = getPropertyResult4.EnumerateArray();
-        var selectResult = enumerateArrayResult.Select(item =>
-        {
-            var getStringResult = item.GetString();
-            return getStringResult;
-        });
+        var selectResult = getPropertyResult4.EnumerateArray()
+            .Select(item =>
+            {
+                var getStringResult = item.GetString();
+                return getStringResult;
+            });
         Assert.Contains("valueType", selectResult);
         var toNameResult = McpPermissionNames.ToName(McpPermissionDto.RunVariableWrite);
         Assert.Equal("run.variable.write", toNameResult);

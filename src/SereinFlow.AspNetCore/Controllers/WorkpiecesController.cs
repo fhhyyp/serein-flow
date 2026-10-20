@@ -3,6 +3,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/runs/{runId:guid}/workpieces")]
 public sealed class WorkpiecesController : ApiControllerBase
 {
@@ -44,8 +45,9 @@ public sealed class WorkpiecesController : ApiControllerBase
         }
 
         var items = await _workpieces.ListAsync(runId, cancellationToken);
-        var selectResult = items.Select(ToDto);
-        var toArrayResult = selectResult.ToArray();
+        var toArrayResult = items
+            .Select(ToDto)
+            .ToArray();
         var okResult = Ok(toArrayResult);
         return okResult;
     }

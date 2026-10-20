@@ -3,6 +3,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 public sealed class SqlSugarFlowRunOutputStore : IFlowRunOutputStore
 {
     private readonly IRepository<FlowRunOutputRecord> _outputs;
@@ -37,14 +38,15 @@ public sealed class SqlSugarFlowRunOutputStore : IFlowRunOutputStore
 
         try
         {
-            var orderByResult = outputs.OrderBy(static item => item.Sequence);
-            var groupByResult = orderByResult.GroupBy(static item => (item.RunId, item.Sequence));
-            var selectResult = groupByResult.Select(static group =>
-            {
-                var firstResult = group.First();
-                return firstResult;
-            });
-            var distinct = selectResult.ToArray();
+            var distinct = outputs
+                .OrderBy(static item => item.Sequence)
+                .GroupBy(static item => (item.RunId, item.Sequence))
+                .Select(static group =>
+                {
+                    var firstResult = group.First();
+                    return firstResult;
+                })
+                .ToArray();
             var existingKeys = new HashSet<(string RunId, long Sequence)>();
             foreach (var runGroup in distinct.GroupBy(static item => item.RunId))
             {
@@ -97,9 +99,10 @@ public sealed class SqlSugarFlowRunOutputStore : IFlowRunOutputStore
     {
         var runIdText = runId.ToString("D");
         var rows = await _outputs.ListAsync(row => row.RunId == runIdText, cancellationToken);
-        var orderByResult1 = rows.OrderBy(static row => row.Sequence);
-        var selectResult2 = orderByResult1.Select(Map);
-        var toArrayResult = selectResult2.ToArray();
+        var toArrayResult = rows
+            .OrderBy(static row => row.Sequence)
+            .Select(Map)
+            .ToArray();
         return toArrayResult;
     }
 

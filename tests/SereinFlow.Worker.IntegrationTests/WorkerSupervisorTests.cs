@@ -9,6 +9,7 @@ using SereinFlow.Worker.Runner;
 using SereinFlow.Worker.Supervisor;
 
 namespace SereinFlow.Worker.IntegrationTests;
+
 public sealed class WorkerSupervisorTests
 {
     private const string TestLibraryArtifactId = "test-library-artifact";
@@ -31,8 +32,9 @@ public sealed class WorkerSupervisorTests
         {
             Assert.Equal(request.RunId, workerEvent.RunId);
         });
-        var orderByResult = events.OrderBy(workerEvent => workerEvent.Sequence);
-        var selectResult = orderByResult.Select(workerEvent => workerEvent.Sequence);
+        var selectResult = events
+            .OrderBy(workerEvent => workerEvent.Sequence)
+            .Select(workerEvent => workerEvent.Sequence);
         var selectResult1 = events.Select(workerEvent => workerEvent.Sequence);
         Assert.Equal(selectResult, selectResult1);
         Assert.Contains(events, workerEvent => workerEvent.EventType == WorkerEventType.NodeStarted);
@@ -265,7 +267,7 @@ public sealed class WorkerSupervisorTests
         var node = canvas.Nodes.Single();
         var staleNode = node with
         {
-            Script = node.Script!with
+            Script = node.Script! with
             {
                 SourceHash = "stale-source-hash"
             }
@@ -409,8 +411,8 @@ public sealed class WorkerSupervisorTests
             var getStringResult46 = getPropertyResult45.GetString();
             Assert.Equal(DeviceErrorCodes.NotReady, getStringResult46);
             var getPropertyResult47 = payload.RootElement.GetProperty("inputs");
-            var enumerateObjectResult = getPropertyResult47.EnumerateObject();
-            var selectResult48 = enumerateObjectResult.Select(item => item.Name);
+            var selectResult48 = getPropertyResult47.EnumerateObject()
+                .Select(item => item.Name);
             Assert.DoesNotContain("流程上下文", selectResult48);
         }
         finally
@@ -476,8 +478,8 @@ public sealed class WorkerSupervisorTests
             var getInt32Result59 = getPropertyResult58.GetInt32();
             Assert.Equal(5, getInt32Result59);
             var getPropertyResult60 = payload.RootElement.GetProperty("inputs");
-            var enumerateObjectResult61 = getPropertyResult60.EnumerateObject();
-            var countResult = enumerateObjectResult61.Count();
+            var countResult = getPropertyResult60.EnumerateObject()
+                .Count();
             Assert.Equal(2, countResult);
         }
         finally
@@ -616,7 +618,7 @@ public sealed class WorkerSupervisorTests
             var firstPause = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var secondPause = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
-            var request = resolveCreateTwoNodeLibraryServiceRequestResult()with
+            var request = resolveCreateTwoNodeLibraryServiceRequestResult() with
             {
                 Debug = resolveWorkerDebugOptionsDto()
             };
@@ -998,7 +1000,7 @@ public sealed class WorkerSupervisorTests
         {
             var successorCompleted = new TaskCompletionSource<WorkerEventEnvelopeDto>(TaskCreationOptions.RunContinuationsAsynchronously);
             var supervisor = CreateSupervisor(allowedLibraryPackageRoot: packageRoot);
-            var request = resolveCreateLibraryExternalMessageChainRequestResult()with
+            var request = resolveCreateLibraryExternalMessageChainRequestResult() with
             {
                 Debug = resolveWorkerDebugOptionsDto135()
             };

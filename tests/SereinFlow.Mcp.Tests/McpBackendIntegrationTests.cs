@@ -11,6 +11,7 @@ using SereinFlow.Infrastructure.Persistence;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Mcp.Tests;
+
 public sealed class McpBackendIntegrationTests
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();
@@ -40,8 +41,8 @@ public sealed class McpBackendIntegrationTests
             services.AddSingleton<ILibraryCatalogService>(testLibraryCatalog);
         });
         var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var getValuesResult = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult = getValuesResult.ToHashSet();
+        var toHashSetResult = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         accessor.Current = new McpPrincipal("catalog-admin", null, toHashSetResult, IsAdministrator: true);
         var activeProject = Project.Create("Active MCP project");
         var archivedProject = Project.Create("Archived MCP project");
@@ -202,8 +203,8 @@ public sealed class McpBackendIntegrationTests
             services.AddSingleton<ILibraryCatalogService>(catalog);
         });
         var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var getValuesResult48 = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult49 = getValuesResult48.ToHashSet();
+        var toHashSetResult49 = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         accessor.Current = new McpPrincipal("family-admin", null, toHashSetResult49, IsAdministrator: true);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var serializeToElementResult50 = JsonSerializer.SerializeToElement(new { libraryId = artifact.Id, name = "Image processing", description = "Immutable versions of the image processing package", });
@@ -373,13 +374,13 @@ public sealed class McpBackendIntegrationTests
         Assert.Contains("branch", connectionRequired);
         var evaluatedValue115 = resolveGetPropertyResult108()[0];
         var dataSourceEnum = evaluatedValue115.GetProperty("enum");
-        var enumerateArrayResult116 = dataSourceEnum.EnumerateArray();
-        var selectResult117 = enumerateArrayResult116.Select(item =>
-        {
-            var evaluatedValue82 = item.GetString()!;
-            return evaluatedValue82;
-        });
-        var toArrayResult = selectResult117.ToArray();
+        var toArrayResult = dataSourceEnum.EnumerateArray()
+            .Select(item =>
+            {
+                var evaluatedValue82 = item.GetString()!;
+                return evaluatedValue82;
+            })
+            .ToArray();
         Assert.Equal(["literal", "previousNode", "projectInput", "expression"], toArrayResult);
         var evaluatedValue122 = resolveGetPropertyResult118()[1];
         var getPropertyResult123 = evaluatedValue122.GetProperty("type");
@@ -524,8 +525,8 @@ public sealed class McpBackendIntegrationTests
         });
         Assert.Equal(["pending", "running", "succeeded", "failed", "cancelled", "timedOut", "interrupted"], selectResult165);
         var apiKey = tools.Single(item => item.Name == "sereinflow_create_mcp_api_key");
-        var getValuesResult166 = Enum.GetValues<McpPermissionDto>();
-        var selectResult167 = getValuesResult166.Select(McpPermissionNames.ToName);
+        var selectResult167 = Enum.GetValues<McpPermissionDto>()
+            .Select(McpPermissionNames.ToName);
         var getPropertyResult168 = apiKey.InputSchema.GetProperty("properties");
         var getPropertyResult169 = getPropertyResult168.GetProperty("permissions");
         var getPropertyResult170 = getPropertyResult169.GetProperty("items");
@@ -544,8 +545,8 @@ public sealed class McpBackendIntegrationTests
     {
         using var host = CreateHost();
         var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var getValuesResult174 = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult175 = getValuesResult174.ToHashSet();
+        var toHashSetResult175 = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         accessor.Current = new McpPrincipal("parameter-patch-admin", null, toHashSetResult175, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP parameter patch project");
@@ -617,8 +618,8 @@ public sealed class McpBackendIntegrationTests
     {
         using var host = CreateHost();
         var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var getValuesResult195 = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult196 = getValuesResult195.ToHashSet();
+        var toHashSetResult196 = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         accessor.Current = new McpPrincipal("empty-draft-admin", null, toHashSetResult196, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP empty draft project");
@@ -676,8 +677,8 @@ public sealed class McpBackendIntegrationTests
     {
         using var host = CreateHost();
         var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var getValuesResult220 = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult221 = getValuesResult220.ToHashSet();
+        var toHashSetResult221 = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         accessor.Current = new McpPrincipal("integration-admin", null, toHashSetResult221, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP canonical patch project");
@@ -734,8 +735,8 @@ public sealed class McpBackendIntegrationTests
     {
         using var host = CreateHost();
         var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var getValuesResult253 = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult254 = getValuesResult253.ToHashSet();
+        var toHashSetResult254 = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         accessor.Current = new McpPrincipal("integration-admin", null, toHashSetResult254, IsAdministrator: true);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
@@ -841,8 +842,8 @@ public sealed class McpBackendIntegrationTests
     {
         using var host = CreateHost();
         var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var getValuesResult287 = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult288 = getValuesResult287.ToHashSet();
+        var toHashSetResult288 = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         accessor.Current = new McpPrincipal("integration-admin", null, toHashSetResult288, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP enum patch project");
@@ -881,8 +882,8 @@ public sealed class McpBackendIntegrationTests
     {
         using var host = CreateHost();
         var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var getValuesResult304 = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult305 = getValuesResult304.ToHashSet();
+        var toHashSetResult305 = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         accessor.Current = new McpPrincipal("integration-admin", null, toHashSetResult305, IsAdministrator: true);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
@@ -914,8 +915,8 @@ public sealed class McpBackendIntegrationTests
     {
         using var host = CreateHost();
         var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var getValuesResult310 = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult311 = getValuesResult310.ToHashSet();
+        var toHashSetResult311 = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         accessor.Current = new McpPrincipal("project-admin", null, toHashSetResult311, IsAdministrator: true);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var serializeToElementResult312 = JsonSerializer.SerializeToElement(new { name = "OpenCV demo", flowName = "Main flow" });
@@ -992,8 +993,8 @@ public sealed class McpBackendIntegrationTests
     {
         using var host = CreateHost();
         var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var getValuesResult330 = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult331 = getValuesResult330.ToHashSet();
+        var toHashSetResult331 = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         accessor.Current = new McpPrincipal("key-admin", null, toHashSetResult331, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP key project");
@@ -1045,8 +1046,8 @@ public sealed class McpBackendIntegrationTests
     {
         using var host = CreateHost();
         var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var getValuesResult345 = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult346 = getValuesResult345.ToHashSet();
+        var toHashSetResult346 = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         accessor.Current = new McpPrincipal("integration-admin", null, toHashSetResult346, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP publish project");
@@ -1095,8 +1096,8 @@ public sealed class McpBackendIntegrationTests
     {
         using var host = CreateHost();
         var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var getValuesResult367 = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult368 = getValuesResult367.ToHashSet();
+        var toHashSetResult368 = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         accessor.Current = new McpPrincipal("integration-admin", null, toHashSetResult368, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP conflict project");
@@ -1140,8 +1141,8 @@ public sealed class McpBackendIntegrationTests
     {
         using var host = CreateHost();
         var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var getValuesResult372 = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult373 = getValuesResult372.ToHashSet();
+        var toHashSetResult373 = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         accessor.Current = new McpPrincipal("rollback-admin", null, toHashSetResult373, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP rollback project");
@@ -1347,12 +1348,13 @@ public sealed class McpBackendIntegrationTests
         public TestLibraryCatalog(params LibraryDto[] libraries)
         {
             _libraries = libraries.ToDictionary(static library => library.Id, StringComparer.OrdinalIgnoreCase);
-            var whereResult = libraries.Where(static library =>
-            {
-                var evaluatedValue409 = !string.IsNullOrWhiteSpace(library.FamilyId);
-                return evaluatedValue409;
-            });
-            var groupByResult = whereResult.GroupBy(static library => library.FamilyId!, StringComparer.OrdinalIgnoreCase);
+            var groupByResult = libraries
+                .Where(static library =>
+                {
+                    var evaluatedValue409 = !string.IsNullOrWhiteSpace(library.FamilyId);
+                    return evaluatedValue409;
+                })
+                .GroupBy(static library => library.FamilyId!, StringComparer.OrdinalIgnoreCase);
             _families = groupByResult.ToDictionary(static group => group.Key, group =>
             {
                 var evaluatedValue410 = group.First().FamilyName ?? group.Key;
@@ -1375,8 +1377,9 @@ public sealed class McpBackendIntegrationTests
 
         public Task<IReadOnlyList<LibraryDto>> ListAsync(bool includeArchived = false, CancellationToken cancellationToken = default)
         {
-            var whereResult412 = _libraries.Values.Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available);
-            var toArrayResult413 = whereResult412.ToArray();
+            var toArrayResult413 = _libraries.Values
+                .Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available)
+                .ToArray();
             var fromResultResult = Task.FromResult<IReadOnlyList<LibraryDto>>(toArrayResult413);
             return fromResultResult;
         }
@@ -1415,32 +1418,34 @@ public sealed class McpBackendIntegrationTests
 
         public Task<IReadOnlyList<LibraryFamilyDto>> ListFamiliesAsync(bool includeArchivedArtifacts = true, CancellationToken cancellationToken = default)
         {
-            var selectResult422 = _families.Values.Select(family =>
-            {
-                var whereResult419 = _libraries.Values.Where(library =>
+            var families = _families.Values
+                .Select(family =>
                 {
-                    var equalsResult = string.Equals(library.FamilyId, family.Id, StringComparison.OrdinalIgnoreCase);
-                    return equalsResult;
-                });
-                var whereResult420 = whereResult419.Where(library => includeArchivedArtifacts || library.Lifecycle == LibraryLifecycleDto.Available);
-                var orderByDescendingResult = whereResult420.OrderByDescending(library =>
-                {
-                    var parseVersionResult = ParseVersion(library.SemanticVersion ?? library.Version);
-                    return parseVersionResult;
-                });
-                var thenByDescendingResult = orderByDescendingResult.ThenByDescending(static library => library.UploadedAt);
-                var thenByResult = thenByDescendingResult.ThenBy(static library => library.Id, StringComparer.Ordinal);
-                var artifacts = thenByResult.ToArray();
-                var evaluatedValue421 = family with
-                {
-                    LatestArtifactId = artifacts.FirstOrDefault(static library => library.Lifecycle == LibraryLifecycleDto.Available)?.Id,
-                    Artifacts = artifacts,
-                };
-                return evaluatedValue421;
-            });
-            var orderByResult = selectResult422.OrderBy(static family => family.Name, StringComparer.OrdinalIgnoreCase);
-            var thenByResult423 = orderByResult.ThenBy(static family => family.Id, StringComparer.Ordinal);
-            var families = thenByResult423.ToArray();
+                    var artifacts = _libraries.Values
+                        .Where(library =>
+                        {
+                            var equalsResult = string.Equals(library.FamilyId, family.Id, StringComparison.OrdinalIgnoreCase);
+                            return equalsResult;
+                        })
+                        .Where(library => includeArchivedArtifacts || library.Lifecycle == LibraryLifecycleDto.Available)
+                        .OrderByDescending(library =>
+                        {
+                            var parseVersionResult = ParseVersion(library.SemanticVersion ?? library.Version);
+                            return parseVersionResult;
+                        })
+                        .ThenByDescending(static library => library.UploadedAt)
+                        .ThenBy(static library => library.Id, StringComparer.Ordinal)
+                        .ToArray();
+                    var evaluatedValue421 = family with
+                    {
+                        LatestArtifactId = artifacts.FirstOrDefault(static library => library.Lifecycle == LibraryLifecycleDto.Available)?.Id,
+                        Artifacts = artifacts,
+                    };
+                    return evaluatedValue421;
+                })
+                .OrderBy(static family => family.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static family => family.Id, StringComparer.Ordinal)
+                .ToArray();
             var fromResultResult424 = Task.FromResult<IReadOnlyList<LibraryFamilyDto>>(families);
             return fromResultResult424;
         }
@@ -1493,12 +1498,12 @@ public sealed class McpBackendIntegrationTests
                 FamilyName = family.Name,
                 SemanticVersion = library.SemanticVersion ?? library.Version,
             };
-            var evaluatedValue427 = (await ListFamiliesAsync(cancellationToken: cancellationToken));
-            var singleResult = evaluatedValue427.Single(item =>
-            {
-                var equalsResult426 = string.Equals(item.Id, family.Id, StringComparison.OrdinalIgnoreCase);
-                return equalsResult426;
-            });
+            var singleResult = (await ListFamiliesAsync(cancellationToken: cancellationToken))
+                .Single(item =>
+                {
+                    var equalsResult426 = string.Equals(item.Id, family.Id, StringComparison.OrdinalIgnoreCase);
+                    return equalsResult426;
+                });
             return singleResult;
         }
 
@@ -1533,8 +1538,9 @@ public sealed class McpBackendIntegrationTests
         private readonly List<ProjectLibraryReference> _references = [];
         public Task<IReadOnlyList<ProjectLibraryReference>> ListByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
-            var whereResult429 = _references.Where(reference => reference.ProjectId == projectId);
-            var toArrayResult430 = whereResult429.ToArray();
+            var toArrayResult430 = _references
+                .Where(reference => reference.ProjectId == projectId)
+                .ToArray();
             var fromResultResult431 = Task.FromResult<IReadOnlyList<ProjectLibraryReference>>(toArrayResult430);
             return fromResultResult431;
         }
@@ -1585,8 +1591,8 @@ public sealed class McpBackendIntegrationTests
                 }
                 catch (IOException)
                 {
-                // SQLite can release a platform file handle just after the
-                // provider has disposed its client. Test cleanup is best effort.
+                    // SQLite can release a platform file handle just after the
+                    // provider has disposed its client. Test cleanup is best effort.
                 }
                 catch (UnauthorizedAccessException)
                 {

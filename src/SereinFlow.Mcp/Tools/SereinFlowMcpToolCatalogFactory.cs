@@ -227,7 +227,7 @@ internal static class SereinFlowMcpToolCatalogFactory
     {
         var defineResult = Define(name, McpToolExecutionKind.Read, permission, async (context, arguments, cancellationToken) =>
         {
-            var evaluatedValue208 = (object? )await execute(context, arguments, cancellationToken);
+            var evaluatedValue208 = (object?)await execute(context, arguments, cancellationToken);
             return evaluatedValue208;
         }, false, null);
         return defineResult;
@@ -238,7 +238,7 @@ internal static class SereinFlowMcpToolCatalogFactory
         var getToolDescriptorResult = GetToolDescriptor(name);
         McpToolDefinition evaluatedValue210 = new(getToolDescriptorResult, McpToolExecutionKind.Read, async (context, arguments, cancellationToken) =>
         {
-            var evaluatedValue209 = (object? )await execute(context, arguments, cancellationToken);
+            var evaluatedValue209 = (object?)await execute(context, arguments, cancellationToken);
             return evaluatedValue209;
         }, (context, arguments) =>
         {
@@ -252,7 +252,7 @@ internal static class SereinFlowMcpToolCatalogFactory
     {
         var defineResult212 = Define(name, McpToolExecutionKind.Mutation, permission, async (context, arguments, cancellationToken) =>
         {
-            var evaluatedValue211 = (object? )await execute(context, arguments, cancellationToken);
+            var evaluatedValue211 = (object?)await execute(context, arguments, cancellationToken);
             return evaluatedValue211;
         }, requiresIdempotencyKey, auditTrack);
         return defineResult212;
@@ -952,9 +952,9 @@ internal static class SereinFlowMcpToolCatalogFactory
             return toolResult197;
             object resolveArraySchemaResult193()
             {
-                var getValuesResult = Enum.GetValues<McpPermissionDto>();
-                var selectResult = getValuesResult.Select(McpPermissionNames.ToName);
-                var toArrayResult = selectResult.ToArray();
+                var toArrayResult = Enum.GetValues<McpPermissionDto>()
+                    .Select(McpPermissionNames.ToName)
+                    .ToArray();
                 var stringEnumSchemaResult = StringEnumSchema("Stable dotted MCP permission name.", toArrayResult);
                 var arraySchemaResult194 = ArraySchema(stringEnumSchemaResult);
                 return arraySchemaResult194;

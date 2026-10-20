@@ -5,6 +5,7 @@ using SereinFlow.Domain;
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Runtime;
+
 public sealed class DataConnectionResolver
 {
     public IReadOnlyDictionary<string, object?> Resolve(NodeDefinition node, ExecutionPlan plan, FlowExecutionSession session)
@@ -175,20 +176,20 @@ public sealed class DataConnectionResolver
         return evaluatedValue5;
         object resolveToArrayResult()
         {
-            var enumerateArrayResult = element.EnumerateArray();
-            var selectResult = enumerateArrayResult.Select(ConvertJson);
-            var toArrayResult = selectResult.ToArray();
+            var toArrayResult = element.EnumerateArray()
+                .Select(ConvertJson)
+                .ToArray();
             return toArrayResult;
         }
 
         object resolveToDictionaryResult()
         {
-            var enumerateObjectResult = element.EnumerateObject();
-            var toDictionaryResult = enumerateObjectResult.ToDictionary(item => item.Name, item =>
-            {
-                var convertJsonResult = ConvertJson(item.Value);
-                return convertJsonResult;
-            }, StringComparer.Ordinal);
+            var toDictionaryResult = element.EnumerateObject()
+                .ToDictionary(item => item.Name, item =>
+                {
+                    var convertJsonResult = ConvertJson(item.Value);
+                    return convertJsonResult;
+                }, StringComparer.Ordinal);
             return toDictionaryResult;
         }
     }

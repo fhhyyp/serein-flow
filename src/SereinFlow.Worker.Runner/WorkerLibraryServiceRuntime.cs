@@ -95,8 +95,9 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        var whereResult = _providers.Values.Where(static lazy => lazy.IsValueCreated);
-        var providers = whereResult.ToArray();
+        var providers = _providers.Values
+            .Where(static lazy => lazy.IsValueCreated)
+            .ToArray();
         _providers.Clear();
         foreach (var lazy in providers)
         {
@@ -116,7 +117,7 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
 
 internal sealed class LibraryServiceProvider : IAsyncDisposable
 {
-    private static readonly HashSet<Type> RestrictedConstructorTypes = [typeof(IServiceProvider), typeof(IServiceScopeFactory), typeof(IServiceProviderIsService), typeof(IServiceProviderIsKeyedService), typeof(IKeyedServiceProvider), typeof(IFlowContext), ];
+    private static readonly HashSet<Type> RestrictedConstructorTypes = [typeof(IServiceProvider), typeof(IServiceScopeFactory), typeof(IServiceProviderIsService), typeof(IServiceProviderIsKeyedService), typeof(IKeyedServiceProvider), typeof(IFlowContext),];
     private readonly ServiceProvider _provider;
     private LibraryServiceProvider(ServiceProvider provider)
     {
@@ -208,20 +209,21 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
     {
         try
         {
-            var getTypesResult = assembly.GetTypes();
-            var whereResult5 = getTypesResult.Where(static type =>
-            {
-                var getCustomAttributesResult = type.GetCustomAttributes<FlowServiceAttribute>(inherit: false);
-                var anyResult = getCustomAttributesResult.Any();
-                return anyResult;
-            });
-            var toArrayResult = whereResult5.ToArray();
+            var toArrayResult = assembly.GetTypes()
+                .Where(static type =>
+                {
+                    var anyResult = type.GetCustomAttributes<FlowServiceAttribute>(inherit: false)
+                        .Any();
+                    return anyResult;
+                })
+                .ToArray();
             return toArrayResult;
         }
         catch (ReflectionTypeLoadException exception)
         {
-            var whereResult6 = exception.LoaderExceptions.Where(static item => item is not null);
-            var selectResult = whereResult6.Select(static item => item!.Message);
+            var selectResult = exception.LoaderExceptions
+                .Where(static item => item is not null)
+                .Select(static item => item!.Message);
             var details = string.Join(" ", selectResult);
             var evaluatedValue = $"FlowService types could not be loaded from '{assembly.GetName().Name}'. {details}";
             throw new LibraryServiceException(LibraryErrorCodes.ServiceDiscoveryFailed, evaluatedValue, exception);
@@ -237,26 +239,27 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
     {
         try
         {
-            var getTypesResult9 = assembly.GetTypes();
-            var selectManyResult = getTypesResult9.SelectMany(static type =>
-            {
-                var getMethodsResult = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
-                return getMethodsResult;
-            });
-            var selectManyResult10 = selectManyResult.SelectMany(static method =>
-            {
-                var getCustomAttributesResult8 = method.GetCustomAttributes<NodeResultAttribute>(inherit: false);
-                return getCustomAttributesResult8;
-            });
-            var selectResult11 = selectManyResult10.Select(static attribute => attribute.ConverterType);
-            var distinctResult = selectResult11.Distinct();
-            var toArrayResult12 = distinctResult.ToArray();
+            var toArrayResult12 = assembly.GetTypes()
+                .SelectMany(static type =>
+                {
+                    var getMethodsResult = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
+                    return getMethodsResult;
+                })
+                .SelectMany(static method =>
+                {
+                    var getCustomAttributesResult8 = method.GetCustomAttributes<NodeResultAttribute>(inherit: false);
+                    return getCustomAttributesResult8;
+                })
+                .Select(static attribute => attribute.ConverterType)
+                .Distinct()
+                .ToArray();
             return toArrayResult12;
         }
         catch (ReflectionTypeLoadException exception)
         {
-            var whereResult13 = exception.LoaderExceptions.Where(static item => item is not null);
-            var selectResult14 = whereResult13.Select(static item => item!.Message);
+            var selectResult14 = exception.LoaderExceptions
+                .Where(static item => item is not null)
+                .Select(static item => item!.Message);
             var details = string.Join(" ", selectResult14);
             var evaluatedValue15 = $"Node result converters could not be discovered from '{assembly.GetName().Name}'. 节点结果转换器无法从类库中发现。 {details}";
             throw new LibraryServiceException(LibraryErrorCodes.ResultConverterDiscoveryFailed, evaluatedValue15, exception);
@@ -270,13 +273,13 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
 
     private static void ValidateResultConverter(Type converterType, Assembly assembly)
     {
-        var getInterfacesResult = converterType.GetInterfaces();
-        var whereResult18 = getInterfacesResult.Where(static item =>
-        {
-            var evaluatedValue17 = item.IsGenericType && item.GetGenericTypeDefinition() == typeof(INodeResultConverter<, >);
-            return evaluatedValue17;
-        });
-        var contracts = whereResult18.ToArray();
+        var contracts = converterType.GetInterfaces()
+            .Where(static item =>
+            {
+                var evaluatedValue17 = item.IsGenericType && item.GetGenericTypeDefinition() == typeof(INodeResultConverter<,>);
+                return evaluatedValue17;
+            })
+            .ToArray();
         if (!converterType.IsClass || converterType.IsAbstract || converterType.ContainsGenericParameters || converterType.Assembly != assembly || contracts.Length != 1)
         {
             throw new LibraryServiceException(LibraryErrorCodes.ResultConverterInvalid, $"Result converter '{converterType.FullName ?? converterType.Name}' must be a concrete class from the library assembly implementing exactly one closed INodeResultConverter<TPrimitive, TTransfer> contract. 节点结果转换器必须是类库程序集中的具体类，并且恰好实现一个闭合的转换器合同。");
@@ -290,8 +293,8 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
         foreach (var implementationType in serviceTypes)
         {
             ValidateServiceImplementation(implementationType);
-            var getCustomAttributesResult19 = implementationType.GetCustomAttributes<FlowServiceAttribute>(inherit: false);
-            var attributes = getCustomAttributesResult19.ToArray();
+            var attributes = implementationType.GetCustomAttributes<FlowServiceAttribute>(inherit: false)
+                .ToArray();
             foreach (var attribute in attributes)
             {
                 if (!Enum.IsDefined(attribute.Lifetime))

@@ -5,6 +5,7 @@ using SereinFlow.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 
 namespace SereinFlow.Infrastructure.Tests;
+
 public sealed class SqlitePersistenceTests
 {
     [Fact]
@@ -129,14 +130,14 @@ public sealed class SqlitePersistenceTests
         var createResult = Project.Create("Project A");
         sqlSugarProjectRepository.Add(createResult);
         var sqlSugarProjectRepository18 = new SqlSugarProjectRepository(database);
-        var listResult = sqlSugarProjectRepository18.List();
-        var persistedProjectA = listResult.Single(static project => project.Name == "Project A");
+        var persistedProjectA = sqlSugarProjectRepository18.List()
+            .Single(static project => project.Name == "Project A");
         var sqlSugarProjectRepository19 = new SqlSugarProjectRepository(database);
         var createResult20 = Project.Create("Project B");
         sqlSugarProjectRepository19.Add(createResult20);
         var sqlSugarProjectRepository21 = new SqlSugarProjectRepository(database);
-        var listResult22 = sqlSugarProjectRepository21.List();
-        var persistedProjectB = listResult22.Single(static project => project.Name == "Project B");
+        var persistedProjectB = sqlSugarProjectRepository21.List()
+            .Single(static project => project.Name == "Project B");
         AddLibraryArtifact(database, oldArtifact);
         AddLibraryArtifact(database, newArtifact);
         projectA = persistedProjectA.Id;
@@ -159,8 +160,8 @@ public sealed class SqlitePersistenceTests
         Assert.True(removeAsyncResult);
         var listByProjectAsyncResult = await repository.ListByProjectAsync(projectA);
         Assert.Empty(listByProjectAsyncResult);
-        var evaluatedValue25 = (await repository.ListByProjectAsync(projectB));
-        var selectResult26 = evaluatedValue25.Select(static item => item.LibraryId);
+        var selectResult26 = (await repository.ListByProjectAsync(projectB))
+            .Select(static item => item.LibraryId);
         Assert.Equal([newArtifact], selectResult26);
     }
 
@@ -521,8 +522,8 @@ public sealed class SqlitePersistenceTests
             }
             catch (IOException)
             {
-            // Test cleanup must not hide a successful migration assertion.
-            // 测试清理不能掩盖已成功的迁移断言。
+                // Test cleanup must not hide a successful migration assertion.
+                // 测试清理不能掩盖已成功的迁移断言。
             }
         }
     }

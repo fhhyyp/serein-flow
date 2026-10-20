@@ -47,8 +47,9 @@ internal static class McpToolSupport
             permissions.Add(permission);
         }
 
-        var distinctResult = permissions.Distinct();
-        var toArrayResult = distinctResult.ToArray();
+        var toArrayResult = permissions
+            .Distinct()
+            .ToArray();
         return toArrayResult;
     }
 

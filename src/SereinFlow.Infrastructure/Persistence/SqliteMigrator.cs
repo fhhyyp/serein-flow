@@ -2,6 +2,7 @@ using SqlSugar;
 using System.Text.Json;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 public sealed class SqliteMigrator
 {
     private const int InitialSchemaVersion = 1;
@@ -1054,9 +1055,9 @@ public sealed class SqliteMigrator
         }
         catch (JsonException)
         {
-        // A malformed historical definition is validated when it is next
-        // saved or run. Do not block the entire database migration.
-        // 历史流程定义损坏时留待保存或运行校验，不能阻塞整个数据库迁移。
+            // A malformed historical definition is validated when it is next
+            // saved or run. Do not block the entire database migration.
+            // 历史流程定义损坏时留待保存或运行校验，不能阻塞整个数据库迁移。
         }
 
         return libraryIds;
@@ -1094,14 +1095,14 @@ public sealed class SqliteMigrator
                 continue;
             }
 
-            var readLibraryIdsResult = ReadLibraryIds(flowVersion.DefinitionJson);
-            var selectResult = readLibraryIdsResult.Select(static id =>
-            {
-                var trimResult4 = id.Trim();
-                var toLowerInvariantResult = trimResult4.ToLowerInvariant();
-                return toLowerInvariantResult;
-            });
-            foreach (var libraryId in selectResult.Distinct(StringComparer.Ordinal))
+            foreach (var libraryId in ReadLibraryIds(flowVersion.DefinitionJson)
+                .Select(static id =>
+                {
+                    var trimResult4 = id.Trim();
+                    var toLowerInvariantResult = trimResult4.ToLowerInvariant();
+                    return toLowerInvariantResult;
+                })
+                .Distinct(StringComparer.Ordinal))
             {
                 if (!knownLibraryIds.Contains(libraryId))
                 {
@@ -1136,14 +1137,14 @@ public sealed class SqliteMigrator
                 continue;
             }
 
-            var readLibraryIdsResult20 = ReadLibraryIds(runDefinition.DefinitionJson);
-            var selectResult21 = readLibraryIdsResult20.Select(static id =>
-            {
-                var trimResult13 = id.Trim();
-                var toLowerInvariantResult14 = trimResult13.ToLowerInvariant();
-                return toLowerInvariantResult14;
-            });
-            foreach (var libraryId in selectResult21.Distinct(StringComparer.Ordinal))
+            foreach (var libraryId in ReadLibraryIds(runDefinition.DefinitionJson)
+                .Select(static id =>
+                {
+                    var trimResult13 = id.Trim();
+                    var toLowerInvariantResult14 = trimResult13.ToLowerInvariant();
+                    return toLowerInvariantResult14;
+                })
+                .Distinct(StringComparer.Ordinal))
             {
                 if (!knownLibraryIds.Contains(libraryId))
                 {

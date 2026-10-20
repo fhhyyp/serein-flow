@@ -1,6 +1,7 @@
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Mcp.Tests;
+
 public sealed class McpResourceUriTests
 {
     [Fact]
@@ -43,8 +44,9 @@ public sealed class McpResourceUriTests
     [Fact]
     public void DirectResourcesAndTemplatesAreDisjoint()
     {
-        var selectResult = McpResourceCatalog.DirectResources.Select(static definition => definition.UriTemplate);
-        var directUris = selectResult.ToHashSet(StringComparer.Ordinal);
+        var directUris = McpResourceCatalog.DirectResources
+            .Select(static definition => definition.UriTemplate)
+            .ToHashSet(StringComparer.Ordinal);
         Assert.DoesNotContain(McpResourceCatalog.Definitions, definition =>
         {
             var containsResult = directUris.Contains(definition.UriTemplate);

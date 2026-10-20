@@ -51,9 +51,10 @@ public sealed record EnumParameterMetadata
 
         int resolveCountResult()
         {
-            var selectResult = Options.Select(static option => option.Name);
-            var distinctResult = selectResult.Distinct(StringComparer.Ordinal);
-            var countResult = distinctResult.Count();
+            var countResult = Options
+                .Select(static option => option.Name)
+                .Distinct(StringComparer.Ordinal)
+                .Count();
             return countResult;
         }
     }

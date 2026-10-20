@@ -3,6 +3,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application.Tests;
+
 public sealed class LibraryNodeTemplateServiceTests
 {
     [Fact]
@@ -117,8 +118,9 @@ public sealed class LibraryNodeTemplateServiceTests
         private readonly List<ProjectLibraryReference> _references = createreferencesInitialValue(references);
         public Task<IReadOnlyList<ProjectLibraryReference>> ListByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
-            var whereResult = _references.Where(item => item.ProjectId == projectId);
-            var toArrayResult = whereResult.ToArray();
+            var toArrayResult = _references
+                .Where(item => item.ProjectId == projectId)
+                .ToArray();
             var fromResultResult = Task.FromResult<IReadOnlyList<ProjectLibraryReference>>(toArrayResult);
             return fromResultResult;
         }
@@ -155,12 +157,13 @@ public sealed class LibraryNodeTemplateServiceTests
 
         private static List<ProjectLibraryReference> createreferencesInitialValue((Guid ProjectId, string LibraryId)[] references)
         {
-            var selectResult = references.Select(static item =>
-            {
-                var projectLibraryReference = new ProjectLibraryReference(item.ProjectId, item.LibraryId, DateTimeOffset.UtcNow);
-                return projectLibraryReference;
-            });
-            List<ProjectLibraryReference> referencesInitialValue = selectResult.ToList();
+            List<ProjectLibraryReference> referencesInitialValue = references
+                .Select(static item =>
+                {
+                    var projectLibraryReference = new ProjectLibraryReference(item.ProjectId, item.LibraryId, DateTimeOffset.UtcNow);
+                    return projectLibraryReference;
+                })
+                .ToList();
             return referencesInitialValue;
         }
     }

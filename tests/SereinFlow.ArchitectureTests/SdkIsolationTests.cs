@@ -1,6 +1,7 @@
 using System.Xml.Linq;
 
 namespace SereinFlow.ArchitectureTests;
+
 public sealed class SdkIsolationTests
 {
     [Fact]
@@ -9,10 +10,9 @@ public sealed class SdkIsolationTests
         var root = FindRepositoryRoot();
         var projectPath = Path.Combine(root, "src", "SereinFlow.SDK", "SereinFlow.SDK.csproj");
         var project = XDocument.Load(projectPath);
-        var descendantsResult = project.Descendants("ProjectReference");
-        var selectResult = descendantsResult.Select(static element =>
+        var selectResult = project.Descendants("ProjectReference").Select(static element =>
         {
-            var evaluatedValue = (string? )element.Attribute("Include");
+            var evaluatedValue = (string?)element.Attribute("Include");
             var getFileNameWithoutExtensionResult = Path.GetFileNameWithoutExtension(evaluatedValue);
             return getFileNameWithoutExtensionResult;
         });
@@ -32,15 +32,13 @@ public sealed class SdkIsolationTests
         var root = FindRepositoryRoot();
         var combineResult = Path.Combine(root, relativeProjectPath);
         var project = XDocument.Load(combineResult);
-        var descendantsResult4 = project.Descendants();
-        var selectManyResult = descendantsResult4.SelectMany(static element =>
+        var references = project.Descendants().SelectMany(static element =>
         {
             var attributesResult = element.Attributes("Include");
             var attributesResult2 = element.Attributes("Project");
             var concatResult = attributesResult.Concat(attributesResult2);
             return concatResult;
-        });
-        var references = selectManyResult.Select(static attribute =>
+        }).Select(static attribute =>
         {
             var getFileNameWithoutExtensionResult3 = Path.GetFileNameWithoutExtension(attribute.Value);
             return getFileNameWithoutExtensionResult3;

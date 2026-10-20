@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace SereinFlow.ArchitectureTests;
+
 public sealed class RunEventBroadcasterTests
 {
     [Fact]
@@ -303,18 +304,20 @@ public sealed class RunEventBroadcasterTests
 
         public Task<IReadOnlyList<FlowRunEvent>> GetAfterAsync(Guid runId, long sequenceExclusive, CancellationToken cancellationToken = default)
         {
-            var whereResult = Events.Where(item => item.RunId == runId && item.Sequence > sequenceExclusive);
-            var toArrayResult = whereResult.ToArray();
+            var toArrayResult = Events
+                .Where(item => item.RunId == runId && item.Sequence > sequenceExclusive)
+                .ToArray();
             var fromResultResult42 = Task.FromResult<IReadOnlyList<FlowRunEvent>>(toArrayResult);
             return fromResultResult42;
         }
 
         public Task<long> GetLastSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
         {
-            var whereResult43 = Events.Where(item => item.RunId == runId);
-            var selectResult = whereResult43.Select(item => item.Sequence);
-            var defaultIfEmptyResult = selectResult.DefaultIfEmpty();
-            var maxResult = defaultIfEmptyResult.Max();
+            var maxResult = Events
+                .Where(item => item.RunId == runId)
+                .Select(item => item.Sequence)
+                .DefaultIfEmpty()
+                .Max();
             var fromResultResult44 = Task.FromResult(maxResult);
             return fromResultResult44;
         }
@@ -326,8 +329,9 @@ public sealed class RunEventBroadcasterTests
 
         public IReadOnlyList<FlowRunEvent> GetAfter(Guid runId, long sequenceExclusive)
         {
-            var whereResult45 = Events.Where(item => item.RunId == runId && item.Sequence > sequenceExclusive);
-            var toArrayResult46 = whereResult45.ToArray();
+            var toArrayResult46 = Events
+                .Where(item => item.RunId == runId && item.Sequence > sequenceExclusive)
+                .ToArray();
             return toArrayResult46;
         }
     }

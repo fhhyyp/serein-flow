@@ -25,8 +25,9 @@ public static class WorkerVariableService
         var entries = new List<RunVariableDto>();
         var remainingBytes = MaxFinalSnapshotBytes - 1_024;
         var truncated = values.Count > MaxFinalVariables;
-        var orderByResult1 = values.OrderBy(static item => item.Key, StringComparer.Ordinal);
-        foreach (var deconstructedEntry in orderByResult1.Take(MaxFinalVariables))
+        foreach (var deconstructedEntry in values
+            .OrderBy(static item => item.Key, StringComparer.Ordinal)
+            .Take(MaxFinalVariables))
         {
             var name = deconstructedEntry.Key;
             var value = deconstructedEntry.Value;
@@ -117,7 +118,7 @@ public static class WorkerVariableService
                 var failureResult7 = Failure(runId, VariableErrorCodes.TypeInvalid, "Use null, boolean, string, int32, int64, double, decimal or json.");
                 return failureResult7;
             }
-            catch (Exception exception)when (exception is InvalidOperationException or FormatException or OverflowException or JsonException)
+            catch (Exception exception) when (exception is InvalidOperationException or FormatException or OverflowException or JsonException)
             {
                 var failureResult8 = Failure(runId, VariableErrorCodes.ValueInvalid, "The JSON value does not match valueType.");
                 return failureResult8;
@@ -149,15 +150,16 @@ public static class WorkerVariableService
             }
             else
             {
-                var orderByResult = snapshot.OrderBy(static item => item.Key, StringComparer.Ordinal);
-                var skipResult = orderByResult.Skip(request.Offset);
-                var takeResult = skipResult.Take(request.Take);
-                var selectResult = takeResult.Select(static item =>
-                {
-                    var projectResult13 = Project(item.Key, item.Value);
-                    return projectResult13;
-                });
-                var entries = selectResult.ToArray();
+                var entries = snapshot
+                    .OrderBy(static item => item.Key, StringComparer.Ordinal)
+                    .Skip(request.Offset)
+                    .Take(request.Take)
+                    .Select(static item =>
+                    {
+                        var projectResult13 = Project(item.Key, item.Value);
+                        return projectResult13;
+                    })
+                    .ToArray();
                 RunVariableSnapshotDto evaluatedValue14 = new(runId, entries, snapshot.Count, request.Offset, request.Offset + entries.Length < snapshot.Count, DateTimeOffset.UtcNow);
                 response = new(WorkerProtocolConstants.Version, runId, 200, Snapshot: evaluatedValue14);
             }
@@ -177,8 +179,9 @@ public static class WorkerVariableService
                 };
                 IReadOnlyList<RunVariableDto> resolveToArrayResult()
                 {
-                    var selectResult15 = snapshot.Variables.Select(static item => item.ValueAvailable ? item with { Value = null, ValueJson = null, ValueAvailable = false, UnavailableReason = "snapshot_limit" } : item);
-                    var toArrayResult = selectResult15.ToArray();
+                    var toArrayResult = snapshot.Variables
+                        .Select(static item => item.ValueAvailable ? item with { Value = null, ValueJson = null, ValueAvailable = false, UnavailableReason = "snapshot_limit" } : item)
+                        .ToArray();
                     return toArrayResult;
                 }
             }
@@ -253,7 +256,7 @@ public static class WorkerVariableService
             RunVariableDto evaluatedValue26 = Encoding.UTF8.GetByteCount(raw) <= MaxValueBytes ? new(name, type, true, json, ValueJson: raw) : new(name, type, false, null, "value_limit");
             return evaluatedValue26;
         }
-        catch (Exception exception)when (exception is JsonException or NotSupportedException or InvalidOperationException or ObjectDisposedException or ArgumentException)
+        catch (Exception exception) when (exception is JsonException or NotSupportedException or InvalidOperationException or ObjectDisposedException or ArgumentException)
         {
             RunVariableDto evaluatedValue27 = new(name, type, false, null, "not_json");
             return evaluatedValue27;
@@ -302,7 +305,7 @@ public static class WorkerVariableService
             return projectCollectionResult28;
         }
 
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<, >) && type.GetGenericArguments()[0] == typeof(string) && value is IDictionary { Count: <= 128 } dictionary)
+        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>) && type.GetGenericArguments()[0] == typeof(string) && value is IDictionary { Count: <= 128 } dictionary)
         {
             var result = new Dictionary<string, object?>();
             foreach (DictionaryEntry entry in dictionary)

@@ -3,6 +3,7 @@ using SereinFlow.Domain;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
+
 public sealed record ProjectArchiveResult(bool IsSuccess, int StatusCode, string? Code = null, string? Message = null, Project? Project = null);
 /// <summary>
 /// Owns the project archival invariant. A published environment interface is
@@ -35,8 +36,8 @@ public sealed class ProjectArchiveService
             return projectArchiveResult1;
         }
 
-        var evaluatedValue = (await _interfaces.ListAsync(cancellationToken));
-        var hasEnvironmentInterface = evaluatedValue.Any(flowInterface => flowInterface.ProjectId == projectId);
+        var hasEnvironmentInterface = (await _interfaces.ListAsync(cancellationToken))
+            .Any(flowInterface => flowInterface.ProjectId == projectId);
         if (hasEnvironmentInterface)
         {
             var projectArchiveResult2 = new ProjectArchiveResult(false, 409, ProjectErrorCodes.ArchiveEnvironmentInterfaceExists, "The project is referenced by one or more environment interfaces and cannot be archived. 项目已被一个或多个环境接口引用，不能归档。");

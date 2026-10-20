@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace SereinFlow.Mcp;
+
 public sealed record McpResourceMatch(McpResourceId Id, IReadOnlyDictionary<string, string> Parameters);
 /// <summary>
 /// Parses canonical MCP resource URIs into internal resource identities. It
@@ -16,9 +17,9 @@ public static class McpResourceUriParser
             return false;
         }
 
-        var splitResult = parsed.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var selectResult = splitResult.Select(Uri.UnescapeDataString);
-        var segments = selectResult.ToArray();
+        var segments = parsed.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Select(Uri.UnescapeDataString)
+            .ToArray();
         var collection = parsed.Host.ToLowerInvariant();
         if (segments.Length == 0)
         {
@@ -31,7 +32,7 @@ public static class McpResourceUriParser
                 McpResourceSegments.LibraryFamilies => McpResourceId.LibraryFamilies,
                 McpResourceSegments.Runs => McpResourceId.Runs,
                 McpResourceSegments.DebugSessions => McpResourceId.DebugSessions,
-                _ => (McpResourceId? )null
+                _ => (McpResourceId?)null
             };
             if (directId is not null)
             {

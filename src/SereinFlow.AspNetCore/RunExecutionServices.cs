@@ -13,6 +13,7 @@ using SereinFlow.Worker.Client;
 using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Api;
+
 public static class RunCancellationSources
 {
     public const string Api = "api";
@@ -458,12 +459,13 @@ public sealed class RunExecutionQueue
         {
             _accepting = false;
             _queue.Writer.TryComplete();
-            var whereResult = _cancellations.Where(static pair => !pair.Value.IsCancellationRequested);
-            var selectResult = whereResult.Select(pair =>
-            {
-                _cancellationSources.TryAdd(pair.Key, RunCancellationSources.HostShutdown);
-                return pair.Value;
-            });
+            var selectResult = _cancellations
+                .Where(static pair => !pair.Value.IsCancellationRequested)
+                .Select(pair =>
+                {
+                    _cancellationSources.TryAdd(pair.Key, RunCancellationSources.HostShutdown);
+                    return pair.Value;
+                });
             sources = selectResult.ToArray();
         }
 
@@ -528,23 +530,25 @@ public sealed class RunExecutionQueue
         }
         catch (SemaphoreFullException)
         {
-        // The scheduler can coalesce redundant wake-ups.
-        // 调度器可以合并重复唤醒信号。
+            // The scheduler can coalesce redundant wake-ups.
+            // 调度器可以合并重复唤醒信号。
         }
     }
 
     private static bool IsListenerRun(RunWorkItem item)
     {
-        var selectManyResult = item.Definition.Canvases.SelectMany(static canvas => canvas.Connections);
-        var whereResult17 = selectManyResult.Where(static connection => connection.Kind == ConnectionKindDto.Execution);
-        var selectResult18 = whereResult17.Select(static connection => connection.ToNodeId);
-        var incoming = selectResult18.ToHashSet(StringComparer.Ordinal);
-        var selectManyResult19 = item.Definition.Canvases.SelectMany(static canvas => canvas.Nodes);
-        var anyResult = selectManyResult19.Any(node =>
-        {
-            var evaluatedValue16 = node.Type == NodeTypeDto.Flipflop && !incoming.Contains(node.Id);
-            return evaluatedValue16;
-        });
+        var incoming = item.Definition.Canvases
+            .SelectMany(static canvas => canvas.Connections)
+            .Where(static connection => connection.Kind == ConnectionKindDto.Execution)
+            .Select(static connection => connection.ToNodeId)
+            .ToHashSet(StringComparer.Ordinal);
+        var anyResult = item.Definition.Canvases
+            .SelectMany(static canvas => canvas.Nodes)
+            .Any(node =>
+            {
+                var evaluatedValue16 = node.Type == NodeTypeDto.Flipflop && !incoming.Contains(node.Id);
+                return evaluatedValue16;
+            });
         return anyResult;
     }
 
@@ -781,11 +785,11 @@ public sealed class RunExecutionHostedService : BackgroundService
                 await _queue.WaitForSchedulerSignalAsync(wait, stoppingToken);
             }
         }
-        catch (OperationCanceledException)when (stoppingToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-        // Host shutdown is expected. Pending runs remain recoverable and
-        // active Workers receive cancellation through the shared queue.
-        // 主机关闭属于预期行为；排队实例保持可恢复，活动 Worker 通过共享队列收到取消。
+            // Host shutdown is expected. Pending runs remain recoverable and
+            // active Workers receive cancellation through the shared queue.
+            // 主机关闭属于预期行为；排队实例保持可恢复，活动 Worker 通过共享队列收到取消。
         }
         finally
         {
@@ -857,7 +861,7 @@ public sealed class RunExecutionHostedService : BackgroundService
                     reconciled++;
                 }
             }
-            catch (OperationCanceledException)when (cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
@@ -1061,7 +1065,7 @@ public sealed class RunExecutionHostedService : BackgroundService
 
     private async ValueTask HandleEventAsync(WorkerEventEnvelopeDto workerEvent, IFlowRunStore runStore, IFlowRunEventStore eventStore, IFlowRunOutputStore outputStore, CancellationToken cancellationToken)
     {
-        if (workerEvent.ProtocolVersion != WorkerProtocol.Version || workerEvent.RunId == Guid.Empty || await runStore.FindAsync(workerEvent.RunId, cancellationToken)is null)
+        if (workerEvent.ProtocolVersion != WorkerProtocol.Version || workerEvent.RunId == Guid.Empty || await runStore.FindAsync(workerEvent.RunId, cancellationToken) is null)
         {
             return;
         }

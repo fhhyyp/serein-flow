@@ -3,6 +3,7 @@ using System.Globalization;
 using SereinFlow.Application.Persistence;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 public sealed class SqlSugarProjectLibraryReferenceRepository : IProjectLibraryReferenceRepository
 {
     private readonly IRepository<ProjectLibraryReferenceRecord> _references;
@@ -23,17 +24,17 @@ public sealed class SqlSugarProjectLibraryReferenceRepository : IProjectLibraryR
     public async Task<IReadOnlyList<ProjectLibraryReference>> ListByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
         var key = projectId.ToString("D");
-        var evaluatedValue = (await _references.ListAsync(item => item.ProjectId == key, cancellationToken));
-        var selectResult = evaluatedValue.Select(Map);
-        var orderByResult = selectResult.OrderBy(static item => item.ReferencedAt);
-        var thenByResult = orderByResult.ThenBy(static item => item.LibraryId, StringComparer.Ordinal);
-        var toArrayResult = thenByResult.ToArray();
+        var toArrayResult = (await _references.ListAsync(item => item.ProjectId == key, cancellationToken))
+            .Select(Map)
+            .OrderBy(static item => item.ReferencedAt)
+            .ThenBy(static item => item.LibraryId, StringComparer.Ordinal)
+            .ToArray();
         return toArrayResult;
     }
 
     public async Task<bool> IsReferencedAsync(Guid projectId, string libraryId, CancellationToken cancellationToken = default)
     {
-        var evaluatedValue1 = await resolveGetByIdAsyncResult()is not null;
+        var evaluatedValue1 = await resolveGetByIdAsyncResult() is not null;
         return evaluatedValue1;
         Task<ProjectLibraryReferenceRecord?> resolveGetByIdAsyncResult()
         {

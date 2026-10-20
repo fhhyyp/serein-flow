@@ -8,6 +8,7 @@ using SereinFlow.Domain;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Api.IntegrationTests;
+
 public sealed class McpDebugIntegrationTests : IClassFixture<McpHostIntegrationTests.ApiFactory>
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();
@@ -30,8 +31,8 @@ public sealed class McpDebugIntegrationTests : IClassFixture<McpHostIntegrationT
             await getRequiredServiceResult1.AddAsync(project.Id, flow);
         }
 
-        var getValuesResult = Enum.GetValues<McpPermissionDto>();
-        var toHashSetResult = getValuesResult.ToHashSet();
+        var toHashSetResult = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         var principal = new McpPrincipal("mcp-debug-integration-admin", null, toHashSetResult, IsAdministrator: true);
         _factory.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = principal;
         var backend = _factory.Services.GetRequiredService<ISereinFlowMcpBackend>();

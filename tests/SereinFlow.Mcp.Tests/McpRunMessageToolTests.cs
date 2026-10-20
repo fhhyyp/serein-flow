@@ -9,6 +9,7 @@ using SereinFlow.Infrastructure.Persistence;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Mcp.Tests;
+
 public sealed class McpRunMessageToolTests
 {
     private static readonly string[] ChannelKindNames = ["queue", "eventBus"];
@@ -16,8 +17,8 @@ public sealed class McpRunMessageToolTests
     public async Task CatalogDeclaresArbitraryPayloadMutationWithRequiredIdempotencyKey()
     {
         using var host = CreateHost();
-        var evaluatedValue = (await host.Backend.ListToolsAsync(CancellationToken.None));
-        var descriptor = evaluatedValue.Single(item => item.Name == "sereinflow_publish_run_message");
+        var descriptor = (await host.Backend.ListToolsAsync(CancellationToken.None))
+            .Single(item => item.Name == "sereinflow_publish_run_message");
         var getRawTextResult = descriptor.InputSchema.GetRawText();
         using var schema = JsonDocument.Parse(getRawTextResult);
         var root = schema.RootElement;
@@ -25,36 +26,36 @@ public sealed class McpRunMessageToolTests
         var getStringResult5 = getPropertyResult.GetString();
         Assert.Equal("object", getStringResult5);
         var getPropertyResult6 = root.GetProperty("required");
-        var enumerateArrayResult = getPropertyResult6.EnumerateArray();
-        var selectResult = enumerateArrayResult.Select(item =>
-        {
-            var getStringResult = item.GetString();
-            return getStringResult;
-        });
+        var selectResult = getPropertyResult6.EnumerateArray()
+            .Select(item =>
+            {
+                var getStringResult = item.GetString();
+                return getStringResult;
+            });
         Assert.Contains("runId", selectResult);
         var getPropertyResult7 = root.GetProperty("required");
-        var enumerateArrayResult8 = getPropertyResult7.EnumerateArray();
-        var selectResult9 = enumerateArrayResult8.Select(item =>
-        {
-            var getStringResult1 = item.GetString();
-            return getStringResult1;
-        });
+        var selectResult9 = getPropertyResult7.EnumerateArray()
+            .Select(item =>
+            {
+                var getStringResult1 = item.GetString();
+                return getStringResult1;
+            });
         Assert.Contains("topic", selectResult9);
         var getPropertyResult10 = root.GetProperty("required");
-        var enumerateArrayResult11 = getPropertyResult10.EnumerateArray();
-        var selectResult12 = enumerateArrayResult11.Select(item =>
-        {
-            var getStringResult2 = item.GetString();
-            return getStringResult2;
-        });
+        var selectResult12 = getPropertyResult10.EnumerateArray()
+            .Select(item =>
+            {
+                var getStringResult2 = item.GetString();
+                return getStringResult2;
+            });
         Assert.Contains("payload", selectResult12);
         var getPropertyResult13 = root.GetProperty("required");
-        var enumerateArrayResult14 = getPropertyResult13.EnumerateArray();
-        var selectResult15 = enumerateArrayResult14.Select(item =>
-        {
-            var getStringResult3 = item.GetString();
-            return getStringResult3;
-        });
+        var selectResult15 = getPropertyResult13.EnumerateArray()
+            .Select(item =>
+            {
+                var getStringResult3 = item.GetString();
+                return getStringResult3;
+            });
         Assert.Contains("idempotencyKey", selectResult15);
         var getPropertyResult16 = root.GetProperty("properties");
         var getPropertyResult17 = getPropertyResult16.GetProperty("payload");
@@ -63,12 +64,12 @@ public sealed class McpRunMessageToolTests
         var getPropertyResult18 = root.GetProperty("properties");
         var getPropertyResult19 = getPropertyResult18.GetProperty("channelKind");
         var getPropertyResult20 = getPropertyResult19.GetProperty("enum");
-        var enumerateArrayResult21 = getPropertyResult20.EnumerateArray();
-        var selectResult22 = enumerateArrayResult21.Select(item =>
-        {
-            var getStringResult4 = item.GetString();
-            return getStringResult4;
-        });
+        var selectResult22 = getPropertyResult20.EnumerateArray()
+            .Select(item =>
+            {
+                var getStringResult4 = item.GetString();
+                return getStringResult4;
+            });
         Assert.Equal(ChannelKindNames, selectResult22);
         var toNameResult = McpPermissionNames.ToName(McpPermissionDto.RunMessagePublish);
         Assert.Equal("run.message.publish", toNameResult);
@@ -94,7 +95,7 @@ public sealed class McpRunMessageToolTests
         }.ToHashSet();
         var mcpPrincipal = new McpPrincipal("run-message-caller", run.ProjectId, toHashSetResult);
         host.SetPrincipal(mcpPrincipal);
-        var arguments = JsonSerializer.SerializeToElement(new { runId = run.Id, topic = " orders.created ", payload = new object? [] { null, "订单", 42, true }, channelKind = "EVENTBUS", contractId = "orders.v1", idempotencyKey = "publish-once", });
+        var arguments = JsonSerializer.SerializeToElement(new { runId = run.Id, topic = " orders.created ", payload = new object?[] { null, "订单", 42, true }, channelKind = "EVENTBUS", contractId = "orders.v1", idempotencyKey = "publish-once", });
         var first = await host.Backend.CallToolAsync("sereinflow_publish_run_message", arguments, CancellationToken.None);
         var replay = await host.Backend.CallToolAsync("sereinflow_publish_run_message", arguments, CancellationToken.None);
         var firstResponse = Assert.IsType<WorkerMessageDeliveryResponseDto>(first.Value);

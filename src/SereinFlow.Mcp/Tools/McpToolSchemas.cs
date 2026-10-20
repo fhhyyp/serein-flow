@@ -11,6 +11,7 @@ using SereinFlow.Domain;
 using static SereinFlow.Mcp.McpToolSupport;
 
 namespace SereinFlow.Mcp;
+
 internal static class McpToolSchemas
 {
     internal static Dictionary<string, object?> ApplySchemaProperties()
@@ -360,7 +361,7 @@ internal static class McpToolSchemas
             properties[payloadName] = payloadSchema;
         }
 
-        var objectSchemaResult = ObjectSchema(properties, ["op", ..required]);
+        var objectSchemaResult = ObjectSchema(properties, ["op", .. required]);
         return objectSchemaResult;
     }
 
@@ -1036,21 +1037,21 @@ internal static class McpToolSchemas
         };
         string[] resolveToArrayResult()
         {
-            var getNamesResult = Enum.GetNames<TEnum>();
-            var selectResult = getNamesResult.Select(JsonNamingPolicy.CamelCase.ConvertName);
-            var toArrayResult = selectResult.ToArray();
+            var toArrayResult = Enum.GetNames<TEnum>()
+                .Select(JsonNamingPolicy.CamelCase.ConvertName)
+                .ToArray();
             return toArrayResult;
         }
 
         int[] resolveToArrayResult287()
         {
-            var getValuesResult = Enum.GetValues<TEnum>();
-            var selectResult288 = getValuesResult.Select(value =>
-            {
-                var toInt32Result = Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture);
-                return toInt32Result;
-            });
-            var toArrayResult289 = selectResult288.ToArray();
+            var toArrayResult289 = Enum.GetValues<TEnum>()
+                .Select(value =>
+                {
+                    var toInt32Result = Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture);
+                    return toInt32Result;
+                })
+                .ToArray();
             return toArrayResult289;
         }
     }

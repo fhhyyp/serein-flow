@@ -3,6 +3,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
+
 public enum FlowDefinitionWriteStatus
 {
     Saved,
@@ -43,7 +44,7 @@ public sealed class FlowDefinitionWriteService
     public async Task<FlowDefinitionPreparationResult?> PrepareAsync(Guid projectId, Guid flowId, FlowDefinitionDto candidate, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(candidate);
-        if (await _projects.FindAsync(projectId, cancellationToken)is null)
+        if (await _projects.FindAsync(projectId, cancellationToken) is null)
         {
             return null;
         }
@@ -79,7 +80,7 @@ public sealed class FlowDefinitionWriteService
             return evaluatedValue3;
         }
 
-        if (await _projects.FindAsync(projectId, cancellationToken)is { Status: SereinFlow.Domain.ProjectStatus.Archived })
+        if (await _projects.FindAsync(projectId, cancellationToken) is { Status: SereinFlow.Domain.ProjectStatus.Archived })
         {
             FlowDefinitionWriteResult evaluatedValue4 = new(FlowDefinitionWriteStatus.Archived, preparation);
             return evaluatedValue4;
@@ -138,8 +139,9 @@ public sealed class FlowDefinitionWriteService
         var parameterIds = new HashSet<string>(StringComparer.Ordinal);
         var beforeCanvases = before.Canvases.ToDictionary(static canvas => canvas.Id, StringComparer.Ordinal);
         var afterCanvases = after.Canvases.ToDictionary(static canvas => canvas.Id, StringComparer.Ordinal);
-        var unionResult22 = beforeCanvases.Keys.Union(afterCanvases.Keys);
-        foreach (var canvasId in unionResult22.Order(StringComparer.Ordinal))
+        foreach (var canvasId in beforeCanvases.Keys
+            .Union(afterCanvases.Keys)
+            .Order(StringComparer.Ordinal))
         {
             if (!beforeCanvases.TryGetValue(canvasId, out var oldCanvas))
             {
@@ -160,8 +162,9 @@ public sealed class FlowDefinitionWriteService
 
             var oldNodes = oldCanvas.Nodes.ToDictionary(static node => node.Id, StringComparer.Ordinal);
             var newNodes = newCanvas.Nodes.ToDictionary(static node => node.Id, StringComparer.Ordinal);
-            var unionResult20 = oldNodes.Keys.Union(newNodes.Keys);
-            foreach (var nodeId in unionResult20.Order(StringComparer.Ordinal))
+            foreach (var nodeId in oldNodes.Keys
+                .Union(newNodes.Keys)
+                .Order(StringComparer.Ordinal))
             {
                 if (!oldNodes.TryGetValue(nodeId, out var oldNode))
                 {
@@ -183,8 +186,9 @@ public sealed class FlowDefinitionWriteService
 
                 var oldParameters = oldNode.Parameters.ToDictionary(ParameterKey, StringComparer.Ordinal);
                 var newParameters = newNode.Parameters.ToDictionary(ParameterKey, StringComparer.Ordinal);
-                var unionResult = oldParameters.Keys.Union(newParameters.Keys);
-                foreach (var parameterId in unionResult.Order(StringComparer.Ordinal))
+                foreach (var parameterId in oldParameters.Keys
+                    .Union(newParameters.Keys)
+                    .Order(StringComparer.Ordinal))
                 {
                     if (!newParameters.TryGetValue(parameterId, out var newParameter) || !oldParameters.TryGetValue(parameterId, out var oldParameter) || !resolveEqualsResult())
                     {
@@ -213,8 +217,9 @@ public sealed class FlowDefinitionWriteService
 
             var oldConnections = oldCanvas.Connections.ToDictionary(static connection => connection.Id, StringComparer.Ordinal);
             var newConnections = newCanvas.Connections.ToDictionary(static connection => connection.Id, StringComparer.Ordinal);
-            var unionResult21 = oldConnections.Keys.Union(newConnections.Keys);
-            foreach (var connectionId in unionResult21.Order(StringComparer.Ordinal))
+            foreach (var connectionId in oldConnections.Keys
+                .Union(newConnections.Keys)
+                .Order(StringComparer.Ordinal))
             {
                 if (!newConnections.TryGetValue(connectionId, out var newConnection) || !oldConnections.TryGetValue(connectionId, out var oldConnection) || !resolveEqualsResult16())
                 {
@@ -232,14 +237,18 @@ public sealed class FlowDefinitionWriteService
             }
         }
 
-        var orderResult = canvasIds.Order(StringComparer.Ordinal);
-        var toArrayResult = orderResult.ToArray();
-        var orderResult23 = nodeIds.Order(StringComparer.Ordinal);
-        var toArrayResult24 = orderResult23.ToArray();
-        var orderResult25 = connectionIds.Order(StringComparer.Ordinal);
-        var toArrayResult26 = orderResult25.ToArray();
-        var orderResult27 = parameterIds.Order(StringComparer.Ordinal);
-        var toArrayResult28 = orderResult27.ToArray();
+        var toArrayResult = canvasIds
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var toArrayResult24 = nodeIds
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var toArrayResult26 = connectionIds
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var toArrayResult28 = parameterIds
+            .Order(StringComparer.Ordinal)
+            .ToArray();
         FlowDefinitionWriteService.ChangeScope evaluatedValue29 = new(toArrayResult, toArrayResult24, toArrayResult26, toArrayResult28);
         return evaluatedValue29;
     }

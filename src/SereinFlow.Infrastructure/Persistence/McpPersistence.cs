@@ -4,6 +4,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 public sealed class SqlSugarMcpApiKeyStore : IMcpApiKeyStore
 {
     private readonly IRepository<McpApiKeyRecord> _records;
@@ -14,9 +15,9 @@ public sealed class SqlSugarMcpApiKeyStore : IMcpApiKeyStore
 
     public async Task<IReadOnlyList<McpApiKeyEntry>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var evaluatedValue = (await _records.ListAsync(cancellationToken: cancellationToken));
-        var selectResult = evaluatedValue.Select(Map);
-        var toArrayResult = selectResult.ToArray();
+        var toArrayResult = (await _records.ListAsync(cancellationToken: cancellationToken))
+            .Select(Map)
+            .ToArray();
         return toArrayResult;
     }
 
@@ -204,10 +205,10 @@ public sealed class SqlSugarMcpIdempotencyStore : IMcpIdempotencyStore
 
     public async Task<McpIdempotencyEntry?> FindAsync(string principalId, string operation, string keyHash, CancellationToken cancellationToken = default)
     {
-        var evaluatedValue25 = (await _records.ListAsync(item => item.PrincipalId == principalId && item.Operation == operation && item.KeyHash == keyHash, cancellationToken));
-        var orderByDescendingResult = evaluatedValue25.OrderByDescending(item => item.CreatedAt, StringComparer.Ordinal);
-        var selectResult26 = orderByDescendingResult.Select(Map);
-        var firstOrDefaultResult = selectResult26.FirstOrDefault();
+        var firstOrDefaultResult = (await _records.ListAsync(item => item.PrincipalId == principalId && item.Operation == operation && item.KeyHash == keyHash, cancellationToken))
+            .OrderByDescending(item => item.CreatedAt, StringComparer.Ordinal)
+            .Select(Map)
+            .FirstOrDefault();
         return firstOrDefaultResult;
     }
 

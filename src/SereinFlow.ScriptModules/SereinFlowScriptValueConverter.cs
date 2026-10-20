@@ -59,7 +59,8 @@ public static class SereinFlowScriptValueConverter
             TimeSpan timeSpan => new TimeSpanValue(timeSpan),
             IDictionary dictionary => FromDictionary(dictionary, depth),
             IEnumerable sequence => FromSequence(sequence, depth),
-            _ => new ClrObjectValue(value)};
+            _ => new ClrObjectValue(value)
+        };
         return evaluatedValue;
         Value resolveCreateResult(ulong number)
         {
@@ -95,7 +96,8 @@ public static class SereinFlowScriptValueConverter
             ClrObjectValue clr => clr.Value,
             ArrayValue array => ToVariableArray(array, depth),
             ObjectValue obj => ToVariableObject(obj, depth),
-            _ => throw resolveNotSupportedException()};
+            _ => throw resolveNotSupportedException()
+        };
         return evaluatedValue4;
         Exception resolveNotSupportedException()
         {
@@ -119,7 +121,8 @@ public static class SereinFlowScriptValueConverter
             JsonValueKind.Number => resolveCreateResult7(),
             JsonValueKind.Array => FromJsonArray(element, depth),
             JsonValueKind.Object => FromJsonObject(element, depth),
-            _ => throw new NotSupportedException($"Unsupported JSON value kind '{element.ValueKind}'. 不支持 JSON 值类型“{element.ValueKind}”。")};
+            _ => throw new NotSupportedException($"Unsupported JSON value kind '{element.ValueKind}'. 不支持 JSON 值类型“{element.ValueKind}”。")
+        };
         return evaluatedValue9;
         Value resolveCreateResult5()
         {
@@ -140,13 +143,13 @@ public static class SereinFlowScriptValueConverter
     {
         var getArrayLengthResult = element.GetArrayLength();
         CheckItems(getArrayLengthResult);
-        var enumerateArrayResult = element.EnumerateArray();
-        var selectResult = enumerateArrayResult.Select(item =>
-        {
-            var toScriptValueResult10 = ToScriptValue(item, depth - 1);
-            return toScriptValueResult10;
-        });
-        var toListResult = selectResult.ToList();
+        var toListResult = element.EnumerateArray()
+            .Select(item =>
+            {
+                var toScriptValueResult10 = ToScriptValue(item, depth - 1);
+                return toScriptValueResult10;
+            })
+            .ToList();
         var arrayValue = new ArrayValue(toListResult);
         return arrayValue;
     }
@@ -197,7 +200,7 @@ public static class SereinFlowScriptValueConverter
         return arrayValue14;
     }
 
-    private static object? [] ToVariableArray(ArrayValue array, int depth)
+    private static object?[] ToVariableArray(ArrayValue array, int depth)
     {
         CheckItems(array.Elements.Count);
         var selectResult16 = array.Elements.Select(item =>

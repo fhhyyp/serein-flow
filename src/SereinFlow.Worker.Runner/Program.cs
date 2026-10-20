@@ -11,6 +11,7 @@ using SereinFlow.Worker.Protocol;
 using NodeType = SereinFlow.Domain.NodeType;
 
 namespace SereinFlow.Worker.Runner;
+
 internal static class Program
 {
     private static async Task<int> Main()
@@ -102,10 +103,11 @@ public static class RunnerHost
             if (!string.IsNullOrWhiteSpace(request.ScriptArtifactRootPath))
             {
                 artifactStore = new ScriptArtifactStore(request.ScriptArtifactRootPath);
-                var selectManyResult = definition.Canvases.SelectMany(canvas => canvas.Nodes);
-                var whereResult = selectManyResult.Where(static node => node.Type == NodeType.Script && node.Script is not null);
-                var selectResult = whereResult.Select(static node => node.Script!);
-                var scriptDefinitions = selectResult.ToArray();
+                var scriptDefinitions = definition.Canvases
+                    .SelectMany(canvas => canvas.Nodes)
+                    .Where(static node => node.Type == NodeType.Script && node.Script is not null)
+                    .Select(static node => node.Script!)
+                    .ToArray();
                 // Rebuild failures are surfaced by the Script node itself so
                 // the flow can route them through its Error branch.
                 // 缓存重建失败由脚本节点在执行时报告，从而进入 Error 分支。
@@ -161,8 +163,8 @@ public static class RunnerHost
         }
         catch
         {
-        // Registration is best effort while the run is shutting down.
-        // 运行关闭期间端点注册属于尽力而为。
+            // Registration is best effort while the run is shutting down.
+            // 运行关闭期间端点注册属于尽力而为。
         }
     }
 
@@ -210,20 +212,20 @@ public static class RunnerHost
         return evaluatedValue18;
         object resolveToArrayResult()
         {
-            var enumerateArrayResult = element.EnumerateArray();
-            var selectResult17 = enumerateArrayResult.Select(JsonElementToClr);
-            var toArrayResult = selectResult17.ToArray();
+            var toArrayResult = element.EnumerateArray()
+                .Select(JsonElementToClr)
+                .ToArray();
             return toArrayResult;
         }
 
         object resolveToDictionaryResult()
         {
-            var enumerateObjectResult = element.EnumerateObject();
-            var toDictionaryResult = enumerateObjectResult.ToDictionary(item => item.Name, item =>
-            {
-                var jsonElementToClrResult16 = JsonElementToClr(item.Value);
-                return jsonElementToClrResult16;
-            }, StringComparer.Ordinal);
+            var toDictionaryResult = element.EnumerateObject()
+                .ToDictionary(item => item.Name, item =>
+                {
+                    var jsonElementToClrResult16 = JsonElementToClr(item.Value);
+                    return jsonElementToClrResult16;
+                }, StringComparer.Ordinal);
             return toDictionaryResult;
         }
     }

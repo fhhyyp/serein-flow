@@ -5,6 +5,7 @@ using SereinFlow.Runtime;
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Runtime.Tests;
+
 public sealed class RuntimeSessionTests
 {
     [Fact]
@@ -287,8 +288,9 @@ public sealed class RuntimeSessionTests
         Assert.Equal("info", log.Payload["level"]);
         Assert.Equal("Started", log.Payload["message"]);
         Assert.Equal(0, log.Payload["frameDepth"]);
-        var selectResult = publisher.Events.Select(item => item.Sequence);
-        var orderByResult = selectResult.OrderBy(sequence => sequence);
+        var orderByResult = publisher.Events
+            .Select(item => item.Sequence)
+            .OrderBy(sequence => sequence);
         var selectResult57 = publisher.Events.Select(item => item.Sequence);
         Assert.Equal(orderByResult, selectResult57);
     }
@@ -437,7 +439,7 @@ public sealed class RuntimeSessionTests
         public ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
         {
             Input = request.Inputs["target-value"];
-            CallerOutputWasHidden = request.Context.Read("call.result")is null;
+            CallerOutputWasHidden = request.Context.Read("call.result") is null;
             FrameDepth = Assert.IsType<FlowExecutionSession>(request.Context).FrameDepth;
             Variables = Assert.IsType<FlowExecutionSession>(request.Context).Variables;
             Assert.Same(Variables, request.Runtime!.Variables);

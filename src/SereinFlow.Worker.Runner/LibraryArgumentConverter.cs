@@ -109,7 +109,7 @@ public static class LibraryArgumentConverter
                 return changeTypeResult;
             }
         }
-        catch (Exception exception)when (exception is FormatException or InvalidCastException or OverflowException)
+        catch (Exception exception) when (exception is FormatException or InvalidCastException or OverflowException)
         {
             throw new InvalidCastException($"Value '{value}' cannot be converted to {effectiveType.FullName}. 值“{value}”无法转换为目标类型“{effectiveType.FullName}”。", exception);
         }
@@ -223,13 +223,14 @@ public static class LibraryArgumentConverter
 
     private static Array ConvertArray(IEnumerable values, Type elementType)
     {
-        var castResult = values.Cast<object?>();
-        var selectResult = castResult.Select(item =>
-        {
-            var convertResult7 = Convert(item, elementType);
-            return convertResult7;
-        });
-        var converted = selectResult.ToArray();
+        var converted = values
+            .Cast<object?>()
+            .Select(item =>
+            {
+                var convertResult7 = Convert(item, elementType);
+                return convertResult7;
+            })
+            .ToArray();
         var result = Array.CreateInstance(elementType, converted.Length);
         for (var index = 0; index < converted.Length; index++)
         {
@@ -256,20 +257,20 @@ public static class LibraryArgumentConverter
         return evaluatedValue9;
         object resolveToArrayResult()
         {
-            var enumerateArrayResult = element.EnumerateArray();
-            var selectResult8 = enumerateArrayResult.Select(ToClrValue);
-            var toArrayResult = selectResult8.ToArray();
+            var toArrayResult = element.EnumerateArray()
+                .Select(ToClrValue)
+                .ToArray();
             return toArrayResult;
         }
 
         object resolveToDictionaryResult()
         {
-            var enumerateObjectResult = element.EnumerateObject();
-            var toDictionaryResult = enumerateObjectResult.ToDictionary(item => item.Name, item =>
-            {
-                var toClrValueResult = ToClrValue(item.Value);
-                return toClrValueResult;
-            }, StringComparer.Ordinal);
+            var toDictionaryResult = element.EnumerateObject()
+                .ToDictionary(item => item.Name, item =>
+                {
+                    var toClrValueResult = ToClrValue(item.Value);
+                    return toClrValueResult;
+                }, StringComparer.Ordinal);
             return toDictionaryResult;
         }
     }

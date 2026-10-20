@@ -14,6 +14,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace SereinFlow.Mcp;
+
 public static class McpHttpDefaults
 {
     public const string EndpointPath = "/mcp";
@@ -67,13 +68,13 @@ public sealed class SereinFlowMcpOptions
         }
         else
         {
-            var splitResult = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var whereResult = splitResult.Where(static origin =>
-            {
-                var evaluatedValue2 = Uri.TryCreate(origin, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) && !string.IsNullOrWhiteSpace(uri.Host);
-                return evaluatedValue2;
-            });
-            var distinctResult = whereResult.Distinct(StringComparer.OrdinalIgnoreCase);
+            var distinctResult = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(static origin =>
+                {
+                    var evaluatedValue2 = Uri.TryCreate(origin, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) && !string.IsNullOrWhiteSpace(uri.Host);
+                    return evaluatedValue2;
+                })
+                .Distinct(StringComparer.OrdinalIgnoreCase);
             conditionalValue = distinctResult.ToArray();
         }
 
@@ -196,7 +197,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
         var mapPostResult = endpoints.MapPost(pattern, async (HttpContext context, SereinFlowMcpServer server, McpSecurityService security, IMcpPrincipalAccessor principalAccessor, IMcpRequestContextAccessor requestContextAccessor, McpHttpSessionRegistry sessions, McpRequestLimiter limiter, CancellationToken cancellationToken) =>
         {
             var maxRequestBytes = FileUploadLimits.GetMcpRequestBodyLimit(fileUploadSettings.MaxLibraryUploadBytes, options.MaxRequestBytes);
-            if (context.Request.ContentLength is> 0 && context.Request.ContentLength > maxRequestBytes)
+            if (context.Request.ContentLength is > 0 && context.Request.ContentLength > maxRequestBytes)
             {
                 var statusCodeResult13 = Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
                 return statusCodeResult13;
@@ -276,7 +277,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                     var textResult = Results.Text(response, "application/json", Encoding.UTF8);
                     return textResult;
                 }
-                catch (OperationCanceledException)when (!cancellationToken.IsCancellationRequested)
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
                     var newGuidResult = Guid.NewGuid();
                     var diagnosticId = newGuidResult.ToString("N");

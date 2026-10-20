@@ -5,6 +5,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository, IFlowVersionRepository
 {
     private static readonly JsonSerializerOptions SerializerOptions = SereinJsonSerialization.CreateWebOptions(options =>
@@ -50,15 +51,15 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
 
     public async Task<IReadOnlyList<FlowDefinitionDto>> ListByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
-        var evaluatedValue1 = (await _definitions.ListAsync(cancellationToken: cancellationToken));
-        var whereResult = evaluatedValue1.Where(row =>
-        {
-            var evaluatedValue = row.ProjectId == projectId.ToString("D");
-            return evaluatedValue;
-        });
-        var selectResult = whereResult.Select(Deserialize);
-        var orderByResult = selectResult.OrderBy(static definition => definition.Id);
-        var toArrayResult = orderByResult.ToArray();
+        var toArrayResult = (await _definitions.ListAsync(cancellationToken: cancellationToken))
+            .Where(row =>
+            {
+                var evaluatedValue = row.ProjectId == projectId.ToString("D");
+                return evaluatedValue;
+            })
+            .Select(Deserialize)
+            .OrderBy(static definition => definition.Id)
+            .ToArray();
         return toArrayResult;
     }
 
@@ -114,12 +115,12 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
 
         var executeAsyncResult8 = _unitOfWork.ExecuteAsync(async token =>
         {
-            var evaluatedValue5 = (await _definitions.ListAsync(cancellationToken: token));
-            var current = evaluatedValue5.SingleOrDefault(item =>
-            {
-                var evaluatedValue4 = item.Id == definition.Id.ToString("D") && item.ProjectId == projectId.ToString("D");
-                return evaluatedValue4;
-            });
+            var current = (await _definitions.ListAsync(cancellationToken: token))
+                .SingleOrDefault(item =>
+                {
+                    var evaluatedValue4 = item.Id == definition.Id.ToString("D") && item.ProjectId == projectId.ToString("D");
+                    return evaluatedValue4;
+                });
             if (current is null || current.Version != expectedVersion)
             {
                 return null;
@@ -144,15 +145,15 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
     {
         var listAsyncResult = _definitions.ListAsync();
         var getAwaiterResult = listAsyncResult.GetAwaiter();
-        var getResultResult = getAwaiterResult.GetResult();
-        var whereResult10 = getResultResult.Where(row =>
-        {
-            var evaluatedValue9 = row.ProjectId == projectId.ToString("D");
-            return evaluatedValue9;
-        });
-        var selectResult11 = whereResult10.Select(Deserialize);
-        var orderByResult12 = selectResult11.OrderBy(static definition => definition.Id);
-        var toArrayResult13 = orderByResult12.ToArray();
+        var toArrayResult13 = getAwaiterResult.GetResult()
+            .Where(row =>
+            {
+                var evaluatedValue9 = row.ProjectId == projectId.ToString("D");
+                return evaluatedValue9;
+            })
+            .Select(Deserialize)
+            .OrderBy(static definition => definition.Id)
+            .ToArray();
         return toArrayResult13;
     }
 
@@ -160,12 +161,12 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
     {
         var listAsyncResult15 = _definitions.ListAsync();
         var getAwaiterResult16 = listAsyncResult15.GetAwaiter();
-        var getResultResult17 = getAwaiterResult16.GetResult();
-        var row = getResultResult17.SingleOrDefault(item =>
-        {
-            var evaluatedValue14 = item.Id == flowId.ToString("D") && item.ProjectId == projectId.ToString("D");
-            return evaluatedValue14;
-        });
+        var row = getAwaiterResult16.GetResult()
+            .SingleOrDefault(item =>
+            {
+                var evaluatedValue14 = item.Id == flowId.ToString("D") && item.ProjectId == projectId.ToString("D");
+                return evaluatedValue14;
+            });
         FlowDefinitionDto? evaluatedValue18 = row is null ? null : Deserialize(row);
         return evaluatedValue18;
     }
@@ -211,12 +212,12 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
 
         var executeAsyncResult28 = _unitOfWork.ExecuteAsync(async cancellationToken =>
         {
-            var evaluatedValue25 = (await _definitions.ListAsync(cancellationToken: cancellationToken));
-            var current = evaluatedValue25.SingleOrDefault(item =>
-            {
-                var evaluatedValue24 = item.Id == definition.Id.ToString("D") && item.ProjectId == projectId.ToString("D");
-                return evaluatedValue24;
-            });
+            var current = (await _definitions.ListAsync(cancellationToken: cancellationToken))
+                .SingleOrDefault(item =>
+                {
+                    var evaluatedValue24 = item.Id == definition.Id.ToString("D") && item.ProjectId == projectId.ToString("D");
+                    return evaluatedValue24;
+                });
             if (current is null || current.Version != expectedVersion)
             {
                 return null;
@@ -244,24 +245,25 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
         var current = await FindCurrentRecordAsync(projectId, flowId, cancellationToken);
         if (current is null)
         {
-            return[];
+            return [];
         }
 
         var productionVersion = track == FlowVersionTrackDto.Production ? await FindProductionVersionAsync(projectId, flowId, cancellationToken) : null;
         var flowKey = flowId.ToString("D");
         var versions = await _versions.ListAsync(row => row.FlowId == flowKey, cancellationToken);
-        var whereResult32 = versions.Where(row =>
-        {
-            var evaluatedValue31 = ParseTrack(row.Track) == track;
-            return evaluatedValue31;
-        });
-        var orderByDescendingResult = whereResult32.OrderByDescending(static row => row.Version);
-        var selectResult33 = orderByDescendingResult.Select(row =>
-        {
-            var toSummaryResult = ToSummary(flowId, row, isCurrent: track == FlowVersionTrackDto.Development ? row.Version == current.Version : row.Version == productionVersion);
-            return toSummaryResult;
-        });
-        var toArrayResult34 = selectResult33.ToArray();
+        var toArrayResult34 = versions
+            .Where(row =>
+            {
+                var evaluatedValue31 = ParseTrack(row.Track) == track;
+                return evaluatedValue31;
+            })
+            .OrderByDescending(static row => row.Version)
+            .Select(row =>
+            {
+                var toSummaryResult = ToSummary(flowId, row, isCurrent: track == FlowVersionTrackDto.Development ? row.Version == current.Version : row.Version == productionVersion);
+                return toSummaryResult;
+            })
+            .ToArray();
         return toArrayResult34;
     }
 
@@ -289,7 +291,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
 
     public async Task<FlowDefinitionDto?> FindProductionDefinitionAsync(Guid projectId, Guid flowId, CancellationToken cancellationToken = default)
     {
-        if (await FindCurrentRecordAsync(projectId, flowId, cancellationToken)is null)
+        if (await FindCurrentRecordAsync(projectId, flowId, cancellationToken) is null)
         {
             return null;
         }
@@ -308,14 +310,14 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
 
     public async Task<long?> FindProductionVersionAsync(Guid projectId, Guid flowId, CancellationToken cancellationToken = default)
     {
-        if (await FindCurrentRecordAsync(projectId, flowId, cancellationToken)is null)
+        if (await FindCurrentRecordAsync(projectId, flowId, cancellationToken) is null)
         {
             return null;
         }
 
         var toStringResult37 = flowId.ToString("D");
         var optionalReceiver = (await _productionHeads.GetByIdAsync(toStringResult37, cancellationToken));
-        long? optionalResult = default(long? );
+        long? optionalResult = default(long?);
         if (optionalReceiver is not null)
         {
             optionalResult = optionalReceiver.Version;
@@ -355,7 +357,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
                 return flowVersionMutationResult39;
             }
 
-            var published = Deserialize(source)with
+            var published = Deserialize(source) with
             {
                 Version = await AllocateVersionAsync(flowId, token)
             };
@@ -415,7 +417,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
                 return flowVersionMutationResult47;
             }
 
-            var restored = Deserialize(source)with
+            var restored = Deserialize(source) with
             {
                 Version = await AllocateVersionAsync(flowId, token)
             };
@@ -451,9 +453,9 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
         }
 
         var projectKey = projectId.ToString("D");
-        var evaluatedValue62 = (await _definitions.ListAsync(row => row.ProjectId == projectKey, cancellationToken));
-        var selectResult63 = evaluatedValue62.Select(static row => row.Id);
-        var flowIds = selectResult63.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var flowIds = (await _definitions.ListAsync(row => row.ProjectId == projectKey, cancellationToken))
+            .Select(static row => row.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (flowIds.Count == 0)
         {
             return false;
@@ -561,8 +563,8 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
     private async Task<FlowDefinitionVersionRecord?> FindVersionRecordAsync(Guid flowId, long version, CancellationToken cancellationToken)
     {
         var flowKey = flowId.ToString("D");
-        var evaluatedValue69 = (await _versions.ListAsync(row => row.FlowId == flowKey, cancellationToken));
-        var singleOrDefaultResult = evaluatedValue69.SingleOrDefault(row => row.Version == version);
+        var singleOrDefaultResult = (await _versions.ListAsync(row => row.FlowId == flowKey, cancellationToken))
+            .SingleOrDefault(row => row.Version == version);
         return singleOrDefaultResult;
     }
 
@@ -653,7 +655,7 @@ public sealed class SqlSugarFlowDefinitionRepository : IFlowDefinitionRepository
             // a catalog row just to satisfy this foreign key.
             // 该索引属于派生元数据。历史流程可能保留无效或手工填写的类库 ID，
             // 因此不能为了满足外键而伪造类库目录记录。
-            if (await _libraries.GetByIdAsync(artifactId, cancellationToken)is null)
+            if (await _libraries.GetByIdAsync(artifactId, cancellationToken) is null)
             {
                 continue;
             }

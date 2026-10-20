@@ -9,6 +9,7 @@ using NodeType = SereinFlow.Domain.NodeType;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Worker.Runner;
+
 internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipflopExecutor
 {
     private readonly NodeType _nodeType;
@@ -62,7 +63,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
         }
         catch (LibraryInputException exception)
         {
-            var evaluatedValue = NodeExecutionResult.Error(exception.Code, exception.Message)with
+            var evaluatedValue = NodeExecutionResult.Error(exception.Code, exception.Message) with
             {
                 Inputs = SnapshotInputs(auditInputs)
             };
@@ -70,7 +71,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
         }
         catch (LibraryRuntimeCacheException exception)
         {
-            var evaluatedValue1 = NodeExecutionResult.Error(exception.Code, exception.Message)with
+            var evaluatedValue1 = NodeExecutionResult.Error(exception.Code, exception.Message) with
             {
                 Inputs = SnapshotInputs(auditInputs)
             };
@@ -78,7 +79,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
         }
         catch (LibraryServiceException exception)
         {
-            var evaluatedValue2 = NodeExecutionResult.Error(exception.Code, exception.Message)with
+            var evaluatedValue2 = NodeExecutionResult.Error(exception.Code, exception.Message) with
             {
                 Inputs = SnapshotInputs(auditInputs)
             };
@@ -86,7 +87,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
         }
         catch (LibraryResultConverterException exception)
         {
-            var evaluatedValue3 = NodeExecutionResult.Error(exception.Code, exception.Message)with
+            var evaluatedValue3 = NodeExecutionResult.Error(exception.Code, exception.Message) with
             {
                 Inputs = SnapshotInputs(auditInputs)
             };
@@ -94,20 +95,20 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
         }
         catch (FlowWorkpieceException exception)
         {
-            var evaluatedValue4 = NodeExecutionResult.Error(exception.Code, exception.Message)with
+            var evaluatedValue4 = NodeExecutionResult.Error(exception.Code, exception.Message) with
             {
                 Inputs = SnapshotInputs(auditInputs)
             };
             return evaluatedValue4;
         }
-        catch (OperationCanceledException)when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // Cancellation is a run lifecycle signal, not a node error. Let
             // the runner publish the correct Cancelled or TimedOut terminal state.
             // 取消是运行生命周期信号，而非节点错误；交由 Runner 发布正确的取消或超时终态。
             throw;
         }
-        catch (TargetInvocationException exception)when (cancellationToken.IsCancellationRequested && exception.InnerException is OperationCanceledException)
+        catch (TargetInvocationException exception) when (cancellationToken.IsCancellationRequested && exception.InnerException is OperationCanceledException)
         {
             throw new OperationCanceledException("The library operation was cancelled. 类库操作已取消。", exception.InnerException, cancellationToken);
         }
@@ -115,7 +116,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
         {
             if (exception.InnerException is FlowNativeLibraryException nativeLibraryException)
             {
-                var evaluatedValue5 = NodeExecutionResult.Error(nativeLibraryException.Code, nativeLibraryException.Message)with
+                var evaluatedValue5 = NodeExecutionResult.Error(nativeLibraryException.Code, nativeLibraryException.Message) with
                 {
                     Inputs = SnapshotInputs(auditInputs)
                 };
@@ -124,7 +125,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
 
             if (exception.InnerException is FlowWorkpieceException workpieceException)
             {
-                var evaluatedValue6 = NodeExecutionResult.Error(workpieceException.Code, workpieceException.Message)with
+                var evaluatedValue6 = NodeExecutionResult.Error(workpieceException.Code, workpieceException.Message) with
                 {
                     Inputs = SnapshotInputs(auditInputs)
                 };
@@ -195,7 +196,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
             };
         }
 
-        var evaluatedValue11 = flowContext.Apply(result)with
+        var evaluatedValue11 = flowContext.Apply(result) with
         {
             Inputs = SnapshotInputs(auditInputs)
         };
@@ -204,12 +205,12 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
 
     private NodeExecutionResult CreateInvocationError(string detail, IReadOnlyDictionary<string, object?> auditInputs)
     {
-        NodeExecutionResult evaluatedValue12 = _nodeType == NodeType.Flipflop ? NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutionFailed, $"Flipflop method invocation failed. Flipflop 方法调用失败。 {detail}")with
+        NodeExecutionResult evaluatedValue12 = _nodeType == NodeType.Flipflop ? NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutionFailed, $"Flipflop method invocation failed. Flipflop 方法调用失败。 {detail}") with
         {
             Inputs = SnapshotInputs(auditInputs)
         }
 
-        : NodeExecutionResult.Error(LibraryErrorCodes.InvocationFailed, $"Library method invocation failed. 类库方法调用失败。 {detail}")with
+        : NodeExecutionResult.Error(LibraryErrorCodes.InvocationFailed, $"Library method invocation failed. 类库方法调用失败。 {detail}") with
         {
             Inputs = SnapshotInputs(auditInputs)
         };
@@ -218,12 +219,12 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
 
     private NodeExecutionResult CreateExecutionError(string detail, IReadOnlyDictionary<string, object?> auditInputs)
     {
-        NodeExecutionResult evaluatedValue13 = _nodeType == NodeType.Flipflop ? NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutionFailed, $"Flipflop execution failed. Flipflop 执行失败。 {detail}")with
+        NodeExecutionResult evaluatedValue13 = _nodeType == NodeType.Flipflop ? NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutionFailed, $"Flipflop execution failed. Flipflop 执行失败。 {detail}") with
         {
             Inputs = SnapshotInputs(auditInputs)
         }
 
-        : NodeExecutionResult.Error(LibraryErrorCodes.InvocationFailed, $"Library invocation failed. 类库调用失败。 {detail}")with
+        : NodeExecutionResult.Error(LibraryErrorCodes.InvocationFailed, $"Library invocation failed. 类库调用失败。 {detail}") with
         {
             Inputs = SnapshotInputs(auditInputs)
         };
@@ -266,7 +267,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
             var converter = _services.CreateNodeResultConverter(services, converterType);
             var contract = resolveSingleOrDefaultResult() ?? throw new LibraryResultConverterException(LibraryErrorCodes.ResultConverterInvalid, $"Result converter '{converterType.FullName ?? converterType.Name}' does not implement a closed converter contract. 节点结果转换器未实现闭合的转换器合同。");
             var primitiveType = contract.GetGenericArguments()[0];
-            if (primitive is null && primitiveType.IsValueType && Nullable.GetUnderlyingType(primitiveType)is null)
+            if (primitive is null && primitiveType.IsValueType && Nullable.GetUnderlyingType(primitiveType) is null)
             {
                 throw new LibraryResultConverterException(LibraryErrorCodes.ResultConverterInputInvalid, $"The result converter '{converterType.FullName ?? converterType.Name}' cannot receive a null value of '{primitiveType.FullName}'. 节点结果转换器无法接收“{primitiveType.FullName}”的 null 值。");
             }
@@ -282,12 +283,12 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
             return invokeResult;
             Type? resolveSingleOrDefaultResult()
             {
-                var getInterfacesResult = converterType.GetInterfaces();
-                var singleOrDefaultResult = getInterfacesResult.SingleOrDefault(static item =>
-                {
-                    var evaluatedValue16 = item.IsGenericType && item.GetGenericTypeDefinition() == typeof(INodeResultConverter<, >);
-                    return evaluatedValue16;
-                });
+                var singleOrDefaultResult = converterType.GetInterfaces()
+                    .SingleOrDefault(static item =>
+                    {
+                        var evaluatedValue16 = item.IsGenericType && item.GetGenericTypeDefinition() == typeof(INodeResultConverter<,>);
+                        return evaluatedValue16;
+                    });
                 return singleOrDefaultResult;
             }
         }

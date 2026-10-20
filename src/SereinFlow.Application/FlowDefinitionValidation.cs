@@ -4,6 +4,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Application;
+
 public static class FlowDefinitionContractMapper
 {
     public static FlowDefinition Map(FlowDefinitionDto dto)
@@ -61,8 +62,8 @@ public static class FlowDefinitionContractMapper
                 return scriptValueContract4;
             });
             conditionalValue = ScriptNodeDefinition.Create(dto.Script.NodeId, dto.Script.Source, dto.Script.LanguageVersion, // sync while a script is being edited. Compute it from the
- // authoritative source on the server instead.
-            // 浏览器编辑脚本时无法可靠同步加密源哈希，因此由服务端从权威源代码重新计算。
+                                                                                                                             // authoritative source on the server instead.
+                                                                                                                             // 浏览器编辑脚本时无法可靠同步加密源哈希，因此由服务端从权威源代码重新计算。
             sourceHash: null, selectResult3, selectResult4);
         }
 
@@ -194,13 +195,13 @@ public static class FlowDefinitionContractValidator
             }
 
             var domain = FlowDefinitionContractMapper.Map(definition);
-            var validateResult = domain.Validate();
-            var selectResult20 = validateResult.Select(static diagnostic =>
-            {
-                var validationDiagnosticDto = new ValidationDiagnosticDto(diagnostic.Code, diagnostic.Message, diagnostic.Path);
-                return validationDiagnosticDto;
-            });
-            var diagnostics = selectResult20.ToList();
+            var diagnostics = domain.Validate()
+                .Select(static diagnostic =>
+                {
+                    var validationDiagnosticDto = new ValidationDiagnosticDto(diagnostic.Code, diagnostic.Message, diagnostic.Path);
+                    return validationDiagnosticDto;
+                })
+                .ToList();
             if (diagnostics.Count == 0 && requireExecutionPlan)
             {
                 try
@@ -259,58 +260,61 @@ public static class FlowDefinitionContractNormalizer
         var domain = FlowDefinitionContractMapper.Map(definition);
         var executionPlanBuilder26 = new SereinFlow.Runtime.ExecutionPlanBuilder();
         var plan = executionPlanBuilder26.Build(domain);
-        var selectResult27 = definition.Canvases.Select(canvas =>
-        {
-            var evaluatedValue25 = canvas with
+        var normalizedCanvases = definition.Canvases
+            .Select(canvas =>
             {
-                Nodes = resolveToArrayResult9(),
-            };
-            return evaluatedValue25;
-            IReadOnlyList<NodeDto> resolveToArrayResult9()
-            {
-                var selectResult10 = canvas.Nodes.Select(node =>
+                var evaluatedValue25 = canvas with
                 {
-                    if (node.Script is not null)
-                    {
-                        node = node with
+                    Nodes = resolveToArrayResult9(),
+                };
+                return evaluatedValue25;
+                IReadOnlyList<NodeDto> resolveToArrayResult9()
+                {
+                    var toArrayResult11 = canvas.Nodes
+                        .Select(node =>
                         {
-                            Script = node.Script with
+                            if (node.Script is not null)
                             {
-                                SourceHash = plan.Nodes[node.Id].Script!.SourceHash,
-                                Inputs = resolveToArrayResult(),
-                            },
-                        };
-                        IReadOnlyList<ScriptValueContractDto> resolveToArrayResult()
-                        {
-                            var selectResult8 = node.Parameters.Select(parameter =>
+                                node = node with
+                                {
+                                    Script = node.Script with
+                                    {
+                                        SourceHash = plan.Nodes[node.Id].Script!.SourceHash,
+                                        Inputs = resolveToArrayResult(),
+                                    },
+                                };
+                                IReadOnlyList<ScriptValueContractDto> resolveToArrayResult()
+                                {
+                                    var toArrayResult = node.Parameters
+                                        .Select(parameter =>
+                                        {
+                                            var scriptValueContractDto = new ScriptValueContractDto(parameter.Name, parameter.Ui?.ValueKind ?? "System.Object", parameter.Required, parameter.Ui?.Id, parameter.Ui?.Description);
+                                            return scriptValueContractDto;
+                                        })
+                                        .ToArray();
+                                    return toArrayResult;
+                                }
+                            }
+
+                            if (!plan.Nodes.TryGetValue(node.Id, out var runtimeNode) || runtimeNode.Type != NodeType.FlowCall || runtimeNode.Runtime is null || node.Ui is null)
                             {
-                                var scriptValueContractDto = new ScriptValueContractDto(parameter.Name, parameter.Ui?.ValueKind ?? "System.Object", parameter.Required, parameter.Ui?.Id, parameter.Ui?.Description);
-                                return scriptValueContractDto;
-                            });
-                            var toArrayResult = selectResult8.ToArray();
-                            return toArrayResult;
-                        }
-                    }
+                                return node;
+                            }
 
-                    if (!plan.Nodes.TryGetValue(node.Id, out var runtimeNode) || runtimeNode.Type != NodeType.FlowCall || runtimeNode.Runtime is null || node.Ui is null)
-                    {
-                        return node;
-                    }
-
-                    return node with
-                    {
-                        Ui = node.Ui with
-                        {
-                            StaticReturnType = runtimeNode.Runtime.StaticReturnType,
-                            IsDynamicReturnType = runtimeNode.Runtime.IsDynamicReturnType,
-                        },
-                    };
-                });
-                var toArrayResult11 = selectResult10.ToArray();
-                return toArrayResult11;
-            }
-        });
-        var normalizedCanvases = selectResult27.ToArray();
+                            return node with
+                            {
+                                Ui = node.Ui with
+                                {
+                                    StaticReturnType = runtimeNode.Runtime.StaticReturnType,
+                                    IsDynamicReturnType = runtimeNode.Runtime.IsDynamicReturnType,
+                                },
+                            };
+                        })
+                        .ToArray();
+                    return toArrayResult11;
+                }
+            })
+            .ToArray();
         var normalized = definition with
         {
             Canvases = normalizedCanvases

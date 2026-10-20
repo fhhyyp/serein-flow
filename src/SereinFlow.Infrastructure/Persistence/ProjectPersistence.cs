@@ -3,6 +3,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 public sealed class SqlSugarProjectRepository : IProjectRepository
 {
     private readonly IRepository<ProjectRecord> _projects;
@@ -31,12 +32,12 @@ public sealed class SqlSugarProjectRepository : IProjectRepository
 
     public async Task<IReadOnlyList<Project>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var evaluatedValue = (await _projects.ListAsync(cancellationToken: cancellationToken));
-        var selectResult = evaluatedValue.Select(Map);
-        var whereResult = selectResult.Where(static project => project is not null);
-        var castResult = whereResult.Cast<Project>();
-        var orderByResult = castResult.OrderBy(static project => project.CreatedAt);
-        var toArrayResult = orderByResult.ToArray();
+        var toArrayResult = (await _projects.ListAsync(cancellationToken: cancellationToken))
+            .Select(Map)
+            .Where(static project => project is not null)
+            .Cast<Project>()
+            .OrderBy(static project => project.CreatedAt)
+            .ToArray();
         return toArrayResult;
     }
 
@@ -89,12 +90,12 @@ public sealed class SqlSugarProjectRepository : IProjectRepository
     {
         var listAsyncResult = _projects.ListAsync(cancellationToken: CancellationToken.None);
         var getAwaiterResult6 = listAsyncResult.GetAwaiter();
-        var getResultResult7 = getAwaiterResult6.GetResult();
-        var selectResult8 = getResultResult7.Select(Map);
-        var whereResult9 = selectResult8.Where(static project => project is not null);
-        var castResult10 = whereResult9.Cast<Project>();
-        var orderByResult11 = castResult10.OrderBy(static project => project.CreatedAt);
-        var toArrayResult12 = orderByResult11.ToArray();
+        var toArrayResult12 = getAwaiterResult6.GetResult()
+            .Select(Map)
+            .Where(static project => project is not null)
+            .Cast<Project>()
+            .OrderBy(static project => project.CreatedAt)
+            .ToArray();
         return toArrayResult12;
     }
 

@@ -8,6 +8,7 @@ using SereinFlow.Domain;
 using SereinFlow.Worker.Client;
 
 namespace SereinFlow.Api;
+
 public sealed class RunVariableService(IFlowRunStore runs, IWorkerVariableRunClient client, IFlowRunEventStore events) : IRunVariableService
 {
     private const int MaximumVariablePageSize = 200;
@@ -119,15 +120,16 @@ public sealed class RunVariableService(IFlowRunStore runs, IWorkerVariableRunCli
                     return evaluatedValue7;
                 }
 
-                var skipResult = snapshot.Variables.Skip(request.Offset);
-                var takeResult = skipResult.Take(request.Take);
-                var page = takeResult.ToArray();
+                var page = snapshot.Variables
+                    .Skip(request.Offset)
+                    .Take(request.Take)
+                    .ToArray();
                 WorkerVariableResponseDto evaluatedValue8 = new(WorkerProtocol.Version, request.RunId, StatusCodes.Status200OK, Snapshot: snapshot with { Variables = page, Offset = request.Offset, HasMore = request.Offset + page.Length < snapshot.Variables.Count, });
                 return evaluatedValue8;
             }
             catch (JsonException)
             {
-            // Legacy or malformed terminal events do not contain a recoverable snapshot.
+                // Legacy or malformed terminal events do not contain a recoverable snapshot.
             }
         }
 

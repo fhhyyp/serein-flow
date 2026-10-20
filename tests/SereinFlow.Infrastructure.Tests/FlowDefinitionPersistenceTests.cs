@@ -4,6 +4,7 @@ using SereinFlow.Domain;
 using SereinFlow.Infrastructure.Persistence;
 
 namespace SereinFlow.Infrastructure.Tests;
+
 public sealed class FlowDefinitionPersistenceTests
 {
     [Fact]
@@ -166,7 +167,7 @@ public sealed class FlowDefinitionPersistenceTests
         await references.AddAsync(project.Id, sourceArtifactId);
         var store = new SqlSugarFlowLibraryUpgradeStore(database);
         var newGuidResult = Guid.NewGuid();
-        IReadOnlyList<FlowLibraryUpgradePreviewDto> evaluatedValue28 = [new FlowLibraryUpgradePreviewDto(original.Id, original.Version, true, 1, []), new FlowLibraryUpgradePreviewDto(secondOriginal.Id, secondOriginal.Version, true, 1, []), ];
+        IReadOnlyList<FlowLibraryUpgradePreviewDto> evaluatedValue28 = [new FlowLibraryUpgradePreviewDto(original.Id, original.Version, true, 1, []), new FlowLibraryUpgradePreviewDto(secondOriginal.Id, secondOriginal.Version, true, 1, []),];
         var plan = new LibraryUpgradePlanDto(newGuidResult, project.Id, sourceArtifactId, targetArtifactId, LibraryUpgradePlanStatusDto.Analyzed, evaluatedValue28, DateTimeOffset.UtcNow);
         await store.SavePlanAsync(plan);
         var originalCanvas = Assert.Single(original.Canvases);
@@ -206,9 +207,10 @@ public sealed class FlowDefinitionPersistenceTests
         Assert.Equal(LibraryUpgradePlanStatusDto.Analyzed, partiallyAppliedPlan!.Status);
         Assert.Single(partiallyAppliedPlan.AppliedFlows!);
         var referencesAfterFirstUpgrade = await references.ListByProjectAsync(project.Id);
-        var selectResult34 = referencesAfterFirstUpgrade.Select(item => item.LibraryId);
-        var orderByResult = selectResult34.OrderBy(static item => item, StringComparer.Ordinal);
-        var toArrayResult = orderByResult.ToArray();
+        var toArrayResult = referencesAfterFirstUpgrade
+            .Select(item => item.LibraryId)
+            .OrderBy(static item => item, StringComparer.Ordinal)
+            .ToArray();
         Assert.Equal([sourceArtifactId, targetArtifactId], toArrayResult);
         var secondCanvas = Assert.Single(secondOriginal.Canvases);
         var secondNode = Assert.Single(secondCanvas.Nodes);
@@ -237,15 +239,17 @@ public sealed class FlowDefinitionPersistenceTests
         var toStringResult35 = original.Id.ToString("D");
         var sugarParameter36 = new SqlSugar.SugarParameter("@flowId", toStringResult35);
         var versions = database.Query<FlowDefinitionVersionRecord>("SELECT FlowId, Version, DefinitionJson, Checksum FROM FlowDefinitionVersions WHERE FlowId = @flowId ORDER BY Version", sugarParameter36);
-        var selectResult37 = versions.Select(item => item.Version);
-        var toArrayResult38 = selectResult37.ToArray();
+        var toArrayResult38 = versions
+            .Select(item => item.Version)
+            .ToArray();
         Assert.Equal([1L, 2L], toArrayResult38);
         Assert.Contains(sourceArtifactId, versions[0].DefinitionJson, StringComparison.Ordinal);
         Assert.Contains(targetArtifactId, versions[1].DefinitionJson, StringComparison.Ordinal);
         var projectReferences = await references.ListByProjectAsync(project.Id);
-        var selectResult39 = projectReferences.Select(item => item.LibraryId);
-        var orderByResult40 = selectResult39.OrderBy(static item => item, StringComparer.Ordinal);
-        var toArrayResult41 = orderByResult40.ToArray();
+        var toArrayResult41 = projectReferences
+            .Select(item => item.LibraryId)
+            .OrderBy(static item => item, StringComparer.Ordinal)
+            .ToArray();
         Assert.Equal([targetArtifactId], toArrayResult41);
         var toStringResult42 = original.Id.ToString("D");
         var sugarParameter43 = new SqlSugar.SugarParameter("@flowId", toStringResult42);

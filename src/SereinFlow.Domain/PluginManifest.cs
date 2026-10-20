@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 
 namespace SereinFlow.Domain;
+
 public sealed class PluginManifest
 {
     private static readonly Regex Sha256Pattern = new("^[0-9a-fA-F]{64}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -56,31 +57,33 @@ public sealed class PluginManifest
 
         var trimResult3 = assemblyName.Trim();
         var trimResult4 = assemblyVersion.Trim();
-        var whereResult = targetRids.Where(static rid =>
-        {
-            var evaluatedValue = !string.IsNullOrWhiteSpace(rid);
-            return evaluatedValue;
-        });
-        var selectResult = whereResult.Select(static rid =>
-        {
-            var trimResult = rid.Trim();
-            return trimResult;
-        });
-        var distinctResult = selectResult.Distinct(StringComparer.Ordinal);
-        var toArrayResult = distinctResult.ToArray();
+        var toArrayResult = targetRids
+            .Where(static rid =>
+            {
+                var evaluatedValue = !string.IsNullOrWhiteSpace(rid);
+                return evaluatedValue;
+            })
+            .Select(static rid =>
+            {
+                var trimResult = rid.Trim();
+                return trimResult;
+            })
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
         var trimResult5 = apiVersion.Trim();
-        var whereResult6 = nodeTypes.Where(static nodeType =>
-        {
-            var evaluatedValue1 = !string.IsNullOrWhiteSpace(nodeType);
-            return evaluatedValue1;
-        });
-        var selectResult7 = whereResult6.Select(static nodeType =>
-        {
-            var trimResult2 = nodeType.Trim();
-            return trimResult2;
-        });
-        var distinctResult8 = selectResult7.Distinct(StringComparer.Ordinal);
-        var toArrayResult9 = distinctResult8.ToArray();
+        var toArrayResult9 = nodeTypes
+            .Where(static nodeType =>
+            {
+                var evaluatedValue1 = !string.IsNullOrWhiteSpace(nodeType);
+                return evaluatedValue1;
+            })
+            .Select(static nodeType =>
+            {
+                var trimResult2 = nodeType.Trim();
+                return trimResult2;
+            })
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
         var pluginManifest = new PluginManifest(trimResult3, trimResult4, normalizedHash, toArrayResult, trimResult5, toArrayResult9);
         return pluginManifest;
     }

@@ -9,6 +9,7 @@ using SereinFlow.ScriptModules;
 using ScriptLang;
 
 namespace SereinFlow.ScriptAdapter;
+
 public interface ISereinLangCompiler
 {
     Task<ScriptCompileResultDto> CompileAsync(ScriptCompileRequestDto request, CancellationToken cancellationToken = default);
@@ -66,7 +67,7 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
             var resultResult2 = Result(false, sourceHash, sourceName, languageVersion, stopwatch.Elapsed, evaluatedValue);
             return resultResult2;
         }
-        catch (OperationCanceledException)when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
@@ -97,7 +98,7 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
             _ = ReleaseCompileGateWhenFinishedAsync(compilation);
             throw;
         }
-        catch (OperationCanceledException)when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             releaseInWorker = true;
             _ = ReleaseCompileGateWhenFinishedAsync(compilation);
@@ -120,8 +121,8 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
         }
         catch
         {
-        // The original request already returned the timeout/cancellation
-        // result; the background compiler must not surface a second error.
+            // The original request already returned the timeout/cancellation
+            // result; the background compiler must not surface a second error.
         }
         finally
         {
@@ -180,28 +181,29 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
     private static IReadOnlyList<ScriptCompileDiagnosticDto> ParseDiagnostics(Exception exception, string sourceName)
     {
         var message = exception.Message;
-        var splitResult = message.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var whereResult = splitResult.Where(static line =>
-        {
-            var evaluatedValue7 = !string.IsNullOrWhiteSpace(line);
-            return evaluatedValue7;
-        });
-        var takeResult = whereResult.Take(MaximumDiagnosticLines);
-        var lines = takeResult.ToArray();
+        var lines = message.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(static line =>
+            {
+                var evaluatedValue7 = !string.IsNullOrWhiteSpace(line);
+                return evaluatedValue7;
+            })
+            .Take(MaximumDiagnosticLines)
+            .ToArray();
         if (lines.Length == 0)
         {
             lines = ["SereinLang compilation failed. SereinLang 编译失败。"];
         }
 
-        var selectResult9 = lines.Select((line, index) =>
-        {
-            var match = LocationPattern.Match(line);
-            var lineNumber = match.Success ? int.Parse(match.Groups["line"].Success ? match.Groups["line"].Value : match.Groups["lineEn"].Value, CultureInfo.InvariantCulture) : (int? )null;
-            var column = match.Success ? int.Parse(match.Groups["column"].Success ? match.Groups["column"].Value : match.Groups["columnEn"].Value, CultureInfo.InvariantCulture) : (int? )null;
-            var scriptCompileDiagnosticDto8 = new ScriptCompileDiagnosticDto(index == 0 ? ScriptErrorCodes.CompileFailed : ScriptErrorCodes.CompileDiagnostic, line, "error", sourceName, lineNumber, column);
-            return scriptCompileDiagnosticDto8;
-        });
-        var toArrayResult = selectResult9.ToArray();
+        var toArrayResult = lines
+            .Select((line, index) =>
+            {
+                var match = LocationPattern.Match(line);
+                var lineNumber = match.Success ? int.Parse(match.Groups["line"].Success ? match.Groups["line"].Value : match.Groups["lineEn"].Value, CultureInfo.InvariantCulture) : (int?)null;
+                var column = match.Success ? int.Parse(match.Groups["column"].Success ? match.Groups["column"].Value : match.Groups["columnEn"].Value, CultureInfo.InvariantCulture) : (int?)null;
+                var scriptCompileDiagnosticDto8 = new ScriptCompileDiagnosticDto(index == 0 ? ScriptErrorCodes.CompileFailed : ScriptErrorCodes.CompileDiagnostic, line, "error", sourceName, lineNumber, column);
+                return scriptCompileDiagnosticDto8;
+            })
+            .ToArray();
         return toArrayResult;
     }
 

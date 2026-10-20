@@ -8,6 +8,7 @@ using SereinFlow.Client;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.SDK.Tests;
+
 public sealed class SereinFlowClientTests
 {
     private static readonly Uri BaseAddress = new("https://sereinflow.test/");
@@ -138,7 +139,7 @@ public sealed class SereinFlowClientTests
     public async Task WaitForCompletionPollsUntilTerminalAndReadsOutputs()
     {
         var runId = Guid.NewGuid();
-        IEnumerable<HttpResponseMessage> evaluatedValue7 = [resolveJsonResponseResult(), resolveJsonResponseResult9(), resolveJsonResponseResult13(), ];
+        IEnumerable<HttpResponseMessage> evaluatedValue7 = [resolveJsonResponseResult(), resolveJsonResponseResult9(), resolveJsonResponseResult13(),];
         var responses = new Queue<HttpResponseMessage>(evaluatedValue7);
         var handler = new RecordingHandler(_ =>
         {
@@ -297,8 +298,8 @@ public sealed class SereinFlowClientTests
         var attempt = 0;
         var handler = new RecordingHandler(request =>
         {
-            var getValuesResult26 = request.Headers.GetValues("Idempotency-Key");
-            var singleResult27 = getValuesResult26.Single();
+            var singleResult27 = request.Headers.GetValues("Idempotency-Key")
+                .Single();
             keys.Add(singleResult27);
             if (++attempt == 1)
             {

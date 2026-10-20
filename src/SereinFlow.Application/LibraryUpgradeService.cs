@@ -3,6 +3,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
+
 public sealed record LibraryUpgradeOperationResult<T>(bool IsSuccess, int StatusCode, T? Value = default, string? Code = null, string? Message = null, long? CurrentVersion = null);
 /// <summary>
 /// Coordinates explicit, versioned library upgrades. This service creates a
@@ -226,8 +227,9 @@ public sealed class LibraryUpgradeService
         }
 
         var analysis = _analyzer.Analyze(flow, source, target);
-        var whereResult = analysis.Issues.Where(static issue => issue.BlocksApplication);
-        var blocked = whereResult.ToArray();
+        var blocked = analysis.Issues
+            .Where(static issue => issue.BlocksApplication)
+            .ToArray();
         if (blocked.Length > 0)
         {
             var libraryUpgradeOperationResult23 = new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: LibraryErrorCodes.UpgradeBlocked, Message: "The library upgrade contains blocking compatibility changes. 类库升级包含阻断性兼容性变更。");
@@ -235,13 +237,14 @@ public sealed class LibraryUpgradeService
         }
 
         var acknowledgements = (request.AcknowledgedItemIds ?? []).ToHashSet(StringComparer.Ordinal);
-        var whereResult31 = analysis.Issues.Where(static issue => issue.RequiresAcknowledgement);
-        var whereResult32 = whereResult31.Where(issue =>
-        {
-            var evaluatedValue24 = !acknowledgements.Contains(issue.Id);
-            return evaluatedValue24;
-        });
-        var missingAcknowledgements = whereResult32.ToArray();
+        var missingAcknowledgements = analysis.Issues
+            .Where(static issue => issue.RequiresAcknowledgement)
+            .Where(issue =>
+            {
+                var evaluatedValue24 = !acknowledgements.Contains(issue.Id);
+                return evaluatedValue24;
+            })
+            .ToArray();
         if (missingAcknowledgements.Length > 0)
         {
             var libraryUpgradeOperationResult25 = new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: LibraryErrorCodes.UpgradeConfirmationRequired, Message: "All parameter mappings that require confirmation must be acknowledged. 必须确认所有需要确认的参数映射。");
@@ -278,8 +281,9 @@ public sealed class LibraryUpgradeService
         if (_changePublisher is not null)
         {
             var newGuidResult29 = Guid.NewGuid();
-            var selectResult = saved.Canvases.Select(static canvas => canvas.Id);
-            var toArrayResult = selectResult.ToArray();
+            var toArrayResult = saved.Canvases
+                .Select(static canvas => canvas.Id)
+                .ToArray();
             var workspaceChangeEventDto = new WorkspaceChangeEventDto(newGuidResult29, DateTimeOffset.UtcNow, FlowErrorCodes.Changed, projectId, saved.Id, saved.Version, saved.Checksum, origin, "library.upgrade", toArrayResult, LibraryIds: [plan.SourceArtifactId, target.Id]);
             await _changePublisher.PublishAsync(workspaceChangeEventDto, CancellationToken.None);
         }
@@ -333,9 +337,10 @@ public sealed class LibraryUpgradeService
         return libraryUpgradeOperationResult38;
         int resolveCountResult()
         {
-            var selectResult36 = requests.Select(item => item.FlowId);
-            var distinctResult37 = selectResult36.Distinct();
-            var countResult = distinctResult37.Count();
+            var countResult = requests
+                .Select(item => item.FlowId)
+                .Distinct()
+                .Count();
             return countResult;
         }
     }
@@ -364,12 +369,13 @@ public sealed class LibraryUpgradeService
 
     private static bool UsesArtifact(FlowDefinitionDto flow, string artifactId)
     {
-        var selectManyResult = flow.Canvases.SelectMany(static canvas => canvas.Nodes);
-        var anyResult = selectManyResult.Any(node =>
-        {
-            var evaluatedValue39 = node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop && string.Equals(node.Ui?.LibraryId, artifactId, StringComparison.OrdinalIgnoreCase);
-            return evaluatedValue39;
-        });
+        var anyResult = flow.Canvases
+            .SelectMany(static canvas => canvas.Nodes)
+            .Any(node =>
+            {
+                var evaluatedValue39 = node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop && string.Equals(node.Ui?.LibraryId, artifactId, StringComparison.OrdinalIgnoreCase);
+                return evaluatedValue39;
+            });
         return anyResult;
     }
 
@@ -390,40 +396,43 @@ public sealed class LibraryUpgradeService
         var sourceManifest = sourceLibrary.CompatibilityManifest ?? throw new LibraryUpgradeTransformationException(LibraryErrorCodes.UpgradeManifestMissing, "The source compatibility manifest is unavailable. 源兼容性 Manifest 不可用。");
         var targetManifest = targetLibrary.CompatibilityManifest ?? throw new LibraryUpgradeTransformationException(LibraryErrorCodes.UpgradeManifestMissing, "The target compatibility manifest is unavailable. 目标兼容性 Manifest 不可用。");
         var parameterMaps = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
-        var selectResult44 = sourceDefinition.Canvases.Select(canvas =>
-        {
-            var selectResult42 = canvas.Nodes.Select(node =>
+        var canvases = sourceDefinition.Canvases
+            .Select(canvas =>
             {
-                if (node.Type is not (NodeTypeDto.Action or NodeTypeDto.Flipflop) || !string.Equals(node.Ui?.LibraryId, sourceLibrary.Id, StringComparison.OrdinalIgnoreCase))
-                {
-                    return node;
-                }
-
-                var transformed = TransformNode(node, sourceManifest, targetManifest, targetLibrary);
-                parameterMaps[node.Id] = transformed.ParameterMap;
-                return transformed.Node;
-            });
-            var nodes = selectResult42.ToArray();
-            var selectResult43 = canvas.Connections.Select(connection =>
-            {
-                if (connection.Kind == ConnectionKindDto.Data && parameterMaps.TryGetValue(connection.ToNodeId, out var map) && map.TryGetValue(connection.ToPortId, out var targetPortId))
-                {
-                    return connection with
+                var nodes = canvas.Nodes
+                    .Select(node =>
                     {
-                        ToPortId = targetPortId
-                    };
-                }
+                        if (node.Type is not (NodeTypeDto.Action or NodeTypeDto.Flipflop) || !string.Equals(node.Ui?.LibraryId, sourceLibrary.Id, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return node;
+                        }
 
-                return connection;
-            });
-            var connections = selectResult43.ToArray();
-            return canvas with
-            {
-                Nodes = nodes,
-                Connections = connections
-            };
-        });
-        var canvases = selectResult44.ToArray();
+                        var transformed = TransformNode(node, sourceManifest, targetManifest, targetLibrary);
+                        parameterMaps[node.Id] = transformed.ParameterMap;
+                        return transformed.Node;
+                    })
+                    .ToArray();
+                var connections = canvas.Connections
+                    .Select(connection =>
+                    {
+                        if (connection.Kind == ConnectionKindDto.Data && parameterMaps.TryGetValue(connection.ToNodeId, out var map) && map.TryGetValue(connection.ToPortId, out var targetPortId))
+                        {
+                            return connection with
+                            {
+                                ToPortId = targetPortId
+                            };
+                        }
+
+                        return connection;
+                    })
+                    .ToArray();
+                return canvas with
+                {
+                    Nodes = nodes,
+                    Connections = connections
+                };
+            })
+            .ToArray();
         return sourceDefinition with
         {
             Canvases = canvases
@@ -478,7 +487,7 @@ public sealed class LibraryUpgradeService
             transformedParameters.Add(evaluatedValue48);
         }
 
-        var runtime = node.Ui!with
+        var runtime = node.Ui! with
         {
             LibraryId = targetLibrary.Id,
             ClassName = targetCatalogNode.ClassName,

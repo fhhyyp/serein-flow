@@ -489,7 +489,7 @@ internal static class McpLibraryToolHandlers
             await idempotency.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, result, requestPayload, cancellationToken);
             return result;
         }
-        catch (LibraryUploadException exception)when (exception.StatusCode == StatusCodes.Status409Conflict)
+        catch (LibraryUploadException exception) when (exception.StatusCode == StatusCodes.Status409Conflict)
         {
             throw new McpProtocolException(McpProtocolErrorCodes.Conflict, exception.Message);
         }
@@ -509,12 +509,13 @@ internal static class McpLibraryToolHandlers
         var affectedNodeCount = 0;
         foreach (var flow in await flows.ListByProjectAsync(projectId, cancellationToken))
         {
-            var selectManyResult = flow.Canvases.SelectMany(static canvas => canvas.Nodes);
-            var nodeCount = selectManyResult.Count(node =>
-            {
-                var evaluatedValue27 = node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop && string.Equals(node.Ui?.LibraryId, baselineArtifactId, StringComparison.OrdinalIgnoreCase);
-                return evaluatedValue27;
-            });
+            var nodeCount = flow.Canvases
+                .SelectMany(static canvas => canvas.Nodes)
+                .Count(node =>
+                {
+                    var evaluatedValue27 = node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop && string.Equals(node.Ui?.LibraryId, baselineArtifactId, StringComparison.OrdinalIgnoreCase);
+                    return evaluatedValue27;
+                });
             if (nodeCount == 0)
             {
                 continue;
@@ -524,8 +525,9 @@ internal static class McpLibraryToolHandlers
             affectedNodeCount += nodeCount;
         }
 
-        var orderByResult = affectedFlowIds.OrderBy(static id => id);
-        var toArrayResult = orderByResult.ToArray();
+        var toArrayResult = affectedFlowIds
+            .OrderBy(static id => id)
+            .ToArray();
         var libraryPackageProjectImpactDto = new LibraryPackageProjectImpactDto(projectId, baselineArtifactId, affectedFlowIds.Count, affectedNodeCount, toArrayResult);
         return libraryPackageProjectImpactDto;
     }

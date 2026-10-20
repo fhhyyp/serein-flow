@@ -4,6 +4,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Infrastructure.Persistence;
 
 namespace SereinFlow.Infrastructure.Tests;
+
 public sealed class EnvironmentConsolePersistenceTests
 {
     [Fact]
@@ -75,12 +76,13 @@ public sealed class EnvironmentConsolePersistenceTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             var filter = predicate?.Compile();
-            var whereResult = _items.Values.Where(item =>
-            {
-                var evaluatedValue5 = filter?.Invoke(item) ?? true;
-                return evaluatedValue5;
-            });
-            IReadOnlyList<TEntity> result = whereResult.ToArray();
+            IReadOnlyList<TEntity> result = _items.Values
+                .Where(item =>
+                {
+                    var evaluatedValue5 = filter?.Invoke(item) ?? true;
+                    return evaluatedValue5;
+                })
+                .ToArray();
             var fromResultResult6 = Task.FromResult(result);
             return fromResultResult6;
         }

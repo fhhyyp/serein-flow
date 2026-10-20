@@ -1,4 +1,5 @@
 namespace SereinFlow.Domain;
+
 public sealed class FlowDefinition
 {
     public const int CurrentSchemaVersion = 5;
@@ -66,22 +67,24 @@ public sealed class FlowDefinition
         var canvasIds = new HashSet<string>(StringComparer.Ordinal);
         var nodeIds = new HashSet<string>(StringComparer.Ordinal);
         var connectionIds = new HashSet<string>(StringComparer.Ordinal);
-        var selectManyResult16 = Canvases.SelectMany(static canvas => canvas.Connections);
-        var whereResult = selectManyResult16.Where(static connection => connection.Kind == ConnectionKind.Data);
-        var selectResult = whereResult.Select(static connection =>
-        {
-            var createParameterKeyResult = CreateParameterKey(connection.ToNodeId, connection.ToPortId);
-            return createParameterKeyResult;
-        });
-        var dataBoundParameters = selectResult.ToHashSet(StringComparer.Ordinal);
-        var selectManyResult17 = Canvases.SelectMany(static canvas => canvas.Nodes);
-        var whereResult18 = selectManyResult17.Where(static node =>
-        {
-            var evaluatedValue2 = node.Type == NodeType.FlowCall && !string.IsNullOrWhiteSpace(node.Runtime?.TargetNodeId);
-            return evaluatedValue2;
-        });
-        var selectResult19 = whereResult18.Select(static node => node.Runtime!.TargetNodeId!);
-        var flowCallTargetNodes = selectResult19.ToHashSet(StringComparer.Ordinal);
+        var dataBoundParameters = Canvases
+            .SelectMany(static canvas => canvas.Connections)
+            .Where(static connection => connection.Kind == ConnectionKind.Data)
+            .Select(static connection =>
+            {
+                var createParameterKeyResult = CreateParameterKey(connection.ToNodeId, connection.ToPortId);
+                return createParameterKeyResult;
+            })
+            .ToHashSet(StringComparer.Ordinal);
+        var flowCallTargetNodes = Canvases
+            .SelectMany(static canvas => canvas.Nodes)
+            .Where(static node =>
+            {
+                var evaluatedValue2 = node.Type == NodeType.FlowCall && !string.IsNullOrWhiteSpace(node.Runtime?.TargetNodeId);
+                return evaluatedValue2;
+            })
+            .Select(static node => node.Runtime!.TargetNodeId!)
+            .ToHashSet(StringComparer.Ordinal);
         foreach (var canvas in Canvases)
         {
             if (!canvasIds.Add(canvas.Id))
@@ -127,10 +130,10 @@ public sealed class FlowDefinition
                     }
 
                     if (parameter.Required && parameter.Source == DataSource.Literal && string.IsNullOrWhiteSpace(parameter.ValueJson) && !resolveContainsResult() // A FlowCall provides the public entry's input through
- // a separate mapping. Its completeness is validated by
-                    // ExecutionPlanBuilder after target resolution.
-                    // FlowCall 通过独立映射提供公开入口参数；映射完整性将在
-                    // ExecutionPlanBuilder 解析目标节点后校验。
+                                                                                                                                                                   // a separate mapping. Its completeness is validated by
+                                                                                                                                                                   // ExecutionPlanBuilder after target resolution.
+                                                                                                                                                                   // FlowCall 通过独立映射提供公开入口参数；映射完整性将在
+                                                                                                                                                                   // ExecutionPlanBuilder 解析目标节点后校验。
                     && !flowCallTargetNodes.Contains(node.Id))
                     {
                         DomainDiagnostic evaluatedValue9 = new(DomainErrorCodes.MissingRequiredParameter, $"Required parameter '{parameter.Name}' on node '{node.Id}' has no literal value. 节点“{node.Id}”的必需参数“{parameter.Name}”没有字面量值。", $"nodes.{node.Id}.parameters.{parameter.Name}");
@@ -171,12 +174,13 @@ public sealed class FlowDefinition
 
                 if (connection.Kind == ConnectionKind.Data && nodeIds.Contains(connection.ToNodeId))
                 {
-                    var selectManyResult = Canvases.SelectMany(static item => item.Nodes);
-                    var targetNode = selectManyResult.First(item =>
-                    {
-                        var equalsResult = string.Equals(item.Id, connection.ToNodeId, StringComparison.Ordinal);
-                        return equalsResult;
-                    });
+                    var targetNode = Canvases
+                        .SelectMany(static item => item.Nodes)
+                        .First(item =>
+                        {
+                            var equalsResult = string.Equals(item.Id, connection.ToNodeId, StringComparison.Ordinal);
+                            return equalsResult;
+                        });
                     if (!targetNode.Parameters.Any(parameter =>
                     {
                         var equalsResult14 = string.Equals(parameter.Id, connection.ToPortId, StringComparison.Ordinal);
@@ -234,19 +238,21 @@ public sealed class FlowDefinition
             return false;
         }
 
-        var whereResult25 = metadata.Options.Where(static option =>
-        {
-            var equalsResult24 = string.Equals(option.NumericValue, "0", StringComparison.Ordinal);
-            return equalsResult24;
-        });
-        var selectResult26 = whereResult25.Select(static option => option.Name);
-        var zeroValueNames = selectResult26.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var zeroValueNames = metadata.Options
+            .Where(static option =>
+            {
+                var equalsResult24 = string.Equals(option.NumericValue, "0", StringComparison.Ordinal);
+                return equalsResult24;
+            })
+            .Select(static option => option.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var evaluatedValue27 = members.Length == 1 || !members.Any(zeroValueNames.Contains);
         return evaluatedValue27;
         int resolveCountResult()
         {
-            var distinctResult = members.Distinct(StringComparer.OrdinalIgnoreCase);
-            var countResult = distinctResult.Count();
+            var countResult = members
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
             return countResult;
         }
     }

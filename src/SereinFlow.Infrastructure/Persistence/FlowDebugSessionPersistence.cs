@@ -6,6 +6,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 public sealed class SqlSugarFlowDebugSessionStore : IFlowDebugSessionStore
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions();
@@ -61,14 +62,15 @@ public sealed class SqlSugarFlowDebugSessionStore : IFlowDebugSessionStore
         };
         var terminal = evaluatedValue4.ToHashSet(StringComparer.Ordinal);
         var rows = await _sessions.ListAsync(cancellationToken: cancellationToken);
-        var whereResult = rows.Where(row =>
-        {
-            var evaluatedValue3 = !terminal.Contains(row.Status);
-            return evaluatedValue3;
-        });
-        var selectResult = whereResult.Select(Map);
-        var orderByResult = selectResult.OrderBy(static item => item.CreatedAt);
-        var toArrayResult = orderByResult.ToArray();
+        var toArrayResult = rows
+            .Where(row =>
+            {
+                var evaluatedValue3 = !terminal.Contains(row.Status);
+                return evaluatedValue3;
+            })
+            .Select(Map)
+            .OrderBy(static item => item.CreatedAt)
+            .ToArray();
         return toArrayResult;
     }
 

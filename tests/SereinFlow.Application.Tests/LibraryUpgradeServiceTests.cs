@@ -5,6 +5,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Application.Tests;
+
 public sealed class LibraryUpgradeServiceTests
 {
     private const string SourceArtifactId = "source-artifact";
@@ -200,9 +201,10 @@ public sealed class LibraryUpgradeServiceTests
 
         public IReadOnlyList<FlowDefinitionDto> ListByProject(Guid id)
         {
-            var whereResult = _flows.Where(item => item.Key.ProjectId == id);
-            var selectResult = whereResult.Select(static item => item.Value);
-            var toArrayResult18 = selectResult.ToArray();
+            var toArrayResult18 = _flows
+                .Where(item => item.Key.ProjectId == id)
+                .Select(static item => item.Value)
+                .ToArray();
             return toArrayResult18;
         }
 

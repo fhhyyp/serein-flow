@@ -56,9 +56,10 @@ public sealed class AiReadModelService
         var projects = await _projects.ListAsync(cancellationToken);
         var minResult = Math.Min(normalized.MaxItems, projects.Count);
         var items = new List<AiProjectSummaryDto>(minResult);
-        var whereResult = projects.Where(predicate);
-        var orderByResult = whereResult.OrderBy(static item => item.Id);
-        foreach (var project in orderByResult.Take(normalized.MaxItems + 1))
+        foreach (var project in projects
+            .Where(predicate)
+            .OrderBy(static item => item.Id)
+            .Take(normalized.MaxItems + 1))
         {
             var flows = await _flows.ListByProjectAsync(project.Id, cancellationToken);
             var summaries = new List<AiFlowSummaryDto>(flows.Count);
@@ -108,7 +109,7 @@ public sealed class AiReadModelService
 
     public async Task<AiFlowTopologyDto?> GetFlowTopologyAsync(Guid projectId, Guid flowId, FlowVersionTrackDto track = FlowVersionTrackDto.Development, long? version = null, AiReadModelOptions? options = null, CancellationToken cancellationToken = default)
     {
-        if (await _projects.FindAsync(projectId, cancellationToken)is null)
+        if (await _projects.FindAsync(projectId, cancellationToken) is null)
         {
             return null;
         }
@@ -159,8 +160,9 @@ public sealed class AiReadModelService
         if (_projectLibraryReferences is not null)
         {
             var references = await _projectLibraryReferences.ListByProjectAsync(projectId, cancellationToken);
-            var selectResult = references.Select(static item => item.LibraryId);
-            var referencedIds = selectResult.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var referencedIds = references
+                .Select(static item => item.LibraryId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var whereResult12 = libraries.Where(item =>
             {
                 var containsResult = referencedIds.Contains(item.Id);
@@ -169,12 +171,13 @@ public sealed class AiReadModelService
             libraries = whereResult12.ToArray();
         }
 
-        var selectResult13 = libraries.Select(static item =>
-        {
-            var mapLibraryResult = MapLibrary(item, includeNodes: true);
-            return mapLibraryResult;
-        });
-        var toArrayResult = selectResult13.ToArray();
+        var toArrayResult = libraries
+            .Select(static item =>
+            {
+                var mapLibraryResult = MapLibrary(item, includeNodes: true);
+                return mapLibraryResult;
+            })
+            .ToArray();
         AiFlowEditModelDto evaluatedValue14 = new(projectId, flowId, flow, builtinNodes.Nodes, toArrayResult);
         return evaluatedValue14;
     }
@@ -202,15 +205,16 @@ public sealed class AiReadModelService
         var evaluatedValue17 = (options ?? new());
         var normalized = evaluatedValue17.Normalize();
         var libraries = await _libraries.ListAsync(includeArchived, cancellationToken);
-        var whereResult18 = libraries.Where(item => lifecycle is null || item.Lifecycle == lifecycle);
-        var orderByResult19 = whereResult18.OrderBy(static item => item.Id, StringComparer.Ordinal);
-        var takeResult = orderByResult19.Take(normalized.MaxItems + 1);
-        var selectResult20 = takeResult.Select(static item =>
-        {
-            var mapLibraryResult16 = MapLibrary(item, includeNodes: false);
-            return mapLibraryResult16;
-        });
-        var items = selectResult20.ToArray();
+        var items = libraries
+            .Where(item => lifecycle is null || item.Lifecycle == lifecycle)
+            .OrderBy(static item => item.Id, StringComparer.Ordinal)
+            .Take(normalized.MaxItems + 1)
+            .Select(static item =>
+            {
+                var mapLibraryResult16 = MapLibrary(item, includeNodes: false);
+                return mapLibraryResult16;
+            })
+            .ToArray();
         var createPageResult21 = CreatePage(items, normalized.MaxItems, static item => item.Id);
         return createPageResult21;
     }
@@ -232,10 +236,11 @@ public sealed class AiReadModelService
         };
         var flowRunQuery = new FlowRunQuery(statuses, projectId, normalized.MaxItems + 1);
         var runs = await _runs.ListAsync(flowRunQuery, cancellationToken);
-        var orderByDescendingResult = runs.OrderByDescending(static item => item.CreatedAt);
-        var takeResult25 = orderByDescendingResult.Take(normalized.MaxItems + 1);
-        var selectResult26 = takeResult25.Select(MapRun);
-        var items = selectResult26.ToArray();
+        var items = runs
+            .OrderByDescending(static item => item.CreatedAt)
+            .Take(normalized.MaxItems + 1)
+            .Select(MapRun)
+            .ToArray();
         var createPageResult27 = CreatePage(items, normalized.MaxItems, static item =>
         {
             var toStringResult23 = item.Id.ToString("D");
@@ -249,12 +254,13 @@ public sealed class AiReadModelService
         var evaluatedValue29 = (options ?? new());
         var normalized = evaluatedValue29.Normalize();
         var sessions = await _debugSessions.ListActiveAsync(cancellationToken);
-        var whereResult30 = sessions.Where(session => projectId is null || session.ProjectId == projectId.Value);
-        var orderByDescendingResult31 = whereResult30.OrderByDescending(static session => session.UpdatedAt);
-        var thenByResult = orderByDescendingResult31.ThenBy(static session => session.Id);
-        var takeResult32 = thenByResult.Take(normalized.MaxItems + 1);
-        var selectResult33 = takeResult32.Select(MapDebugSessionSummary);
-        var items = selectResult33.ToArray();
+        var items = sessions
+            .Where(session => projectId is null || session.ProjectId == projectId.Value)
+            .OrderByDescending(static session => session.UpdatedAt)
+            .ThenBy(static session => session.Id)
+            .Take(normalized.MaxItems + 1)
+            .Select(MapDebugSessionSummary)
+            .ToArray();
         var createPageResult34 = CreatePage(items, normalized.MaxItems, static item =>
         {
             var toStringResult28 = item.Id.ToString("D");
@@ -285,22 +291,22 @@ public sealed class AiReadModelService
 
     public async Task<AiPageDto<AiRunEventDto>?> GetRunEventsAsync(Guid runId, long afterSequence = 0, AiReadModelOptions? options = null, CancellationToken cancellationToken = default)
     {
-        if (await _runs.FindAsync(runId, cancellationToken)is null)
+        if (await _runs.FindAsync(runId, cancellationToken) is null)
         {
             return null;
         }
 
         var evaluatedValue38 = (options ?? new());
         var normalized = evaluatedValue38.Normalize();
-        var evaluatedValue39 = (await _events.GetAfterAsync(runId, afterSequence, cancellationToken));
-        var orderByResult40 = evaluatedValue39.OrderBy(static item => item.Sequence);
-        var takeResult41 = orderByResult40.Take(normalized.MaxItems + 1);
-        var selectResult42 = takeResult41.Select(item =>
-        {
-            var mapEventResult = MapEvent(item, normalized.MaxJsonBytes);
-            return mapEventResult;
-        });
-        var events = selectResult42.ToArray();
+        var events = (await _events.GetAfterAsync(runId, afterSequence, cancellationToken))
+            .OrderBy(static item => item.Sequence)
+            .Take(normalized.MaxItems + 1)
+            .Select(item =>
+            {
+                var mapEventResult = MapEvent(item, normalized.MaxJsonBytes);
+                return mapEventResult;
+            })
+            .ToArray();
         var createPageResult43 = CreatePage(events, normalized.MaxItems, static item =>
         {
             var toStringResult37 = item.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -311,22 +317,22 @@ public sealed class AiReadModelService
 
     public async Task<AiPageDto<AiNodeExecutionRecordDto>?> GetRunOutputsAsync(Guid runId, AiReadModelOptions? options = null, CancellationToken cancellationToken = default)
     {
-        if (await _runs.FindAsync(runId, cancellationToken)is null)
+        if (await _runs.FindAsync(runId, cancellationToken) is null)
         {
             return null;
         }
 
         var evaluatedValue45 = (options ?? new());
         var normalized = evaluatedValue45.Normalize();
-        var evaluatedValue46 = (await _outputs.ListAsync(runId, cancellationToken));
-        var orderByResult47 = evaluatedValue46.OrderBy(static item => item.Sequence);
-        var takeResult48 = orderByResult47.Take(normalized.MaxItems + 1);
-        var selectResult49 = takeResult48.Select(item =>
-        {
-            var mapOutputResult = MapOutput(item, normalized.MaxJsonBytes);
-            return mapOutputResult;
-        });
-        var outputs = selectResult49.ToArray();
+        var outputs = (await _outputs.ListAsync(runId, cancellationToken))
+            .OrderBy(static item => item.Sequence)
+            .Take(normalized.MaxItems + 1)
+            .Select(item =>
+            {
+                var mapOutputResult = MapOutput(item, normalized.MaxJsonBytes);
+                return mapOutputResult;
+            })
+            .ToArray();
         var createPageResult50 = CreatePage(outputs, normalized.MaxItems, static item =>
         {
             var toStringResult44 = item.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -358,30 +364,36 @@ public sealed class AiReadModelService
     private static AiFlowTopologyDto MapTopology(Guid projectId, FlowDefinitionDto definition, FlowVersionTrackDto? track, AiReadModelOptions options)
     {
         var evaluatedValue64 = definition.RunPolicy?.ConcurrencyMode.ToString() ?? "Unknown";
-        var selectResult65 = definition.Canvases.Select(canvas =>
-        {
-            var takeResult54 = canvas.Nodes.Take(options.MaxItems + 1);
-            var nodes = takeResult54.ToArray();
-            var takeResult55 = canvas.Connections.Take(options.MaxItems + 1);
-            var connections = takeResult55.ToArray();
-            var whereResult56 = canvas.Connections.Where(static connection => connection.Kind == ConnectionKindDto.Data);
-            var dataConnections = whereResult56.ToArray();
-            var truncated = nodes.Length > options.MaxItems || connections.Length > options.MaxItems;
-            var toStringResult57 = canvas.Lifecycle.ToString();
-            var takeResult58 = nodes.Take(options.MaxItems);
-            var selectResult59 = takeResult58.Select(node =>
+        var toArrayResult66 = definition.Canvases
+            .Select(canvas =>
             {
-                var mapNodeResult = MapNode(canvas.Id, node, dataConnections, options);
-                return mapNodeResult;
-            });
-            var toArrayResult60 = selectResult59.ToArray();
-            var takeResult61 = connections.Take(options.MaxItems);
-            var selectResult62 = takeResult61.Select(MapConnection);
-            var toArrayResult63 = selectResult62.ToArray();
-            var aiCanvasDto = new AiCanvasDto(canvas.Id, toStringResult57, canvas.Name, toArrayResult60, toArrayResult63, truncated);
-            return aiCanvasDto;
-        });
-        var toArrayResult66 = selectResult65.ToArray();
+                var nodes = canvas.Nodes
+                    .Take(options.MaxItems + 1)
+                    .ToArray();
+                var connections = canvas.Connections
+                    .Take(options.MaxItems + 1)
+                    .ToArray();
+                var dataConnections = canvas.Connections
+                    .Where(static connection => connection.Kind == ConnectionKindDto.Data)
+                    .ToArray();
+                var truncated = nodes.Length > options.MaxItems || connections.Length > options.MaxItems;
+                var toStringResult57 = canvas.Lifecycle.ToString();
+                var toArrayResult60 = nodes
+                    .Take(options.MaxItems)
+                    .Select(node =>
+                    {
+                        var mapNodeResult = MapNode(canvas.Id, node, dataConnections, options);
+                        return mapNodeResult;
+                    })
+                    .ToArray();
+                var toArrayResult63 = connections
+                    .Take(options.MaxItems)
+                    .Select(MapConnection)
+                    .ToArray();
+                var aiCanvasDto = new AiCanvasDto(canvas.Id, toStringResult57, canvas.Name, toArrayResult60, toArrayResult63, truncated);
+                return aiCanvasDto;
+            })
+            .ToArray();
         AiFlowTopologyDto evaluatedValue67 = new(projectId, definition.Id, track, definition.Version, definition.SchemaVersion, definition.EntryNodeId, definition.Checksum, evaluatedValue64, toArrayResult66);
         return evaluatedValue67;
     }
@@ -389,19 +401,21 @@ public sealed class AiReadModelService
     private static AiNodeContractDto MapNode(string canvasId, NodeDto node, IReadOnlyList<ConnectionDto> dataConnections, AiReadModelOptions options)
     {
         var toStringResult68 = node.Type.ToString();
-        var selectResult69 = node.Ports.Select(port =>
-        {
-            var aiPortContractDto = new AiPortContractDto(port.Id, port.Name, port.Direction, port.Required);
-            return aiPortContractDto;
-        });
-        var toArrayResult70 = selectResult69.ToArray();
-        var selectResult71 = node.Parameters.Select(parameter =>
-        {
-            var firstOrDefaultResult = dataConnections.FirstOrDefault(connection => connection.ToNodeId == node.Id && connection.ToPortId == (parameter.Ui?.Id ?? parameter.Name));
-            var mapParameterResult = MapParameter(parameter, options, firstOrDefaultResult);
-            return mapParameterResult;
-        });
-        var toArrayResult72 = selectResult71.ToArray();
+        var toArrayResult70 = node.Ports
+            .Select(port =>
+            {
+                var aiPortContractDto = new AiPortContractDto(port.Id, port.Name, port.Direction, port.Required);
+                return aiPortContractDto;
+            })
+            .ToArray();
+        var toArrayResult72 = node.Parameters
+            .Select(parameter =>
+            {
+                var firstOrDefaultResult = dataConnections.FirstOrDefault(connection => connection.ToNodeId == node.Id && connection.ToPortId == (parameter.Ui?.Id ?? parameter.Name));
+                var mapParameterResult = MapParameter(parameter, options, firstOrDefaultResult);
+                return mapParameterResult;
+            })
+            .ToArray();
         AiNodeRuntimeDto conditionalValue;
         if (node.Ui is null)
         {
@@ -420,10 +434,12 @@ public sealed class AiReadModelService
         AiScriptContractDto resolveAiScriptContractDto()
         {
             string? evaluatedValue74 = options.IncludeScriptSource ? LimitText(node.Script.Source, options.MaxJsonBytes) : null;
-            var selectResult75 = node.Script.Inputs.Select(MapScriptValue);
-            var toArrayResult76 = selectResult75.ToArray();
-            var selectResult77 = node.Script.Outputs.Select(MapScriptValue);
-            var toArrayResult78 = selectResult77.ToArray();
+            var toArrayResult76 = node.Script.Inputs
+                .Select(MapScriptValue)
+                .ToArray();
+            var toArrayResult78 = node.Script.Outputs
+                .Select(MapScriptValue)
+                .ToArray();
             var aiScriptContractDto = new AiScriptContractDto(node.Script.NodeId, node.Script.LanguageVersion, node.Script.SourceHash, evaluatedValue74, toArrayResult76, toArrayResult78);
             return aiScriptContractDto;
         }
@@ -468,19 +484,21 @@ public sealed class AiReadModelService
         return evaluatedValue97;
         AiLibraryNodeContractDto[] resolveToArrayResult()
         {
-            var selectResult94 = library.Nodes.Select(node =>
-            {
-                var toStringResult90 = node.Type.ToString();
-                var selectResult91 = node.Parameters.Select(parameter =>
+            var toArrayResult95 = library.Nodes
+                .Select(node =>
                 {
-                    var aiLibraryParameterContractDto = new AiLibraryParameterContractDto(parameter.Id, parameter.Name, parameter.Type, parameter.Description, parameter.Required, parameter.IsVariadic, parameter.ElementType, parameter.DefaultValue, parameter.Aliases, parameter.IdentityConfidence, parameter.EnumMetadata);
-                    return aiLibraryParameterContractDto;
-                });
-                var toArrayResult92 = selectResult91.ToArray();
-                var aiLibraryNodeContractDto = new AiLibraryNodeContractDto(node.Id, node.ContractId ?? node.Id, toStringResult90, node.DisplayName, node.Description, node.LibraryId, node.ClassName, node.MethodName, node.DllName, node.DllVersion, node.ReturnType, node.IsAwaitable, node.FlowLibraryName, toArrayResult92, node.IdentityConfidence);
-                return aiLibraryNodeContractDto;
-            });
-            var toArrayResult95 = selectResult94.ToArray();
+                    var toStringResult90 = node.Type.ToString();
+                    var toArrayResult92 = node.Parameters
+                        .Select(parameter =>
+                        {
+                            var aiLibraryParameterContractDto = new AiLibraryParameterContractDto(parameter.Id, parameter.Name, parameter.Type, parameter.Description, parameter.Required, parameter.IsVariadic, parameter.ElementType, parameter.DefaultValue, parameter.Aliases, parameter.IdentityConfidence, parameter.EnumMetadata);
+                            return aiLibraryParameterContractDto;
+                        })
+                        .ToArray();
+                    var aiLibraryNodeContractDto = new AiLibraryNodeContractDto(node.Id, node.ContractId ?? node.Id, toStringResult90, node.DisplayName, node.Description, node.LibraryId, node.ClassName, node.MethodName, node.DllName, node.DllVersion, node.ReturnType, node.IsAwaitable, node.FlowLibraryName, toArrayResult92, node.IdentityConfidence);
+                    return aiLibraryNodeContractDto;
+                })
+                .ToArray();
             return toArrayResult95;
         }
     }
@@ -616,8 +634,9 @@ public sealed class AiReadModelService
         return evaluatedValue122;
         T[] resolveToArrayResult118()
         {
-            var takeResult119 = items.Take(take);
-            var toArrayResult120 = takeResult119.ToArray();
+            var toArrayResult120 = items
+                .Take(take)
+                .ToArray();
             return toArrayResult120;
         }
     }

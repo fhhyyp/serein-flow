@@ -1,6 +1,7 @@
 using SereinFlow.Library;
 
 namespace SereinFlow.Worker.IntegrationTests;
+
 public sealed class LibraryVariableServiceTests
 {
     [Fact]
@@ -155,8 +156,7 @@ public sealed class LibraryVariableServiceTests
     {
         var variables = new LibraryVariableService();
         variables.Set("shared", -1);
-        var rangeResult = Enumerable.Range(0, 8);
-        var selectResult = rangeResult.Select(worker =>
+        var selectResult = Enumerable.Range(0, 8).Select(worker =>
         {
             var runResult = Task.Run(() =>
             {

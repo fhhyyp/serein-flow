@@ -4,6 +4,7 @@ using System.Xml.Linq;
 using SereinFlow.Api;
 
 namespace SereinFlow.ArchitectureTests;
+
 public sealed class ApiIsolationTests
 {
     [Theory]
@@ -13,8 +14,8 @@ public sealed class ApiIsolationTests
     [InlineData("Serein.Script")]
     public void ApiDoesNotStaticallyReferenceUntrustedExecutionComponents(string forbiddenAssemblyName)
     {
-        var getReferencedAssembliesResult = typeof(AssemblyMarker).Assembly.GetReferencedAssemblies();
-        var referencedAssemblies = getReferencedAssembliesResult.Select(static reference => reference.Name);
+        var referencedAssemblies = typeof(AssemblyMarker).Assembly.GetReferencedAssemblies()
+            .Select(static reference => reference.Name);
         Assert.DoesNotContain(forbiddenAssemblyName, referencedAssemblies);
     }
 
@@ -44,16 +45,13 @@ public sealed class ApiIsolationTests
         foreach (var sourceProjectFile in sourceProjectFiles)
         {
             var project = XDocument.Load(sourceProjectFile);
-            var descendantsResult = project.Descendants();
-            var selectManyResult = descendantsResult.SelectMany(static element =>
+            var selectResult3 = project.Descendants().SelectMany(static element =>
             {
                 var attributesResult = element.Attributes("Include");
                 var attributesResult2 = element.Attributes("Project");
                 var concatResult = attributesResult.Concat(attributesResult2);
                 return concatResult;
-            });
-            var selectResult = selectManyResult.Select(static attribute => attribute.Value);
-            var selectResult3 = selectResult.Select(static value =>
+            }).Select(static attribute => attribute.Value).Select(static value =>
             {
                 var getFileNameWithoutExtensionResult = Path.GetFileNameWithoutExtension(value);
                 return getFileNameWithoutExtensionResult;

@@ -6,12 +6,13 @@ using SereinFlow.Runtime.Abstractions;
 using SereinFlow.ScriptAdapter;
 
 namespace SereinFlow.Worker.Runner;
+
 internal sealed partial class LibraryNodeExecutor
 {
-    private static object? [] BuildArguments(NodeExecutionRequest request, MethodInfo method, LibraryFlowContext flowContext, Dictionary<string, object?> auditInputs)
+    private static object?[] BuildArguments(NodeExecutionRequest request, MethodInfo method, LibraryFlowContext flowContext, Dictionary<string, object?> auditInputs)
     {
         var parameters = method.GetParameters();
-        var arguments = new object? [parameters.Length];
+        var arguments = new object?[parameters.Length];
         var ordinaryParameterIndex = 0;
         for (var index = 0; index < parameters.Length; index++)
         {
@@ -43,7 +44,7 @@ internal sealed partial class LibraryNodeExecutor
 
     private static object? BuildArgument(NodeExecutionRequest request, ParameterInfo parameter, NodeParameterDefinition? definition, string name, Dictionary<string, object?> auditInputs)
     {
-        if (parameter.GetCustomAttribute<ParamArrayAttribute>()is not null)
+        if (parameter.GetCustomAttribute<ParamArrayAttribute>() is not null)
         {
             try
             {
@@ -68,7 +69,7 @@ internal sealed partial class LibraryNodeExecutor
                 return parameter.DefaultValue;
             }
 
-            if (!parameter.ParameterType.IsValueType || Nullable.GetUnderlyingType(parameter.ParameterType)is not null)
+            if (!parameter.ParameterType.IsValueType || Nullable.GetUnderlyingType(parameter.ParameterType) is not null)
             {
                 auditInputs[name] = null;
                 return null;
@@ -111,12 +112,13 @@ internal sealed partial class LibraryNodeExecutor
         var arrayType = parameter.ParameterType;
         var elementType = arrayType.GetElementType() ?? throw new InvalidOperationException("The params array has no element type. params 数组没有元素类型。");
         var groupId = representative?.VariadicGroupId ?? representative?.Id ?? parameter.Name ?? string.Empty;
-        var whereResult = request.Node.Parameters.Where(item =>
-        {
-            var evaluatedValue4 = item.IsVariadic && string.Equals(item.VariadicGroupId ?? item.Id, groupId, StringComparison.Ordinal);
-            return evaluatedValue4;
-        });
-        var definitions = whereResult.ToArray();
+        var definitions = request.Node.Parameters
+            .Where(item =>
+            {
+                var evaluatedValue4 = item.IsVariadic && string.Equals(item.VariadicGroupId ?? item.Id, groupId, StringComparison.Ordinal);
+                return evaluatedValue4;
+            })
+            .ToArray();
         if (definitions.Length == 0 && representative?.IsVariadic == true)
         {
             definitions = [representative];

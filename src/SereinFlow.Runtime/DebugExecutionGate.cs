@@ -17,16 +17,17 @@ public sealed class DebugExecutionGate : IExecutionGate
     public DebugExecutionGate(IEnumerable<string> breakpointNodeIds, Func<NodeExecutionBoundary, CancellationToken, ValueTask>? onPaused = null)
     {
         ArgumentNullException.ThrowIfNull(breakpointNodeIds);
-        var whereResult = breakpointNodeIds.Where(static nodeId =>
-        {
-            var evaluatedValue = !string.IsNullOrWhiteSpace(nodeId);
-            return evaluatedValue;
-        });
-        var selectResult = whereResult.Select(static nodeId =>
-        {
-            var trimResult = nodeId.Trim();
-            return trimResult;
-        });
+        var selectResult = breakpointNodeIds
+            .Where(static nodeId =>
+            {
+                var evaluatedValue = !string.IsNullOrWhiteSpace(nodeId);
+                return evaluatedValue;
+            })
+            .Select(static nodeId =>
+            {
+                var trimResult = nodeId.Trim();
+                return trimResult;
+            });
         _breakpointNodeIds = selectResult.ToHashSet(StringComparer.Ordinal);
         _onPaused = onPaused;
     }

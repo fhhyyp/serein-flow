@@ -5,6 +5,7 @@ using SereinFlow.Library;
 using SereinFlow.Worker.Runner;
 
 namespace SereinFlow.Worker.IntegrationTests;
+
 public sealed class WorkerMessageServiceTests
 {
     [Fact]
@@ -19,20 +20,20 @@ public sealed class WorkerMessageServiceTests
         var first = service.CreateMessageQueue(options);
         var second = service.CreateMessageQueue(options);
         var received = new ConcurrentBag<int>();
-        var rangeResult = Enumerable.Range(0, 4);
-        var selectResult = rangeResult.Select(_ =>
-        {
-            var runResult = Task.Run(async () =>
+        var consumers = Enumerable.Range(0, 4)
+            .Select(_ =>
             {
-                for (var index = 0; index < 25; index++)
+                var runResult = Task.Run(async () =>
                 {
-                    var receiveAsyncResult = await (index % 2 == 0 ? first : second).ReceiveAsync<int>("numbers");
-                    received.Add(receiveAsyncResult);
-                }
-            });
-            return runResult;
-        });
-        var consumers = selectResult.ToArray();
+                    for (var index = 0; index < 25; index++)
+                    {
+                        var receiveAsyncResult = await (index % 2 == 0 ? first : second).ReceiveAsync<int>("numbers");
+                        received.Add(receiveAsyncResult);
+                    }
+                });
+                return runResult;
+            })
+            .ToArray();
         for (var index = 0; index < 100; index++)
         {
             await first.SendAsync("numbers", index);
@@ -165,16 +166,16 @@ public sealed class WorkerMessageServiceTests
         var newGuidResult20 = Guid.NewGuid();
         var serializeResult21 = JsonSerializer.Serialize("hello");
         var delivery = new WorkerMessageDeliveryDto(WorkerProtocol.Version, runId, newGuidResult20, "external.concurrent", WorkerMessageChannelKindDto.Queue, WorkerMessageSerializationModeDto.Json, "test.text", serializeResult21, DateTimeOffset.UtcNow);
-        var rangeResult22 = Enumerable.Range(0, 32);
-        var selectResult23 = rangeResult22.Select(_ =>
-        {
-            var runResult17 = Task.Run(() =>
+        var selectResult23 = Enumerable.Range(0, 32)
+            .Select(_ =>
             {
-                var tryDeliverResult = service.TryDeliver(delivery);
-                return tryDeliverResult;
+                var runResult17 = Task.Run(() =>
+                {
+                    var tryDeliverResult = service.TryDeliver(delivery);
+                    return tryDeliverResult;
+                });
+                return runResult17;
             });
-            return runResult17;
-        });
         var results = await Task.WhenAll(selectResult23);
         Assert.All(results, result =>
         {

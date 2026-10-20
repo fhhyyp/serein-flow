@@ -3,6 +3,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
 {
     private readonly IRepository<FlowRunEventRecord> _events;
@@ -35,14 +36,15 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
 
         try
         {
-            var orderByResult = events.OrderBy(static item => item.Sequence);
-            var groupByResult = orderByResult.GroupBy(static item => (item.RunId, item.Sequence));
-            var selectResult = groupByResult.Select(static group =>
-            {
-                var firstResult = group.First();
-                return firstResult;
-            });
-            var grouped = selectResult.ToArray();
+            var grouped = events
+                .OrderBy(static item => item.Sequence)
+                .GroupBy(static item => (item.RunId, item.Sequence))
+                .Select(static group =>
+                {
+                    var firstResult = group.First();
+                    return firstResult;
+                })
+                .ToArray();
             var existingKeys = new HashSet<(string RunId, long Sequence)>();
             foreach (var runGroup in grouped.GroupBy(static item => item.RunId))
             {
@@ -91,9 +93,10 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
     {
         var key = runId.ToString("D");
         var rows = await _events.ListAsync(row => row.RunId == key && row.Sequence > sequenceExclusive, cancellationToken);
-        var orderByResult1 = rows.OrderBy(static row => row.Sequence);
-        var selectResult2 = orderByResult1.Select(Map);
-        var toArrayResult = selectResult2.ToArray();
+        var toArrayResult = rows
+            .OrderBy(static row => row.Sequence)
+            .Select(Map)
+            .ToArray();
         return toArrayResult;
     }
 
@@ -150,15 +153,15 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
     {
         var listAsyncResult = _events.ListAsync();
         var getAwaiterResult6 = listAsyncResult.GetAwaiter();
-        var getResultResult = getAwaiterResult6.GetResult();
-        var whereResult = getResultResult.Where(row =>
-        {
-            var evaluatedValue5 = row.RunId == runId.ToString("D") && row.Sequence > sequenceExclusive;
-            return evaluatedValue5;
-        });
-        var orderByResult7 = whereResult.OrderBy(static row => row.Sequence);
-        var selectResult8 = orderByResult7.Select(Map);
-        var toArrayResult9 = selectResult8.ToArray();
+        var toArrayResult9 = getAwaiterResult6.GetResult()
+            .Where(row =>
+            {
+                var evaluatedValue5 = row.RunId == runId.ToString("D") && row.Sequence > sequenceExclusive;
+                return evaluatedValue5;
+            })
+            .OrderBy(static row => row.Sequence)
+            .Select(Map)
+            .ToArray();
         return toArrayResult9;
     }
 

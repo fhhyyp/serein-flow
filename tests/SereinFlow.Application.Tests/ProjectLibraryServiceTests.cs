@@ -5,6 +5,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Application.Tests;
+
 public sealed class ProjectLibraryServiceTests
 {
     private const string LibraryId = "e7b5f2a9c4d8";
@@ -106,7 +107,7 @@ public sealed class ProjectLibraryServiceTests
         var createLibraryResult11 = CreateLibrary();
         var service = CreateService(projects, inMemoryFlowDefinitionRepository10, references, createLibraryResult11);
         await service.AddAsync(project.Id, LibraryId);
-        var flow = CreateExternalLibraryFlow()with
+        var flow = CreateExternalLibraryFlow() with
         {
             Canvases = [CreateExternalLibraryFlow().Canvases[0] with
             {
@@ -263,9 +264,10 @@ public sealed class ProjectLibraryServiceTests
 
         public IReadOnlyList<FlowDefinitionDto> ListByProject(Guid projectId)
         {
-            var whereResult = _definitions.Where(pair => pair.Key.ProjectId == projectId);
-            var selectResult = whereResult.Select(static pair => pair.Value);
-            var toArrayResult24 = selectResult.ToArray();
+            var toArrayResult24 = _definitions
+                .Where(pair => pair.Key.ProjectId == projectId)
+                .Select(static pair => pair.Value)
+                .ToArray();
             return toArrayResult24;
         }
 
@@ -299,8 +301,9 @@ public sealed class ProjectLibraryServiceTests
             return fromResultResult28;
             ProjectLibraryReference[] resolveToArrayResult()
             {
-                var orderByResult = references.Values.OrderBy(static item => item.LibraryId, StringComparer.OrdinalIgnoreCase);
-                var toArrayResult26 = orderByResult.ToArray();
+                var toArrayResult26 = references.Values
+                    .OrderBy(static item => item.LibraryId, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
                 return toArrayResult26;
             }
         }
@@ -390,8 +393,9 @@ public sealed class ProjectLibraryServiceTests
         private readonly Dictionary<string, LibraryDto> _libraries = libraries.ToDictionary(static library => library.Id, StringComparer.OrdinalIgnoreCase);
         public IReadOnlyList<LibraryDto> List()
         {
-            var whereResult42 = _libraries.Values.Where(static library => library.Lifecycle == LibraryLifecycleDto.Available);
-            var toArrayResult43 = whereResult42.ToArray();
+            var toArrayResult43 = _libraries.Values
+                .Where(static library => library.Lifecycle == LibraryLifecycleDto.Available)
+                .ToArray();
             return toArrayResult43;
         }
 
@@ -403,8 +407,9 @@ public sealed class ProjectLibraryServiceTests
 
         public Task<IReadOnlyList<LibraryDto>> ListAsync(bool includeArchived = false, CancellationToken cancellationToken = default)
         {
-            var whereResult45 = _libraries.Values.Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available);
-            var toArrayResult46 = whereResult45.ToArray();
+            var toArrayResult46 = _libraries.Values
+                .Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available)
+                .ToArray();
             var fromResultResult47 = Task.FromResult<IReadOnlyList<LibraryDto>>(toArrayResult46);
             return fromResultResult47;
         }

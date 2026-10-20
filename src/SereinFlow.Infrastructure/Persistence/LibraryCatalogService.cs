@@ -16,6 +16,7 @@ using SereinFlow.Library;
 using SereinFlow.Application.Persistence;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 public sealed record LibraryCatalogOptions
 {
     public LibraryCatalogOptions(string rootPath, long maxPackageBytes = 100 * 1024 * 1024, long maxUncompressedBytes = 512 * 1024 * 1024, int maxEntries = 512)
@@ -140,17 +141,18 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     {
         var rows = await _libraries.ListAsync(cancellationToken: cancellationToken);
         var familyNames = await GetFamilyNamesAsync(rows, cancellationToken);
-        var selectResult = rows.Select(row =>
-        {
-            var getFamilyNameResult = GetFamilyName(row, familyNames);
-            var mapResult = Map(row, getFamilyNameResult);
-            return mapResult;
-        });
-        var whereResult = selectResult.Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available);
-        var orderByResult = whereResult.OrderBy(static library => library.Name, StringComparer.OrdinalIgnoreCase);
-        var thenByResult = orderByResult.ThenBy(static library => library.Version, StringComparer.OrdinalIgnoreCase);
-        var thenByResult3 = thenByResult.ThenBy(static library => library.Id, StringComparer.Ordinal);
-        var toArrayResult = thenByResult3.ToArray();
+        var toArrayResult = rows
+            .Select(row =>
+            {
+                var getFamilyNameResult = GetFamilyName(row, familyNames);
+                var mapResult = Map(row, getFamilyNameResult);
+                return mapResult;
+            })
+            .Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available)
+            .OrderBy(static library => library.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static library => library.Version, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static library => library.Id, StringComparer.Ordinal)
+            .ToArray();
         return toArrayResult;
     }
 
@@ -200,7 +202,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
 
         ValidateFileName(fileName);
-        if (declaredLength is> 0 && declaredLength > MaxPackageBytes)
+        if (declaredLength is > 0 && declaredLength > MaxPackageBytes)
         {
             throw new LibraryUploadException($"The library package cannot exceed {MaxPackageBytes / (1024 * 1024)} MB. 类库压缩包不能超过 {MaxPackageBytes / (1024 * 1024)} MB。", 413);
         }
@@ -295,7 +297,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     {
         ArgumentNullException.ThrowIfNull(package);
         ValidateFileName(fileName);
-        if (declaredLength is> 0 && declaredLength > MaxPackageBytes)
+        if (declaredLength is > 0 && declaredLength > MaxPackageBytes)
         {
             throw new LibraryUploadException($"The library package cannot exceed {MaxPackageBytes / (1024 * 1024)} MB. 类库压缩包不能超过 {MaxPackageBytes / (1024 * 1024)} MB。", 413);
         }
@@ -350,12 +352,12 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
         else
         {
-            var evaluatedValue9 = (await ListFamiliesAsync(includeArchivedArtifacts: true, cancellationToken: cancellationToken));
-            var family = evaluatedValue9.SingleOrDefault(item =>
-            {
-                var equalsResult = string.Equals(item.Id, normalizedFamily, StringComparison.OrdinalIgnoreCase);
-                return equalsResult;
-            });
+            var family = (await ListFamiliesAsync(includeArchivedArtifacts: true, cancellationToken: cancellationToken))
+                .SingleOrDefault(item =>
+                {
+                    var equalsResult = string.Equals(item.Id, normalizedFamily, StringComparison.OrdinalIgnoreCase);
+                    return equalsResult;
+                });
             if (family is null)
             {
                 throw new LibraryUploadException("The requested library family was not found. 指定的类库族不存在。", 422);
@@ -464,22 +466,24 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         var families = await _families.ListAsync(cancellationToken: cancellationToken);
         var artifactRows = await _libraries.ListAsync(cancellationToken: cancellationToken);
         var familyNames = families.ToDictionary(family => family.Id, family => family.Name, StringComparer.OrdinalIgnoreCase);
-        var selectResult16 = artifactRows.Select(row =>
-        {
-            var getFamilyNameResult14 = GetFamilyName(row, familyNames);
-            var mapResult15 = Map(row, getFamilyNameResult14);
-            return mapResult15;
-        });
-        var whereResult17 = selectResult16.Where(library => includeArchivedArtifacts || library.Lifecycle == LibraryLifecycleDto.Available);
-        var artifacts = whereResult17.ToArray();
-        var selectResult18 = families.Select(family =>
-        {
-            var mapFamilyResult = MapFamily(family, artifacts);
-            return mapFamilyResult;
-        });
-        var orderByResult19 = selectResult18.OrderBy(static family => family.Name, StringComparer.OrdinalIgnoreCase);
-        var thenByResult20 = orderByResult19.ThenBy(static family => family.Id, StringComparer.Ordinal);
-        var toArrayResult21 = thenByResult20.ToArray();
+        var artifacts = artifactRows
+            .Select(row =>
+            {
+                var getFamilyNameResult14 = GetFamilyName(row, familyNames);
+                var mapResult15 = Map(row, getFamilyNameResult14);
+                return mapResult15;
+            })
+            .Where(library => includeArchivedArtifacts || library.Lifecycle == LibraryLifecycleDto.Available)
+            .ToArray();
+        var toArrayResult21 = families
+            .Select(family =>
+            {
+                var mapFamilyResult = MapFamily(family, artifacts);
+                return mapFamilyResult;
+            })
+            .OrderBy(static family => family.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static family => family.Id, StringComparer.Ordinal)
+            .ToArray();
         return toArrayResult21;
     }
 
@@ -565,12 +569,13 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
                 }
             }
 
-            var selectResult27 = members.Select(member =>
-            {
-                var mapResult25 = Map(member, family.Name);
-                return mapResult25;
-            });
-            var toArrayResult28 = selectResult27.ToArray();
+            var toArrayResult28 = members
+                .Select(member =>
+                {
+                    var mapResult25 = Map(member, family.Name);
+                    return mapResult25;
+                })
+                .ToArray();
             var mapFamilyResult29 = MapFamily(family, toArrayResult28);
             return mapFamilyResult29;
         }, cancellationToken);
@@ -634,25 +639,26 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     public async Task<int> ReindexOutdatedAsync(CancellationToken cancellationToken = default)
     {
         var rows = await _libraries.ListAsync(cancellationToken: cancellationToken);
-        var whereResult31 = rows.Where(static row => row.CatalogSchemaVersion < CurrentCatalogSchemaVersion);
-        var selectResult32 = whereResult31.Select(static row => row.Id);
-        var outdatedIds = selectResult32.ToArray();
+        var outdatedIds = rows
+            .Where(static row => row.CatalogSchemaVersion < CurrentCatalogSchemaVersion)
+            .Select(static row => row.Id)
+            .ToArray();
         var reindexed = 0;
         foreach (var libraryId in outdatedIds)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                if (await ReindexAsync(libraryId, cancellationToken)is not null)
+                if (await ReindexAsync(libraryId, cancellationToken) is not null)
                 {
                     reindexed++;
                 }
             }
-            catch (OperationCanceledException)when (cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
-            catch (Exception exception)when (IsRecoverableReindexFailure(exception))
+            catch (Exception exception) when (IsRecoverableReindexFailure(exception))
             {
                 if (_logger is not null)
                 {
@@ -689,27 +695,28 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
     private async Task<IReadOnlyDictionary<string, string>> GetFamilyNamesAsync(IReadOnlyList<LibraryRecord> libraries, CancellationToken cancellationToken)
     {
-        var selectResult36 = libraries.Select(static library => library.FamilyId);
-        var whereResult37 = selectResult36.Where(static familyId =>
-        {
-            var evaluatedValue35 = !string.IsNullOrWhiteSpace(familyId);
-            return evaluatedValue35;
-        });
-        var selectResult38 = whereResult37.Select(static familyId => familyId!);
-        var familyIds = selectResult38.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var familyIds = libraries
+            .Select(static library => library.FamilyId)
+            .Where(static familyId =>
+            {
+                var evaluatedValue35 = !string.IsNullOrWhiteSpace(familyId);
+                return evaluatedValue35;
+            })
+            .Select(static familyId => familyId!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (familyIds.Count == 0)
         {
             var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             return dictionary;
         }
 
-        var evaluatedValue39 = (await _families.ListAsync(cancellationToken: cancellationToken));
-        var whereResult40 = evaluatedValue39.Where(family =>
-        {
-            var containsResult = familyIds.Contains(family.Id);
-            return containsResult;
-        });
-        var toDictionaryResult = whereResult40.ToDictionary(family => family.Id, family => family.Name, StringComparer.OrdinalIgnoreCase);
+        var toDictionaryResult = (await _families.ListAsync(cancellationToken: cancellationToken))
+            .Where(family =>
+            {
+                var containsResult = familyIds.Contains(family.Id);
+                return containsResult;
+            })
+            .ToDictionary(family => family.Id, family => family.Name, StringComparer.OrdinalIgnoreCase);
         return toDictionaryResult;
     }
 
@@ -721,19 +728,20 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
     private static LibraryFamilyDto MapFamily(LibraryFamilyRecord family, IEnumerable<LibraryDto> artifacts)
     {
-        var whereResult43 = artifacts.Where(item =>
-        {
-            var equalsResult42 = string.Equals(item.FamilyId, family.Id, StringComparison.OrdinalIgnoreCase);
-            return equalsResult42;
-        });
-        var orderByDescendingResult = whereResult43.OrderByDescending(item =>
-        {
-            var parseSemanticVersionResult = ParseSemanticVersion(item.SemanticVersion ?? item.Version);
-            return parseSemanticVersionResult;
-        });
-        var thenByDescendingResult = orderByDescendingResult.ThenByDescending(static item => item.UploadedAt);
-        var thenByResult44 = thenByDescendingResult.ThenBy(static item => item.Id, StringComparer.Ordinal);
-        var members = thenByResult44.ToArray();
+        var members = artifacts
+            .Where(item =>
+            {
+                var equalsResult42 = string.Equals(item.FamilyId, family.Id, StringComparison.OrdinalIgnoreCase);
+                return equalsResult42;
+            })
+            .OrderByDescending(item =>
+            {
+                var parseSemanticVersionResult = ParseSemanticVersion(item.SemanticVersion ?? item.Version);
+                return parseSemanticVersionResult;
+            })
+            .ThenByDescending(static item => item.UploadedAt)
+            .ThenBy(static item => item.Id, StringComparer.Ordinal)
+            .ToArray();
         var parseDateResult = ParseDate(family.CreatedAt);
         var parseDateResult45 = ParseDate(family.UpdatedAt);
         var libraryFamilyDto = new LibraryFamilyDto(family.Id, family.Name, family.Description, family.LatestArtifactId, parseDateResult, parseDateResult45, members);
@@ -749,26 +757,27 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     /// </summary>
     private async Task<LibraryRecord[]> RefreshLatestArtifactAsync(LibraryFamilyRecord family, CancellationToken cancellationToken)
     {
-        var evaluatedValue49 = (await _libraries.ListAsync(cancellationToken: cancellationToken));
-        var whereResult50 = evaluatedValue49.Where(item =>
-        {
-            var equalsResult46 = string.Equals(item.FamilyId, family.Id, StringComparison.OrdinalIgnoreCase);
-            return equalsResult46;
-        });
-        var members = whereResult50.ToArray();
-        var whereResult51 = members.Where(item =>
-        {
-            var evaluatedValue47 = ParseLifecycle(item.Status) == LibraryLifecycleDto.Available;
-            return evaluatedValue47;
-        });
-        var orderByDescendingResult52 = whereResult51.OrderByDescending(item =>
-        {
-            var parseSemanticVersionResult48 = ParseSemanticVersion(item.SemanticVersion ?? item.Version);
-            return parseSemanticVersionResult48;
-        });
-        var thenByDescendingResult53 = orderByDescendingResult52.ThenByDescending(static item => item.UploadedAt, StringComparer.Ordinal);
-        var thenByDescendingResult54 = thenByDescendingResult53.ThenByDescending(static item => item.Id, StringComparer.Ordinal);
-        var latest = thenByDescendingResult54.FirstOrDefault();
+        var members = (await _libraries.ListAsync(cancellationToken: cancellationToken))
+            .Where(item =>
+            {
+                var equalsResult46 = string.Equals(item.FamilyId, family.Id, StringComparison.OrdinalIgnoreCase);
+                return equalsResult46;
+            })
+            .ToArray();
+        var latest = members
+            .Where(item =>
+            {
+                var evaluatedValue47 = ParseLifecycle(item.Status) == LibraryLifecycleDto.Available;
+                return evaluatedValue47;
+            })
+            .OrderByDescending(item =>
+            {
+                var parseSemanticVersionResult48 = ParseSemanticVersion(item.SemanticVersion ?? item.Version);
+                return parseSemanticVersionResult48;
+            })
+            .ThenByDescending(static item => item.UploadedAt, StringComparer.Ordinal)
+            .ThenByDescending(static item => item.Id, StringComparer.Ordinal)
+            .FirstOrDefault();
         family.LatestArtifactId = latest?.Id;
         family.UpdatedAt = DateTimeOffset.UtcNow.ToString("O");
         await _families.UpdateAsync(family, cancellationToken);
@@ -1116,9 +1125,9 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     private static bool IsRecoverableReindexFailure(Exception exception) => exception is LibraryUploadException or InvalidDataException or BadImageFormatException or IOException or UnauthorizedAccessException;
     public void Dispose()
     {
-    // UploadGate is process-wide and intentionally lives for the host
-    // lifetime; scoped instances must not dispose it underneath another
-    // request.
+        // UploadGate is process-wide and intentionally lives for the host
+        // lifetime; scoped instances must not dispose it underneath another
+        // request.
     }
 
     private static Action<ILogger, string, Exception?> createReindexSkippedLogInitialValue()
@@ -1217,17 +1226,17 @@ internal static class LibraryMetadataScanner
                     var signature = method.DecodeSignature(provider, null);
                     var nodeMetadata = ReadNodeMetadata(reader, nodeAttribute.Value, provider);
                     var hasResultConverter = resolveFindAttributeResult().HasValue || resolveFindAttributeResult77().HasValue;
-                    var getParametersResult = method.GetParameters();
-                    var selectResult80 = getParametersResult.Select(reader.GetParameter);
-                    var whereResult81 = selectResult80.Where(static parameter => parameter.SequenceNumber > 0);
-                    var orderByResult82 = whereResult81.OrderBy(static parameter => parameter.SequenceNumber);
-                    var selectResult83 = orderByResult82.Select((parameter, index) => new { Parameter = parameter, Index = index });
-                    var whereResult84 = selectResult83.Where(item =>
-                    {
-                        var evaluatedValue74 = signature.ParameterTypes.Length <= item.Index || !string.Equals(signature.ParameterTypes[item.Index], FlowContextContract.FullName, StringComparison.Ordinal);
-                        return evaluatedValue74;
-                    });
-                    var parameterDefinitions = whereResult84.ToArray();
+                    var parameterDefinitions = method.GetParameters()
+                        .Select(reader.GetParameter)
+                        .Where(static parameter => parameter.SequenceNumber > 0)
+                        .OrderBy(static parameter => parameter.SequenceNumber)
+                        .Select((parameter, index) => new { Parameter = parameter, Index = index })
+                        .Where(item =>
+                        {
+                            var evaluatedValue74 = signature.ParameterTypes.Length <= item.Index || !string.Equals(signature.ParameterTypes[item.Index], FlowContextContract.FullName, StringComparison.Ordinal);
+                            return evaluatedValue74;
+                        })
+                        .ToArray();
                     var methodName = reader.GetString(method.Name);
                     var overloadSignature = $"{className}.{methodName}({string.Join(",", signature.ParameterTypes)})";
                     var nodeContractId = nodeMetadata.ContractId ?? $"{libraryName}.{methodName}";
@@ -1379,14 +1388,14 @@ internal static class LibraryMetadataScanner
         }
         catch (BadImageFormatException)
         {
-        // A non-managed dependency cannot contribute enum options.
-        // 非托管依赖无法提供枚举选项，安全跳过。
+            // A non-managed dependency cannot contribute enum options.
+            // 非托管依赖无法提供枚举选项，安全跳过。
         }
         catch (ArgumentException)
         {
-        // Metadata that cannot be decoded must not make an upload execute
-        // or load code; the affected parameter falls back to text input.
-        // 无法解码的元数据不会触发代码加载，受影响参数回退为文本输入。
+            // Metadata that cannot be decoded must not make an upload execute
+            // or load code; the affected parameter falls back to text input.
+            // 无法解码的元数据不会触发代码加载，受影响参数回退为文本输入。
         }
     }
 
@@ -1645,7 +1654,7 @@ internal static class LibraryMetadataScanner
             var high = unchecked((int)Convert.ToUInt32(arguments[2].Value, CultureInfo.InvariantCulture));
             var middle = unchecked((int)Convert.ToUInt32(arguments[3].Value, CultureInfo.InvariantCulture));
             var low = unchecked((int)Convert.ToUInt32(arguments[4].Value, CultureInfo.InvariantCulture));
-            var decimalValue = new decimal (low, middle, high, isNegative, scale);
+            var decimalValue = new decimal(low, middle, high, isNegative, scale);
             var toStringResult147 = decimalValue.ToString(CultureInfo.InvariantCulture);
             return toStringResult147;
         }
@@ -1811,13 +1820,13 @@ internal static class LibraryMetadataScanner
             var name = ReadNamedValue(value, LibraryAttributeContract.ParameterNamePropertyName) as string;
             var evaluatedValue164 = ReadNamedValue(value, LibraryAttributeContract.ParameterContractIdPropertyName) as string;
             var contractId = NormalizeContractId(evaluatedValue164, "parameter");
-            var readNamedStringArrayResult = ReadNamedStringArray(value, LibraryAttributeContract.ParameterAliasesPropertyName);
-            var selectResult165 = readNamedStringArrayResult.Select(alias =>
-            {
-                var evaluatedValue162 = NormalizeContractId(alias, "parameter alias")!;
-                return evaluatedValue162;
-            });
-            var aliases = selectResult165.ToArray();
+            var aliases = ReadNamedStringArray(value, LibraryAttributeContract.ParameterAliasesPropertyName)
+                .Select(alias =>
+                {
+                    var evaluatedValue162 = NormalizeContractId(alias, "parameter alias")!;
+                    return evaluatedValue162;
+                })
+                .ToArray();
             var explicitValue = ReadNamedValue(value, LibraryAttributeContract.IsExplicitPropertyName);
             var isExplicit = explicitValue is bool boolValue ? boolValue : true;
             string? evaluatedValue166 = string.IsNullOrWhiteSpace(name) ? null : name;
@@ -1851,18 +1860,18 @@ internal static class LibraryMetadataScanner
         return evaluatedValue177;
         string[] resolveToArrayResult()
         {
-            var selectResult173 = values.Select(static item => item.Value as string);
-            var whereResult174 = selectResult173.Where(static item =>
-            {
-                var evaluatedValue171 = !string.IsNullOrWhiteSpace(item);
-                return evaluatedValue171;
-            });
-            var selectResult175 = whereResult174.Select(static item =>
-            {
-                var trimResult172 = item!.Trim();
-                return trimResult172;
-            });
-            var toArrayResult176 = selectResult175.ToArray();
+            var toArrayResult176 = values.Select(static item => item.Value as string)
+                .Where(static item =>
+                {
+                    var evaluatedValue171 = !string.IsNullOrWhiteSpace(item);
+                    return evaluatedValue171;
+                })
+                .Select(static item =>
+                {
+                    var trimResult172 = item!.Trim();
+                    return trimResult172;
+                })
+                .ToArray();
             return toArrayResult176;
         }
     }
@@ -1923,7 +1932,7 @@ internal static class LibraryMetadataScanner
     private static bool IsAwaitableReturnType(string returnType)
     {
         var evaluatedValue179 = string.Equals(returnType, "System.Threading.Tasks.Task", StringComparison.Ordinal) || returnType.StartsWith("System.Threading.Tasks.Task<", StringComparison.Ordinal) // Metadata signatures preserve the CLR arity suffix (Task`1<T>)
- // while reflection exposes the same type as Task<T>.
+                                                                                                                                                                                                      // while reflection exposes the same type as Task<T>.
         || returnType.StartsWith("System.Threading.Tasks.Task`1<", StringComparison.Ordinal);
         return evaluatedValue179;
     }
@@ -2006,7 +2015,7 @@ internal sealed class MetadataTypeNameProvider : ISignatureTypeProvider<string, 
         string resolvestring()
         {
             var maxResult = Math.Max(shape.Rank - 1, 0);
-            var stringValue = new string (',', maxResult);
+            var stringValue = new string(',', maxResult);
             return stringValue;
         }
     }

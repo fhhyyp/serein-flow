@@ -3,6 +3,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Application.Tests;
+
 public sealed class ProjectArchiveServiceTests
 {
     [Fact]
@@ -81,8 +82,9 @@ public sealed class ProjectArchiveServiceTests
 
         public IReadOnlyList<Project> List()
         {
-            var selectResult = _projects.Values.Select(Clone);
-            var toArrayResult = selectResult.ToArray();
+            var toArrayResult = _projects.Values
+                .Select(Clone)
+                .ToArray();
             return toArrayResult;
         }
 

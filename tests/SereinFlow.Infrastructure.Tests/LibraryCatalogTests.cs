@@ -5,6 +5,7 @@ using SereinFlow.Infrastructure.Persistence;
 using SereinFlow.TestLibrary;
 
 namespace SereinFlow.Infrastructure.Tests;
+
 public sealed class LibraryCatalogTests
 {
     [Fact]
@@ -168,7 +169,7 @@ public sealed class LibraryCatalogTests
 
             var error = await Assert.ThrowsAsync<LibraryUploadException>(() =>
             {
-                string evaluatedValue19 = mismatchedSize ? inspection.Library.Sha256 : new string ('0', 64);
+                string evaluatedValue19 = mismatchedSize ? inspection.Library.Sha256 : new string('0', 64);
                 var uploadVerifiedAsyncResult = catalog.UploadVerifiedAsync(package, fileName, inspection.Library.SizeBytes + (mismatchedSize ? 1 : 0), evaluatedValue19);
                 return uploadVerifiedAsyncResult;
             });
@@ -283,17 +284,18 @@ public sealed class LibraryCatalogTests
             Assert.Equal("SereinFlow.TestLibrary", uploaded.Library.Name);
             var storedPackagePath = Path.Combine(libraryRoot, "packages", $"{uploaded.Library.Id}.zip");
             using var archive = ZipFile.OpenRead(storedPackagePath);
-            var whereResult = archive.Entries.Where(entry =>
-            {
-                var evaluatedValue47 = !string.IsNullOrEmpty(entry.Name);
-                return evaluatedValue47;
-            });
-            var selectResult = whereResult.Select(entry =>
-            {
-                var replaceResult = entry.FullName.Replace('\\', '/');
-                return replaceResult;
-            });
-            var entries = selectResult.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var entries = archive.Entries
+                .Where(entry =>
+                {
+                    var evaluatedValue47 = !string.IsNullOrEmpty(entry.Name);
+                    return evaluatedValue47;
+                })
+                .Select(entry =>
+                {
+                    var replaceResult = entry.FullName.Replace('\\', '/');
+                    return replaceResult;
+                })
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             Assert.Contains("SereinFlow.TestLibrary-1.8.0/SereinFlow.TestLibrary.dll", entries);
             Assert.Contains("SereinFlow.TestLibrary-1.8.0/dependencies/SereinFlow.Library.dll", entries);
             Assert.Contains("SereinFlow.TestLibrary-1.8.0/SereinFlow.TestLibrary.deps.json", entries);

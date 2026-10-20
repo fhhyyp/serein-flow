@@ -4,6 +4,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Application;
+
 public sealed record RunPreparation(FlowRun Run, FlowDefinitionDto Definition, IReadOnlyDictionary<string, JsonElement>? ProjectInputs, int TimeoutSeconds, int MaxSteps, int MaxNodeVisits, bool IsListenerRun);
 public sealed class RunApplicationService
 {
@@ -80,30 +81,34 @@ public sealed class RunApplicationService
             return invalidResult;
         }
 
-        var whereResult = (breakpointNodeIds ?? []).Where(static nodeId =>
-        {
-            var evaluatedValue = !string.IsNullOrWhiteSpace(nodeId);
-            return evaluatedValue;
-        });
-        var selectResult4 = whereResult.Select(static nodeId =>
-        {
-            var trimResult = nodeId.Trim();
-            return trimResult;
-        });
-        var selectManyResult = definition.Canvases.SelectMany(static canvas => canvas.Nodes);
-        var selectResult5 = selectManyResult.Select(static node => node.Id);
-        var exceptResult = selectResult4.Except(selectResult5, StringComparer.Ordinal);
-        var orderByResult = exceptResult.OrderBy(static nodeId => nodeId, StringComparer.Ordinal);
-        var unknownBreakpoints = orderByResult.ToArray();
+        var configuredBreakpointIds = (breakpointNodeIds ?? [])
+            .Where(static nodeId =>
+            {
+                var evaluatedValue = !string.IsNullOrWhiteSpace(nodeId);
+                return evaluatedValue;
+            })
+            .Select(static nodeId =>
+            {
+                var trimResult = nodeId.Trim();
+                return trimResult;
+            });
+        var definedNodeIds = definition.Canvases
+            .SelectMany(static canvas => canvas.Nodes)
+            .Select(static node => node.Id);
+        var unknownBreakpoints = configuredBreakpointIds
+            .Except(definedNodeIds, StringComparer.Ordinal)
+            .OrderBy(static nodeId => nodeId, StringComparer.Ordinal)
+            .ToArray();
         if (unknownBreakpoints.Length > 0)
         {
-            var selectResult = unknownBreakpoints.Select(nodeId =>
-            {
-                var validationDiagnosticDto = new ValidationDiagnosticDto(DebugErrorCodes.BreakpointNodeMissing, $"Breakpoint node '{nodeId}' does not exist in the saved flow. 断点节点“{nodeId}”不存在于已保存流程中。", $"breakpointNodeIds.{nodeId}");
-                return validationDiagnosticDto;
-            });
-            var toArrayResult = selectResult.ToArray();
-            var flowValidationResultDto = new FlowValidationResultDto(false, toArrayResult);
+            var breakpointDiagnostics = unknownBreakpoints
+                .Select(nodeId =>
+                {
+                    var validationDiagnosticDto = new ValidationDiagnosticDto(DebugErrorCodes.BreakpointNodeMissing, $"Breakpoint node '{nodeId}' does not exist in the saved flow. 断点节点“{nodeId}”不存在于已保存流程中。", $"breakpointNodeIds.{nodeId}");
+                    return validationDiagnosticDto;
+                })
+                .ToArray();
+            var flowValidationResultDto = new FlowValidationResultDto(false, breakpointDiagnostics);
             var invalidResult2 = RunPreparationResult.Invalid(flowValidationResultDto);
             return invalidResult2;
         }
@@ -144,16 +149,18 @@ public sealed class RunApplicationService
 
     private static bool IsListenerRun(FlowDefinitionDto definition)
     {
-        var selectManyResult7 = definition.Canvases.SelectMany(static canvas => canvas.Connections);
-        var whereResult8 = selectManyResult7.Where(static connection => connection.Kind == ConnectionKindDto.Execution);
-        var selectResult9 = whereResult8.Select(static connection => connection.ToNodeId);
-        var incomingExecutionNodes = selectResult9.ToHashSet(StringComparer.Ordinal);
-        var selectManyResult10 = definition.Canvases.SelectMany(static canvas => canvas.Nodes);
-        var anyResult = selectManyResult10.Any(node =>
-        {
-            var evaluatedValue6 = node.Type == NodeTypeDto.Flipflop && !incomingExecutionNodes.Contains(node.Id);
-            return evaluatedValue6;
-        });
+        var incomingExecutionNodes = definition.Canvases
+            .SelectMany(static canvas => canvas.Connections)
+            .Where(static connection => connection.Kind == ConnectionKindDto.Execution)
+            .Select(static connection => connection.ToNodeId)
+            .ToHashSet(StringComparer.Ordinal);
+        var anyResult = definition.Canvases
+            .SelectMany(static canvas => canvas.Nodes)
+            .Any(node =>
+            {
+                var evaluatedValue6 = node.Type == NodeTypeDto.Flipflop && !incomingExecutionNodes.Contains(node.Id);
+                return evaluatedValue6;
+            });
         return anyResult;
     }
 }

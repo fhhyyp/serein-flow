@@ -413,9 +413,9 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
         }
         catch
         {
-        // Endpoint registration is an observability/control-plane signal;
-        // the local broker remains usable if protocol output is closing.
-        // 端点注册属于可观测/控制面信号；协议输出正在关闭时本地 Broker 仍可用。
+            // Endpoint registration is an observability/control-plane signal;
+            // the local broker remains usable if protocol output is closing.
+            // 端点注册属于可观测/控制面信号；协议输出正在关闭时本地 Broker 仍可用。
         }
     }
 
@@ -460,7 +460,7 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
                 return value;
             }
 
-            if (envelope.Value is null && default(T)is null)
+            if (envelope.Value is null && default(T) is null)
             {
                 return default!;
             }
@@ -471,7 +471,7 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
 
         try
         {
-            var evaluatedValue18 = JsonSerializer.Deserialize<T>(envelope.JsonPayload!, JsonOptions) ?? (default(T)is null ? default! : throw new MessageServiceException(MessageErrorCodes.DeserializationNull, "The JSON message deserialized to null for a non-nullable target. JSON 消息反序列化为 null，但目标类型不可为空。", topic));
+            var evaluatedValue18 = JsonSerializer.Deserialize<T>(envelope.JsonPayload!, JsonOptions) ?? (default(T) is null ? default! : throw new MessageServiceException(MessageErrorCodes.DeserializationNull, "The JSON message deserialized to null for a non-nullable target. JSON 消息反序列化为 null，但目标类型不可为空。", topic));
             return evaluatedValue18;
         }
         catch (MessageServiceException)
@@ -563,8 +563,9 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
 
     private void PruneAcceptedMessageIds(DateTimeOffset now)
     {
-        var whereResult = _acceptedMessageIds.Where(item => item.Value <= now);
-        foreach (var item in whereResult.ToArray())
+        foreach (var item in _acceptedMessageIds
+            .Where(item => item.Value <= now)
+            .ToArray())
         {
             _acceptedMessageIds.Remove(item.Key);
         }

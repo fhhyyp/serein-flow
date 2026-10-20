@@ -6,6 +6,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Application.Tests;
+
 public sealed class AiReadModelServiceTests
 {
     [Fact]
@@ -91,7 +92,7 @@ public sealed class AiReadModelServiceTests
         var flowRunEvent = new FlowRunEvent(run.Id, 1, DateTimeOffset.UtcNow, "run.started", null, "{\"ok\":true}");
         var flowRunEvent10 = new FlowRunEvent(run.Id, 2, DateTimeOffset.UtcNow, "node.completed", "node", "not-json");
         var events = new InMemoryEventStore(flowRunEvent, flowRunEvent10);
-        var stringValue = new string ('x', 1_400);
+        var stringValue = new string('x', 1_400);
         var evaluatedValue11 = new
         {
             value = stringValue
@@ -502,8 +503,9 @@ public sealed class AiReadModelServiceTests
 
         public Task<IReadOnlyList<LibraryDto>> ListAsync(bool includeArchived = false, CancellationToken cancellationToken = default)
         {
-            var whereResult = libraries.Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available);
-            var toArrayResult = whereResult.ToArray();
+            var toArrayResult = libraries
+                .Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available)
+                .ToArray();
             var fromResultResult64 = Task.FromResult<IReadOnlyList<LibraryDto>>(toArrayResult);
             return fromResultResult64;
         }
@@ -607,18 +609,20 @@ public sealed class AiReadModelServiceTests
 
         public Task<IReadOnlyList<FlowRunEvent>> GetAfterAsync(Guid runId, long sequenceExclusive, CancellationToken cancellationToken = default)
         {
-            var whereResult75 = events.Where(item => item.RunId == runId && item.Sequence > sequenceExclusive);
-            var toArrayResult76 = whereResult75.ToArray();
+            var toArrayResult76 = events
+                .Where(item => item.RunId == runId && item.Sequence > sequenceExclusive)
+                .ToArray();
             var fromResultResult77 = Task.FromResult<IReadOnlyList<FlowRunEvent>>(toArrayResult76);
             return fromResultResult77;
         }
 
         public Task<long> GetLastSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
         {
-            var whereResult78 = events.Where(item => item.RunId == runId);
-            var selectResult = whereResult78.Select(item => item.Sequence);
-            var defaultIfEmptyResult = selectResult.DefaultIfEmpty();
-            var maxResult = defaultIfEmptyResult.Max();
+            var maxResult = events
+                .Where(item => item.RunId == runId)
+                .Select(item => item.Sequence)
+                .DefaultIfEmpty()
+                .Max();
             var fromResultResult79 = Task.FromResult(maxResult);
             return fromResultResult79;
         }
@@ -630,8 +634,9 @@ public sealed class AiReadModelServiceTests
 
         public IReadOnlyList<FlowRunEvent> GetAfter(Guid runId, long sequenceExclusive)
         {
-            var whereResult80 = events.Where(item => item.RunId == runId && item.Sequence > sequenceExclusive);
-            var toArrayResult81 = whereResult80.ToArray();
+            var toArrayResult81 = events
+                .Where(item => item.RunId == runId && item.Sequence > sequenceExclusive)
+                .ToArray();
             return toArrayResult81;
         }
     }
@@ -645,8 +650,9 @@ public sealed class AiReadModelServiceTests
 
         public Task<IReadOnlyList<FlowRunOutput>> ListAsync(Guid runId, CancellationToken cancellationToken = default)
         {
-            var whereResult82 = outputs.Where(item => item.RunId == runId);
-            var toArrayResult83 = whereResult82.ToArray();
+            var toArrayResult83 = outputs
+                .Where(item => item.RunId == runId)
+                .ToArray();
             var fromResultResult84 = Task.FromResult<IReadOnlyList<FlowRunOutput>>(toArrayResult83);
             return fromResultResult84;
         }

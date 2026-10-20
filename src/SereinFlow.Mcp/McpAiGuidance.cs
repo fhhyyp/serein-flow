@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Mcp;
+
 public sealed record McpAiGuidanceResource(string Key, string Uri, string Name, string Description, string DefaultFilePath);
 public enum McpAiGuidanceId
 {
@@ -56,7 +57,7 @@ public static class McpAiGuidance
     public const string LibraryImportResourceUri = LibraryPackageSkillsRoot + "/import";
     public const string LibraryUpgradeResourceUri = LibraryPackageSkillsRoot + "/upgrade";
     public static IReadOnlyList<McpAiGuidanceResource> ModuleResources { get; } = [new("sereinflow.projects", SereinFlowProjectsResourceUri, "sereinflow-projects", "Project discovery and read-only project inspection", "mcp/sereinflow-projects-skill.md"), new("sereinflow.flows", SereinFlowFlowsResourceUri, "sereinflow-flows", "Flow editing and patch contract rules", "mcp/sereinflow-flows-skill.md"), new("sereinflow.ui-ux", SereinFlowUiUxResourceUri, "sereinflow-ui-ux", "Flow canvas layout and visual organization guidance", "mcp/sereinflow-ui-ux-skill.md"), new("sereinflow.runtime", SereinFlowRuntimeResourceUri, "sereinflow-runtime", "Run, debug and post-change verification rules", "mcp/sereinflow-runtime-skill.md"), new("sereinflow.workpieces", SereinFlowWorkpiecesResourceUri, "sereinflow-workpieces", "Run workpiece inspection, image preview and file download rules", "mcp/sereinflow-workpieces-skill.md"), new("sereinflow.api-keys", SereinFlowApiKeysResourceUri, "sereinflow-api-keys", "MCP API key lifecycle and secret handling rules", "mcp/sereinflow-api-keys-skill.md"), new("sereinflow.release", SereinFlowReleaseResourceUri, "sereinflow-release", "Publishing and rollback rules", "mcp/sereinflow-release-skill.md"), new("sereinlang.syntax", SereinLangSyntaxResourceUri, "sereinlang-syntax", "SereinLang lexical and expression rules", "mcp/sereinlang-syntax-skill.md"), new("sereinlang.host", SereinLangHostResourceUri, "sereinlang-host", "SereinLang imports and host interoperation", "mcp/sereinlang-host-skill.md"), new("sereinlang.grammar", SereinLangGrammarResourceUri, "sereinlang-grammar", "SereinLang formal grammar reference", "mcp/sereinlang-grammar-skill.md"), new(LibraryErrorCodes.Build, LibraryBuildResourceUri, "library-build", "Local C# library build and publish boundary", "mcp/sereinflow-library-build-skill.md"), new(LibraryErrorCodes.Zip, LibraryZipResourceUri, "library-zip", "SereinFlow library ZIP contract", "mcp/sereinflow-library-zip-skill.md"), new(LibraryErrorCodes.Metadata, LibraryMetadataResourceUri, "library-metadata", "SereinFlow library metadata contract", "mcp/sereinflow-library-metadata-skill.md"), new(LibraryErrorCodes.Import, LibraryImportResourceUri, "library-import", "Library package preview, import and attachment", "mcp/sereinflow-library-import-skill.md"), new("library.upgrade", LibraryUpgradeResourceUri, "library-upgrade", "Library families and project upgrade workflow", "mcp/sereinflow-library-upgrade-skill.md")];
-    public static IReadOnlyList<McpAiGuidanceResource> AllResources { get; } = [new("ai.guide", ResourceUri, ResourceName, "Compact capability index for SereinFlow AI guidance", "mcp/sereinflow-ai-guide.md"), new("sereinflow", SereinFlowResourceUri, "sereinflow", "SereinFlow capability index", "mcp/sereinflow-skill.md"), new("sereinlang", SereinLangResourceUri, "sereinlang", "SereinLang capability index", "mcp/sereinlang-skill.md"), new("sereinflow-library-package", LibraryPackageResourceUri, "sereinflow-library-package", "Library package capability index", "mcp/sereinflow-library-package-skill.md"), ..ModuleResources];
+    public static IReadOnlyList<McpAiGuidanceResource> AllResources { get; } = [new("ai.guide", ResourceUri, ResourceName, "Compact capability index for SereinFlow AI guidance", "mcp/sereinflow-ai-guide.md"), new("sereinflow", SereinFlowResourceUri, "sereinflow", "SereinFlow capability index", "mcp/sereinflow-skill.md"), new("sereinlang", SereinLangResourceUri, "sereinlang", "SereinLang capability index", "mcp/sereinlang-skill.md"), new("sereinflow-library-package", LibraryPackageResourceUri, "sereinflow-library-package", "Library package capability index", "mcp/sereinflow-library-package-skill.md"), .. ModuleResources];
     private static Dictionary<string, McpAiGuidanceResource> ResourcesByUri { get; } = AllResources.ToDictionary(static resource => resource.Uri, StringComparer.Ordinal);
     private static Dictionary<McpAiGuidanceId, string> UrisById { get; } = new Dictionary<McpAiGuidanceId, string>
     {
@@ -200,8 +201,8 @@ public sealed class McpAiGuidanceOptions
 
         bool resolveAnyResult()
         {
-            var splitResult = filePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
-            var anyResult = splitResult.Any(static segment => segment is "." or "..");
+            var anyResult = filePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries)
+                .Any(static segment => segment is "." or "..");
             return anyResult;
         }
     }
@@ -254,14 +255,14 @@ public sealed class McpAiGuidanceProvider
     public IReadOnlyList<McpResourceDescriptor> GetResourceDescriptors()
     {
         var snapshot = CreateSnapshot();
-        var getValuesResult = Enum.GetValues<McpAiGuidanceId>();
-        var selectResult = getValuesResult.Select(id => snapshot.ById[id]);
-        var selectResult5 = selectResult.Select(static resource =>
-        {
-            var mcpResourceDescriptor = new McpResourceDescriptor(resource.Resource.Uri, resource.Resource.Name, resource.Resource.Description, McpAiGuidance.MimeType);
-            return mcpResourceDescriptor;
-        });
-        var toArrayResult = selectResult5.ToArray();
+        var toArrayResult = Enum.GetValues<McpAiGuidanceId>()
+            .Select(id => snapshot.ById[id])
+            .Select(static resource =>
+            {
+                var mcpResourceDescriptor = new McpResourceDescriptor(resource.Resource.Uri, resource.Resource.Name, resource.Resource.Description, McpAiGuidance.MimeType);
+                return mcpResourceDescriptor;
+            })
+            .ToArray();
         return toArrayResult;
     }
 
@@ -440,7 +441,7 @@ public sealed class McpAiGuidanceProvider
             var fileStream = new FileStream(resource.FilePath, fileStreamOptions);
             return fileStream;
         }
-        catch (Exception exception)when (exception is FileNotFoundException or DirectoryNotFoundException)
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
             source = McpAiGuidanceSourceDto.Embedded;
             var openEmbeddedResourceStreamResult = OpenEmbeddedResourceStream(resource);

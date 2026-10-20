@@ -7,6 +7,7 @@ using ScriptLang.Runtime.ByteCode;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.ScriptAdapter;
+
 public sealed record ScriptArtifact(string ProjectId, string NodeId, string SourceHash, string ArtifactFingerprint, string LanguageVersion, string Path);
 public sealed record ScriptArtifactBuildResult(bool IsSuccess, IReadOnlyDictionary<string, ScriptArtifact> Artifacts, IReadOnlyList<ScriptExecutionDiagnostic> Diagnostics);
 /// <summary>
@@ -44,12 +45,13 @@ public sealed class ScriptArtifactStore
         }
 
         var nodes = definitions.ToArray();
-        var groupByResult = nodes.GroupBy(node => node.NodeId, StringComparer.Ordinal);
-        var duplicate = groupByResult.FirstOrDefault(group =>
-        {
-            var evaluatedValue = group.Count() > 1;
-            return evaluatedValue;
-        });
+        var duplicate = nodes
+            .GroupBy(node => node.NodeId, StringComparer.Ordinal)
+            .FirstOrDefault(group =>
+            {
+                var evaluatedValue = group.Count() > 1;
+                return evaluatedValue;
+            });
         if (duplicate is not null)
         {
             var dictionary = new Dictionary<string, ScriptArtifact>();
@@ -91,8 +93,9 @@ public sealed class ScriptArtifactStore
                 artifacts[node.NodeId] = new ScriptArtifact(projectId, node.NodeId, node.SourceHash, node.ArtifactFingerprint, node.LanguageVersion, artifactPath);
             }
 
-            var selectResult7 = artifacts.Values.Select(ToManifest);
-            var toArrayResult = selectResult7.ToArray();
+            var toArrayResult = artifacts.Values
+                .Select(ToManifest)
+                .ToArray();
             var manifest = new ArtifactManifest(projectId, DateTimeOffset.UtcNow, toArrayResult);
             var combineResult8 = Path.Combine(stagingPath, "manifest.json");
             var serializeResult = JsonSerializer.Serialize(manifest, JsonOptions);

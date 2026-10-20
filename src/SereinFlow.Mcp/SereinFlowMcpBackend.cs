@@ -67,8 +67,8 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
 
     private List<McpResourceDescriptor> CreateResources()
     {
-        var getResourceDescriptorsResult = _aiGuidanceProvider.GetResourceDescriptors();
-        var resources = getResourceDescriptorsResult.ToList();
+        var resources = _aiGuidanceProvider.GetResourceDescriptors()
+            .ToList();
         var selectResult = McpResourceCatalog.DirectResources.Select(static resource =>
         {
             var mcpResourceDescriptor = new McpResourceDescriptor(resource.UriTemplate, resource.Name, resource.Description, resource.MimeType);

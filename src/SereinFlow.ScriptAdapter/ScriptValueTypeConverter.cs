@@ -26,7 +26,7 @@ public static class ScriptValueTypeConverter
         {
             throw;
         }
-        catch (Exception exception)when (exception is InvalidCastException or FormatException or OverflowException or ArgumentException or TargetInvocationException)
+        catch (Exception exception) when (exception is InvalidCastException or FormatException or OverflowException or ArgumentException or TargetInvocationException)
         {
             throw Fail(value, targetType, exception.Message, exception);
         }
@@ -189,7 +189,7 @@ public static class ScriptValueTypeConverter
     {
         if (TryGetDictionaryValueType(targetType, out var valueType))
         {
-            var dictionaryType = typeof(Dictionary<, >).MakeGenericType(typeof(string), valueType);
+            var dictionaryType = typeof(Dictionary<,>).MakeGenericType(typeof(string), valueType);
             var dictionary = (IDictionary)(Activator.CreateInstance(dictionaryType) ?? throw Fail(value, targetType, "The dictionary target cannot be created. 无法创建字典目标类型。"));
             foreach (var item in value.Properties)
             {
@@ -243,13 +243,13 @@ public static class ScriptValueTypeConverter
             return true;
         }
 
-        var getInterfacesResult = type.GetInterfaces();
-        var concatResult = getInterfacesResult.Concat([type]);
-        var enumerable = concatResult.FirstOrDefault(candidate =>
-        {
-            var evaluatedValue = candidate.IsGenericType && candidate.GetGenericTypeDefinition() == typeof(IEnumerable<>);
-            return evaluatedValue;
-        });
+        var enumerable = type.GetInterfaces()
+            .Concat([type])
+            .FirstOrDefault(candidate =>
+            {
+                var evaluatedValue = candidate.IsGenericType && candidate.GetGenericTypeDefinition() == typeof(IEnumerable<>);
+                return evaluatedValue;
+            });
         if (enumerable is not null)
         {
             elementType = enumerable.GetGenericArguments()[0];
@@ -269,13 +269,13 @@ public static class ScriptValueTypeConverter
     private static bool IsSupportedCollectionDefinition(Type genericDefinition) => genericDefinition == typeof(List<>) || genericDefinition == typeof(IList<>) || genericDefinition == typeof(ICollection<>) || genericDefinition == typeof(IEnumerable<>) || genericDefinition == typeof(IReadOnlyList<>) || genericDefinition == typeof(IReadOnlyCollection<>);
     private static bool TryGetDictionaryValueType(Type type, out Type valueType)
     {
-        var getInterfacesResult5 = type.GetInterfaces();
-        var concatResult6 = getInterfacesResult5.Concat([type]);
-        var dictionary = concatResult6.FirstOrDefault(candidate =>
-        {
-            var evaluatedValue4 = candidate.IsGenericType && (candidate.GetGenericTypeDefinition() == typeof(IDictionary<, >) || candidate.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<, >) || candidate.GetGenericTypeDefinition() == typeof(Dictionary<, >)) && candidate.GetGenericArguments()[0] == typeof(string);
-            return evaluatedValue4;
-        });
+        var dictionary = type.GetInterfaces()
+            .Concat([type])
+            .FirstOrDefault(candidate =>
+            {
+                var evaluatedValue4 = candidate.IsGenericType && (candidate.GetGenericTypeDefinition() == typeof(IDictionary<,>) || candidate.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>) || candidate.GetGenericTypeDefinition() == typeof(Dictionary<,>)) && candidate.GetGenericArguments()[0] == typeof(string);
+                return evaluatedValue4;
+            });
         if (dictionary is not null)
         {
             valueType = dictionary.GetGenericArguments()[1];

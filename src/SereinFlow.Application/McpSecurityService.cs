@@ -5,6 +5,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
+
 public sealed record McpPrincipal(string Id, Guid? ProjectId, IReadOnlySet<McpPermissionDto> Permissions, bool IsLocal = false, bool IsAdministrator = false)
 {
     public bool Has(McpPermissionDto permission)
@@ -94,7 +95,7 @@ public sealed class McpSecurityService
             }
             catch
             {
-            // Authentication remains successful when usage telemetry fails.
+                // Authentication remains successful when usage telemetry fails.
             }
 
             var toHashSetResult = entry.Permissions.ToHashSet();
@@ -199,8 +200,9 @@ public sealed class McpSecurityService
         var id = newGuidResult.ToString("N");
         var trimResult = request.Name.Trim();
         var hashResult = Hash(secret, salt);
-        var distinctResult = request.Permissions.Distinct();
-        var toArrayResult = distinctResult.ToArray();
+        var toArrayResult = request.Permissions
+            .Distinct()
+            .ToArray();
         var entry = new McpApiKeyEntry(id, request.ProjectId, trimResult, secret[..12], hashResult, salt, toArrayResult, DateTimeOffset.UtcNow, request.ExpiresAt, null, null, request.IsAdministrator);
         var evaluatedValue8 = (entry, resolveCreatedMcpApiKeyDto());
         return evaluatedValue8;
@@ -254,8 +256,8 @@ public sealed class McpSecurityService
 
     private static IReadOnlySet<McpPermissionDto> createAllPermissionsInitialValue()
     {
-        var getValuesResult = Enum.GetValues<McpPermissionDto>();
-        IReadOnlySet<McpPermissionDto> allPermissionsInitialValue = getValuesResult.ToHashSet();
+        IReadOnlySet<McpPermissionDto> allPermissionsInitialValue = Enum.GetValues<McpPermissionDto>()
+            .ToHashSet();
         return allPermissionsInitialValue;
     }
 }

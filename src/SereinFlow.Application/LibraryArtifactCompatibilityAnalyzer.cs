@@ -28,8 +28,9 @@ public static class LibraryArtifactCompatibilityAnalyzer
         }
 
         var evaluatedValue = !issues.Any(static issue => issue.BlocksApplication);
-        var orderByResult = issues.OrderBy(static issue => issue.Id, StringComparer.Ordinal);
-        var toArrayResult = orderByResult.ToArray();
+        var toArrayResult = issues
+            .OrderBy(static issue => issue.Id, StringComparer.Ordinal)
+            .ToArray();
         var libraryArtifactCompatibilityDto = new LibraryArtifactCompatibilityDto(baseline.Id, baseline.Version, target.Id, target.Version, evaluatedValue, toArrayResult);
         return libraryArtifactCompatibilityDto;
     }
@@ -52,7 +53,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
 
         foreach (var target in targetNodes.OrderBy(static node => node.ContractId, StringComparer.Ordinal))
         {
-            if (FindSourceNode(target, sourceNodes)is not null)
+            if (FindSourceNode(target, sourceNodes) is not null)
             {
                 continue;
             }
@@ -118,7 +119,7 @@ public static class LibraryArtifactCompatibilityAnalyzer
 
         foreach (var targetParameter in target.Parameters)
         {
-            if (FindSourceParameter(targetParameter, source.Parameters)is not null)
+            if (FindSourceParameter(targetParameter, source.Parameters) is not null)
             {
                 continue;
             }
@@ -143,12 +144,13 @@ public static class LibraryArtifactCompatibilityAnalyzer
 
     private static LibraryManifestNodeDto? FindTargetNode(LibraryManifestNodeDto source, IReadOnlyList<LibraryManifestNodeDto> targetNodes)
     {
-        var whereResult = targetNodes.Where(node =>
-        {
-            var equalsResult13 = string.Equals(node.ContractId, source.ContractId, StringComparison.Ordinal);
-            return equalsResult13;
-        });
-        var exact = whereResult.ToArray();
+        var exact = targetNodes
+            .Where(node =>
+            {
+                var equalsResult13 = string.Equals(node.ContractId, source.ContractId, StringComparison.Ordinal);
+                return equalsResult13;
+            })
+            .ToArray();
         if (exact.Length == 1)
         {
             return exact[0];
@@ -159,12 +161,13 @@ public static class LibraryArtifactCompatibilityAnalyzer
             return null;
         }
 
-        var whereResult15 = targetNodes.Where(node =>
-        {
-            var evaluatedValue14 = node.IdentityConfidence == LibraryContractIdentityConfidenceDto.Legacy && string.Equals(node.OverloadSignature, source.OverloadSignature, StringComparison.Ordinal);
-            return evaluatedValue14;
-        });
-        var legacy = whereResult15.ToArray();
+        var legacy = targetNodes
+            .Where(node =>
+            {
+                var evaluatedValue14 = node.IdentityConfidence == LibraryContractIdentityConfidenceDto.Legacy && string.Equals(node.OverloadSignature, source.OverloadSignature, StringComparison.Ordinal);
+                return evaluatedValue14;
+            })
+            .ToArray();
         return legacy.Length == 1 ? legacy[0] : null;
     }
 

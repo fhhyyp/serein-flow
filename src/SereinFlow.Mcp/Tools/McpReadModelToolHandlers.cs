@@ -432,8 +432,9 @@ internal static class McpReadModelToolHandlers
         return aiPageDto69;
         AiLibrarySummaryDto[] resolveToArrayResult()
         {
-            var takeResult = items.Take(maxItems);
-            var toArrayResult68 = takeResult.ToArray();
+            var toArrayResult68 = items
+                .Take(maxItems)
+                .ToArray();
             return toArrayResult68;
         }
     }
@@ -532,32 +533,34 @@ internal static class McpReadModelToolHandlers
             return evaluatedValue87;
         });
         var referencedArtifactIds = whereResult90.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var selectResult91 = families.Select(family =>
-        {
-            var projectVisibleFamilyResult = ProjectVisibleFamily(family, referencedArtifactIds);
-            return projectVisibleFamilyResult;
-        });
-        var whereResult92 = selectResult91.Where(static family => family is not null);
-        var selectResult93 = whereResult92.Select(static family => family!);
-        var toArrayResult94 = selectResult93.ToArray();
+        var toArrayResult94 = families
+            .Select(family =>
+            {
+                var projectVisibleFamilyResult = ProjectVisibleFamily(family, referencedArtifactIds);
+                return projectVisibleFamilyResult;
+            })
+            .Where(static family => family is not null)
+            .Select(static family => family!)
+            .ToArray();
         return toArrayResult94;
     }
 
     private static LibraryFamilyDto? ProjectVisibleFamily(LibraryFamilyDto family, HashSet<string> referencedArtifactIds)
     {
-        var whereResult95 = (family.Artifacts ?? []).Where(artifact =>
-        {
-            var containsResult = referencedArtifactIds.Contains(artifact.Id);
-            return containsResult;
-        });
-        var orderByDescendingResult = whereResult95.OrderByDescending(artifact =>
-        {
-            var parseSemanticVersionResult = ParseSemanticVersion(artifact.SemanticVersion ?? artifact.Version);
-            return parseSemanticVersionResult;
-        });
-        var thenByDescendingResult = orderByDescendingResult.ThenByDescending(static artifact => artifact.UploadedAt);
-        var thenByResult = thenByDescendingResult.ThenBy(static artifact => artifact.Id, StringComparer.Ordinal);
-        var artifacts = thenByResult.ToArray();
+        var artifacts = (family.Artifacts ?? [])
+            .Where(artifact =>
+            {
+                var containsResult = referencedArtifactIds.Contains(artifact.Id);
+                return containsResult;
+            })
+            .OrderByDescending(artifact =>
+            {
+                var parseSemanticVersionResult = ParseSemanticVersion(artifact.SemanticVersion ?? artifact.Version);
+                return parseSemanticVersionResult;
+            })
+            .ThenByDescending(static artifact => artifact.UploadedAt)
+            .ThenBy(static artifact => artifact.Id, StringComparer.Ordinal)
+            .ToArray();
         if (artifacts.Length == 0)
         {
             return null;

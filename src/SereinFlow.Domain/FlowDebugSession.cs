@@ -1,4 +1,5 @@
 namespace SereinFlow.Domain;
+
 public sealed record FlowDebugPauseState(string NodeId, string NodeType, int Step, int FrameDepth, Guid? InvocationId, long BoundarySequence, string InputsJson, DateTimeOffset PausedAt, Guid? ExecutionId = null);
 public sealed record FlowDebugNodeResult(string NodeId, long Sequence, DateTimeOffset CompletedAt, string Outcome, string? Branch, string InputsJson, string OutputsJson, string? ErrorCode, string? ErrorMessage);
 /// <summary>
@@ -65,19 +66,20 @@ public sealed class FlowDebugSession
             throw new ArgumentException("Flow ID cannot be empty. 流程 ID 不能为空。", nameof(flowId));
         }
 
-        var whereResult = (breakpointNodeIds ?? []).Where(static nodeId =>
-        {
-            var evaluatedValue = !string.IsNullOrWhiteSpace(nodeId);
-            return evaluatedValue;
-        });
-        var selectResult = whereResult.Select(static nodeId =>
-        {
-            var trimResult = nodeId.Trim();
-            return trimResult;
-        });
-        var distinctResult = selectResult.Distinct(StringComparer.Ordinal);
-        var orderByResult = distinctResult.OrderBy(static nodeId => nodeId, StringComparer.Ordinal);
-        var breakpoints = orderByResult.ToArray();
+        var breakpoints = (breakpointNodeIds ?? [])
+            .Where(static nodeId =>
+            {
+                var evaluatedValue = !string.IsNullOrWhiteSpace(nodeId);
+                return evaluatedValue;
+            })
+            .Select(static nodeId =>
+            {
+                var trimResult = nodeId.Trim();
+                return trimResult;
+            })
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(static nodeId => nodeId, StringComparer.Ordinal)
+            .ToArray();
         var evaluatedValue1 = id ?? Guid.NewGuid();
         var flowDebugSession = new FlowDebugSession(evaluatedValue1, runId, projectId, flowId, breakpoints, createdAt);
         return flowDebugSession;

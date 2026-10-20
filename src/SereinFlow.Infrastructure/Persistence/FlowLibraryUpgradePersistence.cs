@@ -150,7 +150,7 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
             };
             await _versions.AddAsync(flowDefinitionVersionRecord, token);
             var referenceId = CreateReferenceId(projectId, targetArtifactId);
-            if (await _references.GetByIdAsync(referenceId, token)is null)
+            if (await _references.GetByIdAsync(referenceId, token) is null)
             {
                 var projectLibraryReferenceRecord = new ProjectLibraryReferenceRecord
                 {
@@ -170,7 +170,7 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
                 // definitions that mention an unavailable legacy artifact.
                 // 绑定是二级索引，流程定义序列化内容才是真实来源。历史流程提及
                 // 不可用的旧工件时，仍应保留其定义而不是让绑定索引导致事务失败。
-                if (await _libraries.GetByIdAsync(artifactId, token)is null)
+                if (await _libraries.GetByIdAsync(artifactId, token) is null)
                 {
                     continue;
                 }
@@ -193,14 +193,15 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
                 }
             }
 
-            var result = (appliedFlow ?? new LibraryUpgradePlanFlowResultDto(saved.Id, expectedVersion, saved.Version, DateTimeOffset.UtcNow))with
+            var result = (appliedFlow ?? new LibraryUpgradePlanFlowResultDto(saved.Id, expectedVersion, saved.Version, DateTimeOffset.UtcNow)) with
             {
                 PreviousVersion = expectedVersion,
                 NewVersion = saved.Version,
             };
-            var appendResult = (planDto.AppliedFlows ?? []).Append(result);
-            var orderByResult = appendResult.OrderBy(item => item.FlowId);
-            var appliedFlows = orderByResult.ToArray();
+            var appliedFlows = (planDto.AppliedFlows ?? [])
+                .Append(result)
+                .OrderBy(item => item.FlowId)
+                .ToArray();
             var allFlowsApplied = planDto.Flows.Count == 0 || planDto.Flows.All(preview =>
             {
                 var anyResult = appliedFlows.Any(result => result.FlowId == preview.FlowId);
@@ -259,7 +260,7 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
         }
 
         var referenceId = CreateReferenceId(projectId, sourceArtifactId);
-        if (await _references.GetByIdAsync(referenceId, cancellationToken)is null)
+        if (await _references.GetByIdAsync(referenceId, cancellationToken) is null)
         {
             return;
         }
@@ -293,8 +294,9 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
             }
         }
 
-        var selectResult = currentDefinitions.Select(static definition => definition.Id);
-        var projectFlowIds = selectResult.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var projectFlowIds = currentDefinitions
+            .Select(static definition => definition.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var productionVersions = await _versions.ListAsync(cancellationToken: cancellationToken);
         foreach (var version in productionVersions.Where(version =>
         {

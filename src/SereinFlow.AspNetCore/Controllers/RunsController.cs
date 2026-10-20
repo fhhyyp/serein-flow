@@ -6,6 +6,7 @@ using SereinFlow.Domain;
 using static SereinFlow.Api.ApiEndpointHelpers;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/runs")]
 public sealed class RunsController : ApiControllerBase
 {
@@ -63,8 +64,9 @@ public sealed class RunsController : ApiControllerBase
 
         var flowRunQuery = new FlowRunQuery(statuses, projectId, take ?? 100);
         var runs = await _runs.ListAsync(flowRunQuery, cancellationToken);
-        var selectResult = runs.Select(ToRunDto);
-        var toArrayResult = selectResult.ToArray();
+        var toArrayResult = runs
+            .Select(ToRunDto)
+            .ToArray();
         var okResult = Ok(toArrayResult);
         return okResult;
     }
@@ -80,14 +82,17 @@ public sealed class RunsController : ApiControllerBase
         var flowRunQuery3 = new FlowRunQuery(Take: RecentRunQueryLimit);
         var recent = await _runs.ListAsync(flowRunQuery3, cancellationToken);
         var snapshot = _queue.GetSnapshot();
-        var selectResult4 = queued.Select(ToRunDto);
-        var toArrayResult5 = selectResult4.ToArray();
-        var selectResult6 = active.Select(ToRunDto);
-        var toArrayResult7 = selectResult6.ToArray();
-        var whereResult = recent.Where(static run => run.IsTerminal);
-        var takeResult = whereResult.Take(RecentCompletedRunLimit);
-        var selectResult8 = takeResult.Select(ToRunDto);
-        var toArrayResult9 = selectResult8.ToArray();
+        var toArrayResult5 = queued
+            .Select(ToRunDto)
+            .ToArray();
+        var toArrayResult7 = active
+            .Select(ToRunDto)
+            .ToArray();
+        var toArrayResult9 = recent
+            .Where(static run => run.IsTerminal)
+            .Take(RecentCompletedRunLimit)
+            .Select(ToRunDto)
+            .ToArray();
         var flowRunOverviewDto = new FlowRunOverviewDto(snapshot.QueueCapacity, snapshot.QueuedCount, snapshot.ActiveRunCount, snapshot.ActiveListenerRunCount, snapshot.MaxConcurrentRuns, snapshot.MaxConcurrentListenerRuns, snapshot.MaxConcurrentRunsPerProject, toArrayResult5, toArrayResult7, toArrayResult9);
         var okResult10 = Ok(flowRunOverviewDto);
         return okResult10;
@@ -201,8 +206,9 @@ public sealed class RunsController : ApiControllerBase
         }
 
         var outputs = await _outputs.ListAsync(runId, cancellationToken);
-        var selectResult19 = outputs.Select(ToRunOutputDto);
-        var toArrayResult20 = selectResult19.ToArray();
+        var toArrayResult20 = outputs
+            .Select(ToRunOutputDto)
+            .ToArray();
         var okResult21 = Ok(toArrayResult20);
         return okResult21;
     }
@@ -285,7 +291,8 @@ public sealed class RunsController : ApiControllerBase
             RunMessageDeliveryDisposition.Accepted => resolveAcceptedResult(),
             RunMessageDeliveryDisposition.TimedOut => StatusCode(result.StatusCode, result.Response),
             RunMessageDeliveryDisposition.EndpointForbidden or RunMessageDeliveryDisposition.ChannelFull => StatusCode(result.StatusCode, result.Response),
-            _ => resolveApiProblemResult()};
+            _ => resolveApiProblemResult()
+        };
         return evaluatedValue29;
         ObjectResult resolveAcceptedResult()
         {
@@ -402,12 +409,12 @@ public sealed class RunsController : ApiControllerBase
             return failure;
         }
 
-        var evaluatedValue39 = (await _events.GetAfterAsync(runId, afterSequence ?? 0, cancellationToken));
-        var events = evaluatedValue39.Select(item =>
-        {
-            var flowRunEventDto = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);
-            return flowRunEventDto;
-        });
+        var events = (await _events.GetAfterAsync(runId, afterSequence ?? 0, cancellationToken))
+            .Select(item =>
+            {
+                var flowRunEventDto = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);
+                return flowRunEventDto;
+            });
         var okResult40 = Ok(events);
         return okResult40;
     }

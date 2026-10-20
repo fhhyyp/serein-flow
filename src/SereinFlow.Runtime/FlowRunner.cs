@@ -3,6 +3,7 @@ using SereinFlow.Domain;
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Runtime;
+
 public sealed class FlowRunner
 {
     private static readonly TimeSpan ListenerFailureRetryDelay = TimeSpan.FromMilliseconds(100);
@@ -21,8 +22,8 @@ public sealed class FlowRunner
         _dataResolver = dataResolver ?? new DataConnectionResolver();
         _executionGate = executionGate ?? NoopExecutionGate.Instance;
         _debugInvocationScheduler = debugInvocationScheduler;
-        var getAllResult = executors.GetAll();
-        foreach (var flowCall in getAllResult.OfType<IFlowCallExecutorConfiguration>())
+        foreach (var flowCall in executors.GetAll()
+            .OfType<IFlowCallExecutorConfiguration>())
         {
             flowCall.Configure(ExecuteFlowCallAsync);
         }
@@ -45,18 +46,20 @@ public sealed class FlowRunner
         session.AttachPlan(plan);
         try
         {
-            var whereResult = plan.Nodes.Values.Where(node =>
-            {
-                var evaluatedValue = node.Type == NodeType.Flipflop && !plan.HasIncomingExecution(node.Id);
-                return evaluatedValue;
-            });
-            var globalFlipflops = whereResult.ToArray();
-            var selectResult = globalFlipflops.Select(node =>
-            {
-                var runGlobalFlipflopAsyncResult = RunGlobalFlipflopAsync(node, plan, session, linkedCancellation.Token);
-                return runGlobalFlipflopAsyncResult;
-            });
-            var globalTasks = selectResult.ToArray();
+            var globalFlipflops = plan.Nodes.Values
+                .Where(node =>
+                {
+                    var evaluatedValue = node.Type == NodeType.Flipflop && !plan.HasIncomingExecution(node.Id);
+                    return evaluatedValue;
+                })
+                .ToArray();
+            var globalTasks = globalFlipflops
+                .Select(node =>
+                {
+                    var runGlobalFlipflopAsyncResult = RunGlobalFlipflopAsync(node, plan, session, linkedCancellation.Token);
+                    return runGlobalFlipflopAsyncResult;
+                })
+                .ToArray();
             var mainResult = string.IsNullOrWhiteSpace(definition.EntryNodeId) ? NodeExecutionResult.Success() : plan.Nodes.TryGetValue(definition.EntryNodeId, out var entry) && entry.Type == NodeType.Flipflop && globalFlipflops.Any(node => node.Id == entry.Id) ? NodeExecutionResult.Success() : await RunStackAsync(definition.EntryNodeId, plan, session, linkedCancellation.Token);
             if (globalTasks.Length > 0)
             {
@@ -74,7 +77,7 @@ public sealed class FlowRunner
                         return globalFailure;
                     }
                 }
-                catch (OperationCanceledException)when (linkedCancellation.IsCancellationRequested)
+                catch (OperationCanceledException) when (linkedCancellation.IsCancellationRequested)
                 {
                     throw;
                 }
@@ -156,7 +159,7 @@ public sealed class FlowRunner
             catch (FlowDataBindingException exception)
             {
                 inputs = exception.ResolvedInputs;
-                lastResult = NodeExecutionResult.Failure(exception.Code, exception.Message)with
+                lastResult = NodeExecutionResult.Failure(exception.Code, exception.Message) with
                 {
                     Inputs = CopyInputs(inputs)
                 };
@@ -167,7 +170,7 @@ public sealed class FlowRunner
             }
             catch (Exception exception)
             {
-                lastResult = NodeExecutionResult.Error(NodeErrorCodes.ExecutionFailed, $"Node '{node.Id}' execution failed. 节点“{node.Id}”执行失败。 {exception.Message}")with
+                lastResult = NodeExecutionResult.Error(NodeErrorCodes.ExecutionFailed, $"Node '{node.Id}' execution failed. 节点“{node.Id}”执行失败。 {exception.Message}") with
                 {
                     Inputs = CopyInputs(inputs)
                 };
@@ -356,7 +359,7 @@ public sealed class FlowRunner
                     }
                 }
             }
-            catch (OperationCanceledException)when (cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
@@ -450,7 +453,7 @@ public sealed class FlowRunner
             };
             await PublishAsync(rootSession, DebugErrorCodes.TriggerCompleted, flipflopNode.Id, dictionary20);
         }
-        catch (OperationCanceledException)when (cancellationToken.IsCancellationRequested || rootSession.CancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || rootSession.CancellationToken.IsCancellationRequested)
         {
             throw;
         }
@@ -498,14 +501,14 @@ public sealed class FlowRunner
         }
 
         var staticType = request.Node.Runtime?.StaticReturnType;
-        if (!string.IsNullOrWhiteSpace(staticType) && !string.Equals(staticType, "void", StringComparison.OrdinalIgnoreCase) && request.Node.Runtime?.IsDynamicReturnType != true && result.Outputs.Values.FirstOrDefault()is { } actual && !IsCompatibleReturnType(actual, staticType))
+        if (!string.IsNullOrWhiteSpace(staticType) && !string.Equals(staticType, "void", StringComparison.OrdinalIgnoreCase) && request.Node.Runtime?.IsDynamicReturnType != true && result.Outputs.Values.FirstOrDefault() is { } actual && !IsCompatibleReturnType(actual, staticType))
         {
             var evaluatedValue25 = $"FlowCall returned '{actual.GetType().FullName}' but the static return type is '{staticType}'. FlowCall 返回类型与静态返回类型不一致。";
             var errorResult26 = NodeExecutionResult.Error(FlowCallErrorCodes.ReturnTypeMismatch, evaluatedValue25);
             return errorResult26;
         }
 
-        var evaluatedValue27 = NodeExecutionResult.Success(result.Outputs)with
+        var evaluatedValue27 = NodeExecutionResult.Success(result.Outputs) with
         {
             TransferOutputs = result.TransferOutputs
         };
@@ -562,25 +565,25 @@ public sealed class FlowRunner
             }
         }
 
-        var getInterfacesResult = actualType.GetInterfaces();
-        var anyResult = getInterfacesResult.Any(type =>
-        {
-            var evaluatedValue28 = string.Equals(type.FullName, staticType, StringComparison.Ordinal) || string.Equals(type.Name, staticType, StringComparison.Ordinal);
-            return evaluatedValue28;
-        });
+        var anyResult = actualType.GetInterfaces()
+            .Any(type =>
+            {
+                var evaluatedValue28 = string.Equals(type.FullName, staticType, StringComparison.Ordinal) || string.Equals(type.Name, staticType, StringComparison.Ordinal);
+                return evaluatedValue28;
+            });
         return anyResult;
     }
 
     private static Type? ResolveReturnType(string staticType, Type actualType)
     {
-        if (actualType.Assembly.GetType(staticType, throwOnError: false, ignoreCase: false)is { } type)
+        if (actualType.Assembly.GetType(staticType, throwOnError: false, ignoreCase: false) is { } type)
         {
             return type;
         }
 
         foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
-            if (assembly.GetType(staticType, throwOnError: false, ignoreCase: false)is { } loadedType)
+            if (assembly.GetType(staticType, throwOnError: false, ignoreCase: false) is { } loadedType)
             {
                 return loadedType;
             }

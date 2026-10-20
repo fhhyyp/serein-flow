@@ -50,19 +50,20 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
     public async Task<FlowDebugSessionStartResult> CreateAsync(Guid projectId, Guid flowId, StartFlowDebugSessionRequestDto request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var whereResult = (request.BreakpointNodeIds ?? []).Where(static nodeId =>
-        {
-            var evaluatedValue = !string.IsNullOrWhiteSpace(nodeId);
-            return evaluatedValue;
-        });
-        var selectResult = whereResult.Select(static nodeId =>
-        {
-            var trimResult = nodeId.Trim();
-            return trimResult;
-        });
-        var distinctResult = selectResult.Distinct(StringComparer.Ordinal);
-        var orderByResult = distinctResult.OrderBy(static nodeId => nodeId, StringComparer.Ordinal);
-        var breakpointNodeIds = orderByResult.ToArray();
+        var breakpointNodeIds = (request.BreakpointNodeIds ?? [])
+            .Where(static nodeId =>
+            {
+                var evaluatedValue = !string.IsNullOrWhiteSpace(nodeId);
+                return evaluatedValue;
+            })
+            .Select(static nodeId =>
+            {
+                var trimResult = nodeId.Trim();
+                return trimResult;
+            })
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(static nodeId => nodeId, StringComparer.Ordinal)
+            .ToArray();
         if (request.MaxQueuedFlipflopTriggers is < 0 or > 1_024)
         {
             var flowDebugSessionStartResult = new FlowDebugSessionStartResult(null, StatusCodes.Status422UnprocessableEntity, "The debug trigger queue limit must be between 0 and 1024. 调试触发队列上限必须在 0 到 1024 之间。", new { code = DebugErrorCodes.InvalidTriggerQueueLimit }, DebugErrorCodes.InvalidTriggerQueueLimit);
@@ -334,7 +335,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             var flowDebugSessionCommandResult20 = new FlowDebugSessionCommandResult(StatusCodes.Status202Accepted);
             return flowDebugSessionCommandResult20;
         }
-        catch (InvalidOperationException exception)when (exception.Message.Contains("strictly increasing", StringComparison.OrdinalIgnoreCase))
+        catch (InvalidOperationException exception) when (exception.Message.Contains("strictly increasing", StringComparison.OrdinalIgnoreCase))
         {
             var flowDebugSessionCommandResult21 = new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, "The debug command sequence must be strictly increasing. 调试命令序号必须严格递增。", DebugErrorCodes.CommandSequenceConflict);
             return flowDebugSessionCommandResult21;
@@ -424,7 +425,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             return;
         }
 
-        if (await runStore.FindAsync(workerEvent.RunId, cancellationToken)is null)
+        if (await runStore.FindAsync(workerEvent.RunId, cancellationToken) is null)
         {
             return;
         }

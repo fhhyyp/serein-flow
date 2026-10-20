@@ -33,17 +33,18 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         _allowedLibraryIds = allowedLibraryIds is null ? null : resolveToHashSetResult();
         HashSet<string> resolveToHashSetResult()
         {
-            var whereResult = allowedLibraryIds.Where(static id =>
-            {
-                var evaluatedValue = !string.IsNullOrWhiteSpace(id);
-                return evaluatedValue;
-            });
-            var selectResult = whereResult.Select(static id =>
-            {
-                var trimResult = id.Trim();
-                return trimResult;
-            });
-            var toHashSetResult = selectResult.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var toHashSetResult = allowedLibraryIds
+                .Where(static id =>
+                {
+                    var evaluatedValue = !string.IsNullOrWhiteSpace(id);
+                    return evaluatedValue;
+                })
+                .Select(static id =>
+                {
+                    var trimResult = id.Trim();
+                    return trimResult;
+                })
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             return toHashSetResult;
         }
     }
@@ -123,28 +124,30 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
             return lazy4;
         });
         var type = await typeLazy.Value;
-        var getMethodsResult = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
-        var whereResult7 = getMethodsResult.Where(method =>
-        {
-            var equalsResult = string.Equals(method.Name, methodName, StringComparison.Ordinal);
-            return equalsResult;
-        });
-        var candidates = whereResult7.ToArray();
+        var candidates = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance)
+            .Where(method =>
+            {
+                var equalsResult = string.Equals(method.Name, methodName, StringComparison.Ordinal);
+                return equalsResult;
+            })
+            .ToArray();
         if (candidates.Length == 0)
         {
             throw new LibraryRuntimeCacheException(LibraryErrorCodes.MethodNotFound, "The library method was not found. 未找到类库方法。");
         }
 
-        var whereResult8 = parameters.Where(static parameter => !parameter.IsVariadic);
-        var selectResult9 = whereResult8.Select(static parameter => parameter.Name);
-        var expectedNames = selectResult9.ToArray();
-        var whereResult10 = candidates.Where(method =>
-        {
-            var anyResult = parameters.Any(static parameter => parameter.IsVariadic);
-            var isCandidateCompatibleResult = IsCandidateCompatible(method, expectedNames, anyResult);
-            return isCandidateCompatibleResult;
-        });
-        var matched = whereResult10.ToArray();
+        var expectedNames = parameters
+            .Where(static parameter => !parameter.IsVariadic)
+            .Select(static parameter => parameter.Name)
+            .ToArray();
+        var matched = candidates
+            .Where(method =>
+            {
+                var anyResult = parameters.Any(static parameter => parameter.IsVariadic);
+                var isCandidateCompatibleResult = IsCandidateCompatible(method, expectedNames, anyResult);
+                return isCandidateCompatibleResult;
+            })
+            .ToArray();
         var method = matched.Length == 1 ? matched[0] : candidates.Length == 1 ? candidates[0] : candidates.SingleOrDefault(candidate =>
         {
             var anyResult5 = parameters.Any(static parameter => parameter.IsVariadic);
@@ -163,12 +166,13 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
     private static bool IsCandidateCompatible(MethodInfo method, string[] expectedNames, bool hasVariadicDefinitions)
     {
         var parameters = method.GetParameters();
-        var whereResult12 = parameters.Where(static parameter =>
-        {
-            var evaluatedValue11 = !IsFlowContextParameter(parameter);
-            return evaluatedValue11;
-        });
-        var visible = whereResult12.ToArray();
+        var visible = parameters
+            .Where(static parameter =>
+            {
+                var evaluatedValue11 = !IsFlowContextParameter(parameter);
+                return evaluatedValue11;
+            })
+            .ToArray();
         var lastVisibleParameter = visible.LastOrDefault();
         var variadicAttribute = lastVisibleParameter?.GetCustomAttribute<ParamArrayAttribute>();
         var methodHasVariadic = variadicAttribute is not null;
@@ -182,8 +186,9 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         return evaluatedValue14;
         bool resolveSequenceEqualResult()
         {
-            var selectResult13 = ordinary.Select(static parameter => parameter.Name ?? string.Empty);
-            var sequenceEqualResult = selectResult13.SequenceEqual(expectedNames, StringComparer.Ordinal);
+            var sequenceEqualResult = ordinary
+                .Select(static parameter => parameter.Name ?? string.Empty)
+                .SequenceEqual(expectedNames, StringComparer.Ordinal);
             return sequenceEqualResult;
         }
     }

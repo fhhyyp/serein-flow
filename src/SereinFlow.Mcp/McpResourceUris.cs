@@ -1,4 +1,5 @@
 namespace SereinFlow.Mcp;
+
 internal static class McpResourceSegments
 {
     public const string Projects = "projects";
@@ -156,8 +157,9 @@ public static class McpResourceCatalog
 
     static McpResourceCatalog()
     {
-        var concatResult = Definitions.Concat(DirectResources);
-        var all = concatResult.ToArray();
+        var all = Definitions
+            .Concat(DirectResources)
+            .ToArray();
         if (resolveCountResult() != all.Length)
         {
             throw new InvalidOperationException("MCP resource URI templates must be unique.");
@@ -170,9 +172,10 @@ public static class McpResourceCatalog
 
         int resolveCountResult()
         {
-            var selectResult = all.Select(static definition => definition.UriTemplate);
-            var distinctResult = selectResult.Distinct(StringComparer.Ordinal);
-            var countResult = distinctResult.Count();
+            var countResult = all
+                .Select(static definition => definition.UriTemplate)
+                .Distinct(StringComparer.Ordinal)
+                .Count();
             return countResult;
         }
     }
@@ -185,19 +188,21 @@ public static class McpResourceCatalog
 
     private static IReadOnlyList<McpResourceTemplateDescriptor> createTemplatesInitialValue()
     {
-        var selectResult1 = Definitions.Select(static definition =>
-        {
-            var mcpResourceTemplateDescriptor = new McpResourceTemplateDescriptor(definition.UriTemplate, definition.Name, definition.Description, definition.MimeType);
-            return mcpResourceTemplateDescriptor;
-        });
-        IReadOnlyList<McpResourceTemplateDescriptor> templatesInitialValue = selectResult1.ToArray();
+        IReadOnlyList<McpResourceTemplateDescriptor> templatesInitialValue = Definitions
+            .Select(static definition =>
+            {
+                var mcpResourceTemplateDescriptor = new McpResourceTemplateDescriptor(definition.UriTemplate, definition.Name, definition.Description, definition.MimeType);
+                return mcpResourceTemplateDescriptor;
+            })
+            .ToArray();
         return templatesInitialValue;
     }
 
     private static Dictionary<McpResourceId, McpResourceDefinition> createByIdInitialValue()
     {
-        var concatResult2 = Definitions.Concat(DirectResources);
-        Dictionary<McpResourceId, McpResourceDefinition> byIdInitialValue = concatResult2.ToDictionary(static definition => definition.Id);
+        Dictionary<McpResourceId, McpResourceDefinition> byIdInitialValue = Definitions
+            .Concat(DirectResources)
+            .ToDictionary(static definition => definition.Id);
         return byIdInitialValue;
     }
 }

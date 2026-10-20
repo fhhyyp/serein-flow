@@ -10,6 +10,7 @@ using SereinFlow.Infrastructure.Persistence;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Mcp.Tests;
+
 public sealed class McpDebugToolTests
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();
@@ -352,8 +353,9 @@ public sealed class McpDebugToolTests
 
         public Task<IReadOnlyList<FlowDebugSession>> ListActiveAsync(CancellationToken cancellationToken = default)
         {
-            var whereResult = _sessions.Where(item => !item.IsTerminal);
-            var toArrayResult = whereResult.ToArray();
+            var toArrayResult = _sessions
+                .Where(item => !item.IsTerminal)
+                .ToArray();
             var fromResultResult50 = Task.FromResult<IReadOnlyList<FlowDebugSession>>(toArrayResult);
             return fromResultResult50;
         }

@@ -12,6 +12,7 @@ using SereinFlow.Api;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.IntegrationTests;
+
 public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTests.ApiFactory>
 {
     private readonly ApiFactory _factory;
@@ -129,12 +130,12 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
         Assert.False(tryGetPropertyResult24);
         var tryGetPropertyResult25 = paths.TryGetProperty("/hubs/runs", out _);
         Assert.False(tryGetPropertyResult25);
-        var enumerateObjectResult = paths.EnumerateObject();
-        var anyResult = enumerateObjectResult.Any(path =>
-        {
-            var endsWithResult = path.Name.EndsWith("/events/stream", StringComparison.Ordinal);
-            return endsWithResult;
-        });
+        var anyResult = paths.EnumerateObject()
+            .Any(path =>
+            {
+                var endsWithResult = path.Name.EndsWith("/events/stream", StringComparison.Ordinal);
+                return endsWithResult;
+            });
         Assert.False(anyResult);
     }
 

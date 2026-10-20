@@ -4,6 +4,7 @@ using SereinFlow.Worker.Protocol;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Worker.IntegrationTests;
+
 public sealed class WorkerProtocolTests
 {
     [Fact]
@@ -34,7 +35,7 @@ public sealed class WorkerProtocolTests
     public void CodecRejectsProtocolMismatchesAndOversizedMessages()
     {
         var mismatch = new WorkerMessage(WorkerProtocolConstants.Version + 1, WorkerProtocolConstants.RunKind, "request");
-        var oversized = new string ('x', WorkerProtocolConstants.MaxMessageBytes + 1);
+        var oversized = new string('x', WorkerProtocolConstants.MaxMessageBytes + 1);
         var mismatchError = Assert.Throws<WorkerProtocolException>(() =>
         {
             var serializeResult2 = WorkerProtocolCodec.Serialize(mismatch);
@@ -71,14 +72,14 @@ public sealed class WorkerProtocolTests
         await using var input = new MemoryStream();
         await using var output = new MemoryStream();
         await using var transport = new StdioWorkerTransport(input, output, leaveOpen: true);
-        var rangeResult = Enumerable.Range(1, 16);
-        var selectResult = rangeResult.Select(index =>
-        {
-            var createResult = WorkerMessage.Create(WorkerProtocolConstants.EventKind, $"{{\"index\":{index}}}");
-            var sendAsyncResult = transport.SendAsync(createResult);
-            var asTaskResult = sendAsyncResult.AsTask();
-            return asTaskResult;
-        });
+        var selectResult = Enumerable.Range(1, 16)
+            .Select(index =>
+            {
+                var createResult = WorkerMessage.Create(WorkerProtocolConstants.EventKind, $"{{\"index\":{index}}}");
+                var sendAsyncResult = transport.SendAsync(createResult);
+                var asTaskResult = sendAsyncResult.AsTask();
+                return asTaskResult;
+            });
         await Task.WhenAll(selectResult);
         var toArrayResult = output.ToArray();
         var getStringResult = Encoding.UTF8.GetString(toArrayResult);

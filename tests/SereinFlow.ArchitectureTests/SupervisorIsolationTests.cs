@@ -2,6 +2,7 @@ using System.Reflection;
 using SereinFlow.Worker.Supervisor;
 
 namespace SereinFlow.ArchitectureTests;
+
 public sealed class SupervisorIsolationTests
 {
     [Theory]
@@ -11,8 +12,8 @@ public sealed class SupervisorIsolationTests
     [InlineData("Serein.Script")]
     public void SupervisorDoesNotStaticallyReferenceUntrustedExecutionComponents(string forbiddenAssemblyName)
     {
-        var getReferencedAssembliesResult = typeof(WorkerSupervisor).Assembly.GetReferencedAssemblies();
-        var referencedAssemblies = getReferencedAssembliesResult.Select(static reference => reference.Name);
+        var referencedAssemblies = typeof(WorkerSupervisor).Assembly.GetReferencedAssemblies()
+            .Select(static reference => reference.Name);
         Assert.DoesNotContain(forbiddenAssemblyName, referencedAssemblies);
     }
 }

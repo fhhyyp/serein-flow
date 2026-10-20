@@ -7,6 +7,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/environment/settings/mcp-skills")]
 public sealed class McpSkillsController(McpAiGuidanceManagementService guidance, McpSecurityService security) : ApiControllerBase
 {
@@ -125,12 +126,12 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
             return apiProblemResult4;
             Dictionary<string, object?> resolveToDictionaryResult()
             {
-                var enumerateObjectResult = data.EnumerateObject();
-                var toDictionaryResult = enumerateObjectResult.ToDictionary(property => property.Name, property =>
-                {
-                    var evaluatedValue = (object? )property.Value.Clone();
-                    return evaluatedValue;
-                });
+                var toDictionaryResult = data.EnumerateObject()
+                    .ToDictionary(property => property.Name, property =>
+                    {
+                        var evaluatedValue = (object?)property.Value.Clone();
+                        return evaluatedValue;
+                    });
                 return toDictionaryResult;
             }
         }

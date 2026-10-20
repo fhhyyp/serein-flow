@@ -3,6 +3,7 @@ using SereinFlow.Domain;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Runtime;
+
 public sealed class ExecutionPlan
 {
     internal ExecutionPlan(FlowDefinition definition, IReadOnlyDictionary<string, NodeDefinition> nodes, IReadOnlyList<ConnectionDefinition> connections)
@@ -18,23 +19,25 @@ public sealed class ExecutionPlan
 
     public IReadOnlyList<ConnectionDefinition> GetOutgoing(string nodeId, ExecutionBranch branch)
     {
-        var whereResult = Connections.Where(connection => connection.Kind == ConnectionKind.Execution && connection.FromNodeId == nodeId && connection.Branch == branch);
-        var orderByResult = whereResult.OrderBy(connection => connection.Priority);
-        var thenByResult = orderByResult.ThenBy(connection => connection.Id, StringComparer.Ordinal);
-        var toArrayResult = thenByResult.ToArray();
+        var toArrayResult = Connections
+            .Where(connection => connection.Kind == ConnectionKind.Execution && connection.FromNodeId == nodeId && connection.Branch == branch)
+            .OrderBy(connection => connection.Priority)
+            .ThenBy(connection => connection.Id, StringComparer.Ordinal)
+            .ToArray();
         return toArrayResult;
     }
 
     public IReadOnlyList<ConnectionDefinition> GetIncomingData(string nodeId, string portId)
     {
-        var whereResult1 = Connections.Where(connection =>
-        {
-            var evaluatedValue = connection.Kind == ConnectionKind.Data && connection.ToNodeId == nodeId && (connection.ToPortId == portId || connection.ToPortId.Equals(portId, StringComparison.Ordinal));
-            return evaluatedValue;
-        });
-        var orderByResult2 = whereResult1.OrderBy(connection => connection.Priority);
-        var thenByResult3 = orderByResult2.ThenBy(connection => connection.Id, StringComparer.Ordinal);
-        var toArrayResult4 = thenByResult3.ToArray();
+        var toArrayResult4 = Connections
+            .Where(connection =>
+            {
+                var evaluatedValue = connection.Kind == ConnectionKind.Data && connection.ToNodeId == nodeId && (connection.ToPortId == portId || connection.ToPortId.Equals(portId, StringComparison.Ordinal));
+                return evaluatedValue;
+            })
+            .OrderBy(connection => connection.Priority)
+            .ThenBy(connection => connection.Id, StringComparer.Ordinal)
+            .ToArray();
         return toArrayResult4;
     }
 
@@ -55,12 +58,14 @@ public sealed class ExecutionPlanBuilder
             throw new ArgumentNullException(nameof(definition), "The flow definition cannot be null. 流程定义不能为空。");
         }
 
-        var selectManyResult = definition.Canvases.SelectMany(canvas => canvas.Nodes);
-        var nodes = selectManyResult.ToDictionary(node => node.Id, StringComparer.Ordinal);
-        var selectManyResult6 = definition.Canvases.SelectMany(canvas => canvas.Connections);
-        var connections = selectManyResult6.ToArray();
-        var validateResult = definition.Validate();
-        var diagnostics = validateResult.ToList();
+        var nodes = definition.Canvases
+            .SelectMany(canvas => canvas.Nodes)
+            .ToDictionary(node => node.Id, StringComparer.Ordinal);
+        var connections = definition.Canvases
+            .SelectMany(canvas => canvas.Connections)
+            .ToArray();
+        var diagnostics = definition.Validate()
+            .ToList();
         var hasGlobalFlipflop = nodes.Values.Any(node =>
         {
             var evaluatedValue5 = node.Type == NodeType.Flipflop && !connections.Any(connection => connection.Kind == ConnectionKind.Execution && connection.ToNodeId == node.Id);
@@ -103,14 +108,16 @@ public sealed class ExecutionPlanBuilder
 
     private static void ValidateExecutionCycles(IReadOnlyDictionary<string, NodeDefinition> nodes, IReadOnlyList<ConnectionDefinition> connections)
     {
-        var whereResult9 = connections.Where(connection => connection.Kind == ConnectionKind.Execution);
-        var groupByResult = whereResult9.GroupBy(connection => connection.FromNodeId, StringComparer.Ordinal);
-        var edges = groupByResult.ToDictionary(group => group.Key, group =>
-        {
-            var selectResult = group.Select(item => item.ToNodeId);
-            var toArrayResult7 = selectResult.ToArray();
-            return toArrayResult7;
-        }, StringComparer.Ordinal);
+        var edges = connections
+            .Where(connection => connection.Kind == ConnectionKind.Execution)
+            .GroupBy(connection => connection.FromNodeId, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group =>
+            {
+                var toArrayResult7 = group
+                    .Select(item => item.ToNodeId)
+                    .ToArray();
+                return toArrayResult7;
+            }, StringComparer.Ordinal);
         var visiting = new HashSet<string>(StringComparer.Ordinal);
         var visited = new HashSet<string>(StringComparer.Ordinal);
         foreach (var nodeId in nodes.Keys)
@@ -153,12 +160,13 @@ public sealed class ExecutionPlanBuilder
 
     private static void ValidateFlowCallTargets(FlowDefinition definition, IReadOnlyDictionary<string, NodeDefinition> nodes)
     {
-        var selectManyResult16 = definition.Canvases.SelectMany(canvas =>
-        {
-            var selectResult10 = canvas.Nodes.Select(node => new { node.Id, CanvasId = canvas.Id });
-            return selectResult10;
-        });
-        var canvasByNodeId = selectManyResult16.ToDictionary(item => item.Id, item => item.CanvasId, StringComparer.Ordinal);
+        var canvasByNodeId = definition.Canvases
+            .SelectMany(canvas =>
+            {
+                var selectResult10 = canvas.Nodes.Select(node => new { node.Id, CanvasId = canvas.Id });
+                return selectResult10;
+            })
+            .ToDictionary(item => item.Id, item => item.CanvasId, StringComparer.Ordinal);
         foreach (var node in nodes.Values.Where(node => node.Type == NodeType.FlowCall))
         {
             if (string.IsNullOrWhiteSpace(node.Runtime?.TargetNodeId))
@@ -199,10 +207,12 @@ public sealed class ExecutionPlanBuilder
     private static void ValidateFlowCallParameterBindings(NodeDefinition callNode, NodeDefinition targetNode)
     {
         var bindings = callNode.Runtime?.FlowCallParameterBindings ?? [];
-        var selectResult20 = callNode.Parameters.Select(static parameter => parameter.Id);
-        var callParameterIds = selectResult20.ToHashSet(StringComparer.Ordinal);
-        var selectResult21 = targetNode.Parameters.Select(static parameter => parameter.Id);
-        var targetParameterIds = selectResult21.ToHashSet(StringComparer.Ordinal);
+        var callParameterIds = callNode.Parameters
+            .Select(static parameter => parameter.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        var targetParameterIds = targetNode.Parameters
+            .Select(static parameter => parameter.Id)
+            .ToHashSet(StringComparer.Ordinal);
         var boundCalls = new HashSet<string>(StringComparer.Ordinal);
         var boundTargets = new HashSet<string>(StringComparer.Ordinal);
         foreach (var binding in bindings)
@@ -228,16 +238,18 @@ public sealed class ExecutionPlanBuilder
 
     private static void ValidateFlowCallCycles(IReadOnlyDictionary<string, NodeDefinition> nodes, IReadOnlyList<ConnectionDefinition> connections)
     {
-        var whereResult25 = connections.Where(static connection => connection.Kind == ConnectionKind.Execution);
-        var groupByResult26 = whereResult25.GroupBy(static connection => connection.FromNodeId, StringComparer.Ordinal);
+        var groupByResult26 = connections
+            .Where(static connection => connection.Kind == ConnectionKind.Execution)
+            .GroupBy(static connection => connection.FromNodeId, StringComparer.Ordinal);
         // A FlowCall introduces a call edge in addition to the visual
         // execution edges. Treat both as one conservative call graph so direct
         // and indirect recursion is rejected before a Worker is started.
         // FlowCall 除了可视化执行边还会引入调用边；合并检查可在 Worker 启动前拒绝直接和间接递归。
         var edges = groupByResult26.ToDictionary(group => group.Key, group =>
         {
-            var selectResult22 = group.Select(static item => item.ToNodeId);
-            var toArrayResult23 = selectResult22.ToArray();
+            var toArrayResult23 = group
+                .Select(static item => item.ToNodeId)
+                .ToArray();
             return toArrayResult23;
         }, StringComparer.Ordinal);
         foreach (var node in nodes.Values.Where(static node => node.Type == NodeType.FlowCall))
@@ -250,7 +262,7 @@ public sealed class ExecutionPlanBuilder
                 }
                 else
                 {
-                    edges[node.Id] = [..outgoing, node.Runtime.TargetNodeId];
+                    edges[node.Id] = [.. outgoing, node.Runtime.TargetNodeId];
                 }
             }
         }

@@ -60,19 +60,20 @@ public sealed class FileFlowWorkpieceStore : IFlowWorkpieceStore
             }
             catch (JsonException)
             {
-            // An incomplete sidecar can be visible during the final write.
-            // It is ignored until the next read after the atomic rename.
+                // An incomplete sidecar can be visible during the final write.
+                // It is ignored until the next read after the atomic rename.
             }
             catch (IOException)
             {
-            // A concurrently removed or unavailable workpiece is not a
-            // reason to fail the complete run listing.
+                // A concurrently removed or unavailable workpiece is not a
+                // reason to fail the complete run listing.
             }
         }
 
-        var orderByResult = result.OrderBy(static item => item.CreatedAt);
-        var thenByResult = orderByResult.ThenBy(static item => item.Id, StringComparer.Ordinal);
-        var toArrayResult = thenByResult.ToArray();
+        var toArrayResult = result
+            .OrderBy(static item => item.CreatedAt)
+            .ThenBy(static item => item.Id, StringComparer.Ordinal)
+            .ToArray();
         var fromResultResult1 = Task.FromResult<IReadOnlyList<FlowWorkpieceRecord>>(toArrayResult);
         return fromResultResult1;
     }

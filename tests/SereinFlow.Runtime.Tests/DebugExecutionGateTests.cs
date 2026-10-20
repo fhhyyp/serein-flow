@@ -5,6 +5,7 @@ using SereinFlow.Runtime;
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Runtime.Tests;
+
 public sealed class DebugExecutionGateTests
 {
     [Fact]
@@ -198,13 +199,14 @@ public sealed class DebugExecutionGateTests
 
     private static void AssertTriggerEventsUseInvocation(IReadOnlyCollection<RuntimeEvent> events, string nodeId, Guid invocationId)
     {
-        var whereResult = events.Where(item => item.NodeId == nodeId && item.Type is "node.started" or "node.completed");
-        var whereResult27 = whereResult.Where(item =>
-        {
-            var evaluatedValue26 = item.Payload.TryGetValue("triggerInvocationId", out var value) && value is Guid id && id == invocationId;
-            return evaluatedValue26;
-        });
-        var matchingEvents = whereResult27.ToArray();
+        var matchingEvents = events
+            .Where(item => item.NodeId == nodeId && item.Type is "node.started" or "node.completed")
+            .Where(item =>
+            {
+                var evaluatedValue26 = item.Payload.TryGetValue("triggerInvocationId", out var value) && value is Guid id && id == invocationId;
+                return evaluatedValue26;
+            })
+            .ToArray();
         Assert.Contains(matchingEvents, item => item.Type == "node.started");
         Assert.Contains(matchingEvents, item => item.Type == "node.completed");
     }
@@ -323,13 +325,13 @@ public sealed class DebugExecutionGateTests
 
         private static TaskCompletionSource[] createwaitsInitialValue()
         {
-            var rangeResult = Enumerable.Range(0, 8);
-            var selectResult = rangeResult.Select(static _ =>
-            {
-                var taskCompletionSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                return taskCompletionSource;
-            });
-            TaskCompletionSource[] waitsInitialValue = selectResult.ToArray();
+            TaskCompletionSource[] waitsInitialValue = Enumerable.Range(0, 8)
+                .Select(static _ =>
+                {
+                    var taskCompletionSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    return taskCompletionSource;
+                })
+                .ToArray();
             return waitsInitialValue;
         }
     }

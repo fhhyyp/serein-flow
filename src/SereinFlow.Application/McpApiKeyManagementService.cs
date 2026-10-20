@@ -21,9 +21,9 @@ public sealed class McpApiKeyManagementService
 
     public async Task<IReadOnlyList<McpApiKeyDto>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var evaluatedValue = (await _keys.ListAsync(cancellationToken));
-        var selectResult = evaluatedValue.Select(McpSecurityService.ToDto);
-        var toArrayResult = selectResult.ToArray();
+        var toArrayResult = (await _keys.ListAsync(cancellationToken))
+            .Select(McpSecurityService.ToDto)
+            .ToArray();
         return toArrayResult;
     }
 

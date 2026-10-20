@@ -1,6 +1,7 @@
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
+
 public interface ILibraryCompatibilityAnalyzer
 {
     FlowLibraryUpgradePreviewDto Analyze(FlowDefinitionDto flow, LibraryDto source, LibraryDto target);
@@ -52,8 +53,9 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
         }
 
         var evaluatedValue2 = !issues.Any(static issue => issue.BlocksApplication);
-        var orderByResult = issues.OrderBy(static issue => issue.Id, StringComparer.Ordinal);
-        var toArrayResult = orderByResult.ToArray();
+        var toArrayResult = issues
+            .OrderBy(static issue => issue.Id, StringComparer.Ordinal)
+            .ToArray();
         var flowLibraryUpgradePreviewDto3 = new FlowLibraryUpgradePreviewDto(flow.Id, flow.Version, evaluatedValue2, affectedCount, toArrayResult);
         return flowLibraryUpgradePreviewDto3;
     }
@@ -90,11 +92,13 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
             issues.Add(issueResult7);
         }
 
-        var whereResult = canvas.Connections.Where(connection => connection.Kind == ConnectionKindDto.Data && connection.ToNodeId == node.Id);
-        var inbound = whereResult.ToArray();
-        var whereResult14 = node.Parameters.Where(IsConfiguredByFlow);
-        var selectResult = whereResult14.Select(parameter => parameter.Ui?.Id ?? parameter.Name);
-        var configuredParameterIds = selectResult.ToHashSet(StringComparer.Ordinal);
+        var inbound = canvas.Connections
+            .Where(connection => connection.Kind == ConnectionKindDto.Data && connection.ToNodeId == node.Id)
+            .ToArray();
+        var configuredParameterIds = node.Parameters
+            .Where(IsConfiguredByFlow)
+            .Select(parameter => parameter.Ui?.Id ?? parameter.Name)
+            .ToHashSet(StringComparer.Ordinal);
         foreach (var sourceParameter in sourceNode.Parameters)
         {
             var targetParameter = FindTargetParameter(sourceParameter, targetNode);
@@ -161,12 +165,13 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
             return singleOrDefaultResult;
         }
 
-        var whereResult17 = manifest.Nodes.Where(node =>
-        {
-            var evaluatedValue16 = node.IdentityConfidence == LibraryContractIdentityConfidenceDto.Legacy && string.Equals(node.DeclaringType, runtime?.ClassName, StringComparison.Ordinal) && string.Equals(node.MethodName, runtime?.MethodName, StringComparison.Ordinal);
-            return evaluatedValue16;
-        });
-        var legacyMatches = whereResult17.ToArray();
+        var legacyMatches = manifest.Nodes
+            .Where(node =>
+            {
+                var evaluatedValue16 = node.IdentityConfidence == LibraryContractIdentityConfidenceDto.Legacy && string.Equals(node.DeclaringType, runtime?.ClassName, StringComparison.Ordinal) && string.Equals(node.MethodName, runtime?.MethodName, StringComparison.Ordinal);
+                return evaluatedValue16;
+            })
+            .ToArray();
         return legacyMatches.Length == 1 ? legacyMatches[0] : null;
     }
 
@@ -182,12 +187,13 @@ public sealed class LibraryCompatibilityAnalyzer : ILibraryCompatibilityAnalyzer
             return singleOrDefaultResult19;
         }
 
-        var whereResult21 = target.Nodes.Where(node =>
-        {
-            var evaluatedValue20 = node.IdentityConfidence == LibraryContractIdentityConfidenceDto.Legacy && string.Equals(node.OverloadSignature, sourceNode.OverloadSignature, StringComparison.Ordinal);
-            return evaluatedValue20;
-        });
-        var matches = whereResult21.ToArray();
+        var matches = target.Nodes
+            .Where(node =>
+            {
+                var evaluatedValue20 = node.IdentityConfidence == LibraryContractIdentityConfidenceDto.Legacy && string.Equals(node.OverloadSignature, sourceNode.OverloadSignature, StringComparison.Ordinal);
+                return evaluatedValue20;
+            })
+            .ToArray();
         return matches.Length == 1 ? matches[0] : null;
     }
 

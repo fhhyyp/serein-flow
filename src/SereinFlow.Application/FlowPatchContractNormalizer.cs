@@ -55,12 +55,13 @@ public sealed class FlowPatchContractNormalizer
     public NormalizedFlowPatchRequest NormalizeLegacyRequest(FlowPatchRequestDto request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var selectResult = request.Operations.Select((operation, index) =>
-        {
-            var readPersistedLegacyOperationResult = ReadPersistedLegacyOperation(operation, $"$.operations[{index}]");
-            return readPersistedLegacyOperationResult;
-        });
-        var operations = selectResult.ToArray();
+        var operations = request.Operations
+            .Select((operation, index) =>
+            {
+                var readPersistedLegacyOperationResult = ReadPersistedLegacyOperation(operation, $"$.operations[{index}]");
+                return readPersistedLegacyOperationResult;
+            })
+            .ToArray();
         var canonical = new FlowPatchCanonicalRequestDto(request.ProjectId, request.FlowId, request.ExpectedDevelopmentVersion, FlowPatchContract.CurrentSchemaVersion, operations, request.Remark);
         IReadOnlyList<FlowPatchNormalizationWarningDto> evaluatedValue1 = [new FlowPatchNormalizationWarningDto(McpErrorCodes.FlowPatchLegacyInput, "$.operations", "The stored preview uses the legacy flow-patch representation and was normalized to schema 2.0.")];
         var normalizedFlowPatchRequest2 = new NormalizedFlowPatchRequest(canonical, request, evaluatedValue1);
@@ -70,12 +71,13 @@ public sealed class FlowPatchContractNormalizer
     public IReadOnlyList<FlowPatchCanonicalOperationDto> NormalizeLegacyOperations(IReadOnlyList<FlowPatchOperationDto> operations)
     {
         ArgumentNullException.ThrowIfNull(operations);
-        var selectResult4 = operations.Select((operation, index) =>
-        {
-            var readPersistedLegacyOperationResult3 = ReadPersistedLegacyOperation(operation, $"$.operations[{index}]");
-            return readPersistedLegacyOperationResult3;
-        });
-        var toArrayResult = selectResult4.ToArray();
+        var toArrayResult = operations
+            .Select((operation, index) =>
+            {
+                var readPersistedLegacyOperationResult3 = ReadPersistedLegacyOperation(operation, $"$.operations[{index}]");
+                return readPersistedLegacyOperationResult3;
+            })
+            .ToArray();
         return toArrayResult;
     }
 
@@ -98,8 +100,9 @@ public sealed class FlowPatchContractNormalizer
 
     public static FlowPatchRequestDto ToLegacyRequest(FlowPatchCanonicalRequestDto request)
     {
-        var selectResult5 = request.Operations.Select(ToLegacyOperation);
-        var toArrayResult6 = selectResult5.ToArray();
+        var toArrayResult6 = request.Operations
+            .Select(ToLegacyOperation)
+            .ToArray();
         FlowPatchRequestDto evaluatedValue7 = new(request.ProjectId, request.FlowId, request.ExpectedDevelopmentVersion, toArrayResult6, request.Remark);
         return evaluatedValue7;
     }
@@ -124,7 +127,8 @@ public sealed class FlowPatchContractNormalizer
             "setEntryNode" => Legacy(FlowPatchOperationKindDto.SetEntryNode, value: operation.EntryNodeId),
             "setRunPolicy" => Legacy(FlowPatchOperationKindDto.SetRunPolicy, value: operation.RunPolicy),
             "replaceScriptSource" => Legacy(FlowPatchOperationKindDto.ReplaceScriptSource, operation.CanvasId, operation.NodeId, value: operation.Source),
-            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, "$.operations", "a supported schema 2.0 operation", "Use the operation names published by sereinflow_preview_flow_patch.")};
+            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, "$.operations", "a supported schema 2.0 operation", "Use the operation names published by sereinflow_preview_flow_patch.")
+        };
         return evaluatedValue8;
     }
 
@@ -188,7 +192,8 @@ public sealed class FlowPatchContractNormalizer
             "setEntryNode" => ReadV2SetEntryNode(operation, path, op),
             "setRunPolicy" => resolveevaluatedValue41(),
             "replaceScriptSource" => ReadV2ReplaceScriptSource(operation, path, op),
-            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.op", "one of the 15 schema 2.0 operation names", "Use the operation names exposed by sereinflow_preview_flow_patch.")};
+            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.op", "one of the 15 schema 2.0 operation names", "Use the operation names exposed by sereinflow_preview_flow_patch.")
+        };
         return evaluatedValue43;
         FlowPatchCanonicalOperationDto resolveevaluatedValue()
         {
@@ -342,7 +347,8 @@ public sealed class FlowPatchContractNormalizer
             "setEntryNode" => resolveevaluatedValue113(),
             "setRunPolicy" => resolveevaluatedValue116(),
             "replaceScriptSource" => resolveevaluatedValue119(),
-            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.operation", "a supported legacy operation name", "Use schemaVersion 2.0 and the canonical op names.")};
+            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.operation", "a supported legacy operation name", "Use schemaVersion 2.0 and the canonical op names.")
+        };
         return evaluatedValue124;
         FlowPatchCanonicalOperationDto resolveevaluatedValue62()
         {
@@ -491,7 +497,8 @@ public sealed class FlowPatchContractNormalizer
             FlowPatchOperationKindDto.SetEntryNode => resolveevaluatedValue177(),
             FlowPatchOperationKindDto.SetRunPolicy => resolveevaluatedValue180(),
             FlowPatchOperationKindDto.ReplaceScriptSource => resolveevaluatedValue183(),
-            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a supported legacy operation", "Create a new schema 2.0 preview.")};
+            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a supported legacy operation", "Create a new schema 2.0 preview.")
+        };
         return evaluatedValue188;
         FlowPatchCanonicalOperationDto resolveevaluatedValue125()
         {
@@ -1092,7 +1099,7 @@ public sealed class FlowPatchContractNormalizer
                 }
             }
         }
-        else if (legacy && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var numeric) && allowed.FirstOrDefault(item => item.LegacyNumeric == numeric)is { } numericMatch)
+        else if (legacy && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var numeric) && allowed.FirstOrDefault(item => item.LegacyNumeric == numeric) is { } numericMatch)
         {
             return numericMatch;
         }
@@ -1132,7 +1139,8 @@ public sealed class FlowPatchContractNormalizer
                 12 => "replaceScriptSource",
                 13 => "addNodeParameter",
                 14 => "removeNodeParameter",
-                _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a known legacy operation number", "Use a schema 2.0 op string.")};
+                _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a known legacy operation number", "Use a schema 2.0 op string.")
+            };
             return evaluatedValue214;
         }
 
@@ -1158,7 +1166,8 @@ public sealed class FlowPatchContractNormalizer
             "setEntryNode" or "SetEntryNode" or "set_entry_node" => "setEntryNode",
             "setRunPolicy" or "SetRunPolicy" or "set_run_policy" => "setRunPolicy",
             "replaceScriptSource" or "ReplaceScriptSource" or "replace_script_source" => "replaceScriptSource",
-            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a supported legacy operation name", "Use a schema 2.0 op string.")};
+            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a supported legacy operation name", "Use a schema 2.0 op string.")
+        };
         return evaluatedValue215;
     }
 
@@ -1291,12 +1300,12 @@ public sealed class FlowPatchContractNormalizer
 
     private static bool HasAnyProperty(JsonElement source, IReadOnlyCollection<string> names)
     {
-        var enumerateObjectResult = source.EnumerateObject();
-        var anyResult = enumerateObjectResult.Any(property =>
-        {
-            var evaluatedValue219 = names.Contains(property.Name, StringComparer.Ordinal) && property.Value.ValueKind != JsonValueKind.Null;
-            return evaluatedValue219;
-        });
+        var anyResult = source.EnumerateObject()
+            .Any(property =>
+            {
+                var evaluatedValue219 = names.Contains(property.Name, StringComparer.Ordinal) && property.Value.ValueKind != JsonValueKind.Null;
+                return evaluatedValue219;
+            });
         return anyResult;
     }
 
@@ -1392,234 +1401,234 @@ public sealed class FlowPatchContractNormalizer
             switch (operation.Op)
             {
                 case "addCanvas":
-                {
-                    var canvas = RequireValue(operation.Canvas, $"{path}.canvas");
-                    if (!resolveTryAddResult223())
                     {
-                        throw Duplicate($"{path}.canvas.id", "canvas ID");
-                    }
+                        var canvas = RequireValue(operation.Canvas, $"{path}.canvas");
+                        if (!resolveTryAddResult223())
+                        {
+                            throw Duplicate($"{path}.canvas.id", "canvas ID");
+                        }
 
-                    ValidateConnections(_canvases[canvas.Id], $"{path}.canvas.connections");
-                    return;
-                    bool resolveTryAddResult223()
-                    {
-                        var fromCanvasResult224 = CanvasReferenceState.FromCanvas(canvas, $"{path}.canvas");
-                        var tryAddResult225 = _canvases.TryAdd(canvas.Id, fromCanvasResult224);
-                        return tryAddResult225;
+                        ValidateConnections(_canvases[canvas.Id], $"{path}.canvas.connections");
+                        return;
+                        bool resolveTryAddResult223()
+                        {
+                            var fromCanvasResult224 = CanvasReferenceState.FromCanvas(canvas, $"{path}.canvas");
+                            var tryAddResult225 = _canvases.TryAdd(canvas.Id, fromCanvasResult224);
+                            return tryAddResult225;
+                        }
                     }
-                }
 
                 case "updateCanvas":
-                {
-                    var canvasId = RequireId(operation.CanvasId, $"{path}.canvasId");
-                    var canvas = RequireValue(operation.Canvas, $"{path}.canvas");
-                    RequireMatchingId(canvasId, canvas.Id, $"{path}.canvas.id");
-                    RequireCanvas(canvasId, $"{path}.canvasId");
-                    var replacement = CanvasReferenceState.FromCanvas(canvas, $"{path}.canvas");
-                    ValidateConnections(replacement, $"{path}.canvas.connections");
-                    _canvases[canvasId] = replacement;
-                    return;
-                }
+                    {
+                        var canvasId = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireValue(operation.Canvas, $"{path}.canvas");
+                        RequireMatchingId(canvasId, canvas.Id, $"{path}.canvas.id");
+                        RequireCanvas(canvasId, $"{path}.canvasId");
+                        var replacement = CanvasReferenceState.FromCanvas(canvas, $"{path}.canvas");
+                        ValidateConnections(replacement, $"{path}.canvas.connections");
+                        _canvases[canvasId] = replacement;
+                        return;
+                    }
 
                 case "removeCanvas":
-                {
-                    var canvasId = RequireId(operation.CanvasId, $"{path}.canvasId");
-                    var canvas = RequireCanvas(canvasId, $"{path}.canvasId");
-                    if (canvas.Nodes.Count != 0 || canvas.Connections.Count != 0)
                     {
-                        throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.canvasId", "an empty canvas", "Remove the canvas connections and nodes before removing the canvas.");
-                    }
+                        var canvasId = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(canvasId, $"{path}.canvasId");
+                        if (canvas.Nodes.Count != 0 || canvas.Connections.Count != 0)
+                        {
+                            throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.canvasId", "an empty canvas", "Remove the canvas connections and nodes before removing the canvas.");
+                        }
 
-                    _canvases.Remove(canvasId);
-                    return;
-                }
+                        _canvases.Remove(canvasId);
+                        return;
+                    }
 
                 case "addNode":
-                {
-                    var requireIdResult = RequireId(operation.CanvasId, $"{path}.canvasId");
-                    var canvas = RequireCanvas(requireIdResult, $"{path}.canvasId");
-                    var node = RequireValue(operation.Node, $"{path}.node");
-                    if (!resolveTryAddResult226())
                     {
-                        throw Duplicate($"{path}.node.id", "node ID");
-                    }
+                        var requireIdResult = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(requireIdResult, $"{path}.canvasId");
+                        var node = RequireValue(operation.Node, $"{path}.node");
+                        if (!resolveTryAddResult226())
+                        {
+                            throw Duplicate($"{path}.node.id", "node ID");
+                        }
 
-                    return;
-                    bool resolveTryAddResult226()
-                    {
-                        var fromNodeResult = NodeReferenceState.FromNode(node, $"{path}.node");
-                        var tryAddResult227 = canvas.Nodes.TryAdd(node.Id, fromNodeResult);
-                        return tryAddResult227;
+                        return;
+                        bool resolveTryAddResult226()
+                        {
+                            var fromNodeResult = NodeReferenceState.FromNode(node, $"{path}.node");
+                            var tryAddResult227 = canvas.Nodes.TryAdd(node.Id, fromNodeResult);
+                            return tryAddResult227;
+                        }
                     }
-                }
 
                 case "replaceNode":
-                {
-                    var requireIdResult228 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                    var canvas = RequireCanvas(requireIdResult228, $"{path}.canvasId");
-                    var nodeId = RequireId(operation.NodeId, $"{path}.nodeId");
-                    var node = RequireValue(operation.Node, $"{path}.node");
-                    RequireMatchingId(nodeId, node.Id, $"{path}.node.id");
-                    if (!canvas.Nodes.ContainsKey(nodeId))
                     {
-                        throw ReferenceInvalid($"{path}.nodeId", "an existing node ID");
-                    }
+                        var requireIdResult228 = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(requireIdResult228, $"{path}.canvasId");
+                        var nodeId = RequireId(operation.NodeId, $"{path}.nodeId");
+                        var node = RequireValue(operation.Node, $"{path}.node");
+                        RequireMatchingId(nodeId, node.Id, $"{path}.node.id");
+                        if (!canvas.Nodes.ContainsKey(nodeId))
+                        {
+                            throw ReferenceInvalid($"{path}.nodeId", "an existing node ID");
+                        }
 
-                    canvas.Nodes[nodeId] = NodeReferenceState.FromNode(node, $"{path}.node");
-                    ValidateConnections(canvas, $"{path}.connections");
-                    return;
-                }
+                        canvas.Nodes[nodeId] = NodeReferenceState.FromNode(node, $"{path}.node");
+                        ValidateConnections(canvas, $"{path}.connections");
+                        return;
+                    }
 
                 case "removeNode":
-                {
-                    var requireIdResult229 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                    var canvas = RequireCanvas(requireIdResult229, $"{path}.canvasId");
-                    var nodeId = RequireId(operation.NodeId, $"{path}.nodeId");
-                    if (!canvas.Nodes.ContainsKey(nodeId))
                     {
-                        throw ReferenceInvalid($"{path}.nodeId", "an existing node ID");
-                    }
+                        var requireIdResult229 = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(requireIdResult229, $"{path}.canvasId");
+                        var nodeId = RequireId(operation.NodeId, $"{path}.nodeId");
+                        if (!canvas.Nodes.ContainsKey(nodeId))
+                        {
+                            throw ReferenceInvalid($"{path}.nodeId", "an existing node ID");
+                        }
 
-                    if (canvas.Connections.Values.Any(connection => connection.FromNodeId == nodeId || connection.ToNodeId == nodeId))
-                    {
-                        throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.nodeId", "a node without connections", "Remove the node connections before removing the node.");
-                    }
+                        if (canvas.Connections.Values.Any(connection => connection.FromNodeId == nodeId || connection.ToNodeId == nodeId))
+                        {
+                            throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.nodeId", "a node without connections", "Remove the node connections before removing the node.");
+                        }
 
-                    canvas.Nodes.Remove(nodeId);
-                    return;
-                }
+                        canvas.Nodes.Remove(nodeId);
+                        return;
+                    }
 
                 case "setNodeParameter":
-                {
-                    var requireIdResult230 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                    var canvas = RequireCanvas(requireIdResult230, $"{path}.canvasId");
-                    var requireIdResult231 = RequireId(operation.NodeId, $"{path}.nodeId");
-                    var node = RequireNode(canvas, requireIdResult231, $"{path}.nodeId");
-                    var parameterId = RequireId(operation.ParameterId, $"{path}.parameterId");
-                    var parameter = RequireValue(operation.Parameter, $"{path}.parameter");
-                    var actualParameterId = RequireId(parameter.Ui?.Id, $"{path}.parameter.ui.id");
-                    RequireMatchingId(parameterId, actualParameterId, $"{path}.parameter.ui.id");
-                    if (!node.ParameterIds.Contains(parameterId))
                     {
-                        throw ReferenceInvalid($"{path}.parameterId", "an existing parameter ID on the node");
-                    }
+                        var requireIdResult230 = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(requireIdResult230, $"{path}.canvasId");
+                        var requireIdResult231 = RequireId(operation.NodeId, $"{path}.nodeId");
+                        var node = RequireNode(canvas, requireIdResult231, $"{path}.nodeId");
+                        var parameterId = RequireId(operation.ParameterId, $"{path}.parameterId");
+                        var parameter = RequireValue(operation.Parameter, $"{path}.parameter");
+                        var actualParameterId = RequireId(parameter.Ui?.Id, $"{path}.parameter.ui.id");
+                        RequireMatchingId(parameterId, actualParameterId, $"{path}.parameter.ui.id");
+                        if (!node.ParameterIds.Contains(parameterId))
+                        {
+                            throw ReferenceInvalid($"{path}.parameterId", "an existing parameter ID on the node");
+                        }
 
-                    return;
-                }
+                        return;
+                    }
 
                 case "addNodeParameter":
-                {
-                    var requireIdResult232 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                    var canvas = RequireCanvas(requireIdResult232, $"{path}.canvasId");
-                    var requireIdResult233 = RequireId(operation.NodeId, $"{path}.nodeId");
-                    var node = RequireNode(canvas, requireIdResult233, $"{path}.nodeId");
-                    var parameter = RequireValue(operation.Parameter, $"{path}.parameter");
-                    var parameterId = RequireId(parameter.Ui?.Id, $"{path}.parameter.ui.id");
-                    if (!node.ParameterIds.Add(parameterId))
                     {
-                        throw Duplicate($"{path}.parameter.ui.id", "parameter ID");
-                    }
+                        var requireIdResult232 = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(requireIdResult232, $"{path}.canvasId");
+                        var requireIdResult233 = RequireId(operation.NodeId, $"{path}.nodeId");
+                        var node = RequireNode(canvas, requireIdResult233, $"{path}.nodeId");
+                        var parameter = RequireValue(operation.Parameter, $"{path}.parameter");
+                        var parameterId = RequireId(parameter.Ui?.Id, $"{path}.parameter.ui.id");
+                        if (!node.ParameterIds.Add(parameterId))
+                        {
+                            throw Duplicate($"{path}.parameter.ui.id", "parameter ID");
+                        }
 
-                    return;
-                }
+                        return;
+                    }
 
                 case "removeNodeParameter":
-                {
-                    var requireIdResult234 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                    var canvas = RequireCanvas(requireIdResult234, $"{path}.canvasId");
-                    var nodeId = RequireId(operation.NodeId, $"{path}.nodeId");
-                    var node = RequireNode(canvas, nodeId, $"{path}.nodeId");
-                    var parameterId = RequireId(operation.ParameterId, $"{path}.parameterId");
-                    if (!node.ParameterIds.Contains(parameterId))
                     {
-                        throw ReferenceInvalid($"{path}.parameterId", "an existing parameter ID on the node");
-                    }
+                        var requireIdResult234 = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(requireIdResult234, $"{path}.canvasId");
+                        var nodeId = RequireId(operation.NodeId, $"{path}.nodeId");
+                        var node = RequireNode(canvas, nodeId, $"{path}.nodeId");
+                        var parameterId = RequireId(operation.ParameterId, $"{path}.parameterId");
+                        if (!node.ParameterIds.Contains(parameterId))
+                        {
+                            throw ReferenceInvalid($"{path}.parameterId", "an existing parameter ID on the node");
+                        }
 
-                    if (canvas.Connections.Values.Any(connection => connection.Kind == ConnectionKindDto.Data && connection.ToNodeId == nodeId && connection.ToPortId == parameterId))
-                    {
-                        throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.parameterId", "a parameter without incoming data connections", "Remove the parameter's data connections before removing the parameter.");
-                    }
+                        if (canvas.Connections.Values.Any(connection => connection.Kind == ConnectionKindDto.Data && connection.ToNodeId == nodeId && connection.ToPortId == parameterId))
+                        {
+                            throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.parameterId", "a parameter without incoming data connections", "Remove the parameter's data connections before removing the parameter.");
+                        }
 
-                    node.ParameterIds.Remove(parameterId);
-                    return;
-                }
+                        node.ParameterIds.Remove(parameterId);
+                        return;
+                    }
 
                 case "addConnection":
-                {
-                    var requireIdResult235 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                    var canvas = RequireCanvas(requireIdResult235, $"{path}.canvasId");
-                    var connection = RequireValue(operation.Connection, $"{path}.connection");
-                    if (canvas.Connections.ContainsKey(connection.Id))
                     {
-                        throw Duplicate($"{path}.connection.id", "connection ID");
-                    }
+                        var requireIdResult235 = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(requireIdResult235, $"{path}.canvasId");
+                        var connection = RequireValue(operation.Connection, $"{path}.connection");
+                        if (canvas.Connections.ContainsKey(connection.Id))
+                        {
+                            throw Duplicate($"{path}.connection.id", "connection ID");
+                        }
 
-                    ValidateConnectionEndpoints(canvas, connection, $"{path}.connection");
-                    canvas.Connections.Add(connection.Id, connection);
-                    return;
-                }
+                        ValidateConnectionEndpoints(canvas, connection, $"{path}.connection");
+                        canvas.Connections.Add(connection.Id, connection);
+                        return;
+                    }
 
                 case "replaceConnection":
-                {
-                    var requireIdResult236 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                    var canvas = RequireCanvas(requireIdResult236, $"{path}.canvasId");
-                    var connectionId = RequireId(operation.ConnectionId, $"{path}.connectionId");
-                    var connection = RequireValue(operation.Connection, $"{path}.connection");
-                    RequireMatchingId(connectionId, connection.Id, $"{path}.connection.id");
-                    if (!canvas.Connections.ContainsKey(connectionId))
                     {
-                        throw ReferenceInvalid($"{path}.connectionId", "an existing connection ID");
-                    }
+                        var requireIdResult236 = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(requireIdResult236, $"{path}.canvasId");
+                        var connectionId = RequireId(operation.ConnectionId, $"{path}.connectionId");
+                        var connection = RequireValue(operation.Connection, $"{path}.connection");
+                        RequireMatchingId(connectionId, connection.Id, $"{path}.connection.id");
+                        if (!canvas.Connections.ContainsKey(connectionId))
+                        {
+                            throw ReferenceInvalid($"{path}.connectionId", "an existing connection ID");
+                        }
 
-                    ValidateConnectionEndpoints(canvas, connection, $"{path}.connection");
-                    canvas.Connections[connectionId] = connection;
-                    return;
-                }
+                        ValidateConnectionEndpoints(canvas, connection, $"{path}.connection");
+                        canvas.Connections[connectionId] = connection;
+                        return;
+                    }
 
                 case "removeConnection":
-                {
-                    var requireIdResult237 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                    var canvas = RequireCanvas(requireIdResult237, $"{path}.canvasId");
-                    var connectionId = RequireId(operation.ConnectionId, $"{path}.connectionId");
-                    if (!canvas.Connections.Remove(connectionId))
                     {
-                        throw ReferenceInvalid($"{path}.connectionId", "an existing connection ID");
-                    }
+                        var requireIdResult237 = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(requireIdResult237, $"{path}.canvasId");
+                        var connectionId = RequireId(operation.ConnectionId, $"{path}.connectionId");
+                        if (!canvas.Connections.Remove(connectionId))
+                        {
+                            throw ReferenceInvalid($"{path}.connectionId", "an existing connection ID");
+                        }
 
-                    return;
-                }
+                        return;
+                    }
 
                 case "setEntryNode":
-                {
-                    var entryNodeId = RequireId(operation.EntryNodeId, $"{path}.entryNodeId");
-                    if (!_canvases.Values.Any(canvas =>
                     {
-                        var containsKeyResult = canvas.Nodes.ContainsKey(entryNodeId);
-                        return containsKeyResult;
-                    }))
-                    {
-                        throw ReferenceInvalid($"{path}.entryNodeId", "an existing node ID");
-                    }
+                        var entryNodeId = RequireId(operation.EntryNodeId, $"{path}.entryNodeId");
+                        if (!_canvases.Values.Any(canvas =>
+                        {
+                            var containsKeyResult = canvas.Nodes.ContainsKey(entryNodeId);
+                            return containsKeyResult;
+                        }))
+                        {
+                            throw ReferenceInvalid($"{path}.entryNodeId", "an existing node ID");
+                        }
 
-                    return;
-                }
+                        return;
+                    }
 
                 case "setRunPolicy":
                     _ = RequireValue(operation.RunPolicy, $"{path}.runPolicy");
                     return;
                 case "replaceScriptSource":
-                {
-                    var requireIdResult238 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                    var canvas = RequireCanvas(requireIdResult238, $"{path}.canvasId");
-                    var requireIdResult239 = RequireId(operation.NodeId, $"{path}.nodeId");
-                    var node = RequireNode(canvas, requireIdResult239, $"{path}.nodeId");
-                    if (!node.HasScript)
                     {
-                        throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.nodeId", "an existing script node", "Use replaceScriptSource only with a script node.");
-                    }
+                        var requireIdResult238 = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(requireIdResult238, $"{path}.canvasId");
+                        var requireIdResult239 = RequireId(operation.NodeId, $"{path}.nodeId");
+                        var node = RequireNode(canvas, requireIdResult239, $"{path}.nodeId");
+                        if (!node.HasScript)
+                        {
+                            throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.nodeId", "an existing script node", "Use replaceScriptSource only with a script node.");
+                        }
 
-                    return;
-                }
+                        return;
+                    }
 
                 default:
                     throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.op", "one of the 15 schema 2.0 operation names", "Use the operation names exposed by sereinflow_preview_flow_patch.");

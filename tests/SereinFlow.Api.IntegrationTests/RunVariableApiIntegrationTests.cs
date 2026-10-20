@@ -15,6 +15,7 @@ using SereinFlow.Domain;
 using SereinFlow.Worker.Client;
 
 namespace SereinFlow.Api.IntegrationTests;
+
 public sealed class RunVariableApiIntegrationTests
 {
     [Fact]
@@ -321,10 +322,11 @@ public sealed class RunVariableApiIntegrationTests
 
         public Task<long> GetLastSequenceAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            var whereResult = _events.Where(item => item.RunId == id);
-            var selectResult = whereResult.Select(item => item.Sequence);
-            var defaultIfEmptyResult = selectResult.DefaultIfEmpty();
-            var maxResult = defaultIfEmptyResult.Max();
+            var maxResult = _events
+                .Where(item => item.RunId == id)
+                .Select(item => item.Sequence)
+                .DefaultIfEmpty()
+                .Max();
             var fromResultResult33 = Task.FromResult(maxResult);
             return fromResultResult33;
         }
@@ -336,8 +338,9 @@ public sealed class RunVariableApiIntegrationTests
 
         public IReadOnlyList<FlowRunEvent> GetAfter(Guid id, long sequence)
         {
-            var whereResult34 = _events.Where(item => item.RunId == id && item.Sequence > sequence);
-            var toArrayResult = whereResult34.ToArray();
+            var toArrayResult = _events
+                .Where(item => item.RunId == id && item.Sequence > sequence)
+                .ToArray();
             return toArrayResult;
         }
     }

@@ -3,6 +3,7 @@ using SereinFlow.Application;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application.Tests;
+
 public sealed class LibraryCompatibilityAnalyzerTests
 {
     private const string SourceArtifactId = "source-artifact";
@@ -102,18 +103,20 @@ public sealed class LibraryCompatibilityAnalyzerTests
 
     private static LibraryDto CreateLibrary(string artifactId, params LibraryManifestNodeDto[] manifestNodes)
     {
-        var selectResult16 = manifestNodes.Select(node =>
-        {
-            var selectResult = node.Parameters.Select(parameter =>
+        var nodes = manifestNodes
+            .Select(node =>
             {
-                var libraryParameterDto = new LibraryParameterDto(parameter.ContractId, parameter.ClrName, parameter.Type, null, parameter.Required, DefaultValue: parameter.DefaultValue, Aliases: parameter.Aliases, IdentityConfidence: parameter.IdentityConfidence);
-                return libraryParameterDto;
-            });
-            var toArrayResult = selectResult.ToArray();
-            var libraryNodeDto = new LibraryNodeDto(node.ContractId, node.Type, node.MethodName, null, artifactId, node.DeclaringType, node.MethodName, "Quality.dll", "1.0.0", node.ReturnType, toArrayResult, node.IsAwaitable, node.ContractId, node.OverloadSignature, node.IdentityConfidence);
-            return libraryNodeDto;
-        });
-        var nodes = selectResult16.ToArray();
+                var toArrayResult = node.Parameters
+                    .Select(parameter =>
+                    {
+                        var libraryParameterDto = new LibraryParameterDto(parameter.ContractId, parameter.ClrName, parameter.Type, null, parameter.Required, DefaultValue: parameter.DefaultValue, Aliases: parameter.Aliases, IdentityConfidence: parameter.IdentityConfidence);
+                        return libraryParameterDto;
+                    })
+                    .ToArray();
+                var libraryNodeDto = new LibraryNodeDto(node.ContractId, node.Type, node.MethodName, null, artifactId, node.DeclaringType, node.MethodName, "Quality.dll", "1.0.0", node.ReturnType, toArrayResult, node.IsAwaitable, node.ContractId, node.OverloadSignature, node.IdentityConfidence);
+                return libraryNodeDto;
+            })
+            .ToArray();
         var libraryArtifactManifestDto = new LibraryArtifactManifestDto(artifactId, "Quality", "1.0.0", "1.0.0", manifestNodes);
         var libraryDto = new LibraryDto(artifactId, "Quality library", "1.0.0", "Quality-1.0.0.zip", 1024, artifactId, DateTimeOffset.UtcNow, nodes, LibraryLifecycleDto.Available, FamilyId, "1.0.0", libraryArtifactManifestDto);
         return libraryDto;

@@ -2,6 +2,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
+
 public sealed record ProjectLibraryOperationResult(bool IsSuccess, int StatusCode, string? Code = null, string? Message = null, IReadOnlyList<ProjectLibraryReferenceDto>? References = null);
 /// <summary>
 /// Owns project-to-library ownership rules. Environment packages remain
@@ -29,7 +30,7 @@ public sealed class ProjectLibraryService
 
     public async Task<ProjectLibraryOperationResult> ListAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
-        if (await _projects.FindAsync(projectId, cancellationToken)is null)
+        if (await _projects.FindAsync(projectId, cancellationToken) is null)
         {
             var projectNotFoundResult = ProjectNotFound();
             return projectNotFoundResult;
@@ -109,8 +110,8 @@ public sealed class ProjectLibraryService
         var flows = await _flows.ListByProjectAsync(projectId, cancellationToken);
         if (flows.Any(flow =>
         {
-            var getLibraryIdsResult = GetLibraryIds(flow);
-            var containsResult = getLibraryIdsResult.Contains(libraryId, StringComparer.OrdinalIgnoreCase);
+            var containsResult = GetLibraryIds(flow)
+                .Contains(libraryId, StringComparer.OrdinalIgnoreCase);
             return containsResult;
         }))
         {
@@ -133,9 +134,9 @@ public sealed class ProjectLibraryService
     public async Task<FlowValidationResultDto> ValidateFlowLibrariesAsync(Guid projectId, FlowDefinitionDto definition, CancellationToken cancellationToken = default)
     {
         var diagnostics = new List<ValidationDiagnosticDto>();
-        var evaluatedValue13 = (await _references.ListByProjectAsync(projectId, cancellationToken));
-        var selectResult = evaluatedValue13.Select(static item => item.LibraryId);
-        var referenceIds = selectResult.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var referenceIds = (await _references.ListByProjectAsync(projectId, cancellationToken))
+            .Select(static item => item.LibraryId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var canvas in definition.Canvases)
         {
             foreach (var node in canvas.Nodes)
@@ -202,41 +203,43 @@ public sealed class ProjectLibraryService
     /// </summary>
     public static FlowValidationResultDto ValidateNewProjectFlowLibraries(FlowDefinitionDto definition)
     {
-        var selectManyResult = definition.Canvases.SelectMany(static canvas =>
-        {
-            var selectResult14 = canvas.Nodes.Select(node => new { canvas.Id, Node = node });
-            return selectResult14;
-        });
-        var whereResult = selectManyResult.Where(static item => item.Node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop);
-        var whereResult17 = whereResult.Where(static item =>
-        {
-            var evaluatedValue15 = !string.IsNullOrWhiteSpace(item.Node.Ui?.LibraryId);
-            return evaluatedValue15;
-        });
-        var selectResult18 = whereResult17.Select(static item =>
-        {
-            var validationDiagnosticDto16 = new ValidationDiagnosticDto(ProjectLibraryErrorCodes.NotReferenced, "A new project cannot contain external library nodes before the library is explicitly referenced. 新项目尚未显式引用类库，不能包含外部类库节点。", $"canvases.{item.Id}.nodes.{item.Node.Id}.ui.libraryId");
-            return validationDiagnosticDto16;
-        });
-        var diagnostics = selectResult18.ToArray();
+        var diagnostics = definition.Canvases
+            .SelectMany(static canvas =>
+            {
+                var selectResult14 = canvas.Nodes.Select(node => new { canvas.Id, Node = node });
+                return selectResult14;
+            })
+            .Where(static item => item.Node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop)
+            .Where(static item =>
+            {
+                var evaluatedValue15 = !string.IsNullOrWhiteSpace(item.Node.Ui?.LibraryId);
+                return evaluatedValue15;
+            })
+            .Select(static item =>
+            {
+                var validationDiagnosticDto16 = new ValidationDiagnosticDto(ProjectLibraryErrorCodes.NotReferenced, "A new project cannot contain external library nodes before the library is explicitly referenced. 新项目尚未显式引用类库，不能包含外部类库节点。", $"canvases.{item.Id}.nodes.{item.Node.Id}.ui.libraryId");
+                return validationDiagnosticDto16;
+            })
+            .ToArray();
         var flowValidationResultDto19 = new FlowValidationResultDto(diagnostics.Length == 0, diagnostics);
         return flowValidationResultDto19;
     }
 
     public static IReadOnlyList<string> GetLibraryIds(FlowDefinitionDto definition)
     {
-        var selectManyResult21 = definition.Canvases.SelectMany(static canvas => canvas.Nodes);
-        var whereResult22 = selectManyResult21.Where(static node => node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop);
-        var selectResult23 = whereResult22.Select(static node => node.Ui?.LibraryId);
-        var whereResult24 = selectResult23.Where(static libraryId =>
-        {
-            var evaluatedValue20 = !string.IsNullOrWhiteSpace(libraryId);
-            return evaluatedValue20;
-        });
-        var castResult = whereResult24.Cast<string>();
-        var distinctResult = castResult.Distinct(StringComparer.OrdinalIgnoreCase);
-        var orderResult = distinctResult.Order(StringComparer.Ordinal);
-        var toArrayResult = orderResult.ToArray();
+        var toArrayResult = definition.Canvases
+            .SelectMany(static canvas => canvas.Nodes)
+            .Where(static node => node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop)
+            .Select(static node => node.Ui?.LibraryId)
+            .Where(static libraryId =>
+            {
+                var evaluatedValue20 = !string.IsNullOrWhiteSpace(libraryId);
+                return evaluatedValue20;
+            })
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
         return toArrayResult;
     }
 

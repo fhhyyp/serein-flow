@@ -3,6 +3,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Mcp.Tests;
+
 public sealed class McpAiGuidanceTests
 {
     [Fact]
@@ -20,8 +21,9 @@ public sealed class McpAiGuidanceTests
     [Fact]
     public void EveryTypedGuidanceIdResolvesToOneRegisteredResource()
     {
-        var selectResult = McpAiGuidance.AllResources.Select(static resource => resource.Uri);
-        var registeredUris = selectResult.ToHashSet(StringComparer.Ordinal);
+        var registeredUris = McpAiGuidance.AllResources
+            .Select(static resource => resource.Uri)
+            .ToHashSet(StringComparer.Ordinal);
         foreach (var id in Enum.GetValues<McpAiGuidanceId>())
         {
             var getUriResult = McpAiGuidance.GetUri(id);
@@ -29,9 +31,10 @@ public sealed class McpAiGuidanceTests
         }
 
         var evaluatedValue = Enum.GetValues<McpAiGuidanceId>().Length;
-        var selectResult1 = McpAiGuidance.AllResources.Select(static resource => resource.Uri);
-        var distinctResult = selectResult1.Distinct(StringComparer.Ordinal);
-        var countResult = distinctResult.Count();
+        var countResult = McpAiGuidance.AllResources
+            .Select(static resource => resource.Uri)
+            .Distinct(StringComparer.Ordinal)
+            .Count();
         Assert.Equal(evaluatedValue, countResult);
     }
 

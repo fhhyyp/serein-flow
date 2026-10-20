@@ -81,8 +81,9 @@ public sealed class LibraryNodeTemplateService
     public static string GetContractRevision(LibraryNodeDto contract)
     {
         ArgumentNullException.ThrowIfNull(contract);
-        var selectResult = contract.Parameters.Select(parameter => new { id = parameter.Id, name = parameter.Name, type = parameter.Type, description = parameter.Description, required = parameter.Required, isVariadic = parameter.IsVariadic, variadicGroupId = parameter.VariadicGroupId, elementType = parameter.ElementType, defaultValue = parameter.DefaultValue, aliases = parameter.Aliases, enumMetadata = parameter.EnumMetadata });
-        var toArrayResult = selectResult.ToArray();
+        var toArrayResult = contract.Parameters
+            .Select(parameter => new { id = parameter.Id, name = parameter.Name, type = parameter.Type, description = parameter.Description, required = parameter.Required, isVariadic = parameter.IsVariadic, variadicGroupId = parameter.VariadicGroupId, elementType = parameter.ElementType, defaultValue = parameter.DefaultValue, aliases = parameter.Aliases, enumMetadata = parameter.EnumMetadata })
+            .ToArray();
         var canonical = new
         {
             contractId = contract.ContractId ?? contract.Id,
@@ -106,8 +107,9 @@ public sealed class LibraryNodeTemplateService
 
     private static NodeDto CreateNode(LibraryNodeDto contract, NodeTemplatePositionDto position)
     {
-        var selectResult2 = contract.Parameters.Select(CreateParameter);
-        var parameters = selectResult2.ToArray();
+        var parameters = contract.Parameters
+            .Select(CreateParameter)
+            .ToArray();
         var ports = new List<NodePortDto>
         {
             new("exec-in", "Execution input", "input", false),
