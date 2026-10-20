@@ -1,32 +1,19 @@
 using SereinFlow.Domain;
 
 namespace SereinFlow.Domain.Tests;
-
 public sealed class FlowDefinitionTests
 {
     [Fact]
     public void ValidFlowAcceptsExecutionAndDataConnections()
     {
         var start = NodeDefinition.Create("start", NodeType.Action, "Start");
-        var finish = NodeDefinition.Create(
-            "finish",
-            NodeType.Action,
-            "Finish",
-            parameters: [new NodeParameterDefinition("input", null, id: "input")]);
-        var canvas = CanvasDefinition.Create("main", CanvasLifecycle.Main, [start, finish],
-        [
-            ConnectionDefinition.Execution("start", "success", "finish", "in", ExecutionBranch.Success),
-            ConnectionDefinition.Data("start", "result", "finish", "input", DataSource.PreviousNode)
-        ]);
-
-        var flow = FlowDefinition.Create(
-            Guid.NewGuid(),
-            1,
-            [canvas],
-            "start");
-
+        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.NodeParameterDefinition> evaluatedValue = [new NodeParameterDefinition("input", null, id: "input")];
+        var finish = NodeDefinition.Create("finish", NodeType.Action, "Finish", parameters: evaluatedValue);
+        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ConnectionDefinition> evaluatedValue1 = [ConnectionDefinition.Execution("start", "success", "finish", "in", ExecutionBranch.Success), ConnectionDefinition.Data("start", "result", "finish", "input", DataSource.PreviousNode)];
+        var canvas = CanvasDefinition.Create("main", CanvasLifecycle.Main, [start, finish], evaluatedValue1);
+        var newGuidResult = Guid.NewGuid();
+        var flow = FlowDefinition.Create(newGuidResult, 1, [canvas], "start");
         var diagnostics = flow.Validate();
-
         Assert.Empty(diagnostics);
         Assert.Equal("start", flow.EntryNodeId);
     }
@@ -34,14 +21,10 @@ public sealed class FlowDefinitionTests
     [Fact]
     public void EmptyEditorFlowIsValidUntilItIsSentForExecution()
     {
-        var flow = FlowDefinition.Create(
-            Guid.NewGuid(),
-            1,
-            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [], [])],
-            "");
-
+        var newGuidResult2 = Guid.NewGuid();
+        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue3 = [CanvasDefinition.Create("main", CanvasLifecycle.Main, [], [])];
+        var flow = FlowDefinition.Create(newGuidResult2, 1, evaluatedValue3, "");
         var diagnostics = flow.Validate();
-
         Assert.Empty(diagnostics);
         Assert.Equal(string.Empty, flow.EntryNodeId);
     }
@@ -51,11 +34,9 @@ public sealed class FlowDefinitionTests
     {
         var duplicate = NodeDefinition.Create("same", NodeType.Action, "Duplicate");
         var canvas = CanvasDefinition.Create("main", CanvasLifecycle.Main, [duplicate, duplicate], []);
-
-        var flow = FlowDefinition.Create(Guid.NewGuid(), 1, [canvas], "same");
-
+        var newGuidResult4 = Guid.NewGuid();
+        var flow = FlowDefinition.Create(newGuidResult4, 1, [canvas], "same");
         var diagnostics = flow.Validate();
-
         Assert.Contains(diagnostics, diagnostic => diagnostic.Code == DomainErrorCodes.DuplicateNodeId);
     }
 
@@ -63,13 +44,11 @@ public sealed class FlowDefinitionTests
     public void FlowRejectsConnectionsToUnknownNodes()
     {
         var node = NodeDefinition.Create("start", NodeType.Action, "Start");
-        var canvas = CanvasDefinition.Create("main", CanvasLifecycle.Main, [node],
-        [ConnectionDefinition.Execution("start", "success", "missing", "in", ExecutionBranch.Success)]);
-
-        var flow = FlowDefinition.Create(Guid.NewGuid(), 1, [canvas], "start");
-
+        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.ConnectionDefinition> evaluatedValue5 = [ConnectionDefinition.Execution("start", "success", "missing", "in", ExecutionBranch.Success)];
+        var canvas = CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], evaluatedValue5);
+        var newGuidResult6 = Guid.NewGuid();
+        var flow = FlowDefinition.Create(newGuidResult6, 1, [canvas], "start");
         var diagnostics = flow.Validate();
-
         Assert.Contains(diagnostics, diagnostic => diagnostic.Code == DomainErrorCodes.UnknownConnectionEndpoint);
     }
 
@@ -78,27 +57,24 @@ public sealed class FlowDefinitionTests
     {
         const string source = "return 42;";
         var script = ScriptNodeDefinition.Create("script", source, "1");
-
-        Assert.Equal(ScriptNodeDefinition.ComputeSourceHash(source), script.SourceHash);
-        Assert.Throws<ArgumentException>(() => ScriptNodeDefinition.Create("script", source, "1", "invalid"));
+        var computeSourceHashResult = ScriptNodeDefinition.ComputeSourceHash(source);
+        Assert.Equal(computeSourceHashResult, script.SourceHash);
+        Assert.Throws<ArgumentException>(() =>
+        {
+            var createResult = ScriptNodeDefinition.Create("script", source, "1", "invalid");
+            return createResult;
+        });
     }
 
     [Fact]
     public void FlowRejectsDuplicateAndMissingRequiredParameters()
     {
-        var node = NodeDefinition.Create(
-            "action",
-            NodeType.Action,
-            "Action",
-            parameters:
-            [
-                new NodeParameterDefinition("input", null, required: true),
-                new NodeParameterDefinition("input", "42")
-            ]);
+        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.NodeParameterDefinition> evaluatedValue7 = [new NodeParameterDefinition("input", null, required: true), new NodeParameterDefinition("input", "42")];
+        var node = NodeDefinition.Create("action", NodeType.Action, "Action", parameters: evaluatedValue7);
         var canvas = CanvasDefinition.Create("main", CanvasLifecycle.Main, [node], []);
-
-        var diagnostics = FlowDefinition.Create(Guid.NewGuid(), 1, [canvas], "action").Validate();
-
+        var newGuidResult8 = Guid.NewGuid();
+        var createResult9 = FlowDefinition.Create(newGuidResult8, 1, [canvas], "action");
+        var diagnostics = createResult9.Validate();
         Assert.Contains(diagnostics, diagnostic => diagnostic.Code == DomainErrorCodes.DuplicateParameterName);
         Assert.Contains(diagnostics, diagnostic => diagnostic.Code == DomainErrorCodes.MissingRequiredParameter);
     }
@@ -106,15 +82,17 @@ public sealed class FlowDefinitionTests
     [Fact]
     public void LegacySchemaIsRejectedInsteadOfRemappingRetiredNodeValues()
     {
-        var flow = FlowDefinition.Create(
-            Guid.NewGuid(),
-            1,
-            [CanvasDefinition.Create("main", CanvasLifecycle.Main, [NodeDefinition.Create("node", NodeType.Action, "Node")], [])],
-            "node",
-            schemaVersion: 1);
-
-        var diagnostic = Assert.Single(flow.Validate(), item => item.Code == DomainErrorCodes.NodeTypeRemoved);
-
+        var newGuidResult10 = Guid.NewGuid();
+        global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.CanvasDefinition> evaluatedValue13 = [resolveCreateResult()];
+        var flow = FlowDefinition.Create(newGuidResult10, 1, evaluatedValue13, "node", schemaVersion: 1);
+        var validateResult = flow.Validate();
+        var diagnostic = Assert.Single(validateResult, item => item.Code == DomainErrorCodes.NodeTypeRemoved);
         Assert.Equal("schemaVersion", diagnostic.Path);
+        global::SereinFlow.Domain.CanvasDefinition resolveCreateResult()
+        {
+            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Domain.NodeDefinition> evaluatedValue11 = [NodeDefinition.Create("node", NodeType.Action, "Node")];
+            var createResult12 = CanvasDefinition.Create("main", CanvasLifecycle.Main, evaluatedValue11, []);
+            return createResult12;
+        }
     }
 }

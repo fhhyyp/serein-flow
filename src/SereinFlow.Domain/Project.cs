@@ -1,5 +1,4 @@
 namespace SereinFlow.Domain;
-
 public sealed class Project
 {
     private Project(Guid id, string name, DateTimeOffset createdAt)
@@ -11,35 +10,31 @@ public sealed class Project
     }
 
     public Guid Id { get; }
-
     public string Name { get; private set; }
-
     public long Version { get; private set; } = 1;
-
     public ProjectStatus Status { get; private set; } = ProjectStatus.Draft;
-
     public DateTimeOffset CreatedAt { get; }
-
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public static Project Create(string name, DateTimeOffset? now = null, Guid? id = null)
     {
         ValidateName(name);
-        return new Project(id ?? Guid.NewGuid(), name.Trim(), now ?? DateTimeOffset.UtcNow);
+        var evaluatedValue = id ?? Guid.NewGuid();
+        var trimResult = name.Trim();
+        var project1 = new Project(evaluatedValue, trimResult, now ?? DateTimeOffset.UtcNow);
+        return project1;
     }
 
-    public static Project Rehydrate(
-        Guid id,
-        string name,
-        long version,
-        ProjectStatus status,
-        DateTimeOffset createdAt,
-        DateTimeOffset updatedAt)
+    public static Project Rehydrate(Guid id, string name, long version, ProjectStatus status, DateTimeOffset createdAt, DateTimeOffset updatedAt)
     {
         ValidateName(name);
         if (version < 1)
+        {
             throw new ArgumentOutOfRangeException(nameof(version), "Project version must be positive. 项目版本必须为正数。");
-        var project = new Project(id, name.Trim(), createdAt)
+        }
+
+        var trimResult2 = name.Trim();
+        var project = new Project(id, trimResult2, createdAt)
         {
             Version = version,
             Status = status,
@@ -73,7 +68,9 @@ public sealed class Project
     public void Archive(DateTimeOffset? now = null)
     {
         if (Status == ProjectStatus.Archived)
+        {
             return;
+        }
 
         Status = ProjectStatus.Archived;
         Version++;

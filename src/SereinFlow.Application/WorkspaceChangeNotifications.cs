@@ -1,7 +1,6 @@
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
-
 /// <summary>
 /// Publishes committed workspace changes to live clients. Implementations are
 /// transport-specific; the application layer only knows about the event
@@ -11,7 +10,5 @@ namespace SereinFlow.Application;
 /// </summary>
 public interface IWorkspaceChangePublisher
 {
-    Task PublishAsync(
-        WorkspaceChangeEventDto change,
-        CancellationToken cancellationToken = default);
+    Task PublishAsync(WorkspaceChangeEventDto change, CancellationToken cancellationToken = default);
 }

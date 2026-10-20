@@ -1,5 +1,4 @@
 namespace SereinFlow.Domain;
-
 public static class DomainErrorCodes
 {
     public const string EmptyName = "domain.empty_name";

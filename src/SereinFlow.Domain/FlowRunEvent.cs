@@ -1,14 +1,7 @@
 namespace SereinFlow.Domain;
-
 public sealed record FlowRunEvent
 {
-    public FlowRunEvent(
-        Guid runId,
-        long sequence,
-        DateTimeOffset timestamp,
-        string type,
-        string? nodeId,
-        string? payloadJson)
+    public FlowRunEvent(Guid runId, long sequence, DateTimeOffset timestamp, string type, string? nodeId, string? payloadJson)
     {
         if (runId == Guid.Empty)
         {
@@ -16,7 +9,10 @@ public sealed record FlowRunEvent
         }
 
         if (sequence < 1)
+        {
             throw new ArgumentOutOfRangeException(nameof(sequence), "Event sequence must be positive. 事件序列必须为正数。");
+        }
+
         RunId = runId;
         Sequence = sequence;
         Timestamp = timestamp;
@@ -26,15 +22,10 @@ public sealed record FlowRunEvent
     }
 
     public Guid RunId { get; }
-
     public long Sequence { get; }
-
     public DateTimeOffset Timestamp { get; }
-
     public string Type { get; }
-
     public string? NodeId { get; }
-
     public string PayloadJson { get; }
 
     private static string Validate(string value, string parameterName)
@@ -44,6 +35,7 @@ public sealed record FlowRunEvent
             throw new ArgumentException("Event type cannot be empty. 事件类型不能为空。", parameterName);
         }
 
-        return value.Trim();
+        var trimResult = value.Trim();
+        return trimResult;
     }
 }

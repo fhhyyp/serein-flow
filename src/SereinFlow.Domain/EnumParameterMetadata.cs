@@ -1,5 +1,4 @@
 namespace SereinFlow.Domain;
-
 /// <summary>
 /// Immutable enum member metadata retained by a node parameter definition.
 /// 节点参数定义保留的不可变枚举成员元数据。
@@ -13,15 +12,17 @@ public sealed record EnumValueOption
     }
 
     public string Name { get; }
-
     public string NumericValue { get; }
 
     private static string Validate(string value, string parameterName)
     {
         if (string.IsNullOrWhiteSpace(value))
+        {
             throw new ArgumentException("Enum option names and values cannot be empty. 枚举选项名称和值不能为空。", parameterName);
+        }
 
-        return value.Trim();
+        var trimResult = value.Trim();
+        return trimResult;
     }
 }
 
@@ -31,37 +32,45 @@ public sealed record EnumValueOption
 /// </summary>
 public sealed record EnumParameterMetadata
 {
-    public EnumParameterMetadata(
-        string typeName,
-        bool isFlags,
-        string underlyingType,
-        IEnumerable<EnumValueOption> options)
+    public EnumParameterMetadata(string typeName, bool isFlags, string underlyingType, IEnumerable<EnumValueOption> options)
     {
         TypeName = Validate(typeName, nameof(typeName));
         IsFlags = isFlags;
         UnderlyingType = Validate(underlyingType, nameof(underlyingType));
-        Options = (options ?? throw new ArgumentNullException(nameof(options)))
-            .ToArray();
-
+        var evaluatedValue = (options ?? throw new ArgumentNullException(nameof(options)));
+        Options = evaluatedValue.ToArray();
         if (Options.Count == 0)
+        {
             throw new ArgumentException("Enum metadata must contain at least one option. 枚举元数据至少包含一个选项。", nameof(options));
-        if (Options.Select(static option => option.Name).Distinct(StringComparer.Ordinal).Count() != Options.Count)
+        }
+
+        if (resolveCountResult() != Options.Count)
+        {
             throw new ArgumentException("Enum option names must be unique. 枚举选项名称必须唯一。", nameof(options));
+        }
+
+        int resolveCountResult()
+        {
+            var selectResult = Options.Select(static option => option.Name);
+            var distinctResult = selectResult.Distinct(StringComparer.Ordinal);
+            var countResult = distinctResult.Count();
+            return countResult;
+        }
     }
 
     public string TypeName { get; }
-
     public bool IsFlags { get; }
-
     public string UnderlyingType { get; }
-
     public IReadOnlyList<EnumValueOption> Options { get; }
 
     private static string Validate(string value, string parameterName)
     {
         if (string.IsNullOrWhiteSpace(value))
+        {
             throw new ArgumentException("Enum metadata fields cannot be empty. 枚举元数据字段不能为空。", parameterName);
+        }
 
-        return value.Trim();
+        var trimResult1 = value.Trim();
+        return trimResult1;
     }
 }

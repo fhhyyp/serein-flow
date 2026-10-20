@@ -9,12 +9,10 @@ using SereinFlow.Api;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.IntegrationTests;
-
 public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKeyManagementIntegrationTests.ApiFactory>
 {
     private static readonly McpPermissionDto[] ProjectReadPermission = [McpPermissionDto.ProjectRead];
     private readonly ApiFactory _factory;
-
     public McpApiKeyManagementIntegrationTests(ApiFactory factory)
     {
         _factory = factory;
@@ -24,50 +22,57 @@ public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKe
     public async Task WebConsoleCanInitializeAndManageApiKeys()
     {
         using var client = _factory.CreateClient();
-
         var setup = await client.PostAsync("/api/environment/settings/mcp-keys/setup", content: null);
         Assert.Equal(HttpStatusCode.Created, setup.StatusCode);
-        using var setupDocument = JsonDocument.Parse(await setup.Content.ReadAsStringAsync());
-        var administratorSecret = setupDocument.RootElement.GetProperty("secret").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(administratorSecret));
-
+        var readAsStringAsyncResult = await setup.Content.ReadAsStringAsync();
+        using var setupDocument = JsonDocument.Parse(readAsStringAsyncResult);
+        var getPropertyResult1 = setupDocument.RootElement.GetProperty("secret");
+        var administratorSecret = getPropertyResult1.GetString();
+        var isNullOrWhiteSpaceResult = string.IsNullOrWhiteSpace(administratorSecret);
+        Assert.False(isNullOrWhiteSpaceResult);
         var repeatedSetup = await client.PostAsync("/api/environment/settings/mcp-keys/setup", content: null);
         Assert.Equal(HttpStatusCode.Conflict, repeatedSetup.StatusCode);
-
         using var listRequest = new HttpRequestMessage(HttpMethod.Get, "/api/environment/settings/mcp-keys");
         listRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", administratorSecret);
         var list = await client.SendAsync(listRequest);
         Assert.Equal(HttpStatusCode.OK, list.StatusCode);
-        using (var listDocument = JsonDocument.Parse(await list.Content.ReadAsStringAsync()))
+        var readAsStringAsyncResult2 = await list.Content.ReadAsStringAsync();
+        using (var listDocument = JsonDocument.Parse(readAsStringAsyncResult2))
         {
-            Assert.Single(listDocument.RootElement.EnumerateArray());
-            Assert.True(listDocument.RootElement[0].GetProperty("isAdministrator").GetBoolean());
-            Assert.False(listDocument.RootElement[0].TryGetProperty("secret", out _));
+            var enumerateArrayResult = listDocument.RootElement.EnumerateArray();
+            Assert.Single(enumerateArrayResult);
+            var getPropertyResult = listDocument.RootElement[0].GetProperty("isAdministrator");
+            var getBooleanResult = getPropertyResult.GetBoolean();
+            Assert.True(getBooleanResult);
+            var tryGetPropertyResult = listDocument.RootElement[0].TryGetProperty("secret", out _);
+            Assert.False(tryGetPropertyResult);
         }
 
         using var createRequest = new HttpRequestMessage(HttpMethod.Post, "/api/environment/settings/mcp-keys")
         {
-            Content = new StringContent(
-                JsonSerializer.Serialize(new CreateMcpApiKeyRequestDto(
-                    null,
-                    "integration-client",
-                    ProjectReadPermission,
-                    null,
-                    IsAdministrator: true)),
-                Encoding.UTF8,
-                "application/json"),
+            Content = resolveStringContent()
         };
         createRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", administratorSecret);
         var created = await client.SendAsync(createRequest);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        using var createdDocument = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
-        Assert.False(string.IsNullOrWhiteSpace(createdDocument.RootElement.GetProperty("secret").GetString()));
+        var readAsStringAsyncResult3 = await created.Content.ReadAsStringAsync();
+        using var createdDocument = JsonDocument.Parse(readAsStringAsyncResult3);
+        var getPropertyResult4 = createdDocument.RootElement.GetProperty("secret");
+        var getStringResult = getPropertyResult4.GetString();
+        var isNullOrWhiteSpaceResult5 = string.IsNullOrWhiteSpace(getStringResult);
+        Assert.False(isNullOrWhiteSpaceResult5);
+        global::System.Net.Http.HttpContent resolveStringContent()
+        {
+            var createMcpApiKeyRequestDto = new CreateMcpApiKeyRequestDto(null, "integration-client", ProjectReadPermission, null, IsAdministrator: true);
+            var serializeResult = JsonSerializer.Serialize(createMcpApiKeyRequestDto);
+            var stringContent = new StringContent(serializeResult, Encoding.UTF8, "application/json");
+            return stringContent;
+        }
     }
 
     public sealed class ApiFactory : WebApplicationFactory<Program>
     {
         private readonly TemporaryDirectory _storage = new();
-
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing");
@@ -76,11 +81,12 @@ public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKe
             builder.ConfigureAppConfiguration(configuration =>
             {
                 configuration.Sources.Clear();
-                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _storage.Path,
                     ["SereinFlow:ApiDocumentation:Enabled"] = "true",
-                });
+                };
+                configuration.AddInMemoryCollection(dictionary);
             });
         }
 
@@ -88,7 +94,9 @@ public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKe
         {
             base.Dispose(disposing);
             if (disposing)
+            {
                 _storage.Dispose();
+            }
         }
     }
 
@@ -96,7 +104,9 @@ public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKe
     {
         public TemporaryDirectory()
         {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"sereinflow-api-key-integration-{Guid.NewGuid():N}");
+            var getTempPathResult = System.IO.Path.GetTempPath();
+            var evaluatedValue = $"sereinflow-api-key-integration-{Guid.NewGuid():N}";
+            Path = System.IO.Path.Combine(getTempPathResult, evaluatedValue);
             Directory.CreateDirectory(Path);
         }
 
@@ -105,7 +115,9 @@ public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKe
         public void Dispose()
         {
             if (!Directory.Exists(Path))
+            {
                 return;
+            }
 
             try
             {

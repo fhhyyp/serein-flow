@@ -1,28 +1,31 @@
 export interface IdentifiedGraphItem {
-  id: string
+  id: string;
 }
-
 export interface CanvasGraph<TNode extends IdentifiedGraphItem, TEdge extends IdentifiedGraphItem> {
-  nodes: TNode[]
-  edges: TEdge[]
+  nodes: TNode[];
+  edges: TEdge[];
 }
-
 export interface NodePositionChange {
-  id: string
-  position?: { x: number; y: number }
+  id: string;
+  position?: {
+    x: number;
+    y: number;
+  };
 }
-
 export function removeEdgesById<TEdge extends IdentifiedGraphItem>(edges: readonly TEdge[], removedIds: ReadonlySet<string>): TEdge[] {
-  return edges.filter((edge) => !removedIds.has(edge.id))
+  const filterResult: TEdge[] = edges.filter((edge) => {
+    const evaluatedValue: boolean = !removedIds.has(edge.id);
+    return evaluatedValue;
+  });
+  return filterResult;
 }
-
 export function cloneCanvasGraph<TNode extends IdentifiedGraphItem, TEdge extends IdentifiedGraphItem>(canvas: CanvasGraph<TNode, TEdge>): CanvasGraph<TNode, TEdge> {
-  return {
+  const evaluatedValue1: CanvasGraph<TNode, TEdge> = {
     nodes: canvas.nodes.map((node) => ({ ...node })),
     edges: canvas.edges.map((edge) => ({ ...edge })),
-  }
+  };
+  return evaluatedValue1;
 }
-
 /**
  * Vue Flow keeps a separate graph store while a node is being dragged. The
  * emitted position changes must be copied into the workspace model explicitly
@@ -30,21 +33,36 @@ export function cloneCanvasGraph<TNode extends IdentifiedGraphItem, TEdge extend
  * 拖拽节点时 Vue Flow 会维护独立的图存储；在受控模型更新替换该存储前，
  * 必须显式将发出的坐标变化复制到工作区模型中。
  */
-export function applyNodePositionChanges<
-  TNode extends IdentifiedGraphItem & { position: { x: number; y: number } },
->(nodes: readonly TNode[], changes: readonly NodePositionChange[]): TNode[] {
-  const positions = new Map(
-    changes
-      .filter((change): change is NodePositionChange & { position: { x: number; y: number } } => change.position !== undefined)
-      .map((change) => [change.id, change.position]),
-  )
-
+export function applyNodePositionChanges<TNode extends IdentifiedGraphItem & {
+  position: {
+    x: number;
+    y: number;
+  };
+}>(nodes: readonly TNode[], changes: readonly NodePositionChange[]): TNode[] {
+  const filterResult1 = changes
+    .filter((change): change is NodePositionChange & {
+    position: {
+      x: number;
+      y: number;
+    };
+  } => change.position !== undefined);
+  const mapResult: Iterable<readonly [
+    string,
+    {
+      x: number;
+      y: number;
+    } & {
+      x: number;
+      y: number;
+    }
+  ]> | null | undefined = filterResult1.map((change) => [change.id, change.position]);
+  const positions = new Map(mapResult);
   if (positions.size === 0) {
-    return [...nodes]
+    return [...nodes];
   }
-
-  return nodes.map((node) => {
-    const position = positions.get(node.id)
-    return position ? { ...node, position: { ...position } } : node
-  })
+  const mapResult1: TNode[] = nodes.map((node) => {
+    const position = positions.get(node.id);
+    return position ? { ...node, position: { ...position } } : node;
+  });
+  return mapResult1;
 }

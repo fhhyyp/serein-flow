@@ -1,5 +1,4 @@
 namespace SereinFlow.Domain;
-
 public enum ProjectStatus
 {
     Draft,

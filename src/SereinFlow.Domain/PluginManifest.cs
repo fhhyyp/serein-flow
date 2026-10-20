@@ -1,18 +1,10 @@
 using System.Text.RegularExpressions;
 
 namespace SereinFlow.Domain;
-
 public sealed class PluginManifest
 {
     private static readonly Regex Sha256Pattern = new("^[0-9a-fA-F]{64}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
-    private PluginManifest(
-        string assemblyName,
-        string assemblyVersion,
-        string sha256,
-        IReadOnlyList<string> targetRids,
-        string apiVersion,
-        IReadOnlyList<string> nodeTypes)
+    private PluginManifest(string assemblyName, string assemblyVersion, string sha256, IReadOnlyList<string> targetRids, string apiVersion, IReadOnlyList<string> nodeTypes)
     {
         AssemblyName = assemblyName;
         AssemblyVersion = assemblyVersion;
@@ -23,29 +15,23 @@ public sealed class PluginManifest
     }
 
     public string AssemblyName { get; }
-
     public string AssemblyVersion { get; }
-
     public string Sha256 { get; }
-
     public IReadOnlyList<string> TargetRids { get; }
-
     public string ApiVersion { get; }
-
     public IReadOnlyList<string> NodeTypes { get; }
 
-    public static PluginManifest Create(
-        string assemblyName,
-        string assemblyVersion,
-        string sha256,
-        IEnumerable<string> targetRids,
-        string apiVersion,
-        IEnumerable<string> nodeTypes)
+    public static PluginManifest Create(string assemblyName, string assemblyVersion, string sha256, IEnumerable<string> targetRids, string apiVersion, IEnumerable<string> nodeTypes)
     {
         if (targetRids is null)
+        {
             throw new ArgumentNullException(nameof(targetRids), "Target runtime identifiers cannot be null. 目标运行时标识集合不能为空。");
+        }
+
         if (nodeTypes is null)
+        {
             throw new ArgumentNullException(nameof(nodeTypes), "Node types cannot be null. 节点类型集合不能为空。");
+        }
 
         if (string.IsNullOrWhiteSpace(assemblyName) || assemblyName.IndexOfAny(['/', '\\']) >= 0)
         {
@@ -68,12 +54,34 @@ public sealed class PluginManifest
             throw new ArgumentException("Plugin API version cannot be empty. 插件 API 版本不能为空。", nameof(apiVersion));
         }
 
-        return new PluginManifest(
-            assemblyName.Trim(),
-            assemblyVersion.Trim(),
-            normalizedHash,
-            targetRids.Where(static rid => !string.IsNullOrWhiteSpace(rid)).Select(static rid => rid.Trim()).Distinct(StringComparer.Ordinal).ToArray(),
-            apiVersion.Trim(),
-            nodeTypes.Where(static nodeType => !string.IsNullOrWhiteSpace(nodeType)).Select(static nodeType => nodeType.Trim()).Distinct(StringComparer.Ordinal).ToArray());
+        var trimResult3 = assemblyName.Trim();
+        var trimResult4 = assemblyVersion.Trim();
+        var whereResult = targetRids.Where(static rid =>
+        {
+            var evaluatedValue = !string.IsNullOrWhiteSpace(rid);
+            return evaluatedValue;
+        });
+        var selectResult = whereResult.Select(static rid =>
+        {
+            var trimResult = rid.Trim();
+            return trimResult;
+        });
+        var distinctResult = selectResult.Distinct(StringComparer.Ordinal);
+        var toArrayResult = distinctResult.ToArray();
+        var trimResult5 = apiVersion.Trim();
+        var whereResult6 = nodeTypes.Where(static nodeType =>
+        {
+            var evaluatedValue1 = !string.IsNullOrWhiteSpace(nodeType);
+            return evaluatedValue1;
+        });
+        var selectResult7 = whereResult6.Select(static nodeType =>
+        {
+            var trimResult2 = nodeType.Trim();
+            return trimResult2;
+        });
+        var distinctResult8 = selectResult7.Distinct(StringComparer.Ordinal);
+        var toArrayResult9 = distinctResult8.ToArray();
+        var pluginManifest = new PluginManifest(trimResult3, trimResult4, normalizedHash, toArrayResult, trimResult5, toArrayResult9);
+        return pluginManifest;
     }
 }

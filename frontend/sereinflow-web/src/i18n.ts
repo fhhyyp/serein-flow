@@ -1,8 +1,6 @@
-import { ref } from 'vue'
-
-export type Locale = 'zh-CN' | 'en-US'
-type Values = Record<string, string | number>
-
+import { ref } from 'vue';
+export type Locale = 'zh-CN' | 'en-US';
+type Values = Record<string, string | number>;
 const messages: Record<Locale, Record<string, string>> = {
   'zh-CN': {
     'project.switchProject': '切换项目',
@@ -1640,49 +1638,49 @@ const messages: Record<Locale, Record<string, string>> = {
     'language.zh': '中文',
     'language.en': 'English',
   },
-}
-
+};
 function getInitialLocale(): Locale {
   if (typeof window === 'undefined') {
-    return 'zh-CN'
+    return 'zh-CN';
   }
-
-  return window.localStorage.getItem('sereinflow.locale') === 'en-US' ? 'en-US' : 'zh-CN'
+  const evaluatedValue: Locale = window.localStorage.getItem('sereinflow.locale') === 'en-US' ? 'en-US' : 'zh-CN';
+  return evaluatedValue;
 }
-
-export const locale = ref<Locale>(getInitialLocale())
-
+const getInitialLocaleResult: Locale = getInitialLocale();
+export const locale = ref<Locale>(getInitialLocaleResult);
 export function t(key: string, values: Values = {}): string {
-  const template = messages[locale.value][key] ?? messages['zh-CN'][key] ?? key
-  return template.replace(/\{(\w+)\}/g, (_, name: string) => String(values[name] ?? `{${name}}`))
+  const template = messages[locale.value][key] ?? messages['zh-CN'][key] ?? key;
+  const replaceResult: string = template.replace(/\{(\w+)\}/g, (_, name: string) => {
+    const stringResult: string = String(values[name] ?? `{${name}}`);
+    return stringResult;
+  });
+  return replaceResult;
 }
-
 /**
  * Selects one side of a bilingual server error for the active UI language.
  * 从双语服务端错误中按当前界面语言选择对应的一侧。
  */
 export function localizeMessage(message: string): string {
-  const bilingualSeparator = /[.!?]\s+(?=[\u4e00-\u9fff])/.exec(message)
+  const bilingualSeparator = /[.!?]\s+(?=[\u4e00-\u9fff])/.exec(message);
   if (!bilingualSeparator) {
-    return message
+    return message;
   }
-
   if (locale.value === 'zh-CN') {
-    return message.slice(bilingualSeparator.index + bilingualSeparator[0].length).trim()
+    const sliceResult = message.slice(bilingualSeparator.index + bilingualSeparator[0].length);
+    const trimResult: string = sliceResult.trim();
+    return trimResult;
   }
-
-  return message.slice(0, bilingualSeparator.index + 1).trim()
+  const sliceResult1 = message.slice(0, bilingualSeparator.index + 1);
+  const trimResult1: string = sliceResult1.trim();
+  return trimResult1;
 }
-
 export function setLocale(nextLocale: Locale): void {
-  locale.value = nextLocale
-
+  locale.value = nextLocale;
   if (typeof window !== 'undefined') {
-    window.localStorage.setItem('sereinflow.locale', nextLocale)
-    document.documentElement.lang = nextLocale
+    window.localStorage.setItem('sereinflow.locale', nextLocale);
+    document.documentElement.lang = nextLocale;
   }
 }
-
 if (typeof document !== 'undefined') {
-  document.documentElement.lang = locale.value
+  document.documentElement.lang = locale.value;
 }

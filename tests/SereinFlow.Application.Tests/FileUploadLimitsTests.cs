@@ -1,15 +1,17 @@
 using SereinFlow.Application;
 
 namespace SereinFlow.Application.Tests;
-
 public sealed class FileUploadLimitsTests
 {
     [Fact]
     public void NormalizeClampsOperatorValueToSupportedRange()
     {
-        Assert.Equal(FileUploadLimits.MinimumMaxFileSizeBytes, FileUploadLimits.Normalize(1));
-        Assert.Equal(FileUploadLimits.MaximumMaxFileSizeBytes, FileUploadLimits.Normalize(long.MaxValue));
-        Assert.Equal(128 * 1024 * 1024, FileUploadLimits.Normalize(128 * 1024 * 1024));
+        var normalizeResult = FileUploadLimits.Normalize(1);
+        Assert.Equal(FileUploadLimits.MinimumMaxFileSizeBytes, normalizeResult);
+        var normalizeResult1 = FileUploadLimits.Normalize(long.MaxValue);
+        Assert.Equal(FileUploadLimits.MaximumMaxFileSizeBytes, normalizeResult1);
+        var normalizeResult2 = FileUploadLimits.Normalize(128 * 1024 * 1024);
+        Assert.Equal(128 * 1024 * 1024, normalizeResult2);
     }
 
     [Fact]
@@ -17,9 +19,7 @@ public sealed class FileUploadLimitsTests
     {
         var fileSize = 128 * 1024 * 1024;
         var expectedBase64Size = ((fileSize + 2) / 3) * 4;
-
-        Assert.Equal(
-            expectedBase64Size + FileUploadLimits.TransportOverheadBytes,
-            FileUploadLimits.GetMcpRequestBodyLimit(fileSize, 16 * 1024 * 1024));
+        var getMcpRequestBodyLimitResult = FileUploadLimits.GetMcpRequestBodyLimit(fileSize, 16 * 1024 * 1024);
+        Assert.Equal(expectedBase64Size + FileUploadLimits.TransportOverheadBytes, getMcpRequestBodyLimitResult);
     }
 }

@@ -4,7 +4,6 @@ using System.Reflection;
 using ScriptLang.Runtime;
 
 namespace SereinFlow.ScriptAdapter;
-
 /// <summary>
 /// Converts an in-process ScriptLang value only when a reflected library
 /// parameter declares its target CLR type. This is intentionally separate from
@@ -18,16 +17,16 @@ public static class ScriptValueTypeConverter
     {
         ArgumentNullException.ThrowIfNull(value);
         ArgumentNullException.ThrowIfNull(targetType);
-
         try
         {
-            return ConvertCore(value, targetType);
+            var convertCoreResult = ConvertCore(value, targetType);
+            return convertCoreResult;
         }
         catch (ScriptValueConversionException)
         {
             throw;
         }
-        catch (Exception exception) when (exception is InvalidCastException or FormatException or OverflowException or ArgumentException or TargetInvocationException)
+        catch (Exception exception)when (exception is InvalidCastException or FormatException or OverflowException or ArgumentException or TargetInvocationException)
         {
             throw Fail(value, targetType, exception.Message, exception);
         }
@@ -37,79 +36,115 @@ public static class ScriptValueTypeConverter
     {
         var nullableType = Nullable.GetUnderlyingType(targetType);
         var effectiveType = nullableType ?? targetType;
-
         if (value is NullValue)
         {
             if (effectiveType.IsValueType && nullableType is null)
+            {
                 throw Fail(value, targetType, "A non-nullable value was required. 目标参数要求非空值。");
+            }
+
             return null;
         }
 
         if (typeof(Value).IsAssignableFrom(effectiveType))
         {
             if (effectiveType.IsInstanceOfType(value))
+            {
                 return value;
+            }
+
             throw Fail(value, targetType, "The runtime script value kind does not match the requested Value type. 运行时脚本值类型与目标 Value 类型不匹配。");
         }
 
         if (value is ClrObjectValue clrObject)
         {
             if (clrObject.Value is not null && effectiveType.IsInstanceOfType(clrObject.Value))
+            {
                 return clrObject.Value;
+            }
+
             throw Fail(value, targetType, "The wrapped CLR object is not assignable to the target type. 包装的 CLR 对象不能赋值给目标类型。");
         }
 
         if (value is ClrMethodValue clrMethod)
         {
             if (effectiveType.IsInstanceOfType(clrMethod.MethodInfo))
+            {
                 return clrMethod.MethodInfo;
+            }
+
             throw Fail(value, targetType, "The CLR method is not assignable to the target type. CLR 方法不能赋值给目标类型。");
         }
 
         if (effectiveType == typeof(object))
-            return ScriptValueConverter.ToAuditValue(value);
+        {
+            var toAuditValueResult = ScriptValueConverter.ToAuditValue(value);
+            return toAuditValueResult;
+        }
 
         if (value is StringValue text)
         {
             if (effectiveType == typeof(string))
+            {
                 return text.Value;
+            }
+
             throw Fail(value, targetType, "String values can only be converted to String. 字符串值只能转换为 String。");
         }
 
         if (value is BoolValue boolean)
         {
             if (effectiveType == typeof(bool))
+            {
                 return boolean.Value;
+            }
+
             throw Fail(value, targetType, "Boolean values can only be converted to Boolean. 布尔值只能转换为 Boolean。");
         }
 
         if (value is DateTimeValue dateTime)
         {
             if (effectiveType == typeof(DateTime))
+            {
                 return dateTime.Value;
+            }
+
             throw Fail(value, targetType, "DateTime values can only be converted to DateTime. 日期时间值只能转换为 DateTime。");
         }
 
         if (value is TimeSpanValue timeSpan)
         {
             if (effectiveType == typeof(TimeSpan))
+            {
                 return timeSpan.Value;
+            }
+
             throw Fail(value, targetType, "TimeSpan values can only be converted to TimeSpan. 时间间隔值只能转换为 TimeSpan。");
         }
 
         if (value is Value { IsNumber: true })
         {
             if (!IsNumericType(effectiveType))
+            {
                 throw Fail(value, targetType, "Numeric values require a numeric target type. 数值必须转换为数值目标类型。");
+            }
+
             var number = GetNumberValue(value);
-            return System.Convert.ChangeType(number, effectiveType, CultureInfo.InvariantCulture);
+            var changeTypeResult = System.Convert.ChangeType(number, effectiveType, CultureInfo.InvariantCulture);
+            return changeTypeResult;
         }
 
         if (value is ArrayValue array)
-            return ConvertArray(array, effectiveType);
+        {
+            var convertArrayResult = ConvertArray(array, effectiveType);
+            return convertArrayResult;
+        }
 
         if (value is ObjectValue obj)
-            return ConvertObject(obj, effectiveType);
+        {
+            var convertObjectResult = ConvertObject(obj, effectiveType);
+            return convertObjectResult;
+        }
 
         throw Fail(value, targetType, "The script value kind is not supported for this target type. 此脚本值类型不支持转换为目标类型。");
     }
@@ -118,24 +153,35 @@ public static class ScriptValueTypeConverter
     {
         if (targetType.IsArray)
         {
-            var elementType = targetType.GetElementType()
-                ?? throw Fail(array, targetType, "The array element type is unavailable. 数组元素类型不可用。");
+            var elementType = targetType.GetElementType() ?? throw Fail(array, targetType, "The array element type is unavailable. 数组元素类型不可用。");
             var result = Array.CreateInstance(elementType, array.Elements.Count);
             for (var index = 0; index < array.Elements.Count; index++)
-                result.SetValue(Convert(array.Elements[index], elementType), index);
+            {
+                var convertResult = Convert(array.Elements[index], elementType);
+                result.SetValue(convertResult, index);
+            }
+
             return result;
         }
 
         if (!TryGetCollectionElementType(targetType, out var itemType))
+        {
             throw Fail(array, targetType, "Array values require an array or compatible generic collection target. 数组值需要数组或兼容的泛型集合目标类型。");
+        }
 
         var listType = typeof(List<>).MakeGenericType(itemType);
-        var list = (IList)(Activator.CreateInstance(listType)
-            ?? throw Fail(array, targetType, "The collection target cannot be created. 无法创建集合目标类型。"));
+        var list = (IList)(Activator.CreateInstance(listType) ?? throw Fail(array, targetType, "The collection target cannot be created. 无法创建集合目标类型。"));
         foreach (var item in array.Elements)
-            list.Add(Convert(item, itemType));
+        {
+            var convertResult1 = Convert(item, itemType);
+            list.Add(convertResult1);
+        }
+
         if (!targetType.IsAssignableFrom(listType))
+        {
             throw Fail(array, targetType, "The generic collection target is not compatible with List<T>. 泛型集合目标与 List<T> 不兼容。");
+        }
+
         return list;
     }
 
@@ -143,45 +189,67 @@ public static class ScriptValueTypeConverter
     {
         if (TryGetDictionaryValueType(targetType, out var valueType))
         {
-            var dictionaryType = typeof(Dictionary<,>).MakeGenericType(typeof(string), valueType);
-            var dictionary = (IDictionary)(Activator.CreateInstance(dictionaryType)
-                ?? throw Fail(value, targetType, "The dictionary target cannot be created. 无法创建字典目标类型。"));
+            var dictionaryType = typeof(Dictionary<, >).MakeGenericType(typeof(string), valueType);
+            var dictionary = (IDictionary)(Activator.CreateInstance(dictionaryType) ?? throw Fail(value, targetType, "The dictionary target cannot be created. 无法创建字典目标类型。"));
             foreach (var item in value.Properties)
-                dictionary.Add(item.Key, Convert(item.Value, valueType));
+            {
+                var convertResult2 = Convert(item.Value, valueType);
+                dictionary.Add(item.Key, convertResult2);
+            }
+
             if (!targetType.IsAssignableFrom(dictionaryType))
+            {
                 throw Fail(value, targetType, "The dictionary target is not compatible with Dictionary<string, T>. 字典目标与 Dictionary<string, T> 不兼容。");
+            }
+
             return dictionary;
         }
 
         if (targetType.IsInterface || targetType.IsAbstract || targetType.IsValueType || targetType == typeof(string))
+        {
             throw Fail(value, targetType, "Object values require a dictionary or constructible CLR object target. 对象值需要字典或可构造的 CLR 对象目标类型。");
+        }
 
-        var target = Activator.CreateInstance(targetType)
-            ?? throw Fail(value, targetType, "The CLR object target cannot be created. 无法创建 CLR 对象目标类型。");
+        var target = Activator.CreateInstance(targetType) ?? throw Fail(value, targetType, "The CLR object target cannot be created. 无法创建 CLR 对象目标类型。");
         foreach (var property in targetType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
             if (!property.CanWrite || property.GetIndexParameters().Length != 0)
+            {
                 continue;
-            var source = value.Properties.FirstOrDefault(item => string.Equals(item.Key, property.Name, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var source = value.Properties.FirstOrDefault(item =>
+            {
+                var equalsResult = string.Equals(item.Key, property.Name, StringComparison.OrdinalIgnoreCase);
+                return equalsResult;
+            });
             if (string.IsNullOrEmpty(source.Key))
+            {
                 continue;
-            property.SetValue(target, Convert(source.Value, property.PropertyType));
+            }
+
+            var convertResult3 = Convert(source.Value, property.PropertyType);
+            property.SetValue(target, convertResult3);
         }
+
         return target;
     }
 
     private static bool TryGetCollectionElementType(Type type, out Type elementType)
     {
-        if (type.IsGenericType && IsSupportedCollectionDefinition(type.GetGenericTypeDefinition()))
+        if (type.IsGenericType && resolveIsSupportedCollectionDefinitionResult())
         {
             elementType = type.GetGenericArguments()[0];
             return true;
         }
 
-        var enumerable = type.GetInterfaces()
-            .Concat([type])
-            .FirstOrDefault(candidate => candidate.IsGenericType
-                && candidate.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+        var getInterfacesResult = type.GetInterfaces();
+        var concatResult = getInterfacesResult.Concat([type]);
+        var enumerable = concatResult.FirstOrDefault(candidate =>
+        {
+            var evaluatedValue = candidate.IsGenericType && candidate.GetGenericTypeDefinition() == typeof(IEnumerable<>);
+            return evaluatedValue;
+        });
         if (enumerable is not null)
         {
             elementType = enumerable.GetGenericArguments()[0];
@@ -190,25 +258,24 @@ public static class ScriptValueTypeConverter
 
         elementType = null!;
         return false;
+        bool resolveIsSupportedCollectionDefinitionResult()
+        {
+            var getGenericTypeDefinitionResult = type.GetGenericTypeDefinition();
+            var isSupportedCollectionDefinitionResult = IsSupportedCollectionDefinition(getGenericTypeDefinitionResult);
+            return isSupportedCollectionDefinitionResult;
+        }
     }
 
-    private static bool IsSupportedCollectionDefinition(Type genericDefinition)
-        => genericDefinition == typeof(List<>)
-            || genericDefinition == typeof(IList<>)
-            || genericDefinition == typeof(ICollection<>)
-            || genericDefinition == typeof(IEnumerable<>)
-            || genericDefinition == typeof(IReadOnlyList<>)
-            || genericDefinition == typeof(IReadOnlyCollection<>);
-
+    private static bool IsSupportedCollectionDefinition(Type genericDefinition) => genericDefinition == typeof(List<>) || genericDefinition == typeof(IList<>) || genericDefinition == typeof(ICollection<>) || genericDefinition == typeof(IEnumerable<>) || genericDefinition == typeof(IReadOnlyList<>) || genericDefinition == typeof(IReadOnlyCollection<>);
     private static bool TryGetDictionaryValueType(Type type, out Type valueType)
     {
-        var dictionary = type.GetInterfaces()
-            .Concat([type])
-            .FirstOrDefault(candidate => candidate.IsGenericType
-                && (candidate.GetGenericTypeDefinition() == typeof(IDictionary<,>)
-                    || candidate.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>)
-                    || candidate.GetGenericTypeDefinition() == typeof(Dictionary<,>))
-                && candidate.GetGenericArguments()[0] == typeof(string));
+        var getInterfacesResult5 = type.GetInterfaces();
+        var concatResult6 = getInterfacesResult5.Concat([type]);
+        var dictionary = concatResult6.FirstOrDefault(candidate =>
+        {
+            var evaluatedValue4 = candidate.IsGenericType && (candidate.GetGenericTypeDefinition() == typeof(IDictionary<, >) || candidate.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<, >) || candidate.GetGenericTypeDefinition() == typeof(Dictionary<, >)) && candidate.GetGenericArguments()[0] == typeof(string);
+            return evaluatedValue4;
+        });
         if (dictionary is not null)
         {
             valueType = dictionary.GetGenericArguments()[1];
@@ -226,35 +293,42 @@ public static class ScriptValueTypeConverter
     }
 
     private static object GetNumberValue(Value value)
-        => value.GetType().GetProperty("Value", BindingFlags.Public | BindingFlags.Instance)?.GetValue(value)
-            ?? throw Fail(value, typeof(decimal), "The numeric value is unavailable. 数值内容不可用。");
+    {
+        var evaluatedValue8 = resolveevaluatedValue() ?? throw Fail(value, typeof(decimal), "The numeric value is unavailable. 数值内容不可用。");
+        return evaluatedValue8;
+        object? resolveevaluatedValue()
+        {
+            var getTypeResult = value.GetType();
+            var optionalReceiver = getTypeResult.GetProperty("Value", BindingFlags.Public | BindingFlags.Instance);
+            object? optionalResult = default(object);
+            if (optionalReceiver is not null)
+            {
+                optionalResult = optionalReceiver.GetValue(value);
+            }
 
-    private static bool IsNumericType(Type type)
-        => type == typeof(byte) || type == typeof(sbyte)
-            || type == typeof(short) || type == typeof(ushort)
-            || type == typeof(int) || type == typeof(uint)
-            || type == typeof(long) || type == typeof(ulong)
-            || type == typeof(float) || type == typeof(double)
-            || type == typeof(decimal);
+            var evaluatedValue7 = optionalResult;
+            return evaluatedValue7;
+        }
+    }
 
+    private static bool IsNumericType(Type type) => type == typeof(byte) || type == typeof(sbyte) || type == typeof(short) || type == typeof(ushort) || type == typeof(int) || type == typeof(uint) || type == typeof(long) || type == typeof(ulong) || type == typeof(float) || type == typeof(double) || type == typeof(decimal);
     private static ScriptValueConversionException Fail(Value value, Type targetType, string detail, Exception? innerException = null)
-        => new(
-            value.GetType().Name,
-            targetType,
-            $"Script value '{value.GetType().Name}' cannot be converted to '{targetType.FullName}'. 脚本值“{value.GetType().Name}”无法转换为“{targetType.FullName}”。 {detail}",
-            innerException);
+    {
+        var evaluatedValue9 = value.GetType().Name;
+        var evaluatedValue10 = $"Script value '{value.GetType().Name}' cannot be converted to '{targetType.FullName}'. 脚本值“{value.GetType().Name}”无法转换为“{targetType.FullName}”。 {detail}";
+        global::SereinFlow.ScriptAdapter.ScriptValueConversionException evaluatedValue11 = new(evaluatedValue9, targetType, evaluatedValue10, innerException);
+        return evaluatedValue11;
+    }
 }
 
 public sealed class ScriptValueConversionException : InvalidCastException
 {
-    public ScriptValueConversionException(string valueKind, Type targetType, string message, Exception? innerException = null)
-        : base(message, innerException)
+    public ScriptValueConversionException(string valueKind, Type targetType, string message, Exception? innerException = null) : base(message, innerException)
     {
         ValueKind = valueKind;
         TargetType = targetType;
     }
 
     public string ValueKind { get; }
-
     public Type TargetType { get; }
 }

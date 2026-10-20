@@ -1,21 +1,21 @@
-import assert from 'node:assert/strict'
-import test from 'node:test'
-import {
-  flowVersionLabel,
-  flowVersionOperationKey,
-  flowVersionSourceLabel,
-  flowVersionTrackKey,
-} from '../src/flow/flowVersionDisplay.ts'
-
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { flowVersionLabel, flowVersionOperationKey, flowVersionSourceLabel, flowVersionTrackKey, } from '../src/flow/flowVersionDisplay.ts';
 test('flow version display renders stable labels for version heads and sources', () => {
-  assert.equal(flowVersionLabel(12), 'v12')
-  assert.equal(flowVersionLabel(undefined), '—')
-  assert.equal(flowVersionSourceLabel(4), 'v4')
-  assert.equal(flowVersionSourceLabel(undefined), undefined)
-})
-
+  const flowVersionLabelResult = flowVersionLabel(12);
+  assert.equal(flowVersionLabelResult, 'v12');
+  const flowVersionLabelResult1 = flowVersionLabel(undefined);
+  assert.equal(flowVersionLabelResult1, '—');
+  const flowVersionSourceLabelResult = flowVersionSourceLabel(4);
+  assert.equal(flowVersionSourceLabelResult, 'v4');
+  const flowVersionSourceLabelResult1 = flowVersionSourceLabel(undefined);
+  assert.equal(flowVersionSourceLabelResult1, undefined);
+});
 test('flow version display maps track and operation values to i18n keys', () => {
-  assert.equal(flowVersionTrackKey('development'), 'version.track.development')
-  assert.equal(flowVersionTrackKey('production'), 'version.track.production')
-  assert.equal(flowVersionOperationKey('rolledBack'), 'version.operation.rolledBack')
-})
+  const flowVersionTrackKeyResult = flowVersionTrackKey('development');
+  assert.equal(flowVersionTrackKeyResult, 'version.track.development');
+  const flowVersionTrackKeyResult1 = flowVersionTrackKey('production');
+  assert.equal(flowVersionTrackKeyResult1, 'version.track.production');
+  const flowVersionOperationKeyResult = flowVersionOperationKey('rolledBack');
+  assert.equal(flowVersionOperationKeyResult, 'version.operation.rolledBack');
+});

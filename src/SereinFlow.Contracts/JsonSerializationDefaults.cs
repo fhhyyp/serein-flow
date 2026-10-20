@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace SereinFlow.Contracts;
-
 /// <summary>
 /// Shared JSON defaults for API, persistence and Worker payloads. Keeping
 /// Unicode characters readable is important for diagnostics, event payloads
@@ -31,9 +30,13 @@ public static class SereinJsonSerialization
     /// 字符串，同时保留内置转换器对旧版数值枚举的读取兼容性。
     /// </summary>
     public static JsonSerializerOptions CreateContractOptions(Action<JsonSerializerOptions>? configure = null)
-        => CreateWebOptions(options =>
+    {
+        var createWebOptionsResult = CreateWebOptions(options =>
         {
-            options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+            var jsonStringEnumConverter = new JsonStringEnumConverter(JsonNamingPolicy.CamelCase);
+            options.Converters.Add(jsonStringEnumConverter);
             configure?.Invoke(options);
         });
+        return createWebOptionsResult;
+    }
 }

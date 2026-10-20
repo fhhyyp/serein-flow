@@ -4,20 +4,18 @@ using SereinFlow.Domain;
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Runtime;
-
 public sealed class DataConnectionResolver
 {
-    public IReadOnlyDictionary<string, object?> Resolve(
-        NodeDefinition node,
-        ExecutionPlan plan,
-        FlowExecutionSession session)
+    public IReadOnlyDictionary<string, object?> Resolve(NodeDefinition node, ExecutionPlan plan, FlowExecutionSession session)
     {
         var values = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var parameter in node.Parameters)
         {
             var incoming = plan.GetIncomingData(node.Id, parameter.Id);
             if (incoming.Count == 0 && !string.Equals(parameter.Id, parameter.Name, StringComparison.Ordinal))
+            {
                 incoming = plan.GetIncomingData(node.Id, parameter.Name);
+            }
 
             // A concrete data connection is authoritative for the target
             // parameter; the editor's source selector is only a fallback for
@@ -34,45 +32,32 @@ public sealed class DataConnectionResolver
             }
             else
             {
-                value = incoming.Count > 0
-                    ? ReadPreviousNode(incoming, session)
-                    : parameter.Source switch
-                    {
-                        DataSource.Literal => ParseJson(parameter.ValueJson),
-                        DataSource.PreviousNode => ReadPreviousNode(
-                            string.IsNullOrWhiteSpace(parameter.SourceNodeId)
-                                ? []
-                                : [ConnectionDefinition.Data(
-                                    parameter.SourceNodeId,
-                                    parameter.SourcePortId ?? "data-out",
-                                    node.Id,
-                                    parameter.Id,
-                                    DataSource.PreviousNode)],
-                            session),
-                        DataSource.ProjectInput => ReadProjectInput(parameter.ProjectInputKey ?? parameter.Name, session),
-                        DataSource.Expression => ResolveDynamicReference(parameter.Expression, session),
-                        _ => null
-                    };
+                value = incoming.Count > 0 ? ReadPreviousNode(incoming, session) : parameter.Source switch
+                {
+                    DataSource.Literal => ParseJson(parameter.ValueJson),
+                    DataSource.PreviousNode => resolveReadPreviousNodeResult(),
+                    DataSource.ProjectInput => ReadProjectInput(parameter.ProjectInputKey ?? parameter.Name, session),
+                    DataSource.Expression => ResolveDynamicReference(parameter.Expression, session),
+                    _ => null
+                };
+                object? resolveReadPreviousNodeResult()
+                {
+                    global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Domain.ConnectionDefinition> evaluatedValue = string.IsNullOrWhiteSpace(parameter.SourceNodeId) ? [] : [ConnectionDefinition.Data(parameter.SourceNodeId, parameter.SourcePortId ?? "data-out", node.Id, parameter.Id, DataSource.PreviousNode)];
+                    var readPreviousNodeResult = ReadPreviousNode(evaluatedValue, session);
+                    return readPreviousNodeResult;
+                }
             }
 
             if (value is null && parameter.Required)
             {
-                throw new FlowDataBindingException(
-                    NodeErrorCodes.InputMissing,
-                    $"Required input '{parameter.Name}' on node '{node.Id}' is missing. 节点“{node.Id}”缺少必需输入“{parameter.Name}”。",
-                    values);
+                throw new FlowDataBindingException(NodeErrorCodes.InputMissing, $"Required input '{parameter.Name}' on node '{node.Id}' is missing. 节点“{node.Id}”缺少必需输入“{parameter.Name}”。", values);
             }
 
             // An empty optional literal means the caller did not provide an
             // argument. Omit it so a reflected C# optional parameter can use
             // its declared default in the Worker.
             // 空的可选字面量表示调用方未提供参数。省略该输入，使 Worker 中反射的方法使用 C# 声明的默认值。
-            if (value is null
-                && !parameter.Required
-                && !hasFlowCallInput
-                && incoming.Count == 0
-                && parameter.Source == DataSource.Literal
-                && string.IsNullOrWhiteSpace(parameter.ValueJson))
+            if (value is null && !parameter.Required && !hasFlowCallInput && incoming.Count == 0 && parameter.Source == DataSource.Literal && string.IsNullOrWhiteSpace(parameter.ValueJson))
             {
                 continue;
             }
@@ -86,19 +71,23 @@ public sealed class DataConnectionResolver
         return values;
     }
 
-    private static object? ReadPreviousNode(
-        IReadOnlyList<ConnectionDefinition> incoming,
-        FlowExecutionSession session)
+    private static object? ReadPreviousNode(IReadOnlyList<ConnectionDefinition> incoming, FlowExecutionSession session)
     {
         var connection = incoming.FirstOrDefault();
         if (connection is null)
+        {
             return null;
+        }
 
-        return session.Read($"{connection.FromNodeId}.{connection.FromPortId}");
+        var readResult = session.Read($"{connection.FromNodeId}.{connection.FromPortId}");
+        return readResult;
     }
 
     private static object? ReadProjectInput(string key, FlowExecutionSession session)
-        => session.Read($"project.{key}");
+    {
+        var readResult1 = session.Read($"project.{key}");
+        return readResult1;
+    }
 
     /// <summary>
     /// Resolves the deliberately small dynamic-value syntax used by parameter
@@ -108,24 +97,31 @@ public sealed class DataConnectionResolver
     private static object? ResolveDynamicReference(string? expression, FlowExecutionSession session)
     {
         if (string.IsNullOrWhiteSpace(expression))
+        {
             return null;
+        }
 
         var trimmed = expression.Trim();
-
         // Parse JSON before looking for a dot. Otherwise decimal literals and
         // quoted strings such as "a.b" are incorrectly treated as context
         // references and resolve to null.
         if (TryParseJson(trimmed, out var jsonValue))
+        {
             return jsonValue;
+        }
 
         if (trimmed.StartsWith("project.", StringComparison.Ordinal))
-            return session.Read(trimmed);
+        {
+            var readResult2 = session.Read(trimmed);
+            return readResult2;
+        }
 
         var separator = trimmed.IndexOf('.');
-        if (separator > 0
-            && separator == trimmed.LastIndexOf('.')
-            && separator < trimmed.Length - 1)
-            return session.Read(trimmed);
+        if (separator > 0 && separator == trimmed.LastIndexOf('.') && separator < trimmed.Length - 1)
+        {
+            var readResult3 = session.Read(trimmed);
+            return readResult3;
+        }
 
         return trimmed;
     }
@@ -133,16 +129,21 @@ public sealed class DataConnectionResolver
     private static object? ParseJson(string? valueJson)
     {
         if (string.IsNullOrWhiteSpace(valueJson))
+        {
             return null;
+        }
 
-        return TryParseJson(valueJson, out var value) ? value : valueJson;
+        object? evaluatedValue4 = TryParseJson(valueJson, out var value) ? value : valueJson;
+        return evaluatedValue4;
     }
 
     private static bool TryParseJson(string? valueJson, out object? value)
     {
         value = null;
         if (string.IsNullOrWhiteSpace(valueJson))
+        {
             return false;
+        }
 
         try
         {
@@ -157,7 +158,8 @@ public sealed class DataConnectionResolver
     }
 
     private static object? ConvertJson(JsonElement element)
-        => element.ValueKind switch
+    {
+        object? evaluatedValue5 = element.ValueKind switch
         {
             JsonValueKind.Null => null,
             JsonValueKind.True => true,
@@ -165,28 +167,41 @@ public sealed class DataConnectionResolver
             JsonValueKind.Number when element.TryGetInt64(out var integer) => integer,
             JsonValueKind.Number when element.TryGetDecimal(out var decimalValue) => decimalValue,
             JsonValueKind.String => element.GetString(),
-            JsonValueKind.Array => element.EnumerateArray().Select(ConvertJson).ToArray(),
-            JsonValueKind.Object => element.EnumerateObject().ToDictionary(item => item.Name, item => ConvertJson(item.Value), StringComparer.Ordinal),
+            JsonValueKind.Array => resolveToArrayResult(),
+            JsonValueKind.Object => resolveToDictionaryResult(),
             _ => null
         };
+        return evaluatedValue5;
+        object resolveToArrayResult()
+        {
+            var enumerateArrayResult = element.EnumerateArray();
+            var selectResult = enumerateArrayResult.Select(ConvertJson);
+            var toArrayResult = selectResult.ToArray();
+            return toArrayResult;
+        }
+
+        object resolveToDictionaryResult()
+        {
+            var enumerateObjectResult = element.EnumerateObject();
+            var toDictionaryResult = enumerateObjectResult.ToDictionary(item => item.Name, item =>
+            {
+                var convertJsonResult = ConvertJson(item.Value);
+                return convertJsonResult;
+            }, StringComparer.Ordinal);
+            return toDictionaryResult;
+        }
+    }
 }
 
 public sealed class FlowDataBindingException : Exception
 {
-    public FlowDataBindingException(
-        string code,
-        string message,
-        IReadOnlyDictionary<string, object?>? resolvedInputs = null)
-        : base(message)
+    public FlowDataBindingException(string code, string message, IReadOnlyDictionary<string, object?>? resolvedInputs = null) : base(message)
     {
         Code = code;
-        ResolvedInputs = resolvedInputs is null
-            ? new Dictionary<string, object?>(StringComparer.Ordinal)
-            : new Dictionary<string, object?>(resolvedInputs, StringComparer.Ordinal);
+        ResolvedInputs = resolvedInputs is null ? new Dictionary<string, object?>(StringComparer.Ordinal) : new Dictionary<string, object?>(resolvedInputs, StringComparer.Ordinal);
     }
 
     public string Code { get; }
-
     /// <summary>
     /// Values resolved before the binding error stopped the current node.
     /// 参数绑定错误发生前已经解析完成的输入值。

@@ -1,7 +1,6 @@
 using System.Xml.Linq;
 
 namespace SereinFlow.ArchitectureTests;
-
 public sealed class SdkIsolationTests
 {
     [Fact]
@@ -10,15 +9,19 @@ public sealed class SdkIsolationTests
         var root = FindRepositoryRoot();
         var projectPath = Path.Combine(root, "src", "SereinFlow.SDK", "SereinFlow.SDK.csproj");
         var project = XDocument.Load(projectPath);
-        var projectReferences = project
-            .Descendants("ProjectReference")
-            .Select(static element => Path.GetFileNameWithoutExtension((string?)element.Attribute("Include")))
-            .Where(static value => value is not null)
-            .Cast<string>()
-            .ToArray();
-
+        var descendantsResult = project.Descendants("ProjectReference");
+        var selectResult = descendantsResult.Select(static element =>
+        {
+            var evaluatedValue = (string? )element.Attribute("Include");
+            var getFileNameWithoutExtensionResult = Path.GetFileNameWithoutExtension(evaluatedValue);
+            return getFileNameWithoutExtensionResult;
+        });
+        var whereResult = selectResult.Where(static value => value is not null);
+        var castResult = whereResult.Cast<string>();
+        var projectReferences = castResult.ToArray();
         Assert.Equal(["SereinFlow.Contracts"], projectReferences);
-        Assert.Empty(project.Descendants("PackageReference"));
+        var descendantsResult1 = project.Descendants("PackageReference");
+        Assert.Empty(descendantsResult1);
     }
 
     [Theory]
@@ -27,12 +30,21 @@ public sealed class SdkIsolationTests
     public void McpAndLibraryDoNotReferenceSdk(string relativeProjectPath)
     {
         var root = FindRepositoryRoot();
-        var project = XDocument.Load(Path.Combine(root, relativeProjectPath));
-        var references = project
-            .Descendants()
-            .SelectMany(static element => element.Attributes("Include").Concat(element.Attributes("Project")))
-            .Select(static attribute => Path.GetFileNameWithoutExtension(attribute.Value));
-
+        var combineResult = Path.Combine(root, relativeProjectPath);
+        var project = XDocument.Load(combineResult);
+        var descendantsResult4 = project.Descendants();
+        var selectManyResult = descendantsResult4.SelectMany(static element =>
+        {
+            var attributesResult = element.Attributes("Include");
+            var attributesResult2 = element.Attributes("Project");
+            var concatResult = attributesResult.Concat(attributesResult2);
+            return concatResult;
+        });
+        var references = selectManyResult.Select(static attribute =>
+        {
+            var getFileNameWithoutExtensionResult3 = Path.GetFileNameWithoutExtension(attribute.Value);
+            return getFileNameWithoutExtensionResult3;
+        });
         Assert.DoesNotContain("SereinFlow.SDK", references, StringComparer.Ordinal);
         Assert.DoesNotContain("SereinFlow.SDK.DependencyInjection", references, StringComparer.Ordinal);
     }
@@ -41,8 +53,11 @@ public sealed class SdkIsolationTests
     {
         for (var current = new DirectoryInfo(AppContext.BaseDirectory); current is not null; current = current.Parent)
         {
-            if (File.Exists(Path.Combine(current.FullName, "SereinFlow.sln")))
+            var combineResult5 = Path.Combine(current.FullName, "SereinFlow.sln");
+            if (File.Exists(combineResult5))
+            {
                 return current.FullName;
+            }
         }
 
         throw new DirectoryNotFoundException("Unable to locate the SereinFlow repository root.");

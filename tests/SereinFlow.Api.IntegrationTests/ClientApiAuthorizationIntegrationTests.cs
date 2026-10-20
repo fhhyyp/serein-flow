@@ -6,41 +6,41 @@ using SereinFlow.Api;
 using SereinFlow.Client;
 
 namespace SereinFlow.Api.IntegrationTests;
-
 public sealed class ClientApiAuthorizationIntegrationTests : IClassFixture<ClientApiAuthorizationIntegrationTests.ApiFactory>
 {
     private readonly ApiFactory _factory;
-
     public ClientApiAuthorizationIntegrationTests(ApiFactory factory)
-        => _factory = factory;
+    {
+        _factory = factory;
+    }
 
     [Fact]
     public async Task RunReadRequiresBearerKeyWhenRestAuthenticationIsEnabled()
     {
         using var client = _factory.CreateClient();
         var runId = Guid.NewGuid();
-
         var unauthorized = await client.GetAsync($"/api/runs/{runId:D}");
-
         Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
-        Assert.Contains("Bearer", unauthorized.Headers.WwwAuthenticate.Select(static value => value.Scheme));
+        var selectResult = unauthorized.Headers.WwwAuthenticate.Select(static value => value.Scheme);
+        Assert.Contains("Bearer", selectResult);
     }
 
     [Fact]
     public async Task SdkBearerKeyReachesTheProtectedRunEndpoint()
     {
         using var client = _factory.CreateClient();
-        using var sdk = new SereinFlowClient(
-            client,
-            new SereinFlowClientOptions
-            {
-                BaseAddress = new Uri("http://localhost/"),
-                ApiKey = ApiFactory.BootstrapKey,
-            });
-
+        var sereinFlowClientOptions = new SereinFlowClientOptions
+        {
+            BaseAddress = new Uri("http://localhost/"),
+            ApiKey = ApiFactory.BootstrapKey,
+        };
+        using var sdk = new SereinFlowClient(client, sereinFlowClientOptions);
         var exception = await Assert.ThrowsAsync<SereinFlowClientException>(() =>
-            sdk.Runs.GetAsync(Guid.NewGuid()));
-
+        {
+            var newGuidResult = Guid.NewGuid();
+            var getAsyncResult = sdk.Runs.GetAsync(newGuidResult);
+            return getAsyncResult;
+        });
         Assert.Equal(HttpStatusCode.NotFound, (HttpStatusCode)exception.StatusCode);
     }
 
@@ -48,7 +48,6 @@ public sealed class ClientApiAuthorizationIntegrationTests : IClassFixture<Clien
     {
         public const string BootstrapKey = "sdk-integration-bootstrap-key";
         private readonly TemporaryDirectory _storage = new();
-
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing");
@@ -56,12 +55,13 @@ public sealed class ClientApiAuthorizationIntegrationTests : IClassFixture<Clien
             builder.ConfigureAppConfiguration(configuration =>
             {
                 configuration.Sources.Clear();
-                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _storage.Path,
                     ["SereinFlow:Mcp:BootstrapAdminKey"] = BootstrapKey,
                     ["SereinFlow:Api:RequireAuthentication"] = "true",
-                });
+                };
+                configuration.AddInMemoryCollection(dictionary);
             });
         }
 
@@ -69,7 +69,9 @@ public sealed class ClientApiAuthorizationIntegrationTests : IClassFixture<Clien
         {
             base.Dispose(disposing);
             if (disposing)
+            {
                 _storage.Dispose();
+            }
         }
     }
 
@@ -77,9 +79,9 @@ public sealed class ClientApiAuthorizationIntegrationTests : IClassFixture<Clien
     {
         public TemporaryDirectory()
         {
-            Path = System.IO.Path.Combine(
-                System.IO.Path.GetTempPath(),
-                $"sereinflow-client-auth-integration-{Guid.NewGuid():N}");
+            var getTempPathResult = System.IO.Path.GetTempPath();
+            var evaluatedValue = $"sereinflow-client-auth-integration-{Guid.NewGuid():N}";
+            Path = System.IO.Path.Combine(getTempPathResult, evaluatedValue);
             Directory.CreateDirectory(Path);
         }
 
@@ -88,7 +90,9 @@ public sealed class ClientApiAuthorizationIntegrationTests : IClassFixture<Clien
         public void Dispose()
         {
             if (!Directory.Exists(Path))
+            {
                 return;
+            }
 
             try
             {

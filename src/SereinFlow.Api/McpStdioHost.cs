@@ -12,29 +12,22 @@ using SereinFlow.Mcp;
 using SereinFlow.Worker.Client;
 
 namespace SereinFlow.Api;
-
 internal static class McpStdioHost
 {
     public static async Task RunAsync(string[] args)
     {
         var builder = Host.CreateApplicationBuilder(args);
         builder.Logging.ClearProviders();
-        var storageOptions = SereinFlowStorageOptions.FromConfiguration(
-            builder.Configuration,
-            builder.Environment.ContentRootPath);
+        var storageOptions = SereinFlowStorageOptions.FromConfiguration(builder.Configuration, builder.Environment.ContentRootPath);
         builder.Services.AddSereinFlowStorage(storageOptions);
         builder.Services.AddSereinFlowApplication();
         builder.Services.AddSignalR();
         builder.Services.AddSereinFlowMcp(builder.Configuration, builder.Environment.ContentRootPath);
-        builder.Services.AddSereinFlowExecution(
-            builder.Configuration,
-            builder.Environment.ContentRootPath);
-
+        builder.Services.AddSereinFlowExecution(builder.Configuration, builder.Environment.ContentRootPath);
         var apiKey = builder.Configuration["SereinFlow:Mcp:Stdio:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            throw new InvalidOperationException(
-                "SereinFlow:Mcp:Stdio:ApiKey must be configured explicitly for --mcp-stdio.");
+            throw new InvalidOperationException("SereinFlow:Mcp:Stdio:ApiKey must be configured explicitly for --mcp-stdio.");
         }
 
         using var host = builder.Build();
@@ -44,16 +37,15 @@ internal static class McpStdioHost
         var principal = await security.AuthenticateAsync(apiKey, CancellationToken.None);
         if (principal is null)
         {
-            throw new InvalidOperationException(
-                "The configured stdio MCP API key is invalid, expired or revoked.");
+            throw new InvalidOperationException("The configured stdio MCP API key is invalid, expired or revoked.");
         }
 
         principalAccessor.Current = principal;
         requestContextAccessor.Current = new McpRequestContext(principal, "stdio");
         try
         {
-            await host.Services.GetRequiredService<SereinFlowMcpServer>()
-                .RunAsync(Console.In, Console.Out);
+            var getRequiredServiceResult = host.Services.GetRequiredService<SereinFlowMcpServer>();
+            await getRequiredServiceResult.RunAsync(Console.In, Console.Out);
         }
         finally
         {
@@ -61,5 +53,4 @@ internal static class McpStdioHost
             principalAccessor.Current = null;
         }
     }
-
 }

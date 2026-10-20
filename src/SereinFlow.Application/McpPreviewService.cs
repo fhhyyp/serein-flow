@@ -6,79 +6,75 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
-
 public sealed class McpPreviewService
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();
     private readonly IMcpPreviewStore _store;
+    public McpPreviewService(IMcpPreviewStore store)
+    {
+        _store = store;
+    }
 
-    public McpPreviewService(IMcpPreviewStore store) => _store = store;
-
-    public async Task<McpPreviewEntry> CreateAsync<T>(
-        string operation,
-        McpPrincipal principal,
-        Guid? projectId,
-        Guid? flowId,
-        long? expectedVersion,
-        T payload,
-        CancellationToken cancellationToken = default)
+    public async Task<McpPreviewEntry> CreateAsync<T>(string operation, McpPrincipal principal, Guid? projectId, Guid? flowId, long? expectedVersion, T payload, CancellationToken cancellationToken = default)
     {
         var payloadJson = JsonSerializer.Serialize(payload, JsonOptions);
         var fingerprint = Fingerprint(operation, principal.Id, payloadJson);
-        var entry = new McpPreviewEntry(
-            Guid.NewGuid(),
-            operation,
-            principal.Id,
-            projectId,
-            flowId,
-            expectedVersion,
-            payloadJson,
-            fingerprint,
-            McpMutationPreviewStatusDto.Pending,
-            DateTimeOffset.UtcNow,
-            DateTimeOffset.UtcNow.AddMinutes(10),
-            null);
+        var newGuidResult = Guid.NewGuid();
+        var addMinutesResult = DateTimeOffset.UtcNow.AddMinutes(10);
+        var entry = new McpPreviewEntry(newGuidResult, operation, principal.Id, projectId, flowId, expectedVersion, payloadJson, fingerprint, McpMutationPreviewStatusDto.Pending, DateTimeOffset.UtcNow, addMinutesResult, null);
         await _store.AddAsync(entry, cancellationToken);
         return entry;
     }
 
-    public async Task<McpPreviewEntry> RequireAsync(
-        Guid id,
-        string fingerprint,
-        McpPrincipal principal,
-        CancellationToken cancellationToken = default)
+    public async Task<McpPreviewEntry> RequireAsync(Guid id, string fingerprint, McpPrincipal principal, CancellationToken cancellationToken = default)
     {
-        var entry = await _store.FindAsync(id, cancellationToken)
-            ?? throw new McpSecurityException(McpErrorCodes.PreviewNotFound, "The MCP preview was not found.", StatusCodes.Status404NotFound);
+        var entry = await _store.FindAsync(id, cancellationToken) ?? throw new McpSecurityException(McpErrorCodes.PreviewNotFound, "The MCP preview was not found.", StatusCodes.Status404NotFound);
         if (!string.Equals(entry.PrincipalId, principal.Id, StringComparison.Ordinal))
+        {
             throw new McpSecurityException(McpErrorCodes.PreviewOwnerMismatch, "The MCP preview belongs to another caller.", StatusCodes.Status403Forbidden);
+        }
+
         if (!string.Equals(entry.PreviewFingerprint, fingerprint, StringComparison.Ordinal))
+        {
             throw new McpSecurityException(McpErrorCodes.PreviewFingerprintMismatch, "The MCP preview fingerprint is invalid.", StatusCodes.Status409Conflict);
+        }
+
         if (entry.Status != McpMutationPreviewStatusDto.Pending)
+        {
             throw new McpSecurityException(McpErrorCodes.PreviewNotPending, "The MCP preview is no longer pending.", StatusCodes.Status409Conflict);
+        }
+
         if (entry.ExpiresAt <= DateTimeOffset.UtcNow)
         {
-            var expired = entry with { Status = McpMutationPreviewStatusDto.Expired };
+            var expired = entry with
+            {
+                Status = McpMutationPreviewStatusDto.Expired
+            };
             await _store.UpdateAsync(expired, cancellationToken);
             throw new McpSecurityException(McpErrorCodes.PreviewExpired, "The MCP preview has expired.", StatusCodes.Status409Conflict);
         }
+
         return entry;
     }
 
     public Task<bool> MarkAppliedAsync(McpPreviewEntry entry, CancellationToken cancellationToken = default)
-        => _store.UpdateAsync(entry with
-        {
-            Status = McpMutationPreviewStatusDto.Applied,
-            AppliedAt = DateTimeOffset.UtcNow
-        }, cancellationToken);
+    {
+        var updateAsyncResult = _store.UpdateAsync(entry with { Status = McpMutationPreviewStatusDto.Applied, AppliedAt = DateTimeOffset.UtcNow }, cancellationToken);
+        return updateAsyncResult;
+    }
 
     public static string Fingerprint(string operation, string principalId, string payloadJson)
     {
         var input = Encoding.UTF8.GetBytes($"{operation}\n{principalId}\n{payloadJson}");
-        return Convert.ToHexString(SHA256.HashData(input)).ToLowerInvariant();
+        var hashDataResult = SHA256.HashData(input);
+        var toHexStringResult = Convert.ToHexString(hashDataResult);
+        var toLowerInvariantResult = toHexStringResult.ToLowerInvariant();
+        return toLowerInvariantResult;
     }
 
     public static T Deserialize<T>(McpPreviewEntry entry)
-        => JsonSerializer.Deserialize<T>(entry.PayloadJson, JsonOptions)
-            ?? throw new InvalidOperationException("The stored MCP preview payload is invalid.");
+    {
+        var evaluatedValue = JsonSerializer.Deserialize<T>(entry.PayloadJson, JsonOptions) ?? throw new InvalidOperationException("The stored MCP preview payload is invalid.");
+        return evaluatedValue;
+    }
 }

@@ -4,7 +4,6 @@ using SereinFlow.Library;
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Runtime;
-
 public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, object?> _values = new(StringComparer.Ordinal);
@@ -14,32 +13,22 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
     private readonly IReadOnlyDictionary<string, object?> _flowCallInputs;
     private readonly int _frameDepth;
     private int _cancelled;
-
-    public FlowExecutionSession(
-        Guid? runId = null,
-        CancellationToken cancellationToken = default,
-        int maxSteps = 10_000,
-        int maxNodeVisits = 1_000)
-        : this(runId, cancellationToken, maxSteps, maxNodeVisits, null, null, ownsResources: true, null, frameDepth: 0)
+    public FlowExecutionSession(Guid? runId = null, CancellationToken cancellationToken = default, int maxSteps = 10_000, int maxNodeVisits = 1_000) : this(runId, cancellationToken, maxSteps, maxNodeVisits, null, null, ownsResources: true, null, frameDepth: 0)
     {
     }
 
-    private FlowExecutionSession(
-        Guid? runId,
-        CancellationToken cancellationToken,
-        int maxSteps,
-        int maxNodeVisits,
-        SharedExecutionState? sharedState,
-        ResourceLeaseRegistry? resources,
-        bool ownsResources,
-        IReadOnlyDictionary<string, object?>? flowCallInputs,
-        int frameDepth,
-        Guid? invocationId = null)
+    private FlowExecutionSession(Guid? runId, CancellationToken cancellationToken, int maxSteps, int maxNodeVisits, SharedExecutionState? sharedState, ResourceLeaseRegistry? resources, bool ownsResources, IReadOnlyDictionary<string, object?>? flowCallInputs, int frameDepth, Guid? invocationId = null)
     {
         if (maxSteps < 1)
+        {
             throw new ArgumentOutOfRangeException(nameof(maxSteps), "Maximum flow steps must be positive. 最大流程步数必须为正数。");
+        }
+
         if (maxNodeVisits < 1)
+        {
             throw new ArgumentOutOfRangeException(nameof(maxNodeVisits), "Maximum node visits must be positive. 最大节点访问次数必须为正数。");
+        }
+
         RunId = runId ?? Guid.NewGuid();
         _cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _sharedState = sharedState ?? new SharedExecutionState();
@@ -53,48 +42,66 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
     }
 
     public Guid RunId { get; }
-
     /// <summary>
     /// Gets the variable table shared with listener contexts and FlowCall frames in this run.
     /// 获取本次运行与监听上下文、FlowCall 调用帧共用的变量表。
     /// </summary>
     public LibraryVariableService Variables => _sharedState.Variables;
-
     public ResourceLeaseRegistry Resources { get; }
-
     public int MaxSteps { get; }
-
     public int MaxNodeVisits { get; }
 
-    public int StepCount => Volatile.Read(ref _sharedState.StepCount);
+    public int StepCount
+    {
+        get
+        {
+            var readResult = Volatile.Read(ref _sharedState.StepCount);
+            return readResult;
+        }
+    }
 
     internal ExecutionPlan? Plan { get; private set; }
-
     public CancellationToken CancellationToken => _cancellationSource.Token;
 
     public object? Read(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
+        {
             throw new ArgumentException("Execution context keys cannot be empty. 执行上下文键不能为空。", nameof(key));
-        return _values.TryGetValue(key, out var value) ? value : null;
+        }
+
+        object? evaluatedValue = _values.TryGetValue(key, out var value) ? value : null;
+        return evaluatedValue;
     }
 
     public void Write(string key, object? value)
     {
         if (string.IsNullOrWhiteSpace(key))
+        {
             throw new ArgumentException("Execution context keys cannot be empty. 执行上下文键不能为空。", nameof(key));
+        }
+
         _values[key] = value;
     }
 
-    public IReadOnlyDictionary<string, object?> Snapshot() => new Dictionary<string, object?>(_values, StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, object?> Snapshot()
+    {
+        var dictionary = new Dictionary<string, object?>(_values, StringComparer.Ordinal);
+        return dictionary;
+    }
 
     internal void AttachPlan(ExecutionPlan plan) => Plan = plan;
-
     public bool TryBeginStep(string nodeId, out string? errorCode)
-        => TryBeginStep(nodeId, out _, out _, out errorCode);
+    {
+        var tryBeginStepResult = TryBeginStep(nodeId, out _, out _, out errorCode);
+        return tryBeginStepResult;
+    }
 
     public bool TryBeginStep(string nodeId, out Guid executionId, out string? errorCode)
-        => TryBeginStep(nodeId, out _, out executionId, out errorCode);
+    {
+        var tryBeginStepResult1 = TryBeginStep(nodeId, out _, out executionId, out errorCode);
+        return tryBeginStepResult1;
+    }
 
     public bool TryBeginStep(string nodeId, out int step, out Guid executionId, out string? errorCode)
     {
@@ -117,27 +124,24 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
         return true;
     }
 
-    public long NextSequence() => Interlocked.Increment(ref _sharedState.Sequence);
+    public long NextSequence()
+    {
+        var incrementResult = Interlocked.Increment(ref _sharedState.Sequence);
+        return incrementResult;
+    }
 
     internal FlowExecutionSession CreateChild(Guid? invocationId = null)
     {
-        var child = new FlowExecutionSession(
-            RunId,
-            CancellationToken,
-            MaxSteps,
-            MaxNodeVisits,
-            _sharedState,
-            Resources,
-            ownsResources: false,
-            null,
-            // A listener trigger is an isolated value context, not a FlowCall
-            // frame. Keep its visible depth unchanged so audit consumers can
-            // distinguish FlowCall nesting from trigger instances.
-            // 监听触发器是隔离值上下文，并非 FlowCall 调用帧；保持可见深度不变，便于审计区分两者。
-            FrameDepth,
-            invocationId ?? InvocationId);
+        var child = new FlowExecutionSession(RunId, CancellationToken, MaxSteps, MaxNodeVisits, _sharedState, Resources, ownsResources: false, null, // A listener trigger is an isolated value context, not a FlowCall
+ // frame. Keep its visible depth unchanged so audit consumers can
+        // distinguish FlowCall nesting from trigger instances.
+        // 监听触发器是隔离值上下文，并非 FlowCall 调用帧；保持可见深度不变，便于审计区分两者。
+        FrameDepth, invocationId ?? InvocationId);
         if (Plan is not null)
+        {
             child.AttachPlan(Plan);
+        }
+
         CopyProjectScopeTo(child);
         return child;
     }
@@ -149,38 +153,30 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
     /// 创建隔离的 FlowCall 调用帧。它共享运行标识、取消令牌、资源租约和安全预算，
     /// 但明确排除调用方的节点输出。
     /// </summary>
-    internal FlowExecutionSession CreateFlowCallFrame(
-        string targetNodeId,
-        IReadOnlyDictionary<string, object?> inputs)
+    internal FlowExecutionSession CreateFlowCallFrame(string targetNodeId, IReadOnlyDictionary<string, object?> inputs)
     {
         if (string.IsNullOrWhiteSpace(targetNodeId))
+        {
             throw new ArgumentException("FlowCall target node ID cannot be empty. FlowCall 目标节点 ID 不能为空。", nameof(targetNodeId));
-        ArgumentNullException.ThrowIfNull(inputs);
+        }
 
-        var child = new FlowExecutionSession(
-            RunId,
-            CancellationToken,
-            MaxSteps,
-            MaxNodeVisits,
-            _sharedState,
-            Resources,
-            ownsResources: false,
-            new Dictionary<string, object?>(inputs, StringComparer.Ordinal),
-            FrameDepth + 1,
-            InvocationId);
+        ArgumentNullException.ThrowIfNull(inputs);
+        var dictionary2 = new Dictionary<string, object?>(inputs, StringComparer.Ordinal);
+        var child = new FlowExecutionSession(RunId, CancellationToken, MaxSteps, MaxNodeVisits, _sharedState, Resources, ownsResources: false, dictionary2, FrameDepth + 1, InvocationId);
         if (Plan is not null)
+        {
             child.AttachPlan(Plan);
+        }
+
         child._flowCallTargetNodeId = targetNodeId;
         CopyProjectScopeTo(child);
         return child;
     }
 
     private string? _flowCallTargetNodeId;
-
     internal bool TryReadFlowCallInput(string nodeId, string parameterId, out object? value)
     {
-        if (string.Equals(nodeId, _flowCallTargetNodeId, StringComparison.Ordinal)
-            && _flowCallInputs.TryGetValue(parameterId, out value))
+        if (string.Equals(nodeId, _flowCallTargetNodeId, StringComparison.Ordinal) && _flowCallInputs.TryGetValue(parameterId, out value))
         {
             return true;
         }
@@ -190,7 +186,6 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
     }
 
     public int FrameDepth => _frameDepth;
-
     /// <summary>
     /// Identifies one accepted listener trigger while preserving the shared run
     /// identity and budgets. It is null for ordinary entry-flow execution.
@@ -202,8 +197,7 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
     {
         foreach (var value in Snapshot())
         {
-            if (value.Key.StartsWith("project.", StringComparison.Ordinal)
-                || string.Equals(value.Key, "projectId", StringComparison.Ordinal))
+            if (value.Key.StartsWith("project.", StringComparison.Ordinal) || string.Equals(value.Key, "projectId", StringComparison.Ordinal))
             {
                 child.Write(value.Key, value.Value);
             }
@@ -224,13 +218,17 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         if (_ownsResources)
+        {
             await Resources.DisposeAsync();
+        }
+
         _cancellationSource.Dispose();
     }
 
     private sealed class SharedExecutionState
     {
         public LibraryVariableService Variables { get; } = new();
+
         public long Sequence;
         public int StepCount;
         public ConcurrentDictionary<string, int> NodeVisits { get; } = new(StringComparer.Ordinal);

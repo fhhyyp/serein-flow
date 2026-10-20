@@ -1,5 +1,4 @@
-import type { CanvasState } from './types'
-
+import type { CanvasState } from './types';
 export function createInitialCanvases(): CanvasState[] {
   return [
     {
@@ -9,5 +8,5 @@ export function createInitialCanvases(): CanvasState[] {
       edges: [],
       nodes: [],
     },
-  ]
+  ];
 }

@@ -10,198 +10,159 @@ using SereinFlow.Domain;
 using static SereinFlow.Mcp.McpToolSupport;
 
 namespace SereinFlow.Mcp;
-
 /// <summary>
 /// Project lifecycle MCP tools, including their preview payload projection.
 /// </summary>
 internal static class McpProjectToolHandlers
 {
     internal static Task<object> PreviewCreateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
-        => PreviewCreateProjectAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+    {
+        var requirePrincipalResult = context.RequirePrincipal();
+        var previewCreateProjectAsyncResult = PreviewCreateProjectAsync(context.Scope, requirePrincipalResult, arguments, cancellationToken);
+        return previewCreateProjectAsyncResult;
+    }
 
     internal static Task<object> ApplyCreateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
-        => ApplyCreateProjectAsync(context.Scope, context.RequirePrincipal(), arguments, cancellationToken);
+    {
+        var requirePrincipalResult1 = context.RequirePrincipal();
+        var applyCreateProjectAsyncResult = ApplyCreateProjectAsync(context.Scope, requirePrincipalResult1, arguments, cancellationToken);
+        return applyCreateProjectAsyncResult;
+    }
 
-    internal static ProjectCreatePreviewDto ReadProjectCreatePreview(
-        McpPreviewEntry entry,
-        McpPreviewDescriptorDto descriptor)
+    internal static ProjectCreatePreviewDto ReadProjectCreatePreview(McpPreviewEntry entry, McpPreviewDescriptorDto descriptor)
     {
         var stored = McpPreviewService.Deserialize<StoredProjectCreatePreview>(entry);
         var project = RehydrateProject(stored);
         var candidate = new ProjectCreationCandidate(project, stored.Definition, stored.Validation);
-        return ToProjectCreatePreview(descriptor, candidate);
+        var toProjectCreatePreviewResult = ToProjectCreatePreview(descriptor, candidate);
+        return toProjectCreatePreviewResult;
     }
 
-    private static async Task<object> PreviewCreateProjectAsync(
-        IServiceScope scope,
-        McpPrincipal principal,
-        JsonElement arguments,
-        CancellationToken cancellationToken)
+    private static async Task<object> PreviewCreateProjectAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
     {
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         security.RequireAdministrator(principal);
         var request = Deserialize<CreateProjectMcpRequestDto>(arguments);
         if (string.IsNullOrWhiteSpace(request.Name))
+        {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'name' is required.");
+        }
 
         ProjectCreationCandidate candidate;
         try
         {
-            candidate = scope.ServiceProvider.GetRequiredService<ProjectCreationService>()
-                .PrepareEmpty(request.Name, request.FlowName);
+            var getRequiredServiceResult = scope.ServiceProvider.GetRequiredService<ProjectCreationService>();
+            candidate = getRequiredServiceResult.PrepareEmpty(request.Name, request.FlowName);
         }
         catch (ArgumentException exception)
         {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, exception.Message);
         }
 
-        var stored = new StoredProjectCreatePreview(
-            new CreateProjectMcpRequestDto(candidate.Project.Name, GetFlowName(candidate.Definition)),
-            candidate.Project.Id,
-            candidate.Definition.Id,
-            candidate.Project.CreatedAt,
-            candidate.Definition,
-            candidate.Validation);
-        var preview = await scope.ServiceProvider.GetRequiredService<McpPreviewService>().CreateAsync(
-            "project.create",
-            principal,
-            candidate.Project.Id,
-            candidate.Definition.Id,
-            expectedVersion: null,
-            stored,
-            cancellationToken);
-        return ToProjectCreatePreview(
-            new McpPreviewDescriptorDto(
-                preview.Id,
-                preview.Operation,
-                preview.ProjectId,
-                preview.FlowId,
-                preview.Status,
-                preview.ExpiresAt,
-                preview.PreviewFingerprint),
-            candidate);
+        var getFlowNameResult = GetFlowName(candidate.Definition);
+        var createProjectMcpRequestDto = new CreateProjectMcpRequestDto(candidate.Project.Name, getFlowNameResult);
+        var stored = new StoredProjectCreatePreview(createProjectMcpRequestDto, candidate.Project.Id, candidate.Definition.Id, candidate.Project.CreatedAt, candidate.Definition, candidate.Validation);
+        var getRequiredServiceResult2 = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
+        var preview = await getRequiredServiceResult2.CreateAsync("project.create", principal, candidate.Project.Id, candidate.Definition.Id, expectedVersion: null, stored, cancellationToken);
+        var mcpPreviewDescriptorDto = new McpPreviewDescriptorDto(preview.Id, preview.Operation, preview.ProjectId, preview.FlowId, preview.Status, preview.ExpiresAt, preview.PreviewFingerprint);
+        var toProjectCreatePreviewResult3 = ToProjectCreatePreview(mcpPreviewDescriptorDto, candidate);
+        return toProjectCreatePreviewResult3;
     }
 
-    private static async Task<object> ApplyCreateProjectAsync(
-        IServiceScope scope,
-        McpPrincipal principal,
-        JsonElement arguments,
-        CancellationToken cancellationToken)
+    private static async Task<object> ApplyCreateProjectAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
     {
         var request = Deserialize<McpMutationApplyRequestDto>(arguments);
         RequireConfirmation(request);
         var requestPayload = Serialize(request);
         var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
-        var replay = await idempotency.FindAsync(
-            principal.Id,
-            "project.create",
-            request.IdempotencyKey,
-            requestPayload,
-            cancellationToken);
+        var replay = await idempotency.FindAsync(principal.Id, "project.create", request.IdempotencyKey, requestPayload, cancellationToken);
         if (replay is not null)
-            return DeserializeStoredResponse(replay.ResponseJson);
+        {
+            var deserializeStoredResponseResult = DeserializeStoredResponse(replay.ResponseJson);
+            return deserializeStoredResponseResult;
+        }
 
         var previews = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
-        var entry = await previews.RequireAsync(
-            request.PreviewId,
-            request.PreviewFingerprint,
-            principal,
-            cancellationToken);
+        var entry = await previews.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, "project.create", StringComparison.Ordinal))
+        {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe project creation.");
+        }
 
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         security.RequireAdministrator(principal);
         security.Require(principal, McpPermissionDto.ProjectWrite);
         var stored = McpPreviewService.Deserialize<StoredProjectCreatePreview>(entry);
         var project = RehydrateProject(stored);
-        var candidate = scope.ServiceProvider.GetRequiredService<ProjectCreationService>()
-            .Prepare(project, stored.Definition);
+        var getRequiredServiceResult4 = scope.ServiceProvider.GetRequiredService<ProjectCreationService>();
+        var candidate = getRequiredServiceResult4.Prepare(project, stored.Definition);
         if (!candidate.Validation.IsValid)
         {
-            throw new McpProtocolException(
-                McpProtocolErrorCodes.OperationRejected,
-                "The project creation preview is no longer valid.",
-                new { code = McpErrorCodes.ValidationFailed, diagnostics = candidate.Validation.Diagnostics });
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The project creation preview is no longer valid.", new { code = McpErrorCodes.ValidationFailed, diagnostics = candidate.Validation.Diagnostics });
         }
 
-        var result = await scope.ServiceProvider.GetRequiredService<ProjectCreationService>()
-            .CreateAsync(candidate, cancellationToken);
+        var getRequiredServiceResult5 = scope.ServiceProvider.GetRequiredService<ProjectCreationService>();
+        var result = await getRequiredServiceResult5.CreateAsync(candidate, cancellationToken);
         if (result.Status == ProjectCreationStatus.Conflict)
         {
-            throw new McpProtocolException(
-                McpProtocolErrorCodes.Conflict,
-                result.ErrorMessage ?? "The project already exists.",
-                new { code = result.ErrorCode });
+            throw new McpProtocolException(McpProtocolErrorCodes.Conflict, result.ErrorMessage ?? "The project already exists.", new { code = result.ErrorCode });
         }
+
         if (result.Status != ProjectCreationStatus.Created)
+        {
             throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The project creation preview cannot be applied.");
+        }
 
         var response = CreateWorkspace(candidate);
         await MarkPreviewAppliedAsync(previews, entry, cancellationToken);
-        await idempotency.SaveAsync(
-            principal.Id,
-            entry.Operation,
-            request.IdempotencyKey,
-            response,
-            requestPayload,
-            cancellationToken);
+        await idempotency.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, response, requestPayload, cancellationToken);
         return response;
     }
 
     private static Project RehydrateProject(StoredProjectCreatePreview stored)
-        => Project.Rehydrate(
-            stored.ProjectId,
-            stored.Request.Name,
-            version: 1,
-            SereinFlow.Domain.ProjectStatus.Draft,
-            stored.CreatedAt,
-            stored.CreatedAt);
+    {
+        var rehydrateResult = Project.Rehydrate(stored.ProjectId, stored.Request.Name, version: 1, SereinFlow.Domain.ProjectStatus.Draft, stored.CreatedAt, stored.CreatedAt);
+        return rehydrateResult;
+    }
 
-    private static ProjectCreatePreviewDto ToProjectCreatePreview(
-        McpPreviewDescriptorDto descriptor,
-        ProjectCreationCandidate candidate)
-        => new(
-            descriptor.PreviewId,
-            candidate.Project.Id,
-            candidate.Definition.Id,
-            candidate.Project.Name,
-            GetFlowName(candidate.Definition),
-            descriptor.ExpiresAt,
-            descriptor.PreviewFingerprint,
-            descriptor.Status == McpMutationPreviewStatusDto.Pending
-                && descriptor.ExpiresAt > DateTimeOffset.UtcNow
-                && candidate.Validation.IsValid,
-            candidate.Validation,
-            CreateWorkspace(candidate));
+    private static ProjectCreatePreviewDto ToProjectCreatePreview(McpPreviewDescriptorDto descriptor, ProjectCreationCandidate candidate)
+    {
+        var getFlowNameResult6 = GetFlowName(candidate.Definition);
+        var createWorkspaceResult = CreateWorkspace(candidate);
+        global::SereinFlow.Contracts.ProjectCreatePreviewDto evaluatedValue = new(descriptor.PreviewId, candidate.Project.Id, candidate.Definition.Id, candidate.Project.Name, getFlowNameResult6, descriptor.ExpiresAt, descriptor.PreviewFingerprint, descriptor.Status == McpMutationPreviewStatusDto.Pending && descriptor.ExpiresAt > DateTimeOffset.UtcNow && candidate.Validation.IsValid, candidate.Validation, createWorkspaceResult);
+        return evaluatedValue;
+    }
 
     private static ProjectWorkspaceDto CreateWorkspace(ProjectCreationCandidate candidate)
-        => new(
-            new ProjectDto(
-                candidate.Project.Id,
-                candidate.Project.Name,
-                candidate.Project.Version,
-                ToProjectStatusValue(candidate.Project.Status),
-                candidate.Project.CreatedAt,
-                candidate.Project.UpdatedAt),
-            [new FlowDefinitionSummaryDto(
-                candidate.Definition.Id,
-                candidate.Definition.Version,
-                candidate.Definition.EntryNodeId,
-                candidate.Definition.Canvases.Count,
-                candidate.Definition.Canvases.Sum(static canvas => canvas.Nodes.Count))]);
+    {
+        var toProjectStatusValueResult = ToProjectStatusValue(candidate.Project.Status);
+        var projectDto = new ProjectDto(candidate.Project.Id, candidate.Project.Name, candidate.Project.Version, toProjectStatusValueResult, candidate.Project.CreatedAt, candidate.Project.UpdatedAt);
+        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.FlowDefinitionSummaryDto> evaluatedValue7 = [resolveFlowDefinitionSummaryDto()];
+        global::SereinFlow.Contracts.ProjectWorkspaceDto evaluatedValue8 = new(projectDto, evaluatedValue7);
+        return evaluatedValue8;
+        global::SereinFlow.Contracts.FlowDefinitionSummaryDto resolveFlowDefinitionSummaryDto()
+        {
+            var sumResult = candidate.Definition.Canvases.Sum(static canvas => canvas.Nodes.Count);
+            var flowDefinitionSummaryDto = new FlowDefinitionSummaryDto(candidate.Definition.Id, candidate.Definition.Version, candidate.Definition.EntryNodeId, candidate.Definition.Canvases.Count, sumResult);
+            return flowDefinitionSummaryDto;
+        }
+    }
 
     private static string GetFlowName(FlowDefinitionDto definition)
-        => definition.Canvases.FirstOrDefault()?.Name ?? "Main";
+    {
+        var evaluatedValue9 = definition.Canvases.FirstOrDefault()?.Name ?? "Main";
+        return evaluatedValue9;
+    }
 
     private static string ToProjectStatusValue(SereinFlow.Domain.ProjectStatus status)
-        => status switch
+    {
+        string evaluatedValue10 = status switch
         {
             SereinFlow.Domain.ProjectStatus.Draft => "draft",
             SereinFlow.Domain.ProjectStatus.Ready => "ready",
             SereinFlow.Domain.ProjectStatus.ScriptInvalid => "scriptInvalid",
             SereinFlow.Domain.ProjectStatus.Archived => "archived",
-            _ => status.ToString()
-        };
-
+            _ => status.ToString()};
+        return evaluatedValue10;
+    }
 }

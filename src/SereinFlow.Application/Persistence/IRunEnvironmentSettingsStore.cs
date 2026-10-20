@@ -1,7 +1,6 @@
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application.Persistence;
-
 /// <summary>
 /// Persists the operator-managed scheduler limits without exposing a database
 /// implementation to API services.
@@ -10,8 +9,5 @@ namespace SereinFlow.Application.Persistence;
 public interface IRunEnvironmentSettingsStore
 {
     Task<RunExecutionSettingsDto?> GetAsync(CancellationToken cancellationToken = default);
-
-    Task<RunExecutionSettingsDto> SaveAsync(
-        RunExecutionSettingsDto settings,
-        CancellationToken cancellationToken = default);
+    Task<RunExecutionSettingsDto> SaveAsync(RunExecutionSettingsDto settings, CancellationToken cancellationToken = default);
 }

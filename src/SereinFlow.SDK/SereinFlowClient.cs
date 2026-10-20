@@ -1,20 +1,24 @@
 using System.Net.Http;
 
 namespace SereinFlow.Client;
-
 public sealed class SereinFlowClient : ISereinFlowClient, IDisposable, IAsyncDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly bool _ownsHttpClient;
     private readonly SereinFlowHttpClient _transport;
-
     public SereinFlowClient(SereinFlowClientOptions options)
-        : this(CreateHttpClient(options), options, ownsHttpClient: true)
     {
+        var httpClient = CreateHttpClient(options);
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _ownsHttpClient = true;
+        _transport = new SereinFlowHttpClient(httpClient, options);
+        Flows = new FlowInvocationClient(_transport);
+        Runs = new FlowRunClient(_transport);
+        Messages = new RunMessageClient(_transport);
+        Workpieces = new RunWorkpieceClient(_transport);
     }
 
-    public SereinFlowClient(HttpClient httpClient, SereinFlowClientOptions options)
-        : this(httpClient, options, ownsHttpClient: false)
+    public SereinFlowClient(HttpClient httpClient, SereinFlowClientOptions options) : this(httpClient, options, ownsHttpClient: false)
     {
     }
 
@@ -30,17 +34,16 @@ public sealed class SereinFlowClient : ISereinFlowClient, IDisposable, IAsyncDis
     }
 
     public IFlowInvocationClient Flows { get; }
-
     public IFlowRunClient Runs { get; }
-
     public IRunMessageClient Messages { get; }
-
     public IRunWorkpieceClient Workpieces { get; }
 
     public void Dispose()
     {
         if (_ownsHttpClient)
+        {
             _httpClient.Dispose();
+        }
     }
 
     public ValueTask DisposeAsync()
@@ -53,6 +56,11 @@ public sealed class SereinFlowClient : ISereinFlowClient, IDisposable, IAsyncDis
     {
         ArgumentNullException.ThrowIfNull(options);
         var validated = options.Validate();
-        return new HttpClient { BaseAddress = validated.BaseAddress, Timeout = Timeout.InfiniteTimeSpan };
+        var httpClient1 = new HttpClient
+        {
+            BaseAddress = validated.BaseAddress,
+            Timeout = Timeout.InfiniteTimeSpan
+        };
+        return httpClient1;
     }
 }

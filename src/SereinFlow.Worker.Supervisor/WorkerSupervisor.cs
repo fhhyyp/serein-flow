@@ -5,111 +5,165 @@ using SereinFlow.Contracts;
 using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Worker.Supervisor;
-
-public sealed record RunnerLaunchOptions(
-    string FileName,
-    IReadOnlyList<string> Arguments,
-    string? WorkingDirectory = null,
-    TimeSpan? HandshakeTimeout = null,
-    TimeSpan? HeartbeatInterval = null,
-    TimeSpan? CancellationGracePeriod = null,
-    string? AllowedScriptArtifactRoot = null,
-    string? AllowedLibraryPackageRoot = null,
-    Action<string>? DiagnosticLogger = null,
-    TimeSpan? MessageDeliveryTimeout = null,
-    string? AllowedWorkpieceRoot = null)
+public sealed record RunnerLaunchOptions(string FileName, IReadOnlyList<string> Arguments, string? WorkingDirectory = null, TimeSpan? HandshakeTimeout = null, TimeSpan? HeartbeatInterval = null, TimeSpan? CancellationGracePeriod = null, string? AllowedScriptArtifactRoot = null, string? AllowedLibraryPackageRoot = null, Action<string>? DiagnosticLogger = null, TimeSpan? MessageDeliveryTimeout = null, string? AllowedWorkpieceRoot = null)
 {
-    public TimeSpan EffectiveHandshakeTimeout => HandshakeTimeout ?? TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan DefaultHandshakeTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan DefaultHeartbeatInterval = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan DefaultCancellationGracePeriod = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan DefaultMessageDeliveryTimeout = TimeSpan.FromSeconds(5);
+    public TimeSpan EffectiveHandshakeTimeout
+    {
+        get
+        {
+            var effectiveTimeout = HandshakeTimeout ?? DefaultHandshakeTimeout;
+            return effectiveTimeout;
+        }
+    }
 
-    public TimeSpan EffectiveHeartbeatInterval => HeartbeatInterval ?? TimeSpan.FromSeconds(2);
+    public TimeSpan EffectiveHeartbeatInterval
+    {
+        get
+        {
+            var effectiveInterval = HeartbeatInterval ?? DefaultHeartbeatInterval;
+            return effectiveInterval;
+        }
+    }
 
-    public TimeSpan EffectiveCancellationGracePeriod => CancellationGracePeriod ?? TimeSpan.FromSeconds(3);
+    public TimeSpan EffectiveCancellationGracePeriod
+    {
+        get
+        {
+            var effectiveGracePeriod = CancellationGracePeriod ?? DefaultCancellationGracePeriod;
+            return effectiveGracePeriod;
+        }
+    }
 
-    public TimeSpan EffectiveMessageDeliveryTimeout => MessageDeliveryTimeout ?? TimeSpan.FromSeconds(5);
+    public TimeSpan EffectiveMessageDeliveryTimeout
+    {
+        get
+        {
+            var effectiveTimeout = MessageDeliveryTimeout ?? DefaultMessageDeliveryTimeout;
+            return effectiveTimeout;
+        }
+    }
 }
 
 public sealed partial class WorkerSupervisor
 {
     private readonly RunnerLaunchOptions _launchOptions;
     private readonly ConcurrentDictionary<Guid, WorkerMessageSession> _messageSessions = new();
-
     public WorkerSupervisor(RunnerLaunchOptions launchOptions)
     {
         if (launchOptions is null)
+        {
             throw new ArgumentNullException(nameof(launchOptions), "Worker runner launch options cannot be null. Worker Runner 启动选项不能为空。");
+        }
+
         if (string.IsNullOrWhiteSpace(launchOptions.FileName))
+        {
             throw new ArgumentException("Worker runner file name cannot be empty. Worker Runner 文件名不能为空。", nameof(launchOptions));
+        }
+
         _launchOptions = launchOptions;
     }
 
-    public async Task<WorkerRunResultDto> RunAsync(
-        WorkerRunRequestDto request,
-        Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent,
-        CancellationToken cancellationToken = default)
+    public async Task<WorkerRunResultDto> RunAsync(WorkerRunRequestDto request, Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent, CancellationToken cancellationToken = default)
     {
         if (request is null)
-            throw new ArgumentNullException(nameof(request), "The worker request cannot be null. Worker 请求不能为空。");
-        if (publishEvent is null)
-            throw new ArgumentNullException(nameof(publishEvent), "The worker event publisher cannot be null. Worker 事件发布器不能为空。");
-        if (request.ProtocolVersion != WorkerProtocolConstants.Version)
-            return Failure(request.RunId, WorkerErrorCodes.ProtocolMismatch, "The requested worker protocol version is not supported. 请求的 Worker 协议版本不受支持。");
-        if (!IsAllowedPath(request.ScriptArtifactRootPath, _launchOptions.AllowedScriptArtifactRoot)
-            || !IsAllowedPath(request.LibraryPackageRootPath, _launchOptions.AllowedLibraryPackageRoot)
-            || !IsAllowedPath(request.WorkpieceRootPath, _launchOptions.AllowedWorkpieceRoot))
         {
-            return Failure(request.RunId, WorkerErrorCodes.PathOutsideRoot, "Worker artifact paths are outside the configured service roots. Worker 缓存路径超出了服务端允许的根目录。");
+            throw new ArgumentNullException(nameof(request), "The worker request cannot be null. Worker 请求不能为空。");
         }
+
+        if (publishEvent is null)
+        {
+            throw new ArgumentNullException(nameof(publishEvent), "The worker event publisher cannot be null. Worker 事件发布器不能为空。");
+        }
+
+        if (request.ProtocolVersion != WorkerProtocolConstants.Version)
+        {
+            var failureResult = Failure(request.RunId, WorkerErrorCodes.ProtocolMismatch, "The requested worker protocol version is not supported. 请求的 Worker 协议版本不受支持。");
+            return failureResult;
+        }
+
+        if (!IsAllowedPath(request.ScriptArtifactRootPath, _launchOptions.AllowedScriptArtifactRoot) || !IsAllowedPath(request.LibraryPackageRootPath, _launchOptions.AllowedLibraryPackageRoot) || !IsAllowedPath(request.WorkpieceRootPath, _launchOptions.AllowedWorkpieceRoot))
+        {
+            var failureResult4 = Failure(request.RunId, WorkerErrorCodes.PathOutsideRoot, "Worker artifact paths are outside the configured service roots. Worker 缓存路径超出了服务端允许的根目录。");
+            return failureResult4;
+        }
+
         var runnerPath = ResolveRunnerPath();
         if (runnerPath is not null && !File.Exists(runnerPath))
         {
             var message = $"Worker Runner executable was not found at '{runnerPath}'. Worker Runner 可执行文件不存在：'{runnerPath}'。";
             RecordDiagnostic(request.RunId, WorkerDiagnosticCodes.RunnerPath, message);
-            return Failure(request.RunId, WorkerErrorCodes.RunnerNotFound, message);
+            var failureResult5 = Failure(request.RunId, WorkerErrorCodes.RunnerNotFound, message);
+            return failureResult5;
         }
+
         if (request.Deadline <= DateTimeOffset.UtcNow)
-            return new WorkerRunResultDto(WorkerProtocolConstants.Version, request.RunId, FlowRunStatusDto.TimedOut, WorkerErrorCodes.TimedOut, "The run deadline elapsed before the runner started. Worker Runner 启动前运行截止时间已到。");
+        {
+            var workerRunResultDto = new WorkerRunResultDto(WorkerProtocolConstants.Version, request.RunId, FlowRunStatusDto.TimedOut, WorkerErrorCodes.TimedOut, "The run deadline elapsed before the runner started. Worker Runner 启动前运行截止时间已到。");
+            return workerRunResultDto;
+        }
 
         using var process = StartProcess();
-        await using var transport = new StdioWorkerTransport(
-            process.StandardOutput.BaseStream,
-            process.StandardInput.BaseStream,
-            line => RecordDiagnostic(request.RunId, WorkerDiagnosticCodes.RunnerStdoutNoise, line));
+        await using var transport = new StdioWorkerTransport(process.StandardOutput.BaseStream, process.StandardInput.BaseStream, line =>
+        {
+            RecordDiagnostic(request.RunId, WorkerDiagnosticCodes.RunnerStdoutNoise, line);
+        });
         var stderrTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
         using var deadlineCancellation = new CancellationTokenSource(request.Deadline - DateTimeOffset.UtcNow);
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadlineCancellation.Token);
         var runStarted = false;
-
         try
         {
-            var ready = await transport.ReceiveAsync(runCancellation.Token).AsTask()
-                .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
+            var receiveAsyncResult = transport.ReceiveAsync(runCancellation.Token);
+            var asTaskResult = receiveAsyncResult.AsTask();
+            var ready = await asTaskResult.WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (ready is null)
-                return await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.Crashed, "Runner closed its protocol stream before announcing readiness. Worker Runner 在宣布就绪前关闭了协议流。", FlowRunStatusDto.Failed);
+            {
+                var terminateAndReturnAsyncResult = await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.Crashed, "Runner closed its protocol stream before announcing readiness. Worker Runner 在宣布就绪前关闭了协议流。", FlowRunStatusDto.Failed);
+                return terminateAndReturnAsyncResult;
+            }
+
             if (ready.Kind != WorkerProtocolConstants.ReadyKind)
-                return await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.HandshakeFailed, "Runner did not announce readiness. Worker Runner 未宣布就绪。", FlowRunStatusDto.Failed);
+            {
+                var terminateAndReturnAsyncResult6 = await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.HandshakeFailed, "Runner did not announce readiness. Worker Runner 未宣布就绪。", FlowRunStatusDto.Failed);
+                return terminateAndReturnAsyncResult6;
+            }
 
-            await transport.SendAsync(WorkerMessage.Create(WorkerProtocolConstants.HandshakeKind), runCancellation.Token);
-            var accepted = await transport.ReceiveAsync(runCancellation.Token).AsTask()
-                .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
+            var createResult = WorkerMessage.Create(WorkerProtocolConstants.HandshakeKind);
+            await transport.SendAsync(createResult, runCancellation.Token);
+            var receiveAsyncResult9 = transport.ReceiveAsync(runCancellation.Token);
+            var asTaskResult10 = receiveAsyncResult9.AsTask();
+            var accepted = await asTaskResult10.WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (accepted is null)
-                return await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.Crashed, "Runner closed its protocol stream during the handshake. Worker Runner 在握手期间关闭了协议流。", FlowRunStatusDto.Failed);
+            {
+                var terminateAndReturnAsyncResult7 = await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.Crashed, "Runner closed its protocol stream during the handshake. Worker Runner 在握手期间关闭了协议流。", FlowRunStatusDto.Failed);
+                return terminateAndReturnAsyncResult7;
+            }
+
             if (accepted.Kind != WorkerProtocolConstants.HandshakeAcceptedKind)
-                return await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.ProtocolMismatch, "Runner rejected the worker protocol handshake. Worker Runner 拒绝了 Worker 协议握手。", FlowRunStatusDto.Failed);
+            {
+                var terminateAndReturnAsyncResult8 = await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.ProtocolMismatch, "Runner rejected the worker protocol handshake. Worker Runner 拒绝了 Worker 协议握手。", FlowRunStatusDto.Failed);
+                return terminateAndReturnAsyncResult8;
+            }
 
-            await transport.SendAsync(
-                WorkerMessage.Create(WorkerProtocolConstants.RunKind, WorkerProtocolCodec.SerializePayload(request), request.RunId, request.Deadline),
-                runCancellation.Token);
+            var serializePayloadResult = WorkerProtocolCodec.SerializePayload(request);
+            var createResult11 = WorkerMessage.Create(WorkerProtocolConstants.RunKind, serializePayloadResult, request.RunId, request.Deadline);
+            await transport.SendAsync(createResult11, runCancellation.Token);
             runStarted = true;
-
             var messageSession = new WorkerMessageSession(transport, request, _launchOptions.EffectiveMessageDeliveryTimeout);
             _messageSessions[request.RunId] = messageSession;
             try
             {
-                return await MonitorRunAsync(process, transport, request, publishEvent, deadlineCancellation, cancellationToken, messageSession);
+                var monitorRunAsyncResult = await MonitorRunAsync(process, transport, request, publishEvent, deadlineCancellation, cancellationToken, messageSession);
+                return monitorRunAsyncResult;
             }
             finally
             {
-                _messageSessions.TryRemove(new KeyValuePair<Guid, WorkerMessageSession>(request.RunId, messageSession));
+                var keyValuePair = new KeyValuePair<Guid, WorkerMessageSession>(request.RunId, messageSession);
+                _messageSessions.TryRemove(keyValuePair);
                 messageSession.Complete();
             }
         }
@@ -118,40 +172,38 @@ public sealed partial class WorkerSupervisor
             var timedOut = deadlineCancellation.IsCancellationRequested;
             if (!runStarted)
             {
-                return await TerminateAndReturnAsync(
-                    process,
-                    request.RunId,
-                    timedOut ? WorkerErrorCodes.TimedOut : WorkerErrorCodes.Cancelled,
-                    timedOut
-                        ? "The run deadline elapsed before the Worker run started. Worker 运行在启动前已达到截止时间。"
-                        : "The Worker run was cancelled before it started. Worker 运行在启动前已取消。",
-                    timedOut ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled);
+                var terminateAndReturnAsyncResult12 = await TerminateAndReturnAsync(process, request.RunId, timedOut ? WorkerErrorCodes.TimedOut : WorkerErrorCodes.Cancelled, timedOut ? "The run deadline elapsed before the Worker run started. Worker 运行在启动前已达到截止时间。" : "The Worker run was cancelled before it started. Worker 运行在启动前已取消。", timedOut ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled);
+                return terminateAndReturnAsyncResult12;
             }
-            return await CancelAndReturnAsync(
-                process,
-                transport,
-                request,
-                publishEvent,
-                timedOut ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled,
-                timedOut ? WorkerErrorCodes.TimedOut : WorkerErrorCodes.Cancelled);
+
+            var cancelAndReturnAsyncResult = await CancelAndReturnAsync(process, transport, request, publishEvent, timedOut ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled, timedOut ? WorkerErrorCodes.TimedOut : WorkerErrorCodes.Cancelled);
+            return cancelAndReturnAsyncResult;
         }
         catch (WorkerProtocolException exception)
         {
             RecordProtocolDiagnostic(request.RunId, "protocol", exception);
-            return await TerminateAndReturnAsync(process, request.RunId, exception.Code, exception.Message, FlowRunStatusDto.Failed);
+            var terminateAndReturnAsyncResult13 = await TerminateAndReturnAsync(process, request.RunId, exception.Code, exception.Message, FlowRunStatusDto.Failed);
+            return terminateAndReturnAsyncResult13;
         }
         catch (Exception exception)
         {
-            RecordDiagnostic(request.RunId, "supervisor", exception.ToString(), exception);
-            return await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.Crashed, "The runner exited before returning a valid result. Worker Runner 在返回有效结果前退出。", FlowRunStatusDto.Failed);
+            var toStringResult = exception.ToString();
+            RecordDiagnostic(request.RunId, "supervisor", toStringResult, exception);
+            var terminateAndReturnAsyncResult14 = await TerminateAndReturnAsync(process, request.RunId, WorkerErrorCodes.Crashed, "The runner exited before returning a valid result. Worker Runner 在返回有效结果前退出。", FlowRunStatusDto.Failed);
+            return terminateAndReturnAsyncResult14;
         }
         finally
         {
             if (!process.HasExited)
+            {
                 TerminateProcessTree(process);
+            }
+
             var stderr = await ReadDiagnosticsAsync(stderrTask);
             if (!string.IsNullOrWhiteSpace(stderr))
+            {
                 RecordDiagnostic(request.RunId, WorkerDiagnosticCodes.RunnerStderr, stderr);
+            }
         }
     }
 
@@ -163,84 +215,76 @@ public sealed partial class WorkerSupervisor
     /// 启动调试 Worker，并在返回会话的生命周期内由 Supervisor 独占其传输；它与
     /// RunAsync 分开，避免调用方竞争命令写入器或唯一接收循环。
     /// </summary>
-    public async Task<DebugRunSession> StartDebugAsync(
-        WorkerRunRequestDto request,
-        Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent,
-        CancellationToken cancellationToken = default)
+    public async Task<DebugRunSession> StartDebugAsync(WorkerRunRequestDto request, Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent, CancellationToken cancellationToken = default)
     {
         if (request is null)
+        {
             throw new ArgumentNullException(nameof(request), "The worker request cannot be null. Worker 请求不能为空。");
+        }
+
         if (publishEvent is null)
+        {
             throw new ArgumentNullException(nameof(publishEvent), "The worker event publisher cannot be null. Worker 事件发布器不能为空。");
+        }
+
         if (request.Debug is null || request.Debug.DebugSessionId == Guid.Empty)
         {
-            throw new ArgumentException(
-                "A debug request requires a non-empty debug session ID. 调试请求需要非空的调试会话 ID。",
-                nameof(request));
+            throw new ArgumentException("A debug request requires a non-empty debug session ID. 调试请求需要非空的调试会话 ID。", nameof(request));
         }
+
         if (request.ProtocolVersion != WorkerProtocolConstants.Version)
+        {
             throw new WorkerProtocolException(WorkerErrorCodes.ProtocolMismatch, "The requested worker protocol version is not supported. 请求的 Worker 协议版本不受支持。");
-        if (!IsAllowedPath(request.ScriptArtifactRootPath, _launchOptions.AllowedScriptArtifactRoot)
-            || !IsAllowedPath(request.LibraryPackageRootPath, _launchOptions.AllowedLibraryPackageRoot)
-            || !IsAllowedPath(request.WorkpieceRootPath, _launchOptions.AllowedWorkpieceRoot))
+        }
+
+        if (!IsAllowedPath(request.ScriptArtifactRootPath, _launchOptions.AllowedScriptArtifactRoot) || !IsAllowedPath(request.LibraryPackageRootPath, _launchOptions.AllowedLibraryPackageRoot) || !IsAllowedPath(request.WorkpieceRootPath, _launchOptions.AllowedWorkpieceRoot))
         {
             throw new WorkerProtocolException(WorkerErrorCodes.PathOutsideRoot, "Worker artifact paths are outside the configured service roots. Worker 缓存路径超出了服务端允许的根目录。");
         }
+
         var runnerPath = ResolveRunnerPath();
         if (runnerPath is not null && !File.Exists(runnerPath))
         {
-            throw new FileNotFoundException(
-                $"Worker Runner executable was not found at '{runnerPath}'. Worker Runner 可执行文件不存在：'{runnerPath}'。",
-                runnerPath);
+            throw new FileNotFoundException($"Worker Runner executable was not found at '{runnerPath}'. Worker Runner 可执行文件不存在：'{runnerPath}'。", runnerPath);
         }
+
         if (request.Deadline <= DateTimeOffset.UtcNow)
         {
-            throw new TimeoutException(
-                "The run deadline elapsed before the runner started. Worker Runner 启动前运行截止时间已到。");
+            throw new TimeoutException("The run deadline elapsed before the runner started. Worker Runner 启动前运行截止时间已到。");
         }
 
         var process = StartProcess();
-        var transport = new StdioWorkerTransport(
-            process.StandardOutput.BaseStream,
-            process.StandardInput.BaseStream,
-            line => RecordDiagnostic(request.RunId, WorkerDiagnosticCodes.RunnerStdoutNoise, line));
+        var transport = new StdioWorkerTransport(process.StandardOutput.BaseStream, process.StandardInput.BaseStream, line =>
+        {
+            RecordDiagnostic(request.RunId, WorkerDiagnosticCodes.RunnerStdoutNoise, line);
+        });
         var stderrTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
         var deadlineCancellation = new CancellationTokenSource(request.Deadline - DateTimeOffset.UtcNow);
         var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadlineCancellation.Token);
         try
         {
-            var ready = await transport.ReceiveAsync(runCancellation.Token).AsTask()
-                .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
+            var receiveAsyncResult15 = transport.ReceiveAsync(runCancellation.Token);
+            var asTaskResult16 = receiveAsyncResult15.AsTask();
+            var ready = await asTaskResult16.WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (ready is null || ready.Kind != WorkerProtocolConstants.ReadyKind)
             {
-                throw new WorkerProtocolException(
-                    WorkerErrorCodes.HandshakeFailed,
-                    "Runner did not announce readiness. Worker Runner 未宣布就绪。");
+                throw new WorkerProtocolException(WorkerErrorCodes.HandshakeFailed, "Runner did not announce readiness. Worker Runner 未宣布就绪。");
             }
 
-            await transport.SendAsync(WorkerMessage.Create(WorkerProtocolConstants.HandshakeKind), runCancellation.Token);
-            var accepted = await transport.ReceiveAsync(runCancellation.Token).AsTask()
-                .WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
+            var createResult17 = WorkerMessage.Create(WorkerProtocolConstants.HandshakeKind);
+            await transport.SendAsync(createResult17, runCancellation.Token);
+            var receiveAsyncResult18 = transport.ReceiveAsync(runCancellation.Token);
+            var asTaskResult19 = receiveAsyncResult18.AsTask();
+            var accepted = await asTaskResult19.WaitAsync(_launchOptions.EffectiveHandshakeTimeout, runCancellation.Token);
             if (accepted is null || accepted.Kind != WorkerProtocolConstants.HandshakeAcceptedKind)
             {
-                throw new WorkerProtocolException(
-                    WorkerErrorCodes.ProtocolMismatch,
-                    "Runner rejected the worker protocol handshake. Worker Runner 拒绝了 Worker 协议握手。");
+                throw new WorkerProtocolException(WorkerErrorCodes.ProtocolMismatch, "Runner rejected the worker protocol handshake. Worker Runner 拒绝了 Worker 协议握手。");
             }
 
-            await transport.SendAsync(
-                WorkerMessage.Create(WorkerProtocolConstants.RunKind, WorkerProtocolCodec.SerializePayload(request), request.RunId, request.Deadline),
-                runCancellation.Token);
-
-            var session = new DebugRunSession(
-                this,
-                process,
-                transport,
-                stderrTask,
-                request,
-                publishEvent,
-                deadlineCancellation,
-                runCancellation);
+            var serializePayloadResult20 = WorkerProtocolCodec.SerializePayload(request);
+            var createResult21 = WorkerMessage.Create(WorkerProtocolConstants.RunKind, serializePayloadResult20, request.RunId, request.Deadline);
+            await transport.SendAsync(createResult21, runCancellation.Token);
+            var session = new DebugRunSession(this, process, transport, stderrTask, request, publishEvent, deadlineCancellation, runCancellation);
             _messageSessions[request.RunId] = session.MessageSession;
             session.Start();
             return session;
@@ -252,7 +296,10 @@ public sealed partial class WorkerSupervisor
             runCancellation.Dispose();
             await transport.CloseAsync(CancellationToken.None);
             if (!process.HasExited)
+            {
                 TerminateProcessTree(process);
+            }
+
             process.Dispose();
             throw;
         }
@@ -262,21 +309,17 @@ public sealed partial class WorkerSupervisor
     /// Delivers a JSON message to an explicitly registered endpoint in an active Worker run.
     /// 向活动 Worker 运行中已显式注册的入口投递 JSON 消息。
     /// </summary>
-    public Task<WorkerMessageDeliveryResponseDto> DeliverMessageAsync(
-        WorkerMessageDeliveryDto delivery,
-        CancellationToken cancellationToken = default)
+    public Task<WorkerMessageDeliveryResponseDto> DeliverMessageAsync(WorkerMessageDeliveryDto delivery, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(delivery);
-        return _messageSessions.TryGetValue(delivery.RunId, out var session)
-            ? session.DeliverAsync(delivery, cancellationToken)
-            : Task.FromResult(new WorkerMessageDeliveryResponseDto(
-                WorkerMessageDeliveryStatusDto.NotFound,
-                WorkerProtocolConstants.Version,
-                delivery.RunId,
-                delivery.MessageId,
-                delivery.Topic,
-                WorkerErrorCodes.NotFound,
-                "The Worker run is not active. Worker 运行当前不活动。"));
+        global::System.Threading.Tasks.Task<global::SereinFlow.Contracts.WorkerMessageDeliveryResponseDto> evaluatedValue22 = _messageSessions.TryGetValue(delivery.RunId, out var session) ? session.DeliverAsync(delivery, cancellationToken) : resolveFromResultResult();
+        return evaluatedValue22;
+        global::System.Threading.Tasks.Task<global::SereinFlow.Contracts.WorkerMessageDeliveryResponseDto> resolveFromResultResult()
+        {
+            var workerMessageDeliveryResponseDto = new WorkerMessageDeliveryResponseDto(WorkerMessageDeliveryStatusDto.NotFound, WorkerProtocolConstants.Version, delivery.RunId, delivery.MessageId, delivery.Topic, WorkerErrorCodes.NotFound, "The Worker run is not active. Worker 运行当前不活动。");
+            var fromResultResult = Task.FromResult(workerMessageDeliveryResponseDto);
+            return fromResultResult;
+        }
     }
 
     public sealed class DebugRunSession : IAsyncDisposable
@@ -285,6 +328,7 @@ public sealed partial class WorkerSupervisor
         private readonly Process _process;
         private readonly IWorkerTransport _transport;
         internal WorkerMessageSession MessageSession { get; }
+
         private readonly Task<string> _stderrTask;
         private readonly WorkerRunRequestDto _request;
         private readonly Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> _publishEvent;
@@ -294,16 +338,7 @@ public sealed partial class WorkerSupervisor
         private Task<WorkerRunResultDto>? _completion;
         private long _lastCommandSequence;
         private int _disposed;
-
-        internal DebugRunSession(
-            WorkerSupervisor supervisor,
-            Process process,
-            IWorkerTransport transport,
-            Task<string> stderrTask,
-            WorkerRunRequestDto request,
-            Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent,
-            CancellationTokenSource deadlineCancellation,
-            CancellationTokenSource runCancellation)
+        internal DebugRunSession(WorkerSupervisor supervisor, Process process, IWorkerTransport transport, Task<string> stderrTask, WorkerRunRequestDto request, Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent, CancellationTokenSource deadlineCancellation, CancellationTokenSource runCancellation)
         {
             _supervisor = supervisor;
             _process = process;
@@ -317,32 +352,46 @@ public sealed partial class WorkerSupervisor
         }
 
         public Guid RunId => _request.RunId;
-
         public Guid DebugSessionId => _request.Debug!.DebugSessionId;
 
         public Task<WorkerRunResultDto> Completion
-            => _completion ?? throw new InvalidOperationException(
-                "The debug session has not started monitoring. 调试会话尚未开始监控。");
+        {
+            get
+            {
+                var evaluatedValue23 = _completion ?? throw new InvalidOperationException("The debug session has not started monitoring. 调试会话尚未开始监控。");
+                return evaluatedValue23;
+            }
+        }
 
-        internal void Start() => _completion = MonitorAsync();
+        internal void Start()
+        {
+            _completion = MonitorAsync();
+        }
 
         public Task ContinueAsync(long commandSequence, CancellationToken cancellationToken = default)
-            => SendCommandAsync(WorkerProtocolConstants.DebugContinueKind, commandSequence, cancellationToken);
+        {
+            var sendCommandAsyncResult = SendCommandAsync(WorkerProtocolConstants.DebugContinueKind, commandSequence, cancellationToken);
+            return sendCommandAsyncResult;
+        }
 
         public Task StepAsync(long commandSequence, CancellationToken cancellationToken = default)
-            => SendCommandAsync(WorkerProtocolConstants.DebugStepKind, commandSequence, cancellationToken);
+        {
+            var sendCommandAsyncResult24 = SendCommandAsync(WorkerProtocolConstants.DebugStepKind, commandSequence, cancellationToken);
+            return sendCommandAsyncResult24;
+        }
 
         public Task StopAsync(long commandSequence, CancellationToken cancellationToken = default)
-            => SendCommandAsync(
-                WorkerProtocolConstants.DebugStopKind,
-                commandSequence,
-                cancellationToken,
-                cancelRunAfterCommand: true);
+        {
+            var sendCommandAsyncResult25 = SendCommandAsync(WorkerProtocolConstants.DebugStopKind, commandSequence, cancellationToken, cancelRunAfterCommand: true);
+            return sendCommandAsyncResult25;
+        }
 
         public async ValueTask DisposeAsync()
         {
             if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            {
                 return;
+            }
 
             if (!Completion.IsCompleted)
             {
@@ -354,6 +403,7 @@ public sealed partial class WorkerSupervisor
                 {
                 }
             }
+
             try
             {
                 await Completion.ConfigureAwait(false);
@@ -364,32 +414,26 @@ public sealed partial class WorkerSupervisor
             }
         }
 
-        private async Task SendCommandAsync(
-            string kind,
-            long commandSequence,
-            CancellationToken cancellationToken,
-            bool cancelRunAfterCommand = false)
+        private async Task SendCommandAsync(string kind, long commandSequence, CancellationToken cancellationToken, bool cancelRunAfterCommand = false)
         {
             if (commandSequence < 1)
             {
-                throw new ArgumentOutOfRangeException(
-                    nameof(commandSequence),
-                    "The debug command sequence must be positive. 调试命令序号必须为正数。");
-            }
-            if (Completion.IsCompleted)
-            {
-                throw new InvalidOperationException(
-                    "The debug run is already terminal. 调试运行已到达终态。");
+                throw new ArgumentOutOfRangeException(nameof(commandSequence), "The debug command sequence must be positive. 调试命令序号必须为正数。");
             }
 
-            await _commandGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            if (Completion.IsCompleted)
+            {
+                throw new InvalidOperationException("The debug run is already terminal. 调试运行已到达终态。");
+            }
+
+            var waitAsyncResult = _commandGate.WaitAsync(cancellationToken);
+            await waitAsyncResult.ConfigureAwait(false);
             var shouldCancelRun = false;
             try
             {
                 if (commandSequence <= _lastCommandSequence)
                 {
-                    throw new InvalidOperationException(
-                        "The debug command sequence must be strictly increasing. 调试命令序号必须严格递增。");
+                    throw new InvalidOperationException("The debug command sequence must be strictly increasing. 调试命令序号必须严格递增。");
                 }
 
                 // Stop is a run-lifecycle command, not merely a gate release.
@@ -400,18 +444,11 @@ public sealed partial class WorkerSupervisor
                 // 下一次触发而没有暂停闸门，因此 Supervisor 必须负责最终取消并执行宽限期
                 // 进程清理。
                 shouldCancelRun = cancelRunAfterCommand;
-                var command = new WorkerDebugCommandDto(
-                    WorkerProtocolConstants.Version,
-                    RunId,
-                    DebugSessionId,
-                    commandSequence);
-                await _transport.SendAsync(
-                    WorkerMessage.Create(
-                        kind,
-                        WorkerProtocolCodec.SerializePayload(command),
-                        RunId,
-                        sequence: commandSequence),
-                    cancellationToken).ConfigureAwait(false);
+                var command = new WorkerDebugCommandDto(WorkerProtocolConstants.Version, RunId, DebugSessionId, commandSequence);
+                var serializePayloadResult26 = WorkerProtocolCodec.SerializePayload(command);
+                var createResult27 = WorkerMessage.Create(kind, serializePayloadResult26, RunId, sequence: commandSequence);
+                var sendAsyncResult = _transport.SendAsync(createResult27, cancellationToken);
+                await sendAsyncResult.ConfigureAwait(false);
                 _lastCommandSequence = commandSequence;
             }
             finally
@@ -434,46 +471,50 @@ public sealed partial class WorkerSupervisor
         {
             try
             {
-                return await _supervisor.MonitorRunAsync(
-                    _process,
-                    _transport,
-                    _request,
-                    _publishEvent,
-                    _deadlineCancellation,
-                    _runCancellation.Token,
-                    MessageSession).ConfigureAwait(false);
+                var monitorRunAsyncResult28 = _supervisor.MonitorRunAsync(_process, _transport, _request, _publishEvent, _deadlineCancellation, _runCancellation.Token, MessageSession);
+                var configureAwaitResult = await monitorRunAsyncResult28.ConfigureAwait(false);
+                return configureAwaitResult;
             }
             catch (WorkerProtocolException exception)
             {
                 _supervisor.RecordProtocolDiagnostic(RunId, WorkerDiagnosticCodes.DebugProtocol, exception);
-                return Failure(RunId, exception.Code, exception.Message);
+                var failureResult29 = Failure(RunId, exception.Code, exception.Message);
+                return failureResult29;
             }
             catch (Exception exception)
             {
-                _supervisor.RecordDiagnostic(RunId, DebugErrorCodes.Supervisor, exception.ToString(), exception);
-                return Failure(
-                    RunId,
-                    WorkerErrorCodes.Crashed,
-                    "The runner exited before returning a valid result. Worker Runner 在返回有效结果前退出。");
+                var toStringResult30 = exception.ToString();
+                _supervisor.RecordDiagnostic(RunId, DebugErrorCodes.Supervisor, toStringResult30, exception);
+                var failureResult31 = Failure(RunId, WorkerErrorCodes.Crashed, "The runner exited before returning a valid result. Worker Runner 在返回有效结果前退出。");
+                return failureResult31;
             }
             finally
             {
                 if (!_process.HasExited)
+                {
                     TerminateProcessTree(_process);
+                }
+
                 try
                 {
-                    await _process.WaitForExitAsync().ConfigureAwait(false);
+                    var waitForExitAsyncResult = _process.WaitForExitAsync();
+                    await waitForExitAsyncResult.ConfigureAwait(false);
                 }
                 catch (InvalidOperationException)
                 {
                 }
 
-                var stderr = await ReadDiagnosticsAsync(_stderrTask).ConfigureAwait(false);
+                var readDiagnosticsAsyncResult = ReadDiagnosticsAsync(_stderrTask);
+                var stderr = await readDiagnosticsAsyncResult.ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(stderr))
+                {
                     _supervisor.RecordDiagnostic(RunId, WorkerDiagnosticCodes.RunnerStderr, stderr);
+                }
 
-                await _transport.CloseAsync().ConfigureAwait(false);
-                _supervisor._messageSessions.TryRemove(new KeyValuePair<Guid, WorkerMessageSession>(RunId, MessageSession));
+                var closeAsyncResult = _transport.CloseAsync();
+                await closeAsyncResult.ConfigureAwait(false);
+                var keyValuePair32 = new KeyValuePair<Guid, WorkerMessageSession>(RunId, MessageSession);
+                _supervisor._messageSessions.TryRemove(keyValuePair32);
                 MessageSession.Complete();
                 _process.Dispose();
                 _deadlineCancellation.Dispose();
@@ -482,22 +523,15 @@ public sealed partial class WorkerSupervisor
         }
     }
 
-    private async Task<WorkerRunResultDto> MonitorRunAsync(
-        Process process,
-        IWorkerTransport transport,
-        WorkerRunRequestDto request,
-        Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent,
-        CancellationTokenSource deadlineCancellation,
-        CancellationToken callerCancellationToken,
-        WorkerMessageSession? messageSession = null)
+    private async Task<WorkerRunResultDto> MonitorRunAsync(Process process, IWorkerTransport transport, WorkerRunRequestDto request, Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent, CancellationTokenSource deadlineCancellation, CancellationToken callerCancellationToken, WorkerMessageSession? messageSession = null)
     {
         using var heartbeatCancellation = new CancellationTokenSource();
-        var readTask = transport.ReceiveAsync(CancellationToken.None).AsTask();
+        var receiveAsyncResult38 = transport.ReceiveAsync(CancellationToken.None);
+        var readTask = receiveAsyncResult38.AsTask();
         var heartbeatTask = Task.Delay(_launchOptions.EffectiveHeartbeatInterval, heartbeatCancellation.Token);
         var callerCancellationTask = Task.Delay(Timeout.InfiniteTimeSpan, callerCancellationToken);
         var deadlineTask = Task.Delay(Timeout.InfiniteTimeSpan, deadlineCancellation.Token);
         long lastSequence = 0;
-
         while (true)
         {
             var completed = await Task.WhenAny(readTask, heartbeatTask, callerCancellationTask, deadlineTask);
@@ -505,114 +539,124 @@ public sealed partial class WorkerSupervisor
             {
                 var status = deadlineCancellation.IsCancellationRequested ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled;
                 var code = status == FlowRunStatusDto.TimedOut ? WorkerErrorCodes.TimedOut : WorkerErrorCodes.Cancelled;
-                return await CancelAndReturnAsync(process, transport, request, publishEvent, status, code, readTask, lastSequence, messageSession);
+                var cancelAndReturnAsyncResult33 = await CancelAndReturnAsync(process, transport, request, publishEvent, status, code, readTask, lastSequence, messageSession);
+                return cancelAndReturnAsyncResult33;
             }
 
             if (completed == heartbeatTask)
             {
-                await transport.SendAsync(WorkerMessage.Create(WorkerProtocolConstants.HeartbeatKind, runId: request.RunId), CancellationToken.None);
+                var createResult34 = WorkerMessage.Create(WorkerProtocolConstants.HeartbeatKind, runId: request.RunId);
+                await transport.SendAsync(createResult34, CancellationToken.None);
                 heartbeatTask = Task.Delay(_launchOptions.EffectiveHeartbeatInterval, heartbeatCancellation.Token);
                 continue;
             }
 
             var message = await readTask;
             if (message is null)
-                return Failure(request.RunId, WorkerErrorCodes.Crashed, "The runner closed its protocol stream without a result. Worker Runner 在返回结果前关闭了协议流。");
+            {
+                var failureResult35 = Failure(request.RunId, WorkerErrorCodes.Crashed, "The runner closed its protocol stream without a result. Worker Runner 在返回结果前关闭了协议流。");
+                return failureResult35;
+            }
 
             if (messageSession?.HandleControlMessage(message) == true)
             {
-                readTask = transport.ReceiveAsync(CancellationToken.None).AsTask();
+                var receiveAsyncResult36 = transport.ReceiveAsync(CancellationToken.None);
+                readTask = receiveAsyncResult36.AsTask();
                 continue;
             }
 
             var completion = await HandleMessageAsync(message, request, publishEvent, lastSequence, CancellationToken.None);
             if (completion.Result is not null)
+            {
                 return completion.Result;
+            }
+
             lastSequence = completion.LastSequence;
-            readTask = transport.ReceiveAsync(CancellationToken.None).AsTask();
+            var receiveAsyncResult37 = transport.ReceiveAsync(CancellationToken.None);
+            readTask = receiveAsyncResult37.AsTask();
         }
     }
 
-    private async Task<WorkerRunResultDto> CancelAndReturnAsync(
-        Process process,
-        IWorkerTransport transport,
-        WorkerRunRequestDto request,
-        Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent,
-        FlowRunStatusDto fallbackStatus,
-        string fallbackCode,
-        Task<WorkerMessage?>? existingReadTask = null,
-        long lastSequence = 0,
-        WorkerMessageSession? messageSession = null)
+    private async Task<WorkerRunResultDto> CancelAndReturnAsync(Process process, IWorkerTransport transport, WorkerRunRequestDto request, Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent, FlowRunStatusDto fallbackStatus, string fallbackCode, Task<WorkerMessage?>? existingReadTask = null, long lastSequence = 0, WorkerMessageSession? messageSession = null)
     {
         try
         {
-            await transport.SendAsync(
-                WorkerMessage.Create(
-                    WorkerProtocolConstants.CancelKind,
-                    WorkerProtocolCodec.SerializePayload(new WorkerCancelRequestDto(WorkerProtocolConstants.Version, request.RunId, fallbackCode)),
-                    request.RunId));
+            var workerCancelRequestDto = new WorkerCancelRequestDto(WorkerProtocolConstants.Version, request.RunId, fallbackCode);
+            var serializePayloadResult39 = WorkerProtocolCodec.SerializePayload(workerCancelRequestDto);
+            var createResult40 = WorkerMessage.Create(WorkerProtocolConstants.CancelKind, serializePayloadResult39, request.RunId);
+            await transport.SendAsync(createResult40);
         }
         catch (Exception)
         {
-            return await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner could not be reached for cancellation. 无法连接 Worker Runner 以取消运行。", fallbackStatus);
+            var terminateAndReturnAsyncResult41 = await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner could not be reached for cancellation. 无法连接 Worker Runner 以取消运行。", fallbackStatus);
+            return terminateAndReturnAsyncResult41;
         }
 
-        var readTask = existingReadTask ?? transport.ReceiveAsync(CancellationToken.None).AsTask();
+        var readTask = existingReadTask ?? resolveAsTaskResult();
         var graceDeadline = DateTimeOffset.UtcNow + _launchOptions.EffectiveCancellationGracePeriod;
         while (DateTimeOffset.UtcNow < graceDeadline)
         {
             var remaining = graceDeadline - DateTimeOffset.UtcNow;
-            var completed = await Task.WhenAny(readTask, Task.Delay(remaining));
+            var delayResult = Task.Delay(remaining);
+            var completed = await Task.WhenAny(readTask, delayResult);
             if (completed != readTask)
+            {
                 break;
+            }
 
             var message = await readTask;
             if (message is null)
+            {
                 break;
+            }
 
             if (messageSession?.HandleControlMessage(message) == true)
             {
-                readTask = transport.ReceiveAsync(CancellationToken.None).AsTask();
+                var receiveAsyncResult42 = transport.ReceiveAsync(CancellationToken.None);
+                readTask = receiveAsyncResult42.AsTask();
                 continue;
             }
 
             var completion = await HandleMessageAsync(message, request, publishEvent, lastSequence, CancellationToken.None);
             if (completion.Result is not null)
-                return NormalizeCancellationResult(completion.Result, request.RunId, fallbackStatus, fallbackCode);
+            {
+                var normalizeCancellationResultResult = NormalizeCancellationResult(completion.Result, request.RunId, fallbackStatus, fallbackCode);
+                return normalizeCancellationResultResult;
+            }
+
             lastSequence = completion.LastSequence;
-            readTask = transport.ReceiveAsync(CancellationToken.None).AsTask();
+            var receiveAsyncResult43 = transport.ReceiveAsync(CancellationToken.None);
+            readTask = receiveAsyncResult43.AsTask();
         }
 
-        return await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner did not stop before the cancellation grace period elapsed. Worker Runner 在取消宽限期结束前未停止。", fallbackStatus);
+        var terminateAndReturnAsyncResult46 = await TerminateAndReturnAsync(process, request.RunId, fallbackCode, "Runner did not stop before the cancellation grace period elapsed. Worker Runner 在取消宽限期结束前未停止。", fallbackStatus);
+        return terminateAndReturnAsyncResult46;
+        global::System.Threading.Tasks.Task<global::SereinFlow.Worker.Protocol.WorkerMessage?> resolveAsTaskResult()
+        {
+            var receiveAsyncResult44 = transport.ReceiveAsync(CancellationToken.None);
+            var asTaskResult45 = receiveAsyncResult44.AsTask();
+            return asTaskResult45;
+        }
     }
 
-    private static WorkerRunResultDto NormalizeCancellationResult(
-        WorkerRunResultDto result,
-        Guid runId,
-        FlowRunStatusDto fallbackStatus,
-        string fallbackCode)
+    private static WorkerRunResultDto NormalizeCancellationResult(WorkerRunResultDto result, Guid runId, FlowRunStatusDto fallbackStatus, string fallbackCode)
     {
         if (fallbackStatus != FlowRunStatusDto.TimedOut || result.Status != FlowRunStatusDto.Cancelled)
+        {
             return result;
+        }
 
-        return new WorkerRunResultDto(
-            WorkerProtocolConstants.Version,
-            runId,
-            FlowRunStatusDto.TimedOut,
-            fallbackCode,
-            "The run deadline elapsed. 运行截止时间已到。",
-            result.FinalVariables);
+        var workerRunResultDto47 = new WorkerRunResultDto(WorkerProtocolConstants.Version, runId, FlowRunStatusDto.TimedOut, fallbackCode, "The run deadline elapsed. 运行截止时间已到。", result.FinalVariables);
+        return workerRunResultDto47;
     }
 
-    private static async Task<(WorkerRunResultDto? Result, long LastSequence)> HandleMessageAsync(
-        WorkerMessage message,
-        WorkerRunRequestDto request,
-        Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent,
-        long lastSequence,
-        CancellationToken cancellationToken)
+    private static async Task<(WorkerRunResultDto? Result, long LastSequence)> HandleMessageAsync(WorkerMessage message, WorkerRunRequestDto request, Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent, long lastSequence, CancellationToken cancellationToken)
     {
         if (message.RunId is not null && message.RunId != request.RunId)
-            return (Failure(request.RunId, WorkerErrorCodes.InvalidMessage, "Runner returned a message for another run. Worker Runner 返回了属于其他运行实例的消息。"), lastSequence);
+        {
+            var evaluatedValue48 = (Failure(request.RunId, WorkerErrorCodes.InvalidMessage, "Runner returned a message for another run. Worker Runner 返回了属于其他运行实例的消息。"), lastSequence);
+            return evaluatedValue48;
+        }
 
         switch (message.Kind)
         {
@@ -620,22 +664,34 @@ public sealed partial class WorkerSupervisor
             {
                 var workerEvent = WorkerProtocolCodec.DeserializePayload<WorkerEventEnvelopeDto>(message);
                 if (workerEvent.RunId != request.RunId || workerEvent.Sequence <= lastSequence)
-                    return (Failure(request.RunId, WorkerErrorCodes.EventSequenceInvalid, "Runner event sequence is not strictly increasing. Worker Runner 的事件序列没有严格递增。"), lastSequence);
+                {
+                    var evaluatedValue49 = (Failure(request.RunId, WorkerErrorCodes.EventSequenceInvalid, "Runner event sequence is not strictly increasing. Worker Runner 的事件序列没有严格递增。"), lastSequence);
+                    return evaluatedValue49;
+                }
+
                 await publishEvent(workerEvent, cancellationToken);
                 return (null, workerEvent.Sequence);
             }
+
             case WorkerProtocolConstants.ResultKind:
             {
                 var result = WorkerProtocolCodec.DeserializePayload<WorkerRunResultDto>(message);
                 if (result.RunId != request.RunId || result.ProtocolVersion != WorkerProtocolConstants.Version)
-                    return (Failure(request.RunId, WorkerErrorCodes.InvalidResult, "Runner returned an invalid result. Worker Runner 返回了无效结果。"), lastSequence);
+                {
+                    var evaluatedValue50 = (Failure(request.RunId, WorkerErrorCodes.InvalidResult, "Runner returned an invalid result. Worker Runner 返回了无效结果。"), lastSequence);
+                    return evaluatedValue50;
+                }
+
                 return (result, lastSequence);
             }
+
             case WorkerProtocolConstants.ErrorKind:
             {
                 var error = WorkerProtocolCodec.DeserializePayload<WorkerErrorDto>(message);
-                return (Failure(request.RunId, error.Code, error.Message) with { FinalVariables = error.FinalVariables }, lastSequence);
+                var evaluatedValue51 = (Failure(request.RunId, error.Code, error.Message)with { FinalVariables = error.FinalVariables }, lastSequence);
+                return evaluatedValue51;
             }
+
             case WorkerProtocolConstants.CancelAcknowledgedKind:
             case WorkerProtocolConstants.HeartbeatAcknowledgedKind:
             case WorkerProtocolConstants.ReadyKind:
@@ -643,7 +699,8 @@ public sealed partial class WorkerSupervisor
             case WorkerProtocolConstants.HandshakeAcceptedKind:
                 return (null, lastSequence);
             default:
-                return (Failure(request.RunId, WorkerErrorCodes.InvalidMessage, $"Runner sent unsupported message '{message.Kind}'. Worker Runner 发送了不支持的消息“{message.Kind}”。"), lastSequence);
+                var evaluatedValue52 = (Failure(request.RunId, WorkerErrorCodes.InvalidMessage, $"Runner sent unsupported message '{message.Kind}'. Worker Runner 发送了不支持的消息“{message.Kind}”。"), lastSequence);
+                return evaluatedValue52;
         }
     }
 
@@ -661,18 +718,26 @@ public sealed partial class WorkerSupervisor
             CreateNoWindow = true
         };
         if (!string.IsNullOrWhiteSpace(_launchOptions.WorkingDirectory))
+        {
             startInfo.WorkingDirectory = _launchOptions.WorkingDirectory;
-        foreach (var argument in _launchOptions.Arguments)
-            startInfo.ArgumentList.Add(argument);
+        }
 
-        return Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Unable to start the worker runner process. 无法启动 Worker Runner 进程。");
+        foreach (var argument in _launchOptions.Arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        var evaluatedValue53 = Process.Start(startInfo) ?? throw new InvalidOperationException("Unable to start the worker runner process. 无法启动 Worker Runner 进程。");
+        return evaluatedValue53;
     }
 
     private static async Task<WorkerRunResultDto> TerminateAndReturnAsync(Process process, Guid runId, string code, string message, FlowRunStatusDto status)
     {
         if (!process.HasExited)
+        {
             TerminateProcessTree(process);
+        }
+
         try
         {
             await process.WaitForExitAsync();
@@ -680,7 +745,9 @@ public sealed partial class WorkerSupervisor
         catch (InvalidOperationException)
         {
         }
-        return new WorkerRunResultDto(WorkerProtocolConstants.Version, runId, status, code, message);
+
+        var workerRunResultDto54 = new WorkerRunResultDto(WorkerProtocolConstants.Version, runId, status, code, message);
+        return workerRunResultDto54;
     }
 
     private static void TerminateProcessTree(Process process)
@@ -695,7 +762,10 @@ public sealed partial class WorkerSupervisor
     }
 
     private static WorkerRunResultDto Failure(Guid runId, string code, string message)
-        => new(WorkerProtocolConstants.Version, runId, FlowRunStatusDto.Failed, code, message);
+    {
+        global::SereinFlow.Contracts.WorkerRunResultDto evaluatedValue55 = new(WorkerProtocolConstants.Version, runId, FlowRunStatusDto.Failed, code, message);
+        return evaluatedValue55;
+    }
 
     private static bool IsAllowedPath(string? candidate, string? allowedRoot)
     {
@@ -704,17 +774,22 @@ public sealed partial class WorkerSupervisor
         // request must carry a path and that path must stay inside the root.
         // 未配置该能力时允许两者均为空；一旦配置根目录，请求必须提供路径且路径不得越界。
         if (string.IsNullOrWhiteSpace(candidate))
-            return string.IsNullOrWhiteSpace(allowedRoot);
+        {
+            var isNullOrWhiteSpaceResult = string.IsNullOrWhiteSpace(allowedRoot);
+            return isNullOrWhiteSpaceResult;
+        }
+
         if (string.IsNullOrWhiteSpace(allowedRoot))
+        {
             return false;
+        }
 
         try
         {
             var root = NormalizePath(allowedRoot);
             var path = NormalizePath(candidate);
-            return string.Equals(path, root, StringComparison.OrdinalIgnoreCase)
-                || path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                || path.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+            var evaluatedValue56 = string.Equals(path, root, StringComparison.OrdinalIgnoreCase) || path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || path.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+            return evaluatedValue56;
         }
         catch (ArgumentException)
         {
@@ -735,17 +810,17 @@ public sealed partial class WorkerSupervisor
     }
 
     private static string NormalizePath(string value)
-        => Path.GetFullPath(value)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    {
+        var getFullPathResult = Path.GetFullPath(value);
+        var trimEndResult = getFullPathResult.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return trimEndResult;
+    }
 
     private string? ResolveRunnerPath()
     {
         foreach (var argument in _launchOptions.Arguments.Reverse())
         {
-            if (Path.IsPathRooted(argument)
-                && (argument.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
-                    || argument.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                    || !Path.HasExtension(argument)))
+            if (Path.IsPathRooted(argument) && (argument.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) || argument.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || !Path.HasExtension(argument)))
             {
                 return argument;
             }
@@ -756,43 +831,36 @@ public sealed partial class WorkerSupervisor
 
     private void RecordProtocolDiagnostic(Guid runId, string phase, WorkerProtocolException exception)
     {
-        var location = exception.JsonLineNumber is null
-            ? string.Empty
-            : $" line={exception.JsonLineNumber} byte={exception.JsonBytePositionInLine}";
-        var raw = exception.RawMessage is null
-            ? string.Empty
-            : $" raw={TrimDiagnostic(exception.RawMessage)}";
-        RecordDiagnostic(
-            runId,
-            phase,
-            $"code={exception.Code}; message={exception.Message};{location}{raw}",
-            exception);
+        var location = exception.JsonLineNumber is null ? string.Empty : $" line={exception.JsonLineNumber} byte={exception.JsonBytePositionInLine}";
+        var raw = exception.RawMessage is null ? string.Empty : $" raw={TrimDiagnostic(exception.RawMessage)}";
+        RecordDiagnostic(runId, phase, $"code={exception.Code}; message={exception.Message};{location}{raw}", exception);
     }
 
     private void RecordDiagnostic(Guid runId, string phase, string message, Exception? exception = null)
     {
         if (_launchOptions.DiagnosticLogger is null)
+        {
             return;
+        }
 
-        var exceptionDetails = exception is null
-            ? string.Empty
-            : $" exception={exception.GetType().FullName}: {exception.InnerException?.Message ?? exception.Message}";
+        var exceptionDetails = exception is null ? string.Empty : $" exception={exception.GetType().FullName}: {exception.InnerException?.Message ?? exception.Message}";
         try
         {
-            _launchOptions.DiagnosticLogger(
-                $"Worker diagnostic runId={runId:D} phase={phase}; Worker 诊断 runId={runId:D} 阶段={phase}；{TrimDiagnostic(message)}{exceptionDetails}");
+            var evaluatedValue57 = $"Worker diagnostic runId={runId:D} phase={phase}; Worker 诊断 runId={runId:D} 阶段={phase}；{TrimDiagnostic(message)}{exceptionDetails}";
+            _launchOptions.DiagnosticLogger(evaluatedValue57);
         }
         catch
         {
-            // Logging must never alter Worker lifecycle or mask the original error.
-            // 记录日志失败时不能改变 Worker 生命周期，也不能覆盖原始错误。
+        // Logging must never alter Worker lifecycle or mask the original error.
+        // 记录日志失败时不能改变 Worker 生命周期，也不能覆盖原始错误。
         }
     }
 
     private static string TrimDiagnostic(string value)
     {
         const int maxLength = 4096;
-        var normalized = value.Replace("\r", "\\r", StringComparison.Ordinal).Replace("\n", "\\n", StringComparison.Ordinal);
+        var replaceResult = value.Replace("\r", "\\r", StringComparison.Ordinal);
+        var normalized = replaceResult.Replace("\n", "\\n", StringComparison.Ordinal);
         return normalized.Length <= maxLength ? normalized : normalized[..maxLength] + "…";
     }
 
@@ -817,100 +885,105 @@ internal sealed partial class WorkerMessageSession
     private readonly ConcurrentDictionary<MessageEndpointKey, WorkerMessageEndpointDto> _endpoints = new();
     private readonly ConcurrentDictionary<string, PendingDelivery> _pending = new(StringComparer.Ordinal);
     private int _completed;
-
-    public WorkerMessageSession(
-        IWorkerTransport transport,
-        WorkerRunRequestDto request,
-        TimeSpan deliveryTimeout)
+    public WorkerMessageSession(IWorkerTransport transport, WorkerRunRequestDto request, TimeSpan deliveryTimeout)
     {
         _transport = transport;
         _request = request;
         _deliveryTimeout = deliveryTimeout;
     }
 
-    public async Task<WorkerMessageDeliveryResponseDto> DeliverAsync(
-        WorkerMessageDeliveryDto delivery,
-        CancellationToken cancellationToken)
+    public async Task<WorkerMessageDeliveryResponseDto> DeliverAsync(WorkerMessageDeliveryDto delivery, CancellationToken cancellationToken)
     {
         if (Volatile.Read(ref _completed) == 1)
-            return NotFound(delivery);
+        {
+            var notFoundResult = NotFound(delivery);
+            return notFoundResult;
+        }
+
         if (delivery.ProtocolVersion != WorkerProtocolConstants.Version)
-            return Rejected(delivery, MessageErrorCodes.ProtocolMismatch, "The message protocol version is not supported. 消息协议版本不受支持。");
+        {
+            var rejectedResult = Rejected(delivery, MessageErrorCodes.ProtocolMismatch, "The message protocol version is not supported. 消息协议版本不受支持。");
+            return rejectedResult;
+        }
+
         if (delivery.RunId != _request.RunId)
-            return Rejected(delivery, MessageErrorCodes.RunMismatch, "The message belongs to another Worker run. 消息属于其他 Worker 运行。");
+        {
+            var rejectedResult58 = Rejected(delivery, MessageErrorCodes.RunMismatch, "The message belongs to another Worker run. 消息属于其他 Worker 运行。");
+            return rejectedResult58;
+        }
+
         if (delivery.MessageId == Guid.Empty)
-            return Rejected(delivery, MessageErrorCodes.IdRequired, "MessageId is required. MessageId 不能为空。");
+        {
+            var rejectedResult59 = Rejected(delivery, MessageErrorCodes.IdRequired, "MessageId is required. MessageId 不能为空。");
+            return rejectedResult59;
+        }
+
         if (string.IsNullOrWhiteSpace(delivery.Topic))
-            return Rejected(delivery, MessageErrorCodes.TopicRequired, "Message topic is required. 消息主题不能为空。");
+        {
+            var rejectedResult60 = Rejected(delivery, MessageErrorCodes.TopicRequired, "Message topic is required. 消息主题不能为空。");
+            return rejectedResult60;
+        }
+
         if (!Enum.IsDefined(delivery.ChannelKind))
-            return Rejected(delivery, MessageErrorCodes.ChannelInvalid, "The message channel kind is not supported. 消息通道类型不受支持。");
+        {
+            var rejectedResult61 = Rejected(delivery, MessageErrorCodes.ChannelInvalid, "The message channel kind is not supported. 消息通道类型不受支持。");
+            return rejectedResult61;
+        }
+
         if (delivery.SerializationMode != WorkerMessageSerializationModeDto.Json)
-            return Rejected(delivery, MessageErrorCodes.ExternalJsonRequired, "External ingress only accepts JSON messages. 外部入口只接受 JSON 消息。");
+        {
+            var rejectedResult62 = Rejected(delivery, MessageErrorCodes.ExternalJsonRequired, "External ingress only accepts JSON messages. 外部入口只接受 JSON 消息。");
+            return rejectedResult62;
+        }
 
-        var key = new MessageEndpointKey(delivery.ChannelKind, delivery.Topic.Trim());
+        var trimResult = delivery.Topic.Trim();
+        var key = new MessageEndpointKey(delivery.ChannelKind, trimResult);
         if (!_endpoints.TryGetValue(key, out var endpoint))
-            return new WorkerMessageDeliveryResponseDto(
-                WorkerMessageDeliveryStatusDto.NotReady,
-                WorkerProtocolConstants.Version,
-                delivery.RunId,
-                delivery.MessageId,
-                delivery.Topic,
-                MessageErrorCodes.EndpointNotReady,
-                "The message endpoint is not registered. 消息入口尚未注册。");
-        if (!endpoint.ExternalIngress)
-            return Rejected(delivery, MessageErrorCodes.EndpointForbidden, "The message endpoint is not open to external ingress. 消息入口未开放外部投递。");
+        {
+            var workerMessageDeliveryResponseDto63 = new WorkerMessageDeliveryResponseDto(WorkerMessageDeliveryStatusDto.NotReady, WorkerProtocolConstants.Version, delivery.RunId, delivery.MessageId, delivery.Topic, MessageErrorCodes.EndpointNotReady, "The message endpoint is not registered. 消息入口尚未注册。");
+            return workerMessageDeliveryResponseDto63;
+        }
 
-        var requestId = Guid.NewGuid().ToString("N");
-        var pending = new PendingDelivery(
-            delivery,
-            new TaskCompletionSource<WorkerMessageDeliveryResponseDto>(
-                TaskCreationOptions.RunContinuationsAsynchronously));
+        if (!endpoint.ExternalIngress)
+        {
+            var rejectedResult64 = Rejected(delivery, MessageErrorCodes.EndpointForbidden, "The message endpoint is not open to external ingress. 消息入口未开放外部投递。");
+            return rejectedResult64;
+        }
+
+        var newGuidResult = Guid.NewGuid();
+        var requestId = newGuidResult.ToString("N");
+        var taskCompletionSource = new TaskCompletionSource<WorkerMessageDeliveryResponseDto>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = new PendingDelivery(delivery, taskCompletionSource);
         if (!_pending.TryAdd(requestId, pending))
-            return Rejected(delivery, MessageErrorCodes.CorrelationConflict, "The message correlation ID was already in use. 消息关联 ID 已被使用。");
+        {
+            var rejectedResult65 = Rejected(delivery, MessageErrorCodes.CorrelationConflict, "The message correlation ID was already in use. 消息关联 ID 已被使用。");
+            return rejectedResult65;
+        }
 
         try
         {
-            await _transport.SendAsync(
-                WorkerMessage.Create(
-                    WorkerProtocolConstants.MessageDeliverKind,
-                    WorkerProtocolCodec.SerializePayload(delivery),
-                    delivery.RunId,
-                    requestId: requestId),
-                cancellationToken).ConfigureAwait(false);
-            return await pending.Completion.Task.WaitAsync(_deliveryTimeout, cancellationToken).ConfigureAwait(false);
+            var serializePayloadResult66 = WorkerProtocolCodec.SerializePayload(delivery);
+            var createResult67 = WorkerMessage.Create(WorkerProtocolConstants.MessageDeliverKind, serializePayloadResult66, delivery.RunId, requestId: requestId);
+            var sendAsyncResult68 = _transport.SendAsync(createResult67, cancellationToken);
+            await sendAsyncResult68.ConfigureAwait(false);
+            var waitAsyncResult69 = pending.Completion.Task.WaitAsync(_deliveryTimeout, cancellationToken);
+            var configureAwaitResult70 = await waitAsyncResult69.ConfigureAwait(false);
+            return configureAwaitResult70;
         }
         catch (TimeoutException)
         {
-            return new WorkerMessageDeliveryResponseDto(
-                WorkerMessageDeliveryStatusDto.TimedOut,
-                WorkerProtocolConstants.Version,
-                delivery.RunId,
-                delivery.MessageId,
-                delivery.Topic,
-                MessageErrorCodes.DeliveryTimeout,
-                "The Worker did not acknowledge the message before the delivery timeout. Worker 未在投递超时前确认消息。");
+            var workerMessageDeliveryResponseDto71 = new WorkerMessageDeliveryResponseDto(WorkerMessageDeliveryStatusDto.TimedOut, WorkerProtocolConstants.Version, delivery.RunId, delivery.MessageId, delivery.Topic, MessageErrorCodes.DeliveryTimeout, "The Worker did not acknowledge the message before the delivery timeout. Worker 未在投递超时前确认消息。");
+            return workerMessageDeliveryResponseDto71;
         }
         catch (WorkerTransportException exception)
         {
-            return new WorkerMessageDeliveryResponseDto(
-                WorkerMessageDeliveryStatusDto.NotFound,
-                WorkerProtocolConstants.Version,
-                delivery.RunId,
-                delivery.MessageId,
-                delivery.Topic,
-                exception.Code,
-                "The Worker transport is no longer available. Worker 传输已不可用。");
+            var workerMessageDeliveryResponseDto72 = new WorkerMessageDeliveryResponseDto(WorkerMessageDeliveryStatusDto.NotFound, WorkerProtocolConstants.Version, delivery.RunId, delivery.MessageId, delivery.Topic, exception.Code, "The Worker transport is no longer available. Worker 传输已不可用。");
+            return workerMessageDeliveryResponseDto72;
         }
         catch (IOException exception)
         {
-            return new WorkerMessageDeliveryResponseDto(
-                WorkerMessageDeliveryStatusDto.NotFound,
-                WorkerProtocolConstants.Version,
-                delivery.RunId,
-                delivery.MessageId,
-                delivery.Topic,
-                WorkerErrorCodes.TransportClosed,
-                exception.Message);
+            var workerMessageDeliveryResponseDto73 = new WorkerMessageDeliveryResponseDto(WorkerMessageDeliveryStatusDto.NotFound, WorkerProtocolConstants.Version, delivery.RunId, delivery.MessageId, delivery.Topic, WorkerErrorCodes.TransportClosed, exception.Message);
+            return workerMessageDeliveryResponseDto73;
         }
         finally
         {
@@ -922,32 +995,37 @@ internal sealed partial class WorkerMessageSession
     {
         if (message.RunId != _request.RunId)
         {
-            throw new WorkerProtocolException(
-                MessageErrorCodes.RunMismatch,
-                "The Worker message belongs to another run. Worker 消息属于其他运行实例。");
+            throw new WorkerProtocolException(MessageErrorCodes.RunMismatch, "The Worker message belongs to another run. Worker 消息属于其他运行实例。");
         }
 
         switch (message.Kind)
         {
             case WorkerProtocolConstants.VariableResponseKind:
-                return HandleVariableResponse(message);
+                var handleVariableResponseResult = HandleVariableResponse(message);
+                return handleVariableResponseResult;
             case WorkerProtocolConstants.MessageRegisterKind:
             {
                 var endpoint = WorkerProtocolCodec.DeserializePayload<WorkerMessageEndpointDto>(message);
                 ValidateEndpoint(endpoint);
-                _endpoints[new MessageEndpointKey(endpoint.ChannelKind, endpoint.Topic.Trim())] = endpoint with
+                var trimResult1 = endpoint.Topic.Trim();
+                var indexKey = new MessageEndpointKey(endpoint.ChannelKind, trimResult1);
+                _endpoints[indexKey] = endpoint with
                 {
                     Topic = endpoint.Topic.Trim()
                 };
                 return true;
             }
+
             case WorkerProtocolConstants.MessageUnregisterKind:
             {
                 var endpoint = WorkerProtocolCodec.DeserializePayload<WorkerMessageEndpointDto>(message);
                 ValidateEndpoint(endpoint);
-                _endpoints.TryRemove(new MessageEndpointKey(endpoint.ChannelKind, endpoint.Topic.Trim()), out _);
+                var trimResult74 = endpoint.Topic.Trim();
+                var messageEndpointKey = new MessageEndpointKey(endpoint.ChannelKind, trimResult74);
+                _endpoints.TryRemove(messageEndpointKey, out _);
                 return true;
             }
+
             case WorkerProtocolConstants.MessageAcceptedKind:
             {
                 var accepted = WorkerProtocolCodec.DeserializePayload<WorkerMessageAcceptedDto>(message);
@@ -955,18 +1033,13 @@ internal sealed partial class WorkerMessageSession
                 if (_pending.TryGetValue(message.RequestId, out var pending))
                 {
                     ValidateReceiptMatches(pending.Delivery, accepted.MessageId, accepted.Topic);
-                    pending.Completion.TrySetResult(new WorkerMessageDeliveryResponseDto(
-                        WorkerMessageDeliveryStatusDto.Accepted,
-                        accepted.ProtocolVersion,
-                        accepted.RunId,
-                        accepted.MessageId,
-                        accepted.Topic,
-                        null,
-                        "The message was accepted by the Worker. Worker 已接受消息。",
-                        accepted.Duplicate));
+                    var workerMessageDeliveryResponseDto75 = new WorkerMessageDeliveryResponseDto(WorkerMessageDeliveryStatusDto.Accepted, accepted.ProtocolVersion, accepted.RunId, accepted.MessageId, accepted.Topic, null, "The message was accepted by the Worker. Worker 已接受消息。", accepted.Duplicate);
+                    pending.Completion.TrySetResult(workerMessageDeliveryResponseDto75);
                 }
+
                 return true;
             }
+
             case WorkerProtocolConstants.MessageRejectedKind:
             {
                 var rejected = WorkerProtocolCodec.DeserializePayload<WorkerMessageRejectedDto>(message);
@@ -974,17 +1047,13 @@ internal sealed partial class WorkerMessageSession
                 if (_pending.TryGetValue(message.RequestId, out var pending))
                 {
                     ValidateReceiptMatches(pending.Delivery, rejected.MessageId, rejected.Topic);
-                    pending.Completion.TrySetResult(new WorkerMessageDeliveryResponseDto(
-                        WorkerMessageDeliveryStatusDto.Rejected,
-                        rejected.ProtocolVersion,
-                        rejected.RunId,
-                        rejected.MessageId,
-                        rejected.Topic,
-                        rejected.Code,
-                        rejected.Message));
+                    var workerMessageDeliveryResponseDto76 = new WorkerMessageDeliveryResponseDto(WorkerMessageDeliveryStatusDto.Rejected, rejected.ProtocolVersion, rejected.RunId, rejected.MessageId, rejected.Topic, rejected.Code, rejected.Message);
+                    pending.Completion.TrySetResult(workerMessageDeliveryResponseDto76);
                 }
+
                 return true;
             }
+
             default:
                 return false;
         }
@@ -993,86 +1062,65 @@ internal sealed partial class WorkerMessageSession
     public void Complete()
     {
         if (Interlocked.Exchange(ref _completed, 1) == 1)
+        {
             return;
+        }
+
         CompleteVariables();
         foreach (var pending in _pending.Values)
         {
-            pending.Completion.TrySetResult(new WorkerMessageDeliveryResponseDto(
-                WorkerMessageDeliveryStatusDto.NotFound,
-                WorkerProtocolConstants.Version,
-                _request.RunId,
-                Guid.Empty,
-                string.Empty,
-                WorkerErrorCodes.NotFound,
-                "The Worker run is no longer active. Worker 运行已不再活动。"));
+            var workerMessageDeliveryResponseDto77 = new WorkerMessageDeliveryResponseDto(WorkerMessageDeliveryStatusDto.NotFound, WorkerProtocolConstants.Version, _request.RunId, Guid.Empty, string.Empty, WorkerErrorCodes.NotFound, "The Worker run is no longer active. Worker 运行已不再活动。");
+            pending.Completion.TrySetResult(workerMessageDeliveryResponseDto77);
         }
+
         _pending.Clear();
         _endpoints.Clear();
     }
 
     private void ValidateEndpoint(WorkerMessageEndpointDto endpoint)
     {
-        if (endpoint.ProtocolVersion != WorkerProtocolConstants.Version
-            || endpoint.RunId != _request.RunId
-            || string.IsNullOrWhiteSpace(endpoint.Topic)
-            || !Enum.IsDefined(endpoint.ChannelKind)
-            || !Enum.IsDefined(endpoint.SerializationMode))
+        if (endpoint.ProtocolVersion != WorkerProtocolConstants.Version || endpoint.RunId != _request.RunId || string.IsNullOrWhiteSpace(endpoint.Topic) || !Enum.IsDefined(endpoint.ChannelKind) || !Enum.IsDefined(endpoint.SerializationMode))
         {
-            throw new WorkerProtocolException(
-                MessageErrorCodes.EndpointInvalid,
-                "The Worker message endpoint registration is invalid. Worker 消息端点注册无效。");
+            throw new WorkerProtocolException(MessageErrorCodes.EndpointInvalid, "The Worker message endpoint registration is invalid. Worker 消息端点注册无效。");
         }
     }
 
     private void ValidateReceipt(int protocolVersion, Guid runId, Guid messageId, string topic)
     {
-        if (protocolVersion != WorkerProtocolConstants.Version
-            || runId != _request.RunId
-            || messageId == Guid.Empty
-            || string.IsNullOrWhiteSpace(topic))
+        if (protocolVersion != WorkerProtocolConstants.Version || runId != _request.RunId || messageId == Guid.Empty || string.IsNullOrWhiteSpace(topic))
         {
-            throw new WorkerProtocolException(
-                MessageErrorCodes.ReceiptInvalid,
-                "The Worker message receipt is invalid. Worker 消息应答无效。");
+            throw new WorkerProtocolException(MessageErrorCodes.ReceiptInvalid, "The Worker message receipt is invalid. Worker 消息应答无效。");
         }
     }
 
     private static void ValidateReceiptMatches(WorkerMessageDeliveryDto delivery, Guid messageId, string topic)
     {
-        if (delivery.MessageId != messageId
-            || !string.Equals(delivery.Topic.Trim(), topic.Trim(), StringComparison.Ordinal))
+        if (delivery.MessageId != messageId || !resolveEqualsResult())
         {
-            throw new WorkerProtocolException(
-                MessageErrorCodes.ReceiptMismatch,
-                "The Worker message receipt does not match the delivery request. Worker 消息应答与投递请求不匹配。");
+            throw new WorkerProtocolException(MessageErrorCodes.ReceiptMismatch, "The Worker message receipt does not match the delivery request. Worker 消息应答与投递请求不匹配。");
+        }
+
+        bool resolveEqualsResult()
+        {
+            var trimResult78 = delivery.Topic.Trim();
+            var trimResult79 = topic.Trim();
+            var equalsResult = string.Equals(trimResult78, trimResult79, StringComparison.Ordinal);
+            return equalsResult;
         }
     }
 
     private static WorkerMessageDeliveryResponseDto NotFound(WorkerMessageDeliveryDto delivery)
-        => new(
-            WorkerMessageDeliveryStatusDto.NotFound,
-            WorkerProtocolConstants.Version,
-            delivery.RunId,
-            delivery.MessageId,
-            delivery.Topic,
-            WorkerErrorCodes.NotFound,
-            "The Worker run is not active. Worker 运行当前不活动。");
+    {
+        global::SereinFlow.Contracts.WorkerMessageDeliveryResponseDto evaluatedValue80 = new(WorkerMessageDeliveryStatusDto.NotFound, WorkerProtocolConstants.Version, delivery.RunId, delivery.MessageId, delivery.Topic, WorkerErrorCodes.NotFound, "The Worker run is not active. Worker 运行当前不活动。");
+        return evaluatedValue80;
+    }
 
     private static WorkerMessageDeliveryResponseDto Rejected(WorkerMessageDeliveryDto delivery, string code, string message)
-        => new(
-            WorkerMessageDeliveryStatusDto.Rejected,
-            WorkerProtocolConstants.Version,
-            delivery.RunId,
-            delivery.MessageId,
-            delivery.Topic,
-            code,
-            message);
+    {
+        global::SereinFlow.Contracts.WorkerMessageDeliveryResponseDto evaluatedValue81 = new(WorkerMessageDeliveryStatusDto.Rejected, WorkerProtocolConstants.Version, delivery.RunId, delivery.MessageId, delivery.Topic, code, message);
+        return evaluatedValue81;
+    }
 
-    private readonly record struct MessageEndpointKey(
-        WorkerMessageChannelKindDto ChannelKind,
-        string Topic);
-
-    private sealed record PendingDelivery(
-        WorkerMessageDeliveryDto Delivery,
-        TaskCompletionSource<WorkerMessageDeliveryResponseDto> Completion);
+    private readonly record struct MessageEndpointKey(WorkerMessageChannelKindDto ChannelKind, string Topic);
+    private sealed record PendingDelivery(WorkerMessageDeliveryDto Delivery, TaskCompletionSource<WorkerMessageDeliveryResponseDto> Completion);
 }

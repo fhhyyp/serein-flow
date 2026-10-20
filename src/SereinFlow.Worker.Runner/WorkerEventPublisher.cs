@@ -6,16 +6,13 @@ using SereinFlow.ScriptAdapter;
 using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Worker.Runner;
-
 internal sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runId) : IRunEventPublisher, IAsyncDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly SortedDictionary<long, WorkerEventEnvelopeDto> _pending = [];
-
     // RunStarted is written by RunnerHost before this publisher is created,
     // so the first runtime event has sequence 2.
     private long _lastWrittenSequence = 1;
-
     public async ValueTask PublishAsync(RuntimeEvent runtimeEvent, CancellationToken cancellationToken)
     {
         var eventType = runtimeEvent.Type switch
@@ -34,29 +31,17 @@ internal sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runI
             DebugErrorCodes.TriggerFailed => WorkerEventType.DebugTriggerFailed,
             _ => WorkerEventType.Log
         };
-
+        var toAuditValueResult = ScriptValueConverter.ToAuditValue(runtimeEvent.Payload);
+        var createWebOptionsResult = SereinJsonSerialization.CreateWebOptions();
         // Runtime sessions can retain ScriptLang.Value instances so a following
         // DLL node can convert them against its declared type. The protocol
         // boundary must receive only a safe audit projection.
-        var payload = JsonSerializer.Serialize(
-            ScriptValueConverter.ToAuditValue(runtimeEvent.Payload),
-            SereinJsonSerialization.CreateWebOptions());
-        var envelope = new WorkerEventEnvelopeDto(
-            WorkerProtocolConstants.Version,
-            runId,
-            runtimeEvent.Sequence,
-            runtimeEvent.Timestamp,
-            eventType,
-            runtimeEvent.NodeId,
-            payload);
-
+        var payload = JsonSerializer.Serialize(toAuditValueResult, createWebOptionsResult);
+        var envelope = new WorkerEventEnvelopeDto(WorkerProtocolConstants.Version, runId, runtimeEvent.Sequence, runtimeEvent.Timestamp, eventType, runtimeEvent.NodeId, payload);
         await PublishEnvelopeAsync(envelope, cancellationToken);
     }
 
-    public ValueTask PublishDebugPausedAsync(
-        WorkerDebugPauseDto pause,
-        long sequence,
-        CancellationToken cancellationToken)
+    public ValueTask PublishDebugPausedAsync(WorkerDebugPauseDto pause, long sequence, CancellationToken cancellationToken)
     {
         var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
@@ -70,22 +55,14 @@ internal sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runI
             ["triggerInvocationId"] = pause.TriggerInvocationId,
             ["executionId"] = pause.ExecutionId
         };
-
-        return PublishEnvelopeAsync(
-            new WorkerEventEnvelopeDto(
-                WorkerProtocolConstants.Version,
-                runId,
-                sequence,
-                DateTimeOffset.UtcNow,
-                WorkerEventType.DebugPaused,
-                pause.NodeId,
-                JsonSerializer.Serialize(payload, SereinJsonSerialization.CreateWebOptions())),
-            cancellationToken);
+        var createWebOptionsResult1 = SereinJsonSerialization.CreateWebOptions();
+        var serializeResult = JsonSerializer.Serialize(payload, createWebOptionsResult1);
+        var workerEventEnvelopeDto = new WorkerEventEnvelopeDto(WorkerProtocolConstants.Version, runId, sequence, DateTimeOffset.UtcNow, WorkerEventType.DebugPaused, pause.NodeId, serializeResult);
+        var publishEnvelopeAsyncResult = PublishEnvelopeAsync(workerEventEnvelopeDto, cancellationToken);
+        return publishEnvelopeAsyncResult;
     }
 
-    private async ValueTask PublishEnvelopeAsync(
-        WorkerEventEnvelopeDto envelope,
-        CancellationToken cancellationToken)
+    private async ValueTask PublishEnvelopeAsync(WorkerEventEnvelopeDto envelope, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken);
         try
@@ -93,13 +70,9 @@ internal sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runI
             _pending[envelope.Sequence] = envelope;
             while (_pending.Remove(_lastWrittenSequence + 1, out var next))
             {
-                await transport.SendAsync(
-                    WorkerMessage.Create(
-                        WorkerProtocolConstants.EventKind,
-                        WorkerProtocolCodec.SerializePayload(next),
-                        runId,
-                        sequence: next.Sequence),
-                    cancellationToken);
+                var serializePayloadResult = WorkerProtocolCodec.SerializePayload(next);
+                var createResult = WorkerMessage.Create(WorkerProtocolConstants.EventKind, serializePayloadResult, runId, sequence: next.Sequence);
+                await transport.SendAsync(createResult, cancellationToken);
                 _lastWrittenSequence = next.Sequence;
             }
         }

@@ -1,22 +1,17 @@
-import { onBeforeUnmount, ref, watch, type Ref } from 'vue'
-import {
-  subscribeWorkspaceChanges,
-  type WorkspaceChangeEventDto,
-} from '../api/flowApi'
-import { t } from '../i18n'
-
+import { onBeforeUnmount, ref, watch, type Ref } from 'vue';
+import { subscribeWorkspaceChanges, type WorkspaceChangeEventDto, } from '../api/flowApi';
+import { t } from '../i18n';
 interface UseWorkspaceSyncOptions {
-  projectId: Ref<string | undefined>
-  flowId: Ref<string | undefined>
-  flowVersion: Ref<number>
-  isDirty: Ref<boolean>
-  isSaving: Ref<boolean>
-  isWorkspaceLoading: Ref<boolean>
-  notice: Ref<string>
-  reloadCurrentFlow: () => Promise<boolean>
-  refreshLibraryCatalog: (projectId?: string) => Promise<void>
+  projectId: Ref<string | undefined>;
+  flowId: Ref<string | undefined>;
+  flowVersion: Ref<number>;
+  isDirty: Ref<boolean>;
+  isSaving: Ref<boolean>;
+  isWorkspaceLoading: Ref<boolean>;
+  notice: Ref<string>;
+  reloadCurrentFlow: () => Promise<boolean>;
+  refreshLibraryCatalog: (projectId?: string) => Promise<void>;
 }
-
 /**
  * Keeps the editor aligned with mutations committed through MCP or another
  * browser. Events invalidate local state; the server flow and catalog APIs
@@ -25,41 +20,38 @@ interface UseWorkspaceSyncOptions {
  * API 仍然是权威数据源。
  */
 export function useWorkspaceSync(options: UseWorkspaceSyncOptions) {
-  const isConnected = ref(false)
-  const remoteChangePending = ref(false)
-  const remoteChangeVersion = ref<number>()
-  const libraryRefreshRevision = ref(0)
-
-  let unsubscribe: (() => void) | undefined
-  let reconnectNeedsReconcile = false
-  let flowReconcileInFlight = false
-  let libraryRefreshInFlight: Promise<void> | undefined
-  let libraryRefreshQueued = false
-
+  const isConnected = ref(false);
+  const remoteChangePending = ref(false);
+  const remoteChangeVersion = ref<number>();
+  const libraryRefreshRevision = ref(0);
+  let unsubscribe: (() => void) | undefined;
+  let reconnectNeedsReconcile = false;
+  let flowReconcileInFlight = false;
+  let libraryRefreshInFlight: Promise<void> | undefined;
+  let libraryRefreshQueued = false;
   function isProjectEventForCurrentProject(event: WorkspaceChangeEventDto): boolean {
-    return !event.projectId || event.projectId === options.projectId.value
+    return !event.projectId || event.projectId === options.projectId.value;
   }
-
   function refreshLibraries(): void {
-    if (!options.projectId.value) return
-    if (libraryRefreshInFlight) {
-      libraryRefreshQueued = true
-      return
+    if (!options.projectId.value) {
+      return;
     }
-
-    libraryRefreshInFlight = options.refreshLibraryCatalog(options.projectId.value)
-      .catch(() => {
-        options.notice.value = t('sync.libraryRefreshFailed')
-      })
-      .finally(() => {
-        libraryRefreshInFlight = undefined
-        if (libraryRefreshQueued) {
-          libraryRefreshQueued = false
-          refreshLibraries()
-        }
-      })
+    if (libraryRefreshInFlight) {
+      libraryRefreshQueued = true;
+      return;
+    }
+    const refreshLibraryCatalogResult = options.refreshLibraryCatalog(options.projectId.value);
+    const catchResult = refreshLibraryCatalogResult.catch(() => {
+      options.notice.value = t('sync.libraryRefreshFailed');
+    });
+    libraryRefreshInFlight = catchResult.finally(() => {
+      libraryRefreshInFlight = undefined;
+      if (libraryRefreshQueued) {
+        libraryRefreshQueued = false;
+        refreshLibraries();
+      }
+    });
   }
-
   async function reconcileFlow(): Promise<void> {
     if (flowReconcileInFlight
       || !reconnectNeedsReconcile
@@ -68,114 +60,100 @@ export function useWorkspaceSync(options: UseWorkspaceSyncOptions) {
       || options.isDirty.value
       || options.isSaving.value
       || options.isWorkspaceLoading.value) {
-      return
+      return;
     }
-
-    flowReconcileInFlight = true
-    const requestedRemoteVersion = remoteChangeVersion.value
-    let needsAnotherReconcile = false
+    flowReconcileInFlight = true;
+    const requestedRemoteVersion = remoteChangeVersion.value;
+    let needsAnotherReconcile = false;
     try {
-      const reloaded = await options.reloadCurrentFlow()
+      const reloaded = await options.reloadCurrentFlow();
       if (reloaded) {
         const newerEventArrived = remoteChangeVersion.value !== requestedRemoteVersion
           && remoteChangeVersion.value !== undefined
-          && remoteChangeVersion.value > options.flowVersion.value
+          && remoteChangeVersion.value > options.flowVersion.value;
         if (!newerEventArrived) {
-          reconnectNeedsReconcile = false
-          remoteChangePending.value = false
-          remoteChangeVersion.value = undefined
-        } else {
-          needsAnotherReconcile = true
+          reconnectNeedsReconcile = false;
+          remoteChangePending.value = false;
+          remoteChangeVersion.value = undefined;
+        }
+        else {
+          needsAnotherReconcile = true;
         }
       }
-    } catch {
-      options.notice.value = t('sync.flowRefreshFailed')
-    } finally {
-      flowReconcileInFlight = false
+    }
+    catch {
+      options.notice.value = t('sync.flowRefreshFailed');
+    }
+    finally {
+      flowReconcileInFlight = false;
       if (needsAnotherReconcile) {
-        void reconcileFlow()
+        void reconcileFlow();
       }
     }
   }
-
   function handleChange(event: WorkspaceChangeEventDto): void {
-    if (!isProjectEventForCurrentProject(event)) return
-
+    if (!isProjectEventForCurrentProject(event)) {
+      return;
+    }
     const changesLibrarySurface = event.changeType === 'library.catalog.changed'
       || event.changeType === 'project.library.changed'
-      || event.operation === 'library.upgrade'
+      || event.operation === 'library.upgrade';
     if (changesLibrarySurface) {
-      libraryRefreshRevision.value += 1
-      refreshLibraries()
+      libraryRefreshRevision.value += 1;
+      refreshLibraries();
     }
-
     if (event.changeType !== 'flow.changed'
       || event.flowId !== options.flowId.value) {
-      return
+      return;
     }
-
     if (event.version && event.version <= options.flowVersion.value) {
-      return
+      return;
     }
-
-    reconnectNeedsReconcile = true
-    remoteChangeVersion.value = event.version ?? undefined
+    reconnectNeedsReconcile = true;
+    remoteChangeVersion.value = event.version ?? undefined;
     if (options.isDirty.value || options.isSaving.value) {
-      remoteChangePending.value = true
-      options.notice.value = t('sync.flowChangedWhileEditing')
-      return
+      remoteChangePending.value = true;
+      options.notice.value = t('sync.flowChangedWhileEditing');
+      return;
     }
-
     options.notice.value = event.origin === 'mcp'
       ? t('sync.flowChangedByAi')
-      : t('sync.flowChanged')
-    void reconcileFlow()
+      : t('sync.flowChanged');
+    void reconcileFlow();
   }
-
   function handleConnected(): void {
-    isConnected.value = true
-    reconnectNeedsReconcile = true
-    void reconcileFlow()
+    isConnected.value = true;
+    reconnectNeedsReconcile = true;
+    void reconcileFlow();
   }
-
   function handleError(): void {
-    isConnected.value = false
+    isConnected.value = false;
   }
-
   const stopProjectWatch = watch(options.projectId, (nextProjectId) => {
-    unsubscribe?.()
-    unsubscribe = undefined
-    isConnected.value = false
-    reconnectNeedsReconcile = false
-    remoteChangePending.value = false
-    remoteChangeVersion.value = undefined
-
-    if (!nextProjectId) return
-
-    unsubscribe = subscribeWorkspaceChanges(
-      nextProjectId,
-      handleChange,
-      handleConnected,
-      handleError,
-    )
-  }, { immediate: true })
-
-  const stopReconcileWatch = watch(
-    [options.isWorkspaceLoading, options.isSaving, options.isDirty, options.flowVersion],
-    () => { void reconcileFlow() },
-  )
-
+    unsubscribe?.();
+    unsubscribe = undefined;
+    isConnected.value = false;
+    reconnectNeedsReconcile = false;
+    remoteChangePending.value = false;
+    remoteChangeVersion.value = undefined;
+    if (!nextProjectId) {
+      return;
+    }
+    unsubscribe = subscribeWorkspaceChanges(nextProjectId, handleChange, handleConnected, handleError);
+  }, { immediate: true });
+  const stopReconcileWatch = watch([options.isWorkspaceLoading, options.isSaving, options.isDirty, options.flowVersion], () => {
+    void reconcileFlow();
+  });
   onBeforeUnmount(() => {
-    stopProjectWatch()
-    stopReconcileWatch()
-    unsubscribe?.()
-    unsubscribe = undefined
-  })
-
+    stopProjectWatch();
+    stopReconcileWatch();
+    unsubscribe?.();
+    unsubscribe = undefined;
+  });
   return {
     isConnected,
     remoteChangePending,
     remoteChangeVersion,
     libraryRefreshRevision,
-  }
+  };
 }

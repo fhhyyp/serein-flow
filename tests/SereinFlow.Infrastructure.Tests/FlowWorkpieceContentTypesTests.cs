@@ -1,7 +1,6 @@
 using SereinFlow.Library;
 
 namespace SereinFlow.Infrastructure.Tests;
-
 public sealed class FlowWorkpieceContentTypesTests
 {
     [Fact]

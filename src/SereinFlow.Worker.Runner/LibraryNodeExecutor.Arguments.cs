@@ -6,19 +6,13 @@ using SereinFlow.Runtime.Abstractions;
 using SereinFlow.ScriptAdapter;
 
 namespace SereinFlow.Worker.Runner;
-
 internal sealed partial class LibraryNodeExecutor
 {
-    private static object?[] BuildArguments(
-        NodeExecutionRequest request,
-        MethodInfo method,
-        LibraryFlowContext flowContext,
-        Dictionary<string, object?> auditInputs)
+    private static object? [] BuildArguments(NodeExecutionRequest request, MethodInfo method, LibraryFlowContext flowContext, Dictionary<string, object?> auditInputs)
     {
         var parameters = method.GetParameters();
-        var arguments = new object?[parameters.Length];
+        var arguments = new object? [parameters.Length];
         var ordinaryParameterIndex = 0;
-
         for (var index = 0; index < parameters.Length; index++)
         {
             var parameter = parameters[index];
@@ -37,29 +31,24 @@ internal sealed partial class LibraryNodeExecutor
         return arguments;
     }
 
-    private static NodeParameterDefinition? FindParameterDefinition(
-        NodeExecutionRequest request,
-        string name,
-        int ordinaryParameterIndex)
-        => request.Node.Parameters.FirstOrDefault(item =>
-               string.Equals(item.Name, name, StringComparison.Ordinal)
-               || string.Equals(item.Id, name, StringComparison.Ordinal))
-           ?? (ordinaryParameterIndex < request.Node.Parameters.Count
-               ? request.Node.Parameters[ordinaryParameterIndex]
-               : null);
-
-    private static object? BuildArgument(
-        NodeExecutionRequest request,
-        ParameterInfo parameter,
-        NodeParameterDefinition? definition,
-        string name,
-        Dictionary<string, object?> auditInputs)
+    private static NodeParameterDefinition? FindParameterDefinition(NodeExecutionRequest request, string name, int ordinaryParameterIndex)
     {
-        if (parameter.GetCustomAttribute<ParamArrayAttribute>() is not null)
+        var evaluatedValue1 = request.Node.Parameters.FirstOrDefault(item =>
+        {
+            var evaluatedValue = string.Equals(item.Name, name, StringComparison.Ordinal) || string.Equals(item.Id, name, StringComparison.Ordinal);
+            return evaluatedValue;
+        }) ?? (ordinaryParameterIndex < request.Node.Parameters.Count ? request.Node.Parameters[ordinaryParameterIndex] : null);
+        return evaluatedValue1;
+    }
+
+    private static object? BuildArgument(NodeExecutionRequest request, ParameterInfo parameter, NodeParameterDefinition? definition, string name, Dictionary<string, object?> auditInputs)
+    {
+        if (parameter.GetCustomAttribute<ParamArrayAttribute>()is not null)
         {
             try
             {
-                return BuildVariadicArgument(request, parameter, definition, auditInputs);
+                var buildVariadicArgumentResult = BuildVariadicArgument(request, parameter, definition, auditInputs);
+                return buildVariadicArgumentResult;
             }
             catch (ScriptValueConversionException exception)
             {
@@ -79,16 +68,13 @@ internal sealed partial class LibraryNodeExecutor
                 return parameter.DefaultValue;
             }
 
-            if (!parameter.ParameterType.IsValueType
-                || Nullable.GetUnderlyingType(parameter.ParameterType) is not null)
+            if (!parameter.ParameterType.IsValueType || Nullable.GetUnderlyingType(parameter.ParameterType)is not null)
             {
                 auditInputs[name] = null;
                 return null;
             }
 
-            throw new LibraryInputException(
-                NodeErrorCodes.InputMissing,
-                $"Required library input '{name}' is missing. 缺少类库必需输入“{name}”。");
+            throw new LibraryInputException(NodeErrorCodes.InputMissing, $"Required library input '{name}' is missing. 缺少类库必需输入“{name}”。");
         }
 
         auditInputs[name] = value;
@@ -108,48 +94,47 @@ internal sealed partial class LibraryNodeExecutor
         }
     }
 
-    private static bool TryResolveInput(
-        IReadOnlyDictionary<string, object?> inputs,
-        string name,
-        NodeParameterDefinition? definition,
-        out object? value)
-        => inputs.TryGetValue(name, out value)
-           || (definition is not null && inputs.TryGetValue(definition.Id, out value));
+    private static bool TryResolveInput(IReadOnlyDictionary<string, object?> inputs, string name, NodeParameterDefinition? definition, out object? value)
+    {
+        var evaluatedValue2 = inputs.TryGetValue(name, out value) || (definition is not null && inputs.TryGetValue(definition.Id, out value));
+        return evaluatedValue2;
+    }
 
-    private static LibraryInputException InvalidInput(
-        ParameterInfo parameter,
-        string name,
-        Exception exception)
-        => new(
-            NodeErrorCodes.InputInvalid,
-            $"Library input '{name}' cannot be converted to '{parameter.ParameterType.Name}'. 类库输入“{name}”无法转换为“{parameter.ParameterType.Name}”。 {exception.Message}",
-            exception);
+    private static LibraryInputException InvalidInput(ParameterInfo parameter, string name, Exception exception)
+    {
+        global::SereinFlow.Worker.Runner.LibraryInputException evaluatedValue3 = new(NodeErrorCodes.InputInvalid, $"Library input '{name}' cannot be converted to '{parameter.ParameterType.Name}'. 类库输入“{name}”无法转换为“{parameter.ParameterType.Name}”。 {exception.Message}", exception);
+        return evaluatedValue3;
+    }
 
-    private static Array BuildVariadicArgument(
-        NodeExecutionRequest request,
-        ParameterInfo parameter,
-        NodeParameterDefinition? representative,
-        Dictionary<string, object?> auditInputs)
+    private static Array BuildVariadicArgument(NodeExecutionRequest request, ParameterInfo parameter, NodeParameterDefinition? representative, Dictionary<string, object?> auditInputs)
     {
         var arrayType = parameter.ParameterType;
-        var elementType = arrayType.GetElementType()
-            ?? throw new InvalidOperationException("The params array has no element type. params 数组没有元素类型。");
+        var elementType = arrayType.GetElementType() ?? throw new InvalidOperationException("The params array has no element type. params 数组没有元素类型。");
         var groupId = representative?.VariadicGroupId ?? representative?.Id ?? parameter.Name ?? string.Empty;
-        var definitions = request.Node.Parameters
-            .Where(item => item.IsVariadic
-                && string.Equals(item.VariadicGroupId ?? item.Id, groupId, StringComparison.Ordinal))
-            .ToArray();
+        var whereResult = request.Node.Parameters.Where(item =>
+        {
+            var evaluatedValue4 = item.IsVariadic && string.Equals(item.VariadicGroupId ?? item.Id, groupId, StringComparison.Ordinal);
+            return evaluatedValue4;
+        });
+        var definitions = whereResult.ToArray();
         if (definitions.Length == 0 && representative?.IsVariadic == true)
+        {
             definitions = [representative];
+        }
 
         if (definitions.Length == 1 && definitions[0].VariadicMode == VariadicParameterMode.Collection)
         {
             var collection = definitions[0];
             if (!TryGetInput(request.Inputs, collection, out var value))
-                return Array.CreateInstance(elementType, 0);
+            {
+                var createInstanceResult = Array.CreateInstance(elementType, 0);
+                return createInstanceResult;
+            }
+
             var converted = LibraryArgumentConverter.Convert(value, arrayType);
             auditInputs[collection.Name] = converted;
-            return (Array)(converted ?? Array.CreateInstance(elementType, 0));
+            var evaluatedValue5 = (Array)(converted ?? Array.CreateInstance(elementType, 0));
+            return evaluatedValue5;
         }
 
         var values = new List<object?>();
@@ -158,9 +143,13 @@ internal sealed partial class LibraryNodeExecutor
             if (!TryGetInput(request.Inputs, definition, out var value) || value is null)
             {
                 if (definition.Required)
+                {
                     throw new InvalidOperationException($"Required variadic input '{definition.Name}' is missing. 缺少必需可变参数输入“{definition.Name}”。");
+                }
+
                 continue;
             }
+
             auditInputs[definition.Name] = value;
             var converted = LibraryArgumentConverter.Convert(value, elementType);
             auditInputs[definition.Name] = converted;
@@ -169,14 +158,16 @@ internal sealed partial class LibraryNodeExecutor
 
         var result = Array.CreateInstance(elementType, values.Count);
         for (var index = 0; index < values.Count; index++)
+        {
             result.SetValue(values[index], index);
+        }
+
         return result;
     }
 
-    private static bool TryGetInput(
-        IReadOnlyDictionary<string, object?> inputs,
-        NodeParameterDefinition parameter,
-        out object? value)
-        => inputs.TryGetValue(parameter.Id, out value)
-           || inputs.TryGetValue(parameter.Name, out value);
+    private static bool TryGetInput(IReadOnlyDictionary<string, object?> inputs, NodeParameterDefinition parameter, out object? value)
+    {
+        var evaluatedValue6 = inputs.TryGetValue(parameter.Id, out value) || inputs.TryGetValue(parameter.Name, out value);
+        return evaluatedValue6;
+    }
 }

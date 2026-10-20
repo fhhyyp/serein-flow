@@ -1,5 +1,4 @@
-import type { NodeCategory, NodeKind, ReferenceNodeKind } from './types'
-
+import type { NodeCategory, NodeKind, ReferenceNodeKind } from './types';
 /**
  * The node catalog is a server-owned contract. This module intentionally
  * contains no built-in node instances or demo definitions; it only describes
@@ -12,46 +11,42 @@ export const referenceNodeKinds = [
   'flipflop',
   'script',
   'flowCall',
-] as const satisfies readonly ReferenceNodeKind[]
-
-export const methodNodeKinds = ['action', 'flipflop'] as const satisfies readonly ReferenceNodeKind[]
-export const basicNodeKinds = ['script', 'flowCall'] as const satisfies readonly ReferenceNodeKind[]
-export const allNodeKinds = [...referenceNodeKinds] as const satisfies readonly NodeKind[]
-
+] as const satisfies readonly ReferenceNodeKind[];
+export const methodNodeKinds = ['action', 'flipflop'] as const satisfies readonly ReferenceNodeKind[];
+export const basicNodeKinds = ['script', 'flowCall'] as const satisfies readonly ReferenceNodeKind[];
+export const allNodeKinds = [...referenceNodeKinds] as const satisfies readonly NodeKind[];
 export interface NodeParameterDefinition {
-  name: string
-  type: string
-  description?: string
+  name: string;
+  type: string;
+  description?: string;
 }
-
 export interface NodeDefinition {
-  id: string
-  type: ReferenceNodeKind
-  className: string
-  methodName: string
-  parameters: NodeParameterDefinition[]
-  returnType: string
-  description?: string
-  libraryId?: string
-  dllName?: string
-  dllVersion?: string
+  id: string;
+  type: ReferenceNodeKind;
+  className: string;
+  methodName: string;
+  parameters: NodeParameterDefinition[];
+  returnType: string;
+  description?: string;
+  libraryId?: string;
+  dllName?: string;
+  dllVersion?: string;
 }
-
 export interface LibraryDefinition {
-  id: string
-  name: string
-  description?: string
-  fileName: string
-  version: string
-  dllPath?: string
-  uploadedAt?: string
-  nodeDefinitions: NodeDefinition[]
+  id: string;
+  name: string;
+  description?: string;
+  fileName: string;
+  version: string;
+  dllPath?: string;
+  uploadedAt?: string;
+  nodeDefinitions: NodeDefinition[];
 }
-
 export function nodeCategory(kind: ReferenceNodeKind): NodeCategory {
-  return methodNodeKinds.includes(kind as (typeof methodNodeKinds)[number]) ? 'method' : 'basic'
+  const evaluatedValue: NodeCategory = methodNodeKinds.includes(kind as (typeof methodNodeKinds)[number]) ? 'method' : 'basic';
+  return evaluatedValue;
 }
-
 export function isNodeKind(value: unknown): value is NodeKind {
-  return typeof value === 'string' && (allNodeKinds as readonly string[]).includes(value)
+  const evaluatedValue1: boolean = typeof value === 'string' && (allNodeKinds as readonly string[]).includes(value);
+  return evaluatedValue1;
 }

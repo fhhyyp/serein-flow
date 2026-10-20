@@ -8,7 +8,6 @@ using SereinFlow.Domain;
 using SereinFlow.Worker.Client;
 
 namespace SereinFlow.Api;
-
 /// <summary>
 /// Owns API-side debug handles while keeping all executable code inside the
 /// Worker process. The durable session record is intentionally smaller than a
@@ -19,31 +18,12 @@ namespace SereinFlow.Api;
 public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionService
 {
     private const string DebugStoppedMessage = "The debug session was stopped. 调试会话已停止。";
-    private static readonly Action<ILogger, Guid, Exception?> DebugWorkerStartupFailedLog = LoggerMessage.Define<Guid>(
-        LogLevel.Error,
-        new EventId(4101, nameof(DebugWorkerStartupFailedLog)),
-        "Debug Worker startup failed for session {DebugSessionId}. 调试 Worker 启动失败。");
-    private static readonly Action<ILogger, Exception?> DebugWorkerShutdownFailedLog = LoggerMessage.Define(
-        LogLevel.Warning,
-        new EventId(4102, nameof(DebugWorkerShutdownFailedLog)),
-        "Debug Worker shutdown failed. 调试 Worker 关闭失败。");
-    private static readonly Action<ILogger, Guid, Exception?> DebugWorkerMonitoringFailedLog = LoggerMessage.Define<Guid>(
-        LogLevel.Error,
-        new EventId(4103, nameof(DebugWorkerMonitoringFailedLog)),
-        "Debug Worker monitoring failed for session {DebugSessionId}. 调试 Worker 监控失败。");
-    private static readonly Action<ILogger, Guid, Exception?> DebugCompletionPersistenceFailedLog = LoggerMessage.Define<Guid>(
-        LogLevel.Error,
-        new EventId(4104, nameof(DebugCompletionPersistenceFailedLog)),
-        "Debug completion persistence failed for session {DebugSessionId}. 调试完成状态持久化失败。");
-    private static readonly Action<ILogger, Guid, Exception?> LiveDebugBroadcastFailedLog = LoggerMessage.Define<Guid>(
-        LogLevel.Warning,
-        new EventId(4105, nameof(LiveDebugBroadcastFailedLog)),
-        "Live debug event broadcast failed for {RunId}. 实时调试事件广播失败。");
-    private static readonly Action<ILogger, Guid, Exception?> DebugSignalRPushFailedLog = LoggerMessage.Define<Guid>(
-        LogLevel.Warning,
-        new EventId(4106, nameof(DebugSignalRPushFailedLog)),
-        "Debug SignalR event push failed for {RunId}. 调试 SignalR 事件推送失败。");
-
+    private static readonly Action<ILogger, Guid, Exception?> DebugWorkerStartupFailedLog = createDebugWorkerStartupFailedLogInitialValue();
+    private static readonly Action<ILogger, Exception?> DebugWorkerShutdownFailedLog = createDebugWorkerShutdownFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> DebugWorkerMonitoringFailedLog = createDebugWorkerMonitoringFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> DebugCompletionPersistenceFailedLog = createDebugCompletionPersistenceFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> LiveDebugBroadcastFailedLog = createLiveDebugBroadcastFailedLogInitialValue();
+    private static readonly Action<ILogger, Guid, Exception?> DebugSignalRPushFailedLog = createDebugSignalRPushFailedLogInitialValue();
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IWorkerDebugRunClient _workerClient;
     private readonly RunExecutionQueue _queue;
@@ -54,15 +34,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
     private readonly string _libraryRoot;
     private readonly string _workpieceRoot;
     private readonly ConcurrentDictionary<Guid, ActiveDebugSession> _active = new();
-
-    public FlowDebugSessionService(
-        IServiceScopeFactory scopeFactory,
-        IWorkerDebugRunClient workerClient,
-        RunExecutionQueue queue,
-        RunEventBroadcaster broadcaster,
-        IHubContext<RunEventsHub> hub,
-        ILogger<FlowDebugSessionService> logger,
-        SereinFlow.Infrastructure.Configuration.SereinFlowStorageOptions storage)
+    public FlowDebugSessionService(IServiceScopeFactory scopeFactory, IWorkerDebugRunClient workerClient, RunExecutionQueue queue, RunEventBroadcaster broadcaster, IHubContext<RunEventsHub> hub, ILogger<FlowDebugSessionService> logger, SereinFlow.Infrastructure.Configuration.SereinFlowStorageOptions storage)
     {
         _scopeFactory = scopeFactory;
         _workerClient = workerClient;
@@ -75,87 +47,53 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         _workpieceRoot = storage.WorkpieceDirectory;
     }
 
-    public async Task<FlowDebugSessionStartResult> CreateAsync(
-        Guid projectId,
-        Guid flowId,
-        StartFlowDebugSessionRequestDto request,
-        CancellationToken cancellationToken = default)
+    public async Task<FlowDebugSessionStartResult> CreateAsync(Guid projectId, Guid flowId, StartFlowDebugSessionRequestDto request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var breakpointNodeIds = (request.BreakpointNodeIds ?? [])
-            .Where(static nodeId => !string.IsNullOrWhiteSpace(nodeId))
-            .Select(static nodeId => nodeId.Trim())
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(static nodeId => nodeId, StringComparer.Ordinal)
-            .ToArray();
+        var whereResult = (request.BreakpointNodeIds ?? []).Where(static nodeId =>
+        {
+            var evaluatedValue = !string.IsNullOrWhiteSpace(nodeId);
+            return evaluatedValue;
+        });
+        var selectResult = whereResult.Select(static nodeId =>
+        {
+            var trimResult = nodeId.Trim();
+            return trimResult;
+        });
+        var distinctResult = selectResult.Distinct(StringComparer.Ordinal);
+        var orderByResult = distinctResult.OrderBy(static nodeId => nodeId, StringComparer.Ordinal);
+        var breakpointNodeIds = orderByResult.ToArray();
         if (request.MaxQueuedFlipflopTriggers is < 0 or > 1_024)
         {
-            return new FlowDebugSessionStartResult(
-                null,
-                StatusCodes.Status422UnprocessableEntity,
-                "The debug trigger queue limit must be between 0 and 1024. 调试触发队列上限必须在 0 到 1024 之间。",
-                new { code = DebugErrorCodes.InvalidTriggerQueueLimit },
-                DebugErrorCodes.InvalidTriggerQueueLimit);
+            var flowDebugSessionStartResult = new FlowDebugSessionStartResult(null, StatusCodes.Status422UnprocessableEntity, "The debug trigger queue limit must be between 0 and 1024. 调试触发队列上限必须在 0 到 1024 之间。", new { code = DebugErrorCodes.InvalidTriggerQueueLimit }, DebugErrorCodes.InvalidTriggerQueueLimit);
+            return flowDebugSessionStartResult;
         }
-        var debugSessionId = Guid.NewGuid();
 
+        var debugSessionId = Guid.NewGuid();
         using var scope = _scopeFactory.CreateScope();
         var runService = scope.ServiceProvider.GetRequiredService<RunApplicationService>();
         var runStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
         var debugStore = scope.ServiceProvider.GetRequiredService<IFlowDebugSessionStore>();
-        var activeForFlow = (await debugStore.ListActiveAsync(cancellationToken))
-            .FirstOrDefault(item => item.ProjectId == projectId && item.FlowId == flowId);
+        var evaluatedValue11 = (await debugStore.ListActiveAsync(cancellationToken));
+        var activeForFlow = evaluatedValue11.FirstOrDefault(item => item.ProjectId == projectId && item.FlowId == flowId);
         if (activeForFlow is not null)
         {
-            return new FlowDebugSessionStartResult(
-                null,
-                StatusCodes.Status409Conflict,
-                "This flow already has an active debug session. 当前流程已有活动调试会话。",
-                new { code = DebugErrorCodes.SessionAlreadyActive, sessionId = activeForFlow.Id },
-                DebugErrorCodes.SessionAlreadyActive);
+            var flowDebugSessionStartResult6 = new FlowDebugSessionStartResult(null, StatusCodes.Status409Conflict, "This flow already has an active debug session. 当前流程已有活动调试会话。", new { code = DebugErrorCodes.SessionAlreadyActive, sessionId = activeForFlow.Id }, DebugErrorCodes.SessionAlreadyActive);
+            return flowDebugSessionStartResult6;
         }
-        var preparation = await runService.PrepareAsync(
-            projectId,
-            flowId,
-            new RunFlowRequestDto(
-                request.ExpectedFlowVersion,
-                request.ProjectInputs,
-                request.TimeoutSeconds,
-                request.MaxSteps,
-                request.MaxNodeVisits),
-            FlowRunExecutionKind.Debug,
-            debugSessionId,
-            breakpointNodeIds,
-            definitionOverride: request.Definition,
-            cancellationToken: cancellationToken);
+
+        var runFlowRequestDto = new RunFlowRequestDto(request.ExpectedFlowVersion, request.ProjectInputs, request.TimeoutSeconds, request.MaxSteps, request.MaxNodeVisits);
+        var preparation = await runService.PrepareAsync(projectId, flowId, runFlowRequestDto, FlowRunExecutionKind.Debug, debugSessionId, breakpointNodeIds, definitionOverride: request.Definition, cancellationToken: cancellationToken);
         if (!preparation.IsSuccess)
         {
-            return new FlowDebugSessionStartResult(
-                null,
-                preparation.StatusCode,
-                preparation.ErrorTitle,
-                preparation.ErrorBody);
+            var flowDebugSessionStartResult7 = new FlowDebugSessionStartResult(null, preparation.StatusCode, preparation.ErrorTitle, preparation.ErrorBody);
+            return flowDebugSessionStartResult7;
         }
 
         var prepared = preparation.Preparation!;
-        var session = FlowDebugSession.Create(
-            prepared.Run.Id,
-            projectId,
-            flowId,
-            breakpointNodeIds,
-            DateTimeOffset.UtcNow,
-            debugSessionId);
+        var session = FlowDebugSession.Create(prepared.Run.Id, projectId, flowId, breakpointNodeIds, DateTimeOffset.UtcNow, debugSessionId);
         await debugStore.CreateAsync(session, cancellationToken);
-
-        var item = new RunWorkItem(
-            prepared.Run.Id,
-            projectId,
-            prepared.Definition,
-            prepared.ProjectInputs,
-            prepared.Run.QueuedAt,
-            prepared.TimeoutSeconds,
-            prepared.MaxSteps,
-            prepared.MaxNodeVisits);
+        var item = new RunWorkItem(prepared.Run.Id, projectId, prepared.Definition, prepared.ProjectInputs, prepared.Run.QueuedAt, prepared.TimeoutSeconds, prepared.MaxSteps, prepared.MaxNodeVisits);
         if (!_queue.TryStartDirectExecution(item, out var lease))
         {
             var failure = "No Worker execution slot is currently available for debugging. 当前没有可用于调试的 Worker 执行槽。";
@@ -163,55 +101,41 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             await runStore.SaveAsync(prepared.Run, CancellationToken.None);
             session.Fail(failure, DateTimeOffset.UtcNow);
             await debugStore.SaveAsync(session, CancellationToken.None);
-            return new FlowDebugSessionStartResult(
-                null,
-                StatusCodes.Status429TooManyRequests,
-                failure,
-                new { code = DebugErrorCodes.ExecutionCapacityFull },
-                DebugErrorCodes.ExecutionCapacityFull);
+            var flowDebugSessionStartResult8 = new FlowDebugSessionStartResult(null, StatusCodes.Status429TooManyRequests, failure, new { code = DebugErrorCodes.ExecutionCapacityFull }, DebugErrorCodes.ExecutionCapacityFull);
+            return flowDebugSessionStartResult8;
         }
 
         try
         {
             var now = DateTimeOffset.UtcNow;
-            prepared.Run.MarkRunning(now, now.AddSeconds(prepared.TimeoutSeconds));
+            var addSecondsResult = now.AddSeconds(prepared.TimeoutSeconds);
+            prepared.Run.MarkRunning(now, addSecondsResult);
             await runStore.SaveAsync(prepared.Run, cancellationToken);
             session.MarkRunning(now);
             await debugStore.SaveAsync(session, cancellationToken);
-
-            var workerRequest = new WorkerRunRequestDto(
-                WorkerProtocol.Version,
-                prepared.Run.Id,
-                prepared.Definition.Id,
-                prepared.Definition.Version,
-                JsonSerializer.Serialize(prepared.Definition, SereinJsonSerialization.CreateWebOptions()),
-                prepared.Run.Deadline!.Value,
-                projectId.ToString("D"),
-                prepared.ProjectInputs,
-                prepared.MaxSteps,
-                _scriptRoot,
-                _libraryRoot,
-                prepared.MaxNodeVisits,
-                ProjectLibraryService.GetLibraryIds(prepared.Definition),
-                new WorkerDebugOptionsDto(
-                    session.Id,
-                    session.BreakpointNodeIds,
-                    request.MaxQueuedFlipflopTriggers ?? 64),
-                _workpieceRoot);
-            var handle = await _workerClient.StartDebugAsync(
-                workerRequest,
-                new DelegateWorkerRunEventSink((workerEvent, token) => HandleWorkerEventAsync(session.Id, workerEvent, token)),
-                _queue.GetCancellationToken(prepared.Run.Id));
+            var createWebOptionsResult = SereinJsonSerialization.CreateWebOptions();
+            var serializeResult = JsonSerializer.Serialize(prepared.Definition, createWebOptionsResult);
+            var toStringResult = projectId.ToString("D");
+            var getLibraryIdsResult = ProjectLibraryService.GetLibraryIds(prepared.Definition);
+            var workerDebugOptionsDto = new WorkerDebugOptionsDto(session.Id, session.BreakpointNodeIds, request.MaxQueuedFlipflopTriggers ?? 64);
+            var workerRequest = new WorkerRunRequestDto(WorkerProtocol.Version, prepared.Run.Id, prepared.Definition.Id, prepared.Definition.Version, serializeResult, prepared.Run.Deadline!.Value, toStringResult, prepared.ProjectInputs, prepared.MaxSteps, _scriptRoot, _libraryRoot, prepared.MaxNodeVisits, getLibraryIdsResult, workerDebugOptionsDto, _workpieceRoot);
+            var delegateWorkerRunEventSink = new DelegateWorkerRunEventSink((workerEvent, token) =>
+            {
+                var handleWorkerEventAsyncResult = HandleWorkerEventAsync(session.Id, workerEvent, token);
+                return handleWorkerEventAsyncResult;
+            });
+            var getCancellationTokenResult = _queue.GetCancellationToken(prepared.Run.Id);
+            var handle = await _workerClient.StartDebugAsync(workerRequest, delegateWorkerRunEventSink, getCancellationTokenResult);
             var active = new ActiveDebugSession(handle, lease!);
             if (!_active.TryAdd(session.Id, active))
             {
                 await handle.DisposeAsync();
-                throw new InvalidOperationException(
-                    "The debug session is already active. 调试会话已处于活动状态。");
+                throw new InvalidOperationException("The debug session is already active. 调试会话已处于活动状态。");
             }
 
             _ = ObserveCompletionAsync(session.Id, active);
-            return new FlowDebugSessionStartResult(session, StatusCodes.Status202Accepted);
+            var flowDebugSessionStartResult9 = new FlowDebugSessionStartResult(session, StatusCodes.Status202Accepted);
+            return flowDebugSessionStartResult9;
         }
         catch (Exception exception)
         {
@@ -219,27 +143,20 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             var failedRun = await runStore.FindAsync(prepared.Run.Id, CancellationToken.None);
             if (failedRun is not null && !failedRun.IsTerminal)
             {
-                failedRun.Complete(
-                    FlowRunStatus.Failed,
-                    DateTimeOffset.UtcNow,
-                    $"Debug Worker startup failed. 调试 Worker 启动失败。 {exception.Message}");
+                failedRun.Complete(FlowRunStatus.Failed, DateTimeOffset.UtcNow, $"Debug Worker startup failed. 调试 Worker 启动失败。 {exception.Message}");
                 await runStore.SaveAsync(failedRun, CancellationToken.None);
             }
+
             var failedSession = await debugStore.FindAsync(session.Id, CancellationToken.None);
             if (failedSession is not null)
             {
-                failedSession.Fail(
-                    $"Debug Worker startup failed. 调试 Worker 启动失败。 {exception.Message}",
-                    DateTimeOffset.UtcNow);
+                failedSession.Fail($"Debug Worker startup failed. 调试 Worker 启动失败。 {exception.Message}", DateTimeOffset.UtcNow);
                 await debugStore.SaveAsync(failedSession, CancellationToken.None);
             }
+
             DebugWorkerStartupFailedLog(_logger, session.Id, exception);
-            return new FlowDebugSessionStartResult(
-                null,
-                StatusCodes.Status503ServiceUnavailable,
-                "The debug Worker could not start. 调试 Worker 无法启动。",
-                new { code = DebugErrorCodes.WorkerStartFailed },
-                DebugErrorCodes.WorkerStartFailed);
+            var flowDebugSessionStartResult10 = new FlowDebugSessionStartResult(null, StatusCodes.Status503ServiceUnavailable, "The debug Worker could not start. 调试 Worker 无法启动。", new { code = DebugErrorCodes.WorkerStartFailed }, DebugErrorCodes.WorkerStartFailed);
+            return flowDebugSessionStartResult10;
         }
     }
 
@@ -247,51 +164,47 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
     {
         using var scope = _scopeFactory.CreateScope();
         var store = scope.ServiceProvider.GetRequiredService<IFlowDebugSessionStore>();
-        return await store.FindAsync(sessionId, cancellationToken);
+        var findAsyncResult = await store.FindAsync(sessionId, cancellationToken);
+        return findAsyncResult;
     }
 
-    public async Task<FlowDebugStateWaitResult> WaitForChangeAsync(
-        Guid sessionId,
-        long afterRevision,
-        TimeSpan timeout,
-        CancellationToken cancellationToken = default)
+    public async Task<FlowDebugStateWaitResult> WaitForChangeAsync(Guid sessionId, long afterRevision, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         using var scope = _scopeFactory.CreateScope();
         var store = scope.ServiceProvider.GetRequiredService<IFlowDebugSessionStore>();
-        return await FlowDebugSessionWaiter.WaitAsync(
-            store,
-            sessionId,
-            afterRevision,
-            timeout,
-            cancellationToken);
+        var waitAsyncResult = await FlowDebugSessionWaiter.WaitAsync(store, sessionId, afterRevision, timeout, cancellationToken);
+        return waitAsyncResult;
     }
 
     public Task<FlowDebugSessionCommandResult> ContinueAsync(Guid sessionId, long commandSequence, CancellationToken cancellationToken = default)
-        => SendCommandAsync(
-            sessionId,
-            commandSequence,
-            static (handle, sequence, token) => handle.ContinueAsync(sequence, token),
-            requirePaused: true,
-            cancelRun: false,
-            cancellationToken: cancellationToken);
+    {
+        var sendCommandAsyncResult = SendCommandAsync(sessionId, commandSequence, static (handle, sequence, token) =>
+        {
+            var continueAsyncResult = handle.ContinueAsync(sequence, token);
+            return continueAsyncResult;
+        }, requirePaused: true, cancelRun: false, cancellationToken: cancellationToken);
+        return sendCommandAsyncResult;
+    }
 
     public Task<FlowDebugSessionCommandResult> StepAsync(Guid sessionId, long commandSequence, CancellationToken cancellationToken = default)
-        => SendCommandAsync(
-            sessionId,
-            commandSequence,
-            static (handle, sequence, token) => handle.StepAsync(sequence, token),
-            requirePaused: true,
-            cancelRun: false,
-            cancellationToken: cancellationToken);
+    {
+        var sendCommandAsyncResult12 = SendCommandAsync(sessionId, commandSequence, static (handle, sequence, token) =>
+        {
+            var stepAsyncResult = handle.StepAsync(sequence, token);
+            return stepAsyncResult;
+        }, requirePaused: true, cancelRun: false, cancellationToken: cancellationToken);
+        return sendCommandAsyncResult12;
+    }
 
     public Task<FlowDebugSessionCommandResult> StopAsync(Guid sessionId, long commandSequence, CancellationToken cancellationToken = default)
-        => SendCommandAsync(
-            sessionId,
-            commandSequence,
-            static (handle, sequence, token) => handle.StopAsync(sequence, token),
-            requirePaused: false,
-            cancelRun: true,
-            cancellationToken: cancellationToken);
+    {
+        var sendCommandAsyncResult13 = SendCommandAsync(sessionId, commandSequence, static (handle, sequence, token) =>
+        {
+            var stopAsyncResult = handle.StopAsync(sequence, token);
+            return stopAsyncResult;
+        }, requirePaused: false, cancelRun: true, cancellationToken: cancellationToken);
+        return sendCommandAsyncResult13;
+    }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -306,10 +219,11 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             const string message = "The API process restarted before the debug Worker could be reattached. API 进程重启，无法重新接管调试 Worker。";
             session.Fail(message, now);
             await debugStore.SaveAsync(session, cancellationToken);
-
             var run = await runStore.FindAsync(session.RunId, cancellationToken);
             if (run is null || run.IsTerminal)
+            {
                 continue;
+            }
 
             if (run.Status == FlowRunStatus.Running)
             {
@@ -319,17 +233,10 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             {
                 run.Complete(FlowRunStatus.Failed, now, message);
             }
+
             await runStore.SaveAsync(run, cancellationToken);
-            await PublishTerminalAsync(
-                run,
-                new WorkerRunResultDto(
-                    WorkerProtocol.Version,
-                    run.Id,
-                    FlowRunStatusDto.Failed,
-                    DebugErrorCodes.ApiRestart,
-                    message),
-                eventStore,
-                cancellationToken);
+            var workerRunResultDto = new WorkerRunResultDto(WorkerProtocol.Version, run.Id, FlowRunStatusDto.Failed, DebugErrorCodes.ApiRestart, message);
+            await PublishTerminalAsync(run, workerRunResultDto, eventStore, cancellationToken);
         }
     }
 
@@ -349,27 +256,18 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         }
     }
 
-    private async Task<FlowDebugSessionCommandResult> SendCommandAsync(
-        Guid sessionId,
-        long commandSequence,
-        Func<IWorkerDebugRunHandle, long, CancellationToken, Task> send,
-        bool requirePaused,
-        bool cancelRun,
-        CancellationToken cancellationToken)
+    private async Task<FlowDebugSessionCommandResult> SendCommandAsync(Guid sessionId, long commandSequence, Func<IWorkerDebugRunHandle, long, CancellationToken, Task> send, bool requirePaused, bool cancelRun, CancellationToken cancellationToken)
     {
         if (commandSequence < 1)
         {
-            return new FlowDebugSessionCommandResult(
-                StatusCodes.Status400BadRequest,
-                "The debug command sequence must be positive. 调试命令序号必须为正数。",
-                DebugErrorCodes.InvalidCommandSequence);
+            var flowDebugSessionCommandResult = new FlowDebugSessionCommandResult(StatusCodes.Status400BadRequest, "The debug command sequence must be positive. 调试命令序号必须为正数。", DebugErrorCodes.InvalidCommandSequence);
+            return flowDebugSessionCommandResult;
         }
+
         if (!_active.TryGetValue(sessionId, out var active))
         {
-            return new FlowDebugSessionCommandResult(
-                StatusCodes.Status409Conflict,
-                "The debug session is not active. 调试会话当前未处于活动状态。",
-                DebugErrorCodes.SessionNotActive);
+            var flowDebugSessionCommandResult14 = new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, "The debug session is not active. 调试会话当前未处于活动状态。", DebugErrorCodes.SessionNotActive);
+            return flowDebugSessionCommandResult14;
         }
 
         await active.CommandGate.WaitAsync(cancellationToken);
@@ -379,22 +277,27 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             var store = scope.ServiceProvider.GetRequiredService<IFlowDebugSessionStore>();
             var session = await store.FindAsync(sessionId, cancellationToken);
             if (session is null)
-                return new FlowDebugSessionCommandResult(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。", DebugErrorCodes.SessionNotFound);
+            {
+                var flowDebugSessionCommandResult15 = new FlowDebugSessionCommandResult(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。", DebugErrorCodes.SessionNotFound);
+                return flowDebugSessionCommandResult15;
+            }
+
             if (session.IsTerminal)
-                return new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, "The debug session is already complete. 调试会话已经完成。", DebugErrorCodes.SessionTerminal);
+            {
+                var flowDebugSessionCommandResult16 = new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, "The debug session is already complete. 调试会话已经完成。", DebugErrorCodes.SessionTerminal);
+                return flowDebugSessionCommandResult16;
+            }
+
             if (commandSequence <= session.LastCommandSequence)
             {
-                return new FlowDebugSessionCommandResult(
-                    StatusCodes.Status409Conflict,
-                    "The debug command sequence must be strictly increasing. 调试命令序号必须严格递增。",
-                    DebugErrorCodes.CommandSequenceConflict);
+                var flowDebugSessionCommandResult17 = new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, "The debug command sequence must be strictly increasing. 调试命令序号必须严格递增。", DebugErrorCodes.CommandSequenceConflict);
+                return flowDebugSessionCommandResult17;
             }
+
             if (requirePaused && session.Status != FlowDebugSessionStatus.Paused)
             {
-                return new FlowDebugSessionCommandResult(
-                    StatusCodes.Status409Conflict,
-                    "The debug session is not paused. 调试会话当前未暂停。",
-                    DebugErrorCodes.SessionNotPaused);
+                var flowDebugSessionCommandResult18 = new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, "The debug session is not paused. 调试会话当前未暂停。", DebugErrorCodes.SessionNotPaused);
+                return flowDebugSessionCommandResult18;
             }
 
             if (cancelRun)
@@ -415,26 +318,31 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
                 {
                     _queue.Cancel(session.RunId, DebugErrorCodes.Stop);
                 }
-                return new FlowDebugSessionCommandResult(StatusCodes.Status202Accepted);
+
+                var flowDebugSessionCommandResult19 = new FlowDebugSessionCommandResult(StatusCodes.Status202Accepted);
+                return flowDebugSessionCommandResult19;
             }
 
             await send(active.Handle, commandSequence, cancellationToken);
             session.AcceptCommand(commandSequence, DateTimeOffset.UtcNow);
             if (requirePaused && session.Status == FlowDebugSessionStatus.Paused)
+            {
                 session.Resume(DateTimeOffset.UtcNow);
+            }
+
             await store.SaveAsync(session, cancellationToken);
-            return new FlowDebugSessionCommandResult(StatusCodes.Status202Accepted);
+            var flowDebugSessionCommandResult20 = new FlowDebugSessionCommandResult(StatusCodes.Status202Accepted);
+            return flowDebugSessionCommandResult20;
         }
-        catch (InvalidOperationException exception) when (exception.Message.Contains("strictly increasing", StringComparison.OrdinalIgnoreCase))
+        catch (InvalidOperationException exception)when (exception.Message.Contains("strictly increasing", StringComparison.OrdinalIgnoreCase))
         {
-            return new FlowDebugSessionCommandResult(
-                StatusCodes.Status409Conflict,
-                "The debug command sequence must be strictly increasing. 调试命令序号必须严格递增。",
-                DebugErrorCodes.CommandSequenceConflict);
+            var flowDebugSessionCommandResult21 = new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, "The debug command sequence must be strictly increasing. 调试命令序号必须严格递增。", DebugErrorCodes.CommandSequenceConflict);
+            return flowDebugSessionCommandResult21;
         }
         catch (InvalidOperationException exception)
         {
-            return new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, exception.Message, DebugErrorCodes.CommandRejected);
+            var flowDebugSessionCommandResult22 = new FlowDebugSessionCommandResult(StatusCodes.Status409Conflict, exception.Message, DebugErrorCodes.CommandRejected);
+            return flowDebugSessionCommandResult22;
         }
         finally
         {
@@ -452,12 +360,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         catch (Exception exception)
         {
             DebugWorkerMonitoringFailedLog(_logger, sessionId, exception);
-            result = new WorkerRunResultDto(
-                WorkerProtocol.Version,
-                active.Handle.RunId,
-                FlowRunStatusDto.Failed,
-                DebugErrorCodes.WorkerMonitorFailed,
-                exception.Message);
+            result = new WorkerRunResultDto(WorkerProtocol.Version, active.Handle.RunId, FlowRunStatusDto.Failed, DebugErrorCodes.WorkerMonitorFailed, exception.Message);
         }
 
         try
@@ -470,9 +373,15 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             if (run is not null && !run.IsTerminal)
             {
                 if (result.Status == FlowRunStatusDto.Cancelled)
+                {
                     run.Cancel(DebugErrorCodes.Stop, DateTimeOffset.UtcNow);
+                }
                 else
-                    run.Complete(ToDomainStatus(result.Status), DateTimeOffset.UtcNow, result.ErrorMessage);
+                {
+                    var toDomainStatusResult = ToDomainStatus(result.Status);
+                    run.Complete(toDomainStatusResult, DateTimeOffset.UtcNow, result.ErrorMessage);
+                }
+
                 await PublishTerminalAsync(run, result, eventStore, CancellationToken.None);
                 await runStore.SaveAsync(run, CancellationToken.None);
             }
@@ -480,7 +389,8 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             var session = await debugStore.FindAsync(sessionId, CancellationToken.None);
             if (session is not null)
             {
-                session.Complete(ToDomainStatus(result.Status), result.ErrorMessage, DateTimeOffset.UtcNow);
+                var toDomainStatusResult23 = ToDomainStatus(result.Status);
+                session.Complete(toDomainStatusResult23, result.ErrorMessage, DateTimeOffset.UtcNow);
                 await debugStore.SaveAsync(session, CancellationToken.None);
             }
         }
@@ -496,13 +406,12 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         }
     }
 
-    private async ValueTask HandleWorkerEventAsync(
-        Guid sessionId,
-        WorkerEventEnvelopeDto workerEvent,
-        CancellationToken cancellationToken)
+    private async ValueTask HandleWorkerEventAsync(Guid sessionId, WorkerEventEnvelopeDto workerEvent, CancellationToken cancellationToken)
     {
         if (workerEvent.ProtocolVersion != WorkerProtocol.Version || workerEvent.RunId == Guid.Empty)
+        {
             return;
+        }
 
         using var scope = _scopeFactory.CreateScope();
         var runStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
@@ -511,41 +420,35 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         var debugStore = scope.ServiceProvider.GetRequiredService<IFlowDebugSessionStore>();
         var session = await debugStore.FindAsync(sessionId, cancellationToken);
         if (session is null || session.RunId != workerEvent.RunId)
+        {
             return;
-        if (await runStore.FindAsync(workerEvent.RunId, cancellationToken) is null)
+        }
+
+        if (await runStore.FindAsync(workerEvent.RunId, cancellationToken)is null)
+        {
             return;
+        }
 
         var lastSequence = await eventStore.GetLastSequenceAsync(workerEvent.RunId, cancellationToken);
         if (workerEvent.Sequence <= lastSequence)
+        {
             return;
+        }
 
         if (workerEvent.EventType == WorkerEventType.DebugPaused && !session.IsTerminal)
         {
             using var payload = JsonDocument.Parse(workerEvent.PayloadJson);
             var invocationId = ReadPayloadGuid(payload.RootElement, "triggerInvocationId");
             var executionId = ReadPayloadGuid(payload.RootElement, "executionId");
-            session.Pause(
-                new FlowDebugPauseState(
-                    workerEvent.NodeId ?? string.Empty,
-                    ReadPayloadString(payload.RootElement, "nodeType") ?? string.Empty,
-                    ReadPayloadInt(payload.RootElement, "step"),
-                    ReadPayloadInt(payload.RootElement, "frameDepth"),
-                    invocationId,
-                    workerEvent.Sequence,
-                    ReadPayloadJson(payload.RootElement, "inputs"),
-                    workerEvent.Timestamp,
-                    executionId),
-                workerEvent.Timestamp,
-                invocationId,
-                invocationId is null ? null : session.ActiveFlipflopNodeId ?? workerEvent.NodeId);
+            var evaluatedValue24 = ReadPayloadString(payload.RootElement, "nodeType") ?? string.Empty;
+            var readPayloadIntResult = ReadPayloadInt(payload.RootElement, "step");
+            var readPayloadIntResult25 = ReadPayloadInt(payload.RootElement, "frameDepth");
+            var readPayloadJsonResult = ReadPayloadJson(payload.RootElement, "inputs");
+            var flowDebugPauseState = new FlowDebugPauseState(workerEvent.NodeId ?? string.Empty, evaluatedValue24, readPayloadIntResult, readPayloadIntResult25, invocationId, workerEvent.Sequence, readPayloadJsonResult, workerEvent.Timestamp, executionId);
+            session.Pause(flowDebugPauseState, workerEvent.Timestamp, invocationId, invocationId is null ? null : session.ActiveFlipflopNodeId ?? workerEvent.NodeId);
             await debugStore.SaveAsync(session, cancellationToken);
         }
-        else if (workerEvent.EventType is WorkerEventType.DebugTriggerReceived
-            or WorkerEventType.DebugTriggerQueued
-            or WorkerEventType.DebugTriggerAdmitted
-            or WorkerEventType.DebugTriggerCompleted
-            or WorkerEventType.DebugTriggerRejected
-            or WorkerEventType.DebugTriggerFailed)
+        else if (workerEvent.EventType is WorkerEventType.DebugTriggerReceived or WorkerEventType.DebugTriggerQueued or WorkerEventType.DebugTriggerAdmitted or WorkerEventType.DebugTriggerCompleted or WorkerEventType.DebugTriggerRejected or WorkerEventType.DebugTriggerFailed)
         {
             using var payload = JsonDocument.Parse(workerEvent.PayloadJson);
             var invocationId = ReadPayloadGuid(payload.RootElement, "triggerInvocationId");
@@ -553,75 +456,44 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             switch (workerEvent.EventType)
             {
                 case WorkerEventType.DebugTriggerQueued:
-                    session.SetActiveInvocation(
-                        session.ActiveInvocationId,
-                        session.ActiveFlipflopNodeId,
-                        session.QueuedTriggerCount + 1,
-                        DateTimeOffset.UtcNow);
+                    session.SetActiveInvocation(session.ActiveInvocationId, session.ActiveFlipflopNodeId, session.QueuedTriggerCount + 1, DateTimeOffset.UtcNow);
                     break;
                 case WorkerEventType.DebugTriggerAdmitted:
-                    session.SetActiveInvocation(
-                        invocationId,
-                        flipflopNodeId,
-                        Math.Max(0, session.QueuedTriggerCount - 1),
-                        DateTimeOffset.UtcNow);
+                    var maxResult = Math.Max(0, session.QueuedTriggerCount - 1);
+                    session.SetActiveInvocation(invocationId, flipflopNodeId, maxResult, DateTimeOffset.UtcNow);
                     break;
                 case WorkerEventType.DebugTriggerCompleted or WorkerEventType.DebugTriggerFailed:
                     if (session.ActiveInvocationId == invocationId)
                     {
-                        session.SetActiveInvocation(
-                            null,
-                            null,
-                            session.QueuedTriggerCount,
-                            DateTimeOffset.UtcNow);
+                        session.SetActiveInvocation(null, null, session.QueuedTriggerCount, DateTimeOffset.UtcNow);
                     }
+
                     break;
             }
-            if (workerEvent.EventType != WorkerEventType.DebugTriggerReceived
-                && workerEvent.EventType != WorkerEventType.DebugTriggerRejected)
+
+            if (workerEvent.EventType != WorkerEventType.DebugTriggerReceived && workerEvent.EventType != WorkerEventType.DebugTriggerRejected)
+            {
                 await debugStore.SaveAsync(session, cancellationToken);
+            }
         }
 
-        var item = new FlowRunEvent(
-            workerEvent.RunId,
-            workerEvent.Sequence,
-            workerEvent.Timestamp,
-            ToEventType(workerEvent.EventType),
-            workerEvent.NodeId,
-            workerEvent.PayloadJson);
+        var toEventTypeResult = ToEventType(workerEvent.EventType);
+        var item = new FlowRunEvent(workerEvent.RunId, workerEvent.Sequence, workerEvent.Timestamp, toEventTypeResult, workerEvent.NodeId, workerEvent.PayloadJson);
         await eventStore.AppendAsync([item], cancellationToken);
         var output = CreateNodeOutput(workerEvent);
         if (output is not null)
         {
             await outputStore.AppendAsync([output], cancellationToken);
-            session.RecordNodeResult(
-                new FlowDebugNodeResult(
-                    output.NodeId,
-                    output.Sequence,
-                    output.Timestamp,
-                    output.Outcome,
-                    output.Branch,
-                    output.InputsJson,
-                    output.OutputsJson,
-                    output.ErrorCode,
-                    output.ErrorMessage),
-                output.Timestamp);
+            var flowDebugNodeResult = new FlowDebugNodeResult(output.NodeId, output.Sequence, output.Timestamp, output.Outcome, output.Branch, output.InputsJson, output.OutputsJson, output.ErrorCode, output.ErrorMessage);
+            session.RecordNodeResult(flowDebugNodeResult, output.Timestamp);
             await debugStore.SaveAsync(session, cancellationToken);
         }
-        await PublishLiveAsync(new FlowRunEventDto(
-            item.RunId,
-            item.Sequence,
-            item.Timestamp,
-            item.Type,
-            item.NodeId,
-            item.PayloadJson));
+
+        var flowRunEventDto = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);
+        await PublishLiveAsync(flowRunEventDto);
     }
 
-    private async Task PublishTerminalAsync(
-        FlowRun run,
-        WorkerRunResultDto result,
-        IFlowRunEventStore eventStore,
-        CancellationToken cancellationToken)
+    private async Task PublishTerminalAsync(FlowRun run, WorkerRunResultDto result, IFlowRunEventStore eventStore, CancellationToken cancellationToken)
     {
         var type = result.Status switch
         {
@@ -631,24 +503,17 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             _ => RunErrorCodes.Completed
         };
         if (run.Status == FlowRunStatus.Interrupted)
+        {
             type = RunErrorCodes.Interrupted;
-        var item = new FlowRunEvent(
-            run.Id,
-            await eventStore.GetLastSequenceAsync(run.Id, cancellationToken) + 1,
-            DateTimeOffset.UtcNow,
-            type,
-            null,
-            JsonSerializer.Serialize(
-                new { result.Status, result.ErrorCode, result.ErrorMessage, cancellationSource = run.CancellationReason, variables = result.FinalVariables },
-                SereinJsonSerialization.CreateWebOptions()));
+        }
+
+        var evaluatedValue26 = await eventStore.GetLastSequenceAsync(run.Id, cancellationToken) + 1;
+        var createWebOptionsResult27 = SereinJsonSerialization.CreateWebOptions();
+        var serializeResult28 = JsonSerializer.Serialize(new { result.Status, result.ErrorCode, result.ErrorMessage, cancellationSource = run.CancellationReason, variables = result.FinalVariables }, createWebOptionsResult27);
+        var item = new FlowRunEvent(run.Id, evaluatedValue26, DateTimeOffset.UtcNow, type, null, serializeResult28);
         await eventStore.AppendAsync([item], cancellationToken);
-        await PublishLiveAsync(new FlowRunEventDto(
-            item.RunId,
-            item.Sequence,
-            item.Timestamp,
-            item.Type,
-            item.NodeId,
-            item.PayloadJson));
+        var flowRunEventDto29 = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);
+        await PublishLiveAsync(flowRunEventDto29);
     }
 
     private async Task PublishLiveAsync(FlowRunEventDto item)
@@ -664,7 +529,8 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
 
         try
         {
-            await _hub.Clients.Group($"run:{item.RunId:D}").SendAsync("runEvent", item, CancellationToken.None);
+            var groupResult = _hub.Clients.Group($"run:{item.RunId:D}");
+            await groupResult.SendAsync("runEvent", item, CancellationToken.None);
         }
         catch (Exception exception)
         {
@@ -672,39 +538,38 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         }
     }
 
-    private static string ToEventType(WorkerEventType eventType)
-        => eventType switch
-        {
-            WorkerEventType.RunStarted => RunErrorCodes.Started,
-            WorkerEventType.NodeStarted => NodeErrorCodes.Started,
-            WorkerEventType.NodeCompleted => NodeErrorCodes.Completed,
-            WorkerEventType.NodeFailed => NodeErrorCodes.Failed,
-            WorkerEventType.NodeErrored => NodeErrorCodes.Error,
-            WorkerEventType.RunCompleted => RunErrorCodes.Completed,
-            WorkerEventType.RunCancelled => RunErrorCodes.Cancelled,
-            WorkerEventType.DebugPaused => DebugErrorCodes.Paused,
-            WorkerEventType.DebugTriggerReceived => DebugErrorCodes.TriggerReceived,
-            WorkerEventType.DebugTriggerQueued => DebugErrorCodes.TriggerQueued,
-            WorkerEventType.DebugTriggerAdmitted => DebugErrorCodes.TriggerAdmitted,
-            WorkerEventType.DebugTriggerRejected => DebugErrorCodes.TriggerRejected,
-            WorkerEventType.DebugTriggerCompleted => DebugErrorCodes.TriggerCompleted,
-            WorkerEventType.DebugTriggerFailed => DebugErrorCodes.TriggerFailed,
-            _ => "log"
-        };
-
-    private static FlowRunStatus ToDomainStatus(FlowRunStatusDto status)
-        => status switch
-        {
-            FlowRunStatusDto.Succeeded => FlowRunStatus.Succeeded,
-            FlowRunStatusDto.Cancelled => FlowRunStatus.Cancelled,
-            FlowRunStatusDto.TimedOut => FlowRunStatus.TimedOut,
-            _ => FlowRunStatus.Failed
-        };
-
+    private static string ToEventType(WorkerEventType eventType) => eventType switch
+    {
+        WorkerEventType.RunStarted => RunErrorCodes.Started,
+        WorkerEventType.NodeStarted => NodeErrorCodes.Started,
+        WorkerEventType.NodeCompleted => NodeErrorCodes.Completed,
+        WorkerEventType.NodeFailed => NodeErrorCodes.Failed,
+        WorkerEventType.NodeErrored => NodeErrorCodes.Error,
+        WorkerEventType.RunCompleted => RunErrorCodes.Completed,
+        WorkerEventType.RunCancelled => RunErrorCodes.Cancelled,
+        WorkerEventType.DebugPaused => DebugErrorCodes.Paused,
+        WorkerEventType.DebugTriggerReceived => DebugErrorCodes.TriggerReceived,
+        WorkerEventType.DebugTriggerQueued => DebugErrorCodes.TriggerQueued,
+        WorkerEventType.DebugTriggerAdmitted => DebugErrorCodes.TriggerAdmitted,
+        WorkerEventType.DebugTriggerRejected => DebugErrorCodes.TriggerRejected,
+        WorkerEventType.DebugTriggerCompleted => DebugErrorCodes.TriggerCompleted,
+        WorkerEventType.DebugTriggerFailed => DebugErrorCodes.TriggerFailed,
+        _ => "log"
+    };
+    private static FlowRunStatus ToDomainStatus(FlowRunStatusDto status) => status switch
+    {
+        FlowRunStatusDto.Succeeded => FlowRunStatus.Succeeded,
+        FlowRunStatusDto.Cancelled => FlowRunStatus.Cancelled,
+        FlowRunStatusDto.TimedOut => FlowRunStatus.TimedOut,
+        _ => FlowRunStatus.Failed
+    };
     private static FlowRunOutput? CreateNodeOutput(WorkerEventEnvelopeDto workerEvent)
     {
         if (string.IsNullOrWhiteSpace(workerEvent.NodeId))
+        {
             return null;
+        }
+
         var outcome = workerEvent.EventType switch
         {
             WorkerEventType.NodeCompleted => "completed",
@@ -713,59 +578,104 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
             _ => null
         };
         if (outcome is null)
+        {
             return null;
+        }
 
         using var payload = JsonDocument.Parse(workerEvent.PayloadJson);
         var root = payload.RootElement;
         if (root.ValueKind != JsonValueKind.Object)
         {
-            throw new InvalidOperationException(
-                "Worker node output payload is invalid. Worker 节点输出载荷无效。");
+            throw new InvalidOperationException("Worker node output payload is invalid. Worker 节点输出载荷无效。");
         }
-        return new FlowRunOutput(
-            workerEvent.RunId,
-            workerEvent.Sequence,
-            workerEvent.Timestamp,
-            workerEvent.NodeId,
-            outcome,
-            ReadPayloadString(root, "branch"),
-            root.TryGetProperty("outputs", out var outputs) ? outputs.GetRawText() : "{}",
-            ReadPayloadString(root, "errorCode"),
-            ReadPayloadString(root, "errorMessage"),
-            root.TryGetProperty("inputs", out var inputs) ? inputs.GetRawText() : "{}");
+
+        var readPayloadStringResult = ReadPayloadString(root, "branch");
+        string evaluatedValue30 = root.TryGetProperty("outputs", out var outputs) ? outputs.GetRawText() : "{}";
+        var readPayloadStringResult31 = ReadPayloadString(root, "errorCode");
+        var readPayloadStringResult32 = ReadPayloadString(root, "errorMessage");
+        string evaluatedValue33 = root.TryGetProperty("inputs", out var inputs) ? inputs.GetRawText() : "{}";
+        var flowRunOutput = new FlowRunOutput(workerEvent.RunId, workerEvent.Sequence, workerEvent.Timestamp, workerEvent.NodeId, outcome, readPayloadStringResult, evaluatedValue30, readPayloadStringResult31, readPayloadStringResult32, evaluatedValue33);
+        return flowRunOutput;
     }
 
     private static string? ReadPayloadString(JsonElement payload, string name)
-        => payload.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString()
-            : null;
+    {
+        string? evaluatedValue34 = payload.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+        return evaluatedValue34;
+    }
 
     private static Guid? ReadPayloadGuid(JsonElement payload, string name)
-        => payload.TryGetProperty(name, out var value)
-            && value.ValueKind == JsonValueKind.String
-            && Guid.TryParse(value.GetString(), out var parsed)
-            ? parsed
-            : null;
+    {
+        if (payload.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String)
+        {
+            var identifierText = value.GetString();
+            if (Guid.TryParse(identifierText, out var parsed))
+            {
+                return parsed;
+            }
+        }
+
+        return null;
+    }
 
     private static int ReadPayloadInt(JsonElement payload, string name)
-        => payload.TryGetProperty(name, out var value)
-            && value.ValueKind == JsonValueKind.Number
-            && value.TryGetInt32(out var parsed)
-            ? Math.Max(0, parsed)
-            : 0;
+    {
+        int evaluatedValue36 = payload.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var parsed) ? Math.Max(0, parsed) : 0;
+        return evaluatedValue36;
+    }
 
     private static string ReadPayloadJson(JsonElement payload, string name)
-        => payload.TryGetProperty(name, out var value)
-            ? value.GetRawText()
-            : "{}";
-
+    {
+        string evaluatedValue37 = payload.TryGetProperty(name, out var value) ? value.GetRawText() : "{}";
+        return evaluatedValue37;
+    }
 
     private sealed class ActiveDebugSession(IWorkerDebugRunHandle handle, RunExecutionQueue.RunExecutionLease lease)
     {
         public IWorkerDebugRunHandle Handle { get; } = handle;
-
         public RunExecutionQueue.RunExecutionLease Lease { get; } = lease;
-
         public SemaphoreSlim CommandGate { get; } = new(1, 1);
+    }
+
+    private static Action<ILogger, Guid, Exception?> createDebugWorkerStartupFailedLogInitialValue()
+    {
+        var eventId = new EventId(4101, nameof(DebugWorkerStartupFailedLog));
+        Action<ILogger, Guid, Exception?> debugWorkerStartupFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Error, eventId, "Debug Worker startup failed for session {DebugSessionId}. 调试 Worker 启动失败。");
+        return debugWorkerStartupFailedLogInitialValue;
+    }
+
+    private static Action<ILogger, Exception?> createDebugWorkerShutdownFailedLogInitialValue()
+    {
+        var eventId1 = new EventId(4102, nameof(DebugWorkerShutdownFailedLog));
+        Action<ILogger, Exception?> debugWorkerShutdownFailedLogInitialValue = LoggerMessage.Define(LogLevel.Warning, eventId1, "Debug Worker shutdown failed. 调试 Worker 关闭失败。");
+        return debugWorkerShutdownFailedLogInitialValue;
+    }
+
+    private static Action<ILogger, Guid, Exception?> createDebugWorkerMonitoringFailedLogInitialValue()
+    {
+        var eventId2 = new EventId(4103, nameof(DebugWorkerMonitoringFailedLog));
+        Action<ILogger, Guid, Exception?> debugWorkerMonitoringFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Error, eventId2, "Debug Worker monitoring failed for session {DebugSessionId}. 调试 Worker 监控失败。");
+        return debugWorkerMonitoringFailedLogInitialValue;
+    }
+
+    private static Action<ILogger, Guid, Exception?> createDebugCompletionPersistenceFailedLogInitialValue()
+    {
+        var eventId3 = new EventId(4104, nameof(DebugCompletionPersistenceFailedLog));
+        Action<ILogger, Guid, Exception?> debugCompletionPersistenceFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Error, eventId3, "Debug completion persistence failed for session {DebugSessionId}. 调试完成状态持久化失败。");
+        return debugCompletionPersistenceFailedLogInitialValue;
+    }
+
+    private static Action<ILogger, Guid, Exception?> createLiveDebugBroadcastFailedLogInitialValue()
+    {
+        var eventId4 = new EventId(4105, nameof(LiveDebugBroadcastFailedLog));
+        Action<ILogger, Guid, Exception?> liveDebugBroadcastFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Warning, eventId4, "Live debug event broadcast failed for {RunId}. 实时调试事件广播失败。");
+        return liveDebugBroadcastFailedLogInitialValue;
+    }
+
+    private static Action<ILogger, Guid, Exception?> createDebugSignalRPushFailedLogInitialValue()
+    {
+        var eventId5 = new EventId(4106, nameof(DebugSignalRPushFailedLog));
+        Action<ILogger, Guid, Exception?> debugSignalRPushFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Warning, eventId5, "Debug SignalR event push failed for {RunId}. 调试 SignalR 事件推送失败。");
+        return debugSignalRPushFailedLogInitialValue;
     }
 }

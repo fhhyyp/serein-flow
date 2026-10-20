@@ -1,18 +1,7 @@
 namespace SereinFlow.Domain;
-
 public sealed class FlowRun
 {
-    private FlowRun(
-        Guid id,
-        Guid projectId,
-        Guid flowId,
-        long flowVersion,
-        string definitionChecksum,
-        DateTimeOffset createdAt,
-        FlowConcurrencyMode concurrencyMode,
-        bool isListenerRun,
-        FlowRunExecutionKind executionKind,
-        Guid? debugSessionId)
+    private FlowRun(Guid id, Guid projectId, Guid flowId, long flowVersion, string definitionChecksum, DateTimeOffset createdAt, FlowConcurrencyMode concurrencyMode, bool isListenerRun, FlowRunExecutionKind executionKind, Guid? debugSessionId)
     {
         Id = id;
         ProjectId = projectId;
@@ -29,75 +18,56 @@ public sealed class FlowRun
     }
 
     public Guid Id { get; }
-
     public Guid ProjectId { get; }
-
     public Guid FlowId { get; }
-
     public long FlowVersion { get; }
-
     /// <summary>
     /// The checksum of the immutable definition snapshot selected for this run.
     /// 运行实例选定的不可变流程定义快照校验和。
     /// </summary>
     public string DefinitionChecksum { get; }
-
     public FlowRunStatus Status { get; private set; }
-
     public DateTimeOffset CreatedAt { get; }
-
     public DateTimeOffset QueuedAt { get; private set; }
-
     public FlowConcurrencyMode ConcurrencyMode { get; }
-
     public bool IsListenerRun { get; }
-
     public FlowRunExecutionKind ExecutionKind { get; }
-
     public Guid? DebugSessionId { get; }
 
-    public string? ExclusivityKey => ConcurrencyMode == FlowConcurrencyMode.ExclusiveReject
-        ? FlowId.ToString("D")
-        : null;
+    public string? ExclusivityKey
+    {
+        get
+        {
+            string? evaluatedValue = ConcurrencyMode == FlowConcurrencyMode.ExclusiveReject ? FlowId.ToString("D") : null;
+            return evaluatedValue;
+        }
+    }
 
     public DateTimeOffset? StartedAt { get; private set; }
-
     /// <summary>
     /// The execution deadline is assigned when this run actually obtains a
     /// Worker slot. Pending time is governed by the queue wait timeout.
     /// 实际取得 Worker 槽位时才设置执行截止时间；排队时间由队列等待超时控制。
     /// </summary>
     public DateTimeOffset? Deadline { get; private set; }
-
     public DateTimeOffset? EndedAt { get; private set; }
-
     public string? CancellationReason { get; private set; }
-
     public string? ErrorSummary { get; private set; }
-
-    public bool IsTerminal => Status is FlowRunStatus.Succeeded
-        or FlowRunStatus.Failed
-        or FlowRunStatus.Cancelled
-        or FlowRunStatus.TimedOut
-        or FlowRunStatus.Interrupted;
+    public bool IsTerminal => Status is FlowRunStatus.Succeeded or FlowRunStatus.Failed or FlowRunStatus.Cancelled or FlowRunStatus.TimedOut or FlowRunStatus.Interrupted;
 
     public static FlowRun Start(Guid flowId, long flowVersion, DateTimeOffset createdAt, Guid? id = null)
-        => Start(Guid.Empty, flowId, flowVersion, createdAt, FlowConcurrencyMode.Parallel, false, id);
+    {
+        var startResult = Start(Guid.Empty, flowId, flowVersion, createdAt, FlowConcurrencyMode.Parallel, false, id);
+        return startResult;
+    }
 
     public static FlowRun Start(Guid projectId, Guid flowId, long flowVersion, DateTimeOffset createdAt, Guid? id = null)
-        => Start(projectId, flowId, flowVersion, createdAt, FlowConcurrencyMode.Parallel, false, id);
+    {
+        var startResult1 = Start(projectId, flowId, flowVersion, createdAt, FlowConcurrencyMode.Parallel, false, id);
+        return startResult1;
+    }
 
-    public static FlowRun Start(
-        Guid projectId,
-        Guid flowId,
-        long flowVersion,
-        DateTimeOffset createdAt,
-        FlowConcurrencyMode concurrencyMode,
-        bool isListenerRun,
-        Guid? id = null,
-        FlowRunExecutionKind executionKind = FlowRunExecutionKind.Production,
-        Guid? debugSessionId = null,
-        string definitionChecksum = "")
+    public static FlowRun Start(Guid projectId, Guid flowId, long flowVersion, DateTimeOffset createdAt, FlowConcurrencyMode concurrencyMode, bool isListenerRun, Guid? id = null, FlowRunExecutionKind executionKind = FlowRunExecutionKind.Production, Guid? debugSessionId = null, string definitionChecksum = "")
     {
         if (flowId == Guid.Empty)
         {
@@ -105,69 +75,38 @@ public sealed class FlowRun
         }
 
         if (flowVersion < 1)
+        {
             throw new ArgumentOutOfRangeException(nameof(flowVersion), "Flow version must be positive. 流程版本必须为正数。");
+        }
 
         if (!Enum.IsDefined(concurrencyMode))
-            throw new ArgumentOutOfRangeException(nameof(concurrencyMode), "The flow concurrency mode is invalid. 流程并发模式无效。");
-        if (!Enum.IsDefined(executionKind))
-            throw new ArgumentOutOfRangeException(nameof(executionKind), "The flow execution kind is invalid. 流程运行类型无效。");
-        if (executionKind == FlowRunExecutionKind.Debug
-            && (!debugSessionId.HasValue || debugSessionId.Value == Guid.Empty))
         {
-            throw new ArgumentException(
-                "Debug runs require a non-empty debug session ID. 调试运行需要非空的调试会话 ID。",
-                nameof(debugSessionId));
+            throw new ArgumentOutOfRangeException(nameof(concurrencyMode), "The flow concurrency mode is invalid. 流程并发模式无效。");
         }
+
+        if (!Enum.IsDefined(executionKind))
+        {
+            throw new ArgumentOutOfRangeException(nameof(executionKind), "The flow execution kind is invalid. 流程运行类型无效。");
+        }
+
+        if (executionKind == FlowRunExecutionKind.Debug && (!debugSessionId.HasValue || debugSessionId.Value == Guid.Empty))
+        {
+            throw new ArgumentException("Debug runs require a non-empty debug session ID. 调试运行需要非空的调试会话 ID。", nameof(debugSessionId));
+        }
+
         if (executionKind != FlowRunExecutionKind.Debug && debugSessionId is not null)
         {
-            throw new ArgumentException(
-                "Only debug runs may have a debug session ID. 只有调试运行可以关联调试会话 ID。",
-                nameof(debugSessionId));
+            throw new ArgumentException("Only debug runs may have a debug session ID. 只有调试运行可以关联调试会话 ID。", nameof(debugSessionId));
         }
 
-        return new FlowRun(
-            id ?? Guid.NewGuid(),
-            projectId,
-            flowId,
-            flowVersion,
-            definitionChecksum,
-            createdAt,
-            concurrencyMode,
-            isListenerRun,
-            executionKind,
-            debugSessionId);
+        var evaluatedValue2 = id ?? Guid.NewGuid();
+        var flowRun = new FlowRun(evaluatedValue2, projectId, flowId, flowVersion, definitionChecksum, createdAt, concurrencyMode, isListenerRun, executionKind, debugSessionId);
+        return flowRun;
     }
 
-    public static FlowRun Rehydrate(
-        Guid id,
-        Guid projectId,
-        Guid flowId,
-        long flowVersion,
-        FlowRunStatus status,
-        DateTimeOffset createdAt,
-        DateTimeOffset? startedAt,
-        DateTimeOffset? endedAt,
-        string? cancellationReason,
-        string? errorSummary,
-        FlowConcurrencyMode concurrencyMode = FlowConcurrencyMode.Parallel,
-        bool isListenerRun = false,
-        DateTimeOffset? queuedAt = null,
-        DateTimeOffset? deadline = null,
-        FlowRunExecutionKind executionKind = FlowRunExecutionKind.Production,
-        Guid? debugSessionId = null,
-        string definitionChecksum = "")
+    public static FlowRun Rehydrate(Guid id, Guid projectId, Guid flowId, long flowVersion, FlowRunStatus status, DateTimeOffset createdAt, DateTimeOffset? startedAt, DateTimeOffset? endedAt, string? cancellationReason, string? errorSummary, FlowConcurrencyMode concurrencyMode = FlowConcurrencyMode.Parallel, bool isListenerRun = false, DateTimeOffset? queuedAt = null, DateTimeOffset? deadline = null, FlowRunExecutionKind executionKind = FlowRunExecutionKind.Production, Guid? debugSessionId = null, string definitionChecksum = "")
     {
-        var run = Start(
-            projectId,
-            flowId,
-            flowVersion,
-            createdAt,
-            concurrencyMode,
-            isListenerRun,
-            id,
-            executionKind,
-            debugSessionId,
-            definitionChecksum);
+        var run = Start(projectId, flowId, flowVersion, createdAt, concurrencyMode, isListenerRun, id, executionKind, debugSessionId, definitionChecksum);
         run.Status = status;
         run.QueuedAt = queuedAt ?? createdAt;
         run.StartedAt = startedAt;
@@ -179,7 +118,10 @@ public sealed class FlowRun
     }
 
     public void MarkRunning(DateTimeOffset startedAt)
-        => MarkRunning(startedAt, startedAt.AddMinutes(5));
+    {
+        var addMinutesResult = startedAt.AddMinutes(5);
+        MarkRunning(startedAt, addMinutesResult);
+    }
 
     public void MarkRunning(DateTimeOffset startedAt, DateTimeOffset deadline)
     {
@@ -191,9 +133,7 @@ public sealed class FlowRun
 
         if (deadline < startedAt)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(deadline),
-                "The execution deadline cannot be earlier than the start time. 执行截止时间不能早于开始时间。");
+            throw new ArgumentOutOfRangeException(nameof(deadline), "The execution deadline cannot be earlier than the start time. 执行截止时间不能早于开始时间。");
         }
 
         Status = FlowRunStatus.Running;
@@ -237,17 +177,14 @@ public sealed class FlowRun
     {
         if (Status != FlowRunStatus.Running)
         {
-            throw new InvalidOperationException(
-                "Only a running run can be interrupted. 只有运行中的实例可以标记为中断。");
+            throw new InvalidOperationException("Only a running run can be interrupted. 只有运行中的实例可以标记为中断。");
         }
 
         EnsureNotTerminal();
         Status = FlowRunStatus.Interrupted;
         EndedAt = endedAt;
         CancellationReason = string.IsNullOrWhiteSpace(reason) ? "interrupted" : reason.Trim();
-        ErrorSummary = string.IsNullOrWhiteSpace(errorSummary)
-            ? "The Worker was lost before the run reached a terminal state. Worker 在流程到达终态前已丢失。"
-            : errorSummary.Trim();
+        ErrorSummary = string.IsNullOrWhiteSpace(errorSummary) ? "The Worker was lost before the run reached a terminal state. Worker 在流程到达终态前已丢失。" : errorSummary.Trim();
     }
 
     private void EnsureNotTerminal()

@@ -2,7 +2,6 @@ using Microsoft.Data.Sqlite;
 using SqlSugar;
 
 namespace SereinFlow.Infrastructure.Persistence;
-
 public sealed record SqliteDatabaseOptions
 {
     public SqliteDatabaseOptions(string databasePath, int busyTimeoutMilliseconds = 5000)
@@ -13,13 +12,15 @@ public sealed record SqliteDatabaseOptions
         }
 
         if (busyTimeoutMilliseconds < 1)
+        {
             throw new ArgumentOutOfRangeException(nameof(busyTimeoutMilliseconds), "Busy timeout must be positive. 忙等待超时时间必须为正数。");
+        }
+
         DatabasePath = Path.GetFullPath(databasePath);
         BusyTimeoutMilliseconds = busyTimeoutMilliseconds;
     }
 
     public string DatabasePath { get; }
-
     public int BusyTimeoutMilliseconds { get; }
 }
 
@@ -27,7 +28,6 @@ public sealed class SqliteDatabase : IDisposable
 {
     private readonly SqliteDatabaseOptions _options;
     private bool _initialized;
-
     public SqliteDatabase(SqliteDatabaseOptions options)
     {
         _options = options;
@@ -37,21 +37,19 @@ public sealed class SqliteDatabase : IDisposable
             Directory.CreateDirectory(directory);
         }
 
-        Client = new SqlSugarClient(new ConnectionConfig
+        var connectionConfig = new ConnectionConfig
         {
             ConnectionString = $"Data Source={options.DatabasePath}",
             DbType = DbType.Sqlite,
             IsAutoCloseConnection = false,
             InitKeyType = InitKeyType.Attribute
-        });
-
+        };
+        Client = new SqlSugarClient(connectionConfig);
         ConfigurePragmas();
     }
 
     public SqlSugarClient Client { get; }
-
     public string DatabasePath => _options.DatabasePath;
-
     public int BusyTimeoutMilliseconds => _options.BusyTimeoutMilliseconds;
 
     /// <summary>
@@ -62,13 +60,14 @@ public sealed class SqliteDatabase : IDisposable
     /// </summary>
     public SqlSugarClient CreateClient()
     {
-        var client = new SqlSugarClient(new ConnectionConfig
+        var connectionConfig1 = new ConnectionConfig
         {
             ConnectionString = $"Data Source={DatabasePath}",
             DbType = DbType.Sqlite,
             IsAutoCloseConnection = true,
             InitKeyType = InitKeyType.Attribute
-        });
+        };
+        var client = new SqlSugarClient(connectionConfig1);
         ConfigurePragmas(client);
         return client;
     }
@@ -80,24 +79,28 @@ public sealed class SqliteDatabase : IDisposable
             return;
         }
 
-        new SqliteMigrator(Client).Migrate();
+        var sqliteMigrator = new SqliteMigrator(Client);
+        sqliteMigrator.Migrate();
         _initialized = true;
     }
 
     public int Execute(string sql, params SugarParameter[] parameters)
     {
-        return Client.Ado.ExecuteCommand(sql, parameters);
+        var executeCommandResult = Client.Ado.ExecuteCommand(sql, parameters);
+        return executeCommandResult;
     }
 
     public IReadOnlyList<T> Query<T>(string sql, params SugarParameter[] parameters)
     {
-        return Client.Ado.SqlQuery<T>(sql, parameters);
+        var sqlQueryResult = Client.Ado.SqlQuery<T>(sql, parameters);
+        return sqlQueryResult;
     }
 
     public T Scalar<T>(string sql, params SugarParameter[] parameters)
     {
         var values = Client.Ado.SqlQuery<T>(sql, parameters);
-        return values.FirstOrDefault() ?? default!;
+        var evaluatedValue = values.FirstOrDefault() ?? default!;
+        return evaluatedValue;
     }
 
     public void BackupTo(string targetPath)

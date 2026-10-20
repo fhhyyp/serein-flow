@@ -1,16 +1,9 @@
 using SereinFlow.Application.Persistence;
 using SereinFlow.Domain;
-
 using SereinFlow.Contracts;
+
 namespace SereinFlow.Application;
-
-public sealed record ProjectArchiveResult(
-    bool IsSuccess,
-    int StatusCode,
-    string? Code = null,
-    string? Message = null,
-    Project? Project = null);
-
+public sealed record ProjectArchiveResult(bool IsSuccess, int StatusCode, string? Code = null, string? Message = null, Project? Project = null);
 /// <summary>
 /// Owns the project archival invariant. A published environment interface is
 /// an external contract, so its target project cannot disappear from normal
@@ -21,54 +14,44 @@ public sealed class ProjectArchiveService
 {
     private readonly IProjectRepository _projects;
     private readonly IFlowInterfaceRepository _interfaces;
-
-    public ProjectArchiveService(
-        IProjectRepository projects,
-        IFlowInterfaceRepository interfaces)
+    public ProjectArchiveService(IProjectRepository projects, IFlowInterfaceRepository interfaces)
     {
         _projects = projects;
         _interfaces = interfaces;
     }
 
-    public async Task<ProjectArchiveResult> ArchiveAsync(
-        Guid projectId,
-        CancellationToken cancellationToken = default)
+    public async Task<ProjectArchiveResult> ArchiveAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
         var project = await _projects.FindAsync(projectId, cancellationToken);
         if (project is null)
         {
-            return new ProjectArchiveResult(
-                false,
-                404,
-                ProjectErrorCodes.NotFound,
-                "Project was not found. 未找到项目。");
+            var projectArchiveResult = new ProjectArchiveResult(false, 404, ProjectErrorCodes.NotFound, "Project was not found. 未找到项目。");
+            return projectArchiveResult;
         }
 
         if (project.Status == ProjectStatus.Archived)
-            return new ProjectArchiveResult(true, 200, Project: project);
+        {
+            var projectArchiveResult1 = new ProjectArchiveResult(true, 200, Project: project);
+            return projectArchiveResult1;
+        }
 
-        var hasEnvironmentInterface = (await _interfaces.ListAsync(cancellationToken))
-            .Any(flowInterface => flowInterface.ProjectId == projectId);
+        var evaluatedValue = (await _interfaces.ListAsync(cancellationToken));
+        var hasEnvironmentInterface = evaluatedValue.Any(flowInterface => flowInterface.ProjectId == projectId);
         if (hasEnvironmentInterface)
         {
-            return new ProjectArchiveResult(
-                false,
-                409,
-                ProjectErrorCodes.ArchiveEnvironmentInterfaceExists,
-                "The project is referenced by one or more environment interfaces and cannot be archived. 项目已被一个或多个环境接口引用，不能归档。");
+            var projectArchiveResult2 = new ProjectArchiveResult(false, 409, ProjectErrorCodes.ArchiveEnvironmentInterfaceExists, "The project is referenced by one or more environment interfaces and cannot be archived. 项目已被一个或多个环境接口引用，不能归档。");
+            return projectArchiveResult2;
         }
 
         var expectedVersion = project.Version;
         project.Archive();
         if (!await _projects.TryUpdateAsync(project, expectedVersion, cancellationToken))
         {
-            return new ProjectArchiveResult(
-                false,
-                409,
-                ProjectErrorCodes.VersionConflict,
-                "The project was changed by another editor. 项目已被其他编辑器修改。");
+            var projectArchiveResult3 = new ProjectArchiveResult(false, 409, ProjectErrorCodes.VersionConflict, "The project was changed by another editor. 项目已被其他编辑器修改。");
+            return projectArchiveResult3;
         }
 
-        return new ProjectArchiveResult(true, 200, Project: project);
+        var projectArchiveResult4 = new ProjectArchiveResult(true, 200, Project: project);
+        return projectArchiveResult4;
     }
 }

@@ -2,7 +2,6 @@ using System;
 using SereinFlow.Library;
 
 namespace SereinFlow.TestLibrary;
-
 public interface IRunMarker
 {
     Guid InstanceId { get; }
@@ -40,14 +39,7 @@ public sealed class ConstructorInjectionNodes
     private readonly IInvocationMarker _invocationByContract;
     private readonly TransientMarker _firstTransient;
     private readonly TransientMarker _secondTransient;
-
-    public ConstructorInjectionNodes(
-        RunMarker runByConcrete,
-        IRunMarker runByContract,
-        InvocationMarker invocationByConcrete,
-        IInvocationMarker invocationByContract,
-        TransientMarker firstTransient,
-        TransientMarker secondTransient)
+    public ConstructorInjectionNodes(RunMarker runByConcrete, IRunMarker runByContract, InvocationMarker invocationByConcrete, IInvocationMarker invocationByContract, TransientMarker firstTransient, TransientMarker secondTransient)
     {
         _runByConcrete = runByConcrete;
         _runByContract = runByContract;
@@ -59,22 +51,26 @@ public sealed class ConstructorInjectionNodes
 
     [FlowNode(Id = "test.di.describe", AnotherName = "Describe injected services")]
     public string Describe()
-        => string.Join(
-            ";",
-            _runByConcrete.InstanceId.ToString("N"),
-            _runByContract.InstanceId.ToString("N"),
-            ReferenceEquals(_runByConcrete, _runByContract),
-            _invocationByConcrete.InstanceId.ToString("N"),
-            _invocationByContract.InstanceId.ToString("N"),
-            ReferenceEquals(_invocationByConcrete, _invocationByContract),
-            ReferenceEquals(_firstTransient, _secondTransient));
+    {
+        var toStringResult = _runByConcrete.InstanceId.ToString("N");
+        var toStringResult1 = _runByContract.InstanceId.ToString("N");
+        var referenceEqualsResult = ReferenceEquals(_runByConcrete, _runByContract);
+        var toStringResult2 = _invocationByConcrete.InstanceId.ToString("N");
+        var toStringResult3 = _invocationByContract.InstanceId.ToString("N");
+        var referenceEqualsResult4 = ReferenceEquals(_invocationByConcrete, _invocationByContract);
+        var referenceEqualsResult5 = ReferenceEquals(_firstTransient, _secondTransient);
+        var joinResult = string.Join(";", toStringResult, toStringResult1, referenceEqualsResult, toStringResult2, toStringResult3, referenceEqualsResult4, referenceEqualsResult5);
+        return joinResult;
+    }
 
     [FlowNode(Id = "test.di.run-scope", AnotherName = "Describe run and invocation scopes")]
     public string DescribeRunAndInvocationScopes()
-        => string.Join(
-            ";",
-            _runByConcrete.InstanceId.ToString("N"),
-            _invocationByConcrete.InstanceId.ToString("N"));
+    {
+        var toStringResult6 = _runByConcrete.InstanceId.ToString("N");
+        var toStringResult7 = _invocationByConcrete.InstanceId.ToString("N");
+        var joinResult8 = string.Join(";", toStringResult6, toStringResult7);
+        return joinResult8;
+    }
 }
 
 [FlowLibrary("DI guard test library")]

@@ -1,7 +1,6 @@
 using SqlSugar;
 
 namespace SereinFlow.Infrastructure.Persistence;
-
 // These records are Infrastructure-only persistence shapes. Domain objects and
 // API contracts never depend on SqlSugar attributes or storage columns.
 // 这些记录只存在于 Infrastructure 层；领域对象和 API 契约不依赖 SqlSugar
@@ -9,7 +8,8 @@ namespace SereinFlow.Infrastructure.Persistence;
 [SugarTable("Projects")]
 public sealed class ProjectRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public long Version { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -20,7 +20,8 @@ public sealed class ProjectRecord
 [SugarTable("FlowDefinitions")]
 public sealed class FlowDefinitionRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string ProjectId { get; set; } = string.Empty;
     public long Version { get; set; }
     public string DefinitionJson { get; set; } = string.Empty;
@@ -30,8 +31,11 @@ public sealed class FlowDefinitionRecord
 [SugarTable("FlowDefinitionVersions")]
 public sealed class FlowDefinitionVersionRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string FlowId { get; set; } = string.Empty;
-    [SugarColumn(IsPrimaryKey = true)] public long Version { get; set; }
+    [SugarColumn(IsPrimaryKey = true)]
+    public string FlowId { get; set; } = string.Empty;
+
+    [SugarColumn(IsPrimaryKey = true)]
+    public long Version { get; set; }
     public string DefinitionJson { get; set; } = string.Empty;
     public string Checksum { get; set; } = string.Empty;
     public string Track { get; set; } = "Development";
@@ -45,7 +49,8 @@ public sealed class FlowDefinitionVersionRecord
 [SugarTable("FlowProductionHeads")]
 public sealed class FlowProductionHeadRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string FlowId { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string FlowId { get; set; } = string.Empty;
     public long Version { get; set; }
     public string UpdatedAt { get; set; } = string.Empty;
 }
@@ -53,14 +58,16 @@ public sealed class FlowProductionHeadRecord
 [SugarTable("FlowVersionCounters")]
 public sealed class FlowVersionCounterRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string FlowId { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string FlowId { get; set; } = string.Empty;
     public long NextVersion { get; set; }
 }
 
 [SugarTable("FlowRuns")]
 public sealed class FlowRunRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string? ProjectId { get; set; }
     public string FlowId { get; set; } = string.Empty;
     public long FlowVersion { get; set; }
@@ -87,7 +94,8 @@ public sealed class FlowRunRecord
 [SugarTable("FlowDebugSessions")]
 public sealed class FlowDebugSessionRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string RunId { get; set; } = string.Empty;
     public string ProjectId { get; set; } = string.Empty;
     public string FlowId { get; set; } = string.Empty;
@@ -109,7 +117,8 @@ public sealed class FlowDebugSessionRecord
 [SugarTable("FlowRunDefinitions")]
 public sealed class FlowRunDefinitionRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string RunId { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string RunId { get; set; } = string.Empty;
     public string FlowId { get; set; } = string.Empty;
     public long FlowVersion { get; set; }
     public int SchemaVersion { get; set; }
@@ -121,8 +130,11 @@ public sealed class FlowRunDefinitionRecord
 [SugarTable("FlowRunEvents")]
 public sealed class FlowRunEventRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string RunId { get; set; } = string.Empty;
-    [SugarColumn(IsPrimaryKey = true)] public long Sequence { get; set; }
+    [SugarColumn(IsPrimaryKey = true)]
+    public string RunId { get; set; } = string.Empty;
+
+    [SugarColumn(IsPrimaryKey = true)]
+    public long Sequence { get; set; }
     public string Type { get; set; } = string.Empty;
     public string? NodeId { get; set; }
     public string PayloadJson { get; set; } = string.Empty;
@@ -132,8 +144,11 @@ public sealed class FlowRunEventRecord
 [SugarTable("FlowRunOutputs")]
 public sealed class FlowRunOutputRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string RunId { get; set; } = string.Empty;
-    [SugarColumn(IsPrimaryKey = true)] public long Sequence { get; set; }
+    [SugarColumn(IsPrimaryKey = true)]
+    public string RunId { get; set; } = string.Empty;
+
+    [SugarColumn(IsPrimaryKey = true)]
+    public long Sequence { get; set; }
     public string NodeId { get; set; } = string.Empty;
     public string Outcome { get; set; } = string.Empty;
     public string? Branch { get; set; }
@@ -147,7 +162,8 @@ public sealed class FlowRunOutputRecord
 [SugarTable("Libraries")]
 public sealed class LibraryRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Version { get; set; } = string.Empty;
     public string FileName { get; set; } = string.Empty;
@@ -168,7 +184,8 @@ public sealed class LibraryRecord
 [SugarTable("LibraryFamilies")]
 public sealed class LibraryFamilyRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? LatestArtifactId { get; set; }
@@ -179,7 +196,8 @@ public sealed class LibraryFamilyRecord
 [SugarTable("FlowLibraryBindings")]
 public sealed class FlowLibraryBindingRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string ProjectId { get; set; } = string.Empty;
     public string FlowId { get; set; } = string.Empty;
     public long FlowVersion { get; set; }
@@ -190,7 +208,8 @@ public sealed class FlowLibraryBindingRecord
 [SugarTable("RunLibraryBindings")]
 public sealed class RunLibraryBindingRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string RunId { get; set; } = string.Empty;
     public string LibraryArtifactId { get; set; } = string.Empty;
     public string CreatedAt { get; set; } = string.Empty;
@@ -199,7 +218,8 @@ public sealed class RunLibraryBindingRecord
 [SugarTable("LibraryUpgradePlans")]
 public sealed class LibraryUpgradePlanRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string ProjectId { get; set; } = string.Empty;
     public string SourceArtifactId { get; set; } = string.Empty;
     public string TargetArtifactId { get; set; } = string.Empty;
@@ -213,7 +233,8 @@ public sealed class LibraryUpgradePlanRecord
 [SugarTable("ProjectLibraryReferences")]
 public sealed class ProjectLibraryReferenceRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string ProjectId { get; set; } = string.Empty;
     public string LibraryId { get; set; } = string.Empty;
     public string ReferencedAt { get; set; } = string.Empty;
@@ -222,7 +243,8 @@ public sealed class ProjectLibraryReferenceRecord
 [SugarTable("RunEnvironmentSettings")]
 public sealed class RunEnvironmentSettingsRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = "default";
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = "default";
     public int QueueCapacity { get; set; }
     public int MaxConcurrentRuns { get; set; }
     public int MaxConcurrentListenerRuns { get; set; }
@@ -237,7 +259,8 @@ public sealed class RunEnvironmentSettingsRecord
 [SugarTable("McpApiKeys")]
 public sealed class McpApiKeyRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string? ProjectId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string KeyPrefix { get; set; } = string.Empty;
@@ -254,7 +277,8 @@ public sealed class McpApiKeyRecord
 [SugarTable("McpMutationPreviews")]
 public sealed class McpPreviewRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string Operation { get; set; } = string.Empty;
     public string PrincipalId { get; set; } = string.Empty;
     public string? ProjectId { get; set; }
@@ -271,7 +295,8 @@ public sealed class McpPreviewRecord
 [SugarTable("McpAuditEntries")]
 public sealed class McpAuditRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string PrincipalId { get; set; } = string.Empty;
     public string Operation { get; set; } = string.Empty;
     public string? ProjectId { get; set; }
@@ -291,7 +316,8 @@ public sealed class McpAuditRecord
 [SugarTable("McpIdempotencyRecords")]
 public sealed class McpIdempotencyRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string PrincipalId { get; set; } = string.Empty;
     public string Operation { get; set; } = string.Empty;
     public string KeyHash { get; set; } = string.Empty;
@@ -303,7 +329,8 @@ public sealed class McpIdempotencyRecord
 [SugarTable("FlowInterfaces")]
 public sealed class FlowInterfaceRecord
 {
-    [SugarColumn(IsPrimaryKey = true)] public string Id { get; set; } = string.Empty;
+    [SugarColumn(IsPrimaryKey = true)]
+    public string Id { get; set; } = string.Empty;
     public string ProjectId { get; set; } = string.Empty;
     public string FlowId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;

@@ -1,5 +1,4 @@
 namespace SereinFlow.Library;
-
 /// <summary>
 /// Provides restricted per-node context to trusted node-library methods. It allows a node to
 /// select an execution branch and access run-local variables without exposing internal flow data,
@@ -44,30 +43,28 @@ public interface IFlowContext
     /// 为当前节点调用选择成功分支。
     /// </summary>
     void SelectSuccess();
-
     /// <summary>
     /// Selects the failure branch for the current node invocation.
     /// 为当前节点调用选择失败分支。
     /// </summary>
-    /// <param name="code">
+    /// <param name = "code">
     /// An optional machine-readable failure code.
     /// 可选的、可供机器读取的失败代码。
     /// </param>
-    /// <param name="message">
+    /// <param name = "message">
     /// An optional human-readable failure message.
     /// 可选的、供人阅读的失败消息。
     /// </param>
     void SelectFailure(string? code = null, string? message = null);
-
     /// <summary>
     /// Selects the error branch for the current node invocation.
     /// 为当前节点调用选择错误分支。
     /// </summary>
-    /// <param name="code">
+    /// <param name = "code">
     /// An optional machine-readable error code.
     /// 可选的、可供机器读取的错误代码。
     /// </param>
-    /// <param name="message">
+    /// <param name = "message">
     /// An optional human-readable error message.
     /// 可选的、供人阅读的错误消息。
     /// </param>
@@ -81,8 +78,8 @@ public interface IFlowContext
 public static class FlowContextContract
 {
     /// <summary>
-    /// Gets the fully qualified metadata name of <see cref="IFlowContext"/>.
-    /// 获取 <see cref="IFlowContext"/> 的完全限定元数据名称。
+    /// Gets the fully qualified metadata name of <see cref = "IFlowContext"/>.
+    /// 获取 <see cref = "IFlowContext"/> 的完全限定元数据名称。
     /// </summary>
     public static readonly string FullName = typeof(IFlowContext).FullName ?? nameof(IFlowContext);
 }

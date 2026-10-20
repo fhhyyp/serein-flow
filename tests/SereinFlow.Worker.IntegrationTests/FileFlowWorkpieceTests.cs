@@ -3,7 +3,6 @@ using SereinFlow.Library;
 using SereinFlow.Worker.Runner;
 
 namespace SereinFlow.Worker.IntegrationTests;
-
 public sealed class FileFlowWorkpieceTests
 {
     [Fact]
@@ -15,27 +14,24 @@ public sealed class FileFlowWorkpieceTests
         var content = "第一行\r\nSecond line";
         var workpiece = new FileFlowWorkpiece(directory.Path, runId);
         var context = new TestFlowContext(runId, "text-node", executionId);
-
         var info = workpiece.UploadNodeOutput(context, "result.txt", content);
-
         Assert.Equal(FlowWorkpieceKind.File, info.Kind);
         Assert.Equal("result.txt", info.Name);
         Assert.Equal(FlowWorkpieceContentTypes.Text, info.ContentType);
-        Assert.Equal(Encoding.UTF8.GetByteCount(content), info.Length);
-        Assert.Equal(
-            content,
-            File.ReadAllText(Path.Combine(directory.Path, runId.ToString("N"), info.Id + ".bin"), Encoding.UTF8));
+        var getByteCountResult = Encoding.UTF8.GetByteCount(content);
+        Assert.Equal(getByteCountResult, info.Length);
+        var toStringResult = runId.ToString("N");
+        var combineResult = Path.Combine(directory.Path, toStringResult, info.Id + ".bin");
+        var readAllTextResult = File.ReadAllText(combineResult, Encoding.UTF8);
+        Assert.Equal(content, readAllTextResult);
     }
 
     private sealed class TestFlowContext(Guid runId, string nodeId, Guid executionId) : IFlowContext
     {
         public LibraryVariableService Variables { get; } = new();
         public Guid RunId { get; } = runId;
-
         public string NodeId { get; } = nodeId;
-
         public Guid ExecutionId { get; } = executionId;
-
         public CancellationToken CancellationToken => CancellationToken.None;
 
         public void SelectSuccess()
@@ -55,9 +51,9 @@ public sealed class FileFlowWorkpieceTests
     {
         public TemporaryDirectory()
         {
-            Path = System.IO.Path.Combine(
-                System.IO.Path.GetTempPath(),
-                $"sereinflow-workpiece-upload-tests-{Guid.NewGuid():N}");
+            var getTempPathResult = System.IO.Path.GetTempPath();
+            var evaluatedValue = $"sereinflow-workpiece-upload-tests-{Guid.NewGuid():N}";
+            Path = System.IO.Path.Combine(getTempPathResult, evaluatedValue);
             Directory.CreateDirectory(Path);
         }
 
@@ -66,7 +62,9 @@ public sealed class FileFlowWorkpieceTests
         public void Dispose()
         {
             if (Directory.Exists(Path))
+            {
                 Directory.Delete(Path, recursive: true);
+            }
         }
     }
 }

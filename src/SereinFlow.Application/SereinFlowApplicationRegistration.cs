@@ -2,13 +2,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace SereinFlow.Application;
-
 public static class SereinFlowApplicationRegistration
 {
     public static IServiceCollection AddSereinFlowApplication(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
-
         services.TryAddSingleton<IFileUploadSettings, FileUploadSettings>();
         services.AddScoped<RunApplicationService>();
         services.AddScoped<AiReadModelService>();
@@ -27,7 +25,6 @@ public static class SereinFlowApplicationRegistration
         services.AddScoped<McpPreviewService>();
         services.AddScoped<McpIdempotencyService>();
         services.AddScoped<McpApiKeyManagementService>();
-
         return services;
     }
 }

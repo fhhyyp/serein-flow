@@ -5,70 +5,83 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Infrastructure.Persistence;
-
 public sealed class SqlSugarFlowDebugSessionStore : IFlowDebugSessionStore
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions();
-
     private readonly IRepository<FlowDebugSessionRecord> _sessions;
-
     public SqlSugarFlowDebugSessionStore(IRepository<FlowDebugSessionRecord> sessions)
     {
         _sessions = sessions;
     }
 
     public SqlSugarFlowDebugSessionStore(SqliteDatabase database)
-        : this(new SqlSugarRepository<FlowDebugSessionRecord>(database.Client))
     {
+        var sessions = new SqlSugarRepository<FlowDebugSessionRecord>(database.Client);
+        _sessions = sessions;
     }
 
-    public async Task<FlowDebugSession> CreateAsync(
-        FlowDebugSession session,
-        CancellationToken cancellationToken = default)
+    public async Task<FlowDebugSession> CreateAsync(FlowDebugSession session, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        await _sessions.AddAsync(Map(session), cancellationToken);
+        var mapResult = Map(session);
+        await _sessions.AddAsync(mapResult, cancellationToken);
         return session;
     }
 
     public async Task<FlowDebugSession?> FindAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
-        var row = await _sessions.GetByIdAsync(sessionId.ToString("D"), cancellationToken);
-        return row is null ? null : Map(row);
+        var toStringResult = sessionId.ToString("D");
+        var row = await _sessions.GetByIdAsync(toStringResult, cancellationToken);
+        global::SereinFlow.Domain.FlowDebugSession? evaluatedValue = row is null ? null : Map(row);
+        return evaluatedValue;
     }
 
     public async Task<FlowDebugSession?> FindByRunIdAsync(Guid runId, CancellationToken cancellationToken = default)
     {
-        var rows = await _sessions.ListAsync(
-            row => row.RunId == runId.ToString("D"),
-            cancellationToken);
-        return rows.Count == 0 ? null : Map(rows.Single());
+        var runKey = runId.ToString("D");
+        var rows = await _sessions.ListAsync(row => row.RunId == runKey, cancellationToken);
+        global::SereinFlow.Domain.FlowDebugSession? evaluatedValue2 = rows.Count == 0 ? null : resolveMapResult();
+        return evaluatedValue2;
+        global::SereinFlow.Domain.FlowDebugSession resolveMapResult()
+        {
+            var singleResult = rows.Single();
+            var mapResult1 = Map(singleResult);
+            return mapResult1;
+        }
     }
 
     public async Task<IReadOnlyList<FlowDebugSession>> ListActiveAsync(CancellationToken cancellationToken = default)
     {
-        var terminal = new[]
+        var evaluatedValue4 = new[]
         {
             FlowDebugSessionStatus.Completed.ToString(),
             FlowDebugSessionStatus.Cancelled.ToString(),
             FlowDebugSessionStatus.Failed.ToString()
-        }.ToHashSet(StringComparer.Ordinal);
+        };
+        var terminal = evaluatedValue4.ToHashSet(StringComparer.Ordinal);
         var rows = await _sessions.ListAsync(cancellationToken: cancellationToken);
-        return rows
-            .Where(row => !terminal.Contains(row.Status))
-            .Select(Map)
-            .OrderBy(static item => item.CreatedAt)
-            .ToArray();
+        var whereResult = rows.Where(row =>
+        {
+            var evaluatedValue3 = !terminal.Contains(row.Status);
+            return evaluatedValue3;
+        });
+        var selectResult = whereResult.Select(Map);
+        var orderByResult = selectResult.OrderBy(static item => item.CreatedAt);
+        var toArrayResult = orderByResult.ToArray();
+        return toArrayResult;
     }
 
     public Task<bool> SaveAsync(FlowDebugSession session, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        return _sessions.UpdateAsync(Map(session), cancellationToken);
+        var mapResult5 = Map(session);
+        var updateAsyncResult = _sessions.UpdateAsync(mapResult5, cancellationToken);
+        return updateAsyncResult;
     }
 
     private static FlowDebugSessionRecord Map(FlowDebugSession session)
-        => new()
+    {
+        global::SereinFlow.Infrastructure.Persistence.FlowDebugSessionRecord evaluatedValue6 = new()
         {
             Id = session.Id.ToString("D"),
             RunId = session.RunId.ToString("D"),
@@ -88,44 +101,37 @@ public sealed class SqlSugarFlowDebugSessionStore : IFlowDebugSessionStore
             CreatedAt = session.CreatedAt.ToString("O"),
             UpdatedAt = session.UpdatedAt.ToString("O")
         };
+        return evaluatedValue6;
+    }
 
     private static FlowDebugSession Map(FlowDebugSessionRecord row)
     {
-        var breakpoints = string.IsNullOrWhiteSpace(row.BreakpointsJson)
-            ? []
-            : JsonSerializer.Deserialize<string[]>(row.BreakpointsJson, JsonOptions) ?? [];
+        var breakpoints = string.IsNullOrWhiteSpace(row.BreakpointsJson) ? [] : JsonSerializer.Deserialize<string[]>(row.BreakpointsJson, JsonOptions) ?? [];
         var pauseState = DeserializeOrNull<FlowDebugPauseState>(row.PauseStateJson);
         var lastNodeResult = DeserializeOrNull<FlowDebugNodeResult>(row.LastNodeResultJson);
-        return FlowDebugSession.Rehydrate(
-            Guid.Parse(row.Id),
-            Guid.Parse(row.RunId),
-            Guid.Parse(row.ProjectId),
-            Guid.Parse(row.FlowId),
-            breakpoints,
-            Enum.TryParse<FlowDebugSessionStatus>(row.Status, out var status)
-                ? status
-                : FlowDebugSessionStatus.Failed,
-            row.CurrentNodeId,
-            Guid.TryParse(row.ActiveInvocationId, out var activeInvocationId) ? activeInvocationId : null,
-            row.ActiveFlipflopNodeId,
-            row.QueuedTriggerCount,
-            row.LastCommandSequence,
-            row.FailureMessage,
-            DateTimeOffset.Parse(row.CreatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-            DateTimeOffset.Parse(row.UpdatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-            row.StateRevision,
-            pauseState,
-            lastNodeResult);
+        var parseResult = Guid.Parse(row.Id);
+        var parseResult7 = Guid.Parse(row.RunId);
+        var parseResult8 = Guid.Parse(row.ProjectId);
+        var parseResult9 = Guid.Parse(row.FlowId);
+        global::SereinFlow.Domain.FlowDebugSessionStatus evaluatedValue10 = Enum.TryParse<FlowDebugSessionStatus>(row.Status, out var status) ? status : FlowDebugSessionStatus.Failed;
+        global::System.Guid? evaluatedValue11 = Guid.TryParse(row.ActiveInvocationId, out var activeInvocationId) ? activeInvocationId : null;
+        var parseResult12 = DateTimeOffset.Parse(row.CreatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+        var parseResult13 = DateTimeOffset.Parse(row.UpdatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+        var rehydrateResult = FlowDebugSession.Rehydrate(parseResult, parseResult7, parseResult8, parseResult9, breakpoints, evaluatedValue10, row.CurrentNodeId, evaluatedValue11, row.ActiveFlipflopNodeId, row.QueuedTriggerCount, row.LastCommandSequence, row.FailureMessage, parseResult12, parseResult13, row.StateRevision, pauseState, lastNodeResult);
+        return rehydrateResult;
     }
 
     private static T? DeserializeOrNull<T>(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
+        {
             return default;
+        }
 
         try
         {
-            return JsonSerializer.Deserialize<T>(json, JsonOptions);
+            var deserializeResult = JsonSerializer.Deserialize<T>(json, JsonOptions);
+            return deserializeResult;
         }
         catch (JsonException)
         {

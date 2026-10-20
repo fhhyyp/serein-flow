@@ -1,7 +1,6 @@
 using SereinFlow.Library;
 
 namespace SereinFlow.TestLibrary;
-
 [FlowLibrary("Run variable test library")]
 public sealed class VariableNodes(LibraryVariableService variables)
 {
@@ -9,10 +8,14 @@ public sealed class VariableNodes(LibraryVariableService variables)
     public string ShareVariables(IFlowContext context)
     {
         if (!ReferenceEquals(variables, context.Variables))
+        {
             throw new InvalidOperationException("Constructor and context must share one variable table.");
+        }
 
         var count = context.Variables.Get<int>("test.variables.count") + 1;
         variables.Set("test.variables.count", count);
-        return context.Variables.Get<int>("test.variables.count").ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var getResult = context.Variables.Get<int>("test.variables.count");
+        var toStringResult = getResult.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return toStringResult;
     }
 }

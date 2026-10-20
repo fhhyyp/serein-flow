@@ -1,5 +1,4 @@
 namespace SereinFlow.Runtime;
-
 /// <summary>
 /// Serializes debug-only listener-trigger downstream work. The listener itself
 /// never waits for this queue, so it can continue receiving trigger events.
@@ -9,28 +8,25 @@ namespace SereinFlow.Runtime;
 /// </summary>
 public sealed class DebugInvocationScheduler
 {
+    private const int MinimumQueuedInvocationCount = 0;
+    private const int MaximumQueuedInvocationCount = 1_024;
     private readonly object _sync = new();
     private readonly Queue<WorkItem> _waiting = [];
     private readonly int _maximumQueuedInvocations;
     private WorkItem? _active;
     private Task? _activeTask;
     private bool _stopped;
-
     public DebugInvocationScheduler(int maximumQueuedInvocations = 64)
     {
-        _maximumQueuedInvocations = Math.Clamp(maximumQueuedInvocations, 0, 1_024);
+        _maximumQueuedInvocations = Math.Clamp(maximumQueuedInvocations, MinimumQueuedInvocationCount, MaximumQueuedInvocationCount);
     }
 
     public int MaximumQueuedInvocations => _maximumQueuedInvocations;
 
-    public bool TrySchedule(
-        Func<Task> executeAsync,
-        Func<Task> discardAsync,
-        out int queuePosition)
+    public bool TrySchedule(Func<Task> executeAsync, Func<Task> discardAsync, out int queuePosition)
     {
         ArgumentNullException.ThrowIfNull(executeAsync);
         ArgumentNullException.ThrowIfNull(discardAsync);
-
         WorkItem? start = null;
         lock (_sync)
         {
@@ -55,7 +51,10 @@ public sealed class DebugInvocationScheduler
         }
 
         if (start is not null)
+        {
             Start(start);
+        }
+
         return true;
     }
 
@@ -80,35 +79,44 @@ public sealed class DebugInvocationScheduler
         }
 
         foreach (var work in discarded)
-            await DiscardSafelyAsync(work).ConfigureAwait(false);
+        {
+            var discardSafelyAsyncResult = DiscardSafelyAsync(work);
+            await discardSafelyAsyncResult.ConfigureAwait(false);
+        }
+
         if (activeTask is not null)
+        {
             await activeTask.ConfigureAwait(false);
+        }
     }
 
     private void Start(WorkItem work)
     {
         var task = ExecuteAsync(work);
         lock (_sync)
+        {
             _activeTask = task;
+        }
     }
 
     private async Task ExecuteAsync(WorkItem work)
     {
         try
         {
-            await work.ExecuteAsync().ConfigureAwait(false);
+            var executeAsyncResult = work.ExecuteAsync();
+            await executeAsyncResult.ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            // The owning FlowRunner records shared cancellation; this class
-            // owns only scheduling and disposal of queued work.
-            // FlowRunner 负责记录共享取消；此类仅拥有排队与待处理工作释放职责。
+        // The owning FlowRunner records shared cancellation; this class
+        // owns only scheduling and disposal of queued work.
+        // FlowRunner 负责记录共享取消；此类仅拥有排队与待处理工作释放职责。
         }
         catch
         {
-            // Individual trigger work publishes its own diagnostics. One
-            // failure must not stop reception of subsequent triggers.
-            // 单次触发工作自行发布诊断；一个失败不能停止后续触发的接收。
+        // Individual trigger work publishes its own diagnostics. One
+        // failure must not stop reception of subsequent triggers.
+        // 单次触发工作自行发布诊断；一个失败不能停止后续触发的接收。
         }
         finally
         {
@@ -124,7 +132,9 @@ public sealed class DebugInvocationScheduler
             }
 
             if (next is not null)
+            {
                 Start(next);
+            }
         }
     }
 
@@ -132,12 +142,13 @@ public sealed class DebugInvocationScheduler
     {
         try
         {
-            await work.DiscardAsync().ConfigureAwait(false);
+            var discardAsyncResult = work.DiscardAsync();
+            await discardAsyncResult.ConfigureAwait(false);
         }
         catch
         {
-            // A child session release failure must not keep the scheduler alive.
-            // 子会话释放失败时不能让调度器继续滞留。
+        // A child session release failure must not keep the scheduler alive.
+        // 子会话释放失败时不能让调度器继续滞留。
         }
     }
 

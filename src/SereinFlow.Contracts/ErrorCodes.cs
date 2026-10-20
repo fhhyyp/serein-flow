@@ -1,5 +1,4 @@
 namespace SereinFlow.Contracts;
-
 public static class RunErrorCodes
 {
     public const string NotFound = "run.not_found";

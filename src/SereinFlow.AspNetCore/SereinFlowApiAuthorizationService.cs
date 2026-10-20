@@ -5,12 +5,7 @@ using SereinFlow.Application;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api;
-
-public sealed record SereinFlowApiAuthorizationResult(
-    bool IsAllowed,
-    int StatusCode = StatusCodes.Status200OK,
-    string? Code = null,
-    string? Message = null)
+public sealed record SereinFlowApiAuthorizationResult(bool IsAllowed, int StatusCode = StatusCodes.Status200OK, string? Code = null, string? Message = null)
 {
     public static SereinFlowApiAuthorizationResult Allowed { get; } = new(true);
 }
@@ -23,38 +18,33 @@ public sealed class SereinFlowApiAuthorizationService
 {
     private readonly IConfiguration _configuration;
     private readonly McpSecurityService _security;
-
-    public SereinFlowApiAuthorizationService(
-        IConfiguration configuration,
-        McpSecurityService security)
+    public SereinFlowApiAuthorizationService(IConfiguration configuration, McpSecurityService security)
     {
         _configuration = configuration;
         _security = security;
     }
 
-    public async Task<SereinFlowApiAuthorizationResult> AuthorizeAsync(
-        HttpContext context,
-        McpPermissionDto permission,
-        Guid? projectId,
-        CancellationToken cancellationToken = default)
+    public async Task<SereinFlowApiAuthorizationResult> AuthorizeAsync(HttpContext context, McpPermissionDto permission, Guid? projectId, CancellationToken cancellationToken = default)
     {
         if (!_configuration.GetValue("SereinFlow:Api:RequireAuthentication", true))
+        {
             return SereinFlowApiAuthorizationResult.Allowed;
+        }
 
         var authorization = context.Request.Headers.Authorization.FirstOrDefault();
-        if (!AuthenticationHeaderValue.TryParse(authorization, out var header)
-            || !string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase)
-            || string.IsNullOrWhiteSpace(header.Parameter))
+        if (!AuthenticationHeaderValue.TryParse(authorization, out var header) || !string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(header.Parameter))
         {
             context.Response.Headers["WWW-Authenticate"] = "Bearer";
-            return Unauthorized();
+            var unauthorizedResult = Unauthorized();
+            return unauthorizedResult;
         }
 
         var principal = await _security.AuthenticateAsync(header.Parameter, cancellationToken);
         if (principal is null)
         {
             context.Response.Headers["WWW-Authenticate"] = "Bearer";
-            return Unauthorized();
+            var unauthorizedResult1 = Unauthorized();
+            return unauthorizedResult1;
         }
 
         try
@@ -64,18 +54,14 @@ public sealed class SereinFlowApiAuthorizationService
         }
         catch (McpSecurityException exception)
         {
-            return new SereinFlowApiAuthorizationResult(
-                false,
-                exception.StatusCode,
-                exception.Code,
-                exception.Message);
+            var sereinFlowApiAuthorizationResult = new SereinFlowApiAuthorizationResult(false, exception.StatusCode, exception.Code, exception.Message);
+            return sereinFlowApiAuthorizationResult;
         }
     }
 
     private static SereinFlowApiAuthorizationResult Unauthorized()
-        => new(
-            false,
-            StatusCodes.Status401Unauthorized,
-            McpErrorCodes.Unauthenticated,
-            "SereinFlow API authentication is required. SereinFlow API 需要鉴权。");
+    {
+        global::SereinFlow.Api.SereinFlowApiAuthorizationResult evaluatedValue = new(false, StatusCodes.Status401Unauthorized, McpErrorCodes.Unauthenticated, "SereinFlow API authentication is required. SereinFlow API 需要鉴权。");
+        return evaluatedValue;
+    }
 }

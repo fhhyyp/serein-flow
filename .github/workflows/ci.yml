@@ -42,7 +42,7 @@ jobs:
         run: ./eng/verify-aspnetcore-package.ps1 -FeedDirectory ./artifacts/aspnetcore-package
 
   verify:
-    name: Build and test
+    name: Build and test .NET
     runs-on: ubuntu-24.04
     env:
       CI: true
@@ -56,13 +56,6 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: .node-version
-          cache: npm
-          cache-dependency-path: frontend/sereinflow-web/package-lock.json
-
       - name: Restore .NET dependencies
         run: dotnet restore SereinFlow.sln --locked-mode
 
@@ -72,9 +65,40 @@ jobs:
       - name: Test .NET solution
         run: dotnet test SereinFlow.sln --configuration Release --no-build --no-restore
 
+  conventions-and-frontends:
+    name: Code conventions and frontends
+    runs-on: ubuntu-24.04
+    env:
+      CI: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up .NET for Roslyn checks
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: |
+            frontend/sereinflow-web/package-lock.json
+            frontend/sereinflow-docs/package-lock.json
+
+      - name: Set up npm
+        run: npm install --global npm@11.6.2
+
       - name: Restore frontend dependencies
         working-directory: frontend/sereinflow-web
         run: npm ci
+
+      - name: Check code conventions and checker regression cases
+        shell: pwsh
+        run: ./eng/check-code-conventions.ps1 -SelfTest
 
       - name: Test frontend
         working-directory: frontend/sereinflow-web
@@ -82,4 +106,12 @@ jobs:
 
       - name: Build frontend
         working-directory: frontend/sereinflow-web
+        run: npm run build
+
+      - name: Restore documentation frontend dependencies
+        working-directory: frontend/sereinflow-docs
+        run: npm ci
+
+      - name: Build documentation frontend
+        working-directory: frontend/sereinflow-docs
         run: npm run build

@@ -2,7 +2,6 @@ using System.Text.Json;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Mcp.Tests;
-
 public sealed class McpToolFrameworkTests
 {
     [Fact]
@@ -10,33 +9,45 @@ public sealed class McpToolFrameworkTests
     {
         var first = CreateTool("first", McpToolExecutionKind.Read);
         var second = CreateTool("second", McpToolExecutionKind.Read);
-
         var catalog = new McpToolCatalog([first, second]);
-
-        Assert.Equal(["first", "second"], catalog.Descriptors.Select(static item => item.Name));
-        Assert.True(catalog.TryGet("second", out var resolved));
+        var selectResult = catalog.Descriptors.Select(static item => item.Name);
+        Assert.Equal(["first", "second"], selectResult);
+        var tryGetResult = catalog.TryGet("second", out var resolved);
+        Assert.True(tryGetResult);
         Assert.Same(second, resolved);
-        Assert.Throws<ArgumentException>(() => new McpToolCatalog([first, CreateTool("first", McpToolExecutionKind.Read)]));
+        Assert.Throws<ArgumentException>(() =>
+        {
+            global::System.Collections.Generic.IEnumerable<global::SereinFlow.Mcp.IMcpTool> evaluatedValue = [first, CreateTool("first", McpToolExecutionKind.Read)];
+            var mcpToolCatalog = new McpToolCatalog(evaluatedValue);
+            return mcpToolCatalog;
+        });
     }
 
     [Fact]
     public void ReadToolsCannotRequireAnIdempotencyKey()
     {
-        var descriptor = new McpToolDescriptor(
-            "read",
-            "Read tool",
-            JsonSerializer.SerializeToElement(new { type = "object" }));
-
-        Assert.Throws<ArgumentException>(() => new McpToolDefinition(
-            descriptor,
-            McpToolExecutionKind.Read,
-            static (_, _, _) => Task.FromResult<object?>(new { accepted = true }),
-            requiresIdempotencyKey: true));
+        var serializeToElementResult = JsonSerializer.SerializeToElement(new { type = "object" });
+        var descriptor = new McpToolDescriptor("read", "Read tool", serializeToElementResult);
+        Assert.Throws<ArgumentException>(() =>
+        {
+            var mcpToolDefinition = new McpToolDefinition(descriptor, McpToolExecutionKind.Read, static (_, _, _) =>
+            {
+                var fromResultResult = Task.FromResult<object?>(new { accepted = true });
+                return fromResultResult;
+            }, requiresIdempotencyKey: true);
+            return mcpToolDefinition;
+        });
     }
 
     private static McpToolDefinition CreateTool(string name, McpToolExecutionKind executionKind)
-        => new(
-            new McpToolDescriptor(name, name, JsonSerializer.SerializeToElement(new { type = "object" })),
-            executionKind,
-            static (_, _, _) => Task.FromResult<object?>(new { accepted = true }));
+    {
+        var serializeToElementResult2 = JsonSerializer.SerializeToElement(new { type = "object" });
+        var mcpToolDescriptor = new McpToolDescriptor(name, name, serializeToElementResult2);
+        global::SereinFlow.Mcp.McpToolDefinition evaluatedValue3 = new(mcpToolDescriptor, executionKind, static (_, _, _) =>
+        {
+            var fromResultResult1 = Task.FromResult<object?>(new { accepted = true });
+            return fromResultResult1;
+        });
+        return evaluatedValue3;
+    }
 }

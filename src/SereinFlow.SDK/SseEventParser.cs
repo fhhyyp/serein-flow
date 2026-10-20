@@ -3,30 +3,35 @@ using System.Text.Json;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Client;
-
 internal static class SseEventParser
 {
-    public static async IAsyncEnumerable<FlowRunEventDto> ReadAsync(
-        Stream stream,
-        JsonSerializerOptions options,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+    public static async IAsyncEnumerable<FlowRunEventDto> ReadAsync(Stream stream, JsonSerializerOptions options, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var reader = new StreamReader(stream);
         var data = new List<string>();
-
-        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+        while (true)
         {
+            if (!(await resolveConfigureAwaitResult()is { } line))
+            {
+                break;
+            }
+
             if (line.Length == 0)
             {
                 var item = ParseEvent(data, options);
                 if (item is not null)
+                {
                     yield return item;
+                }
+
                 data.Clear();
                 continue;
             }
 
             if (line[0] == ':')
+            {
                 continue;
+            }
 
             var separator = line.IndexOf(':');
             var field = separator < 0 ? line : line[..separator];
@@ -40,18 +45,31 @@ internal static class SseEventParser
                     data.Add(value);
                     break;
             }
+
+            global::System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable<string?> resolveConfigureAwaitResult()
+            {
+                var readLineAsyncResult = reader.ReadLineAsync(cancellationToken);
+                var configureAwaitResult = readLineAsyncResult.ConfigureAwait(false);
+                return configureAwaitResult;
+            }
         }
 
         var final = ParseEvent(data, options);
         if (final is not null)
+        {
             yield return final;
+        }
     }
 
     private static FlowRunEventDto? ParseEvent(List<string> data, JsonSerializerOptions options)
     {
         if (data.Count == 0)
+        {
             return null;
+        }
+
         var json = string.Join('\n', data);
-        return JsonSerializer.Deserialize<FlowRunEventDto>(json, options);
+        var deserializeResult = JsonSerializer.Deserialize<FlowRunEventDto>(json, options);
+        return deserializeResult;
     }
 }

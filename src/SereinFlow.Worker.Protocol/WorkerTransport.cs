@@ -1,6 +1,6 @@
 using SereinFlow.Contracts;
-namespace SereinFlow.Worker.Protocol;
 
+namespace SereinFlow.Worker.Protocol;
 /// <summary>
 /// Message-oriented transport used by the Worker protocol boundary.
 /// Implementations own message framing and must allow only one active receive
@@ -10,9 +10,7 @@ namespace SereinFlow.Worker.Protocol;
 public interface IWorkerTransport : IAsyncDisposable
 {
     ValueTask SendAsync(WorkerMessage message, CancellationToken cancellationToken = default);
-
     ValueTask<WorkerMessage?> ReceiveAsync(CancellationToken cancellationToken = default);
-
     ValueTask CloseAsync(CancellationToken cancellationToken = default);
 }
 
@@ -37,29 +35,20 @@ public enum WorkerTransportCloseReason
 /// Stable lifecycle snapshot for a transport endpoint.
 /// 传输端点的稳定生命周期快照。
 /// </summary>
-public sealed record WorkerTransportCloseResult(
-    WorkerTransportCloseReason Reason,
-    bool IsRemote,
-    Exception? Exception = null)
+public sealed record WorkerTransportCloseResult(WorkerTransportCloseReason Reason, bool IsRemote, Exception? Exception = null)
 {
     public static WorkerTransportCloseResult Open { get; } = new(WorkerTransportCloseReason.None, false);
 }
 
 public sealed class WorkerTransportException : Exception
 {
-    public WorkerTransportException(
-        string code,
-        string message,
-        Exception? innerException = null,
-        WorkerTransportCloseResult? closeResult = null)
-        : base(message, innerException)
+    public WorkerTransportException(string code, string message, Exception? innerException = null, WorkerTransportCloseResult? closeResult = null) : base(message, innerException)
     {
         Code = code;
         CloseResult = closeResult;
     }
 
     public string Code { get; }
-
     public WorkerTransportCloseResult? CloseResult { get; }
 }
 
@@ -69,6 +58,13 @@ public sealed class WorkerTransportException : Exception
 /// </summary>
 public sealed class StdioWorkerTransport : IWorkerTransport
 {
+    private static bool StartsWithJsonObject(string line)
+    {
+        var trimmedLine = line.TrimStart();
+        var startsWithObject = trimmedLine.StartsWith('{');
+        return startsWithObject;
+    }
+
     private readonly Stream _input;
     private readonly Stream _output;
     private readonly StreamReader _reader;
@@ -79,39 +75,41 @@ public sealed class StdioWorkerTransport : IWorkerTransport
     private int _receiveActive;
     private int _closed;
     private int _disposed;
-
-    public StdioWorkerTransport(
-        Stream input,
-        Stream output,
-        Action<string>? diagnostic = null,
-        bool leaveOpen = false)
+    public StdioWorkerTransport(Stream input, Stream output, Action<string>? diagnostic = null, bool leaveOpen = false)
     {
         _input = input ?? throw new ArgumentNullException(nameof(input), "The worker input stream cannot be null. Worker 输入流不能为空。");
         _output = output ?? throw new ArgumentNullException(nameof(output), "The worker output stream cannot be null. Worker 输出流不能为空。");
         _diagnostic = diagnostic;
         _leaveOpen = leaveOpen;
-        _reader = new StreamReader(
-            _input,
-            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true),
-            detectEncodingFromByteOrderMarks: true,
-            bufferSize: 4096,
-            leaveOpen: true);
+        var uTF8Encoding = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+        _reader = new StreamReader(_input, uTF8Encoding, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
     }
 
-    public WorkerTransportCloseResult CloseResult => Volatile.Read(ref _closeResult);
+    public WorkerTransportCloseResult CloseResult
+    {
+        get
+        {
+            var readResult = Volatile.Read(ref _closeResult);
+            return readResult;
+        }
+    }
 
     public async ValueTask SendAsync(WorkerMessage message, CancellationToken cancellationToken = default)
     {
         EnsureCanSend();
-        await _sendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var waitAsyncResult = _sendGate.WaitAsync(cancellationToken);
+        await waitAsyncResult.ConfigureAwait(false);
         try
         {
             EnsureCanSend();
-            var bytes = System.Text.Encoding.UTF8.GetBytes(WorkerProtocolCodec.Serialize(message) + "\n");
+            var evaluatedValue = WorkerProtocolCodec.Serialize(message) + "\n";
+            var bytes = System.Text.Encoding.UTF8.GetBytes(evaluatedValue);
             try
             {
-                await _output.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
-                await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
+                var writeAsyncResult = _output.WriteAsync(bytes, cancellationToken);
+                await writeAsyncResult.ConfigureAwait(false);
+                var flushAsyncResult = _output.FlushAsync(cancellationToken);
+                await flushAsyncResult.ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -123,12 +121,9 @@ public sealed class StdioWorkerTransport : IWorkerTransport
             }
             catch (IOException exception)
             {
-                SetCloseResult(new WorkerTransportCloseResult(WorkerTransportCloseReason.Faulted, true, exception));
-                throw new WorkerTransportException(
-                    WorkerTransportErrorCodes.SendFailed,
-                    "The Worker transport could not send a message. Worker 传输无法发送消息。",
-                    exception,
-                    CloseResult);
+                var workerTransportCloseResult = new WorkerTransportCloseResult(WorkerTransportCloseReason.Faulted, true, exception);
+                SetCloseResult(workerTransportCloseResult);
+                throw new WorkerTransportException(WorkerTransportErrorCodes.SendFailed, "The Worker transport could not send a message. Worker 传输无法发送消息。", exception, CloseResult);
             }
         }
         finally
@@ -140,12 +135,14 @@ public sealed class StdioWorkerTransport : IWorkerTransport
     public async ValueTask<WorkerMessage?> ReceiveAsync(CancellationToken cancellationToken = default)
     {
         if (Volatile.Read(ref _closed) == 1)
-            return CloseResult.IsRemote ? null : throw CreateClosedException();
+        {
+            global::SereinFlow.Worker.Protocol.WorkerMessage? evaluatedValue1 = CloseResult.IsRemote ? null : throw CreateClosedException();
+            return evaluatedValue1;
+        }
+
         if (Interlocked.CompareExchange(ref _receiveActive, 1, 0) != 0)
         {
-            throw new WorkerTransportException(
-                WorkerTransportErrorCodes.ReceiveConcurrent,
-                "Only one Worker transport receive loop may be active. Worker 传输只能有一个接收循环。");
+            throw new WorkerTransportException(WorkerTransportErrorCodes.ReceiveConcurrent, "Only one Worker transport receive loop may be active. Worker 传输只能有一个接收循环。");
         }
 
         try
@@ -155,50 +152,48 @@ public sealed class StdioWorkerTransport : IWorkerTransport
                 string? line;
                 try
                 {
-                    line = await _reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+                    var readLineAsyncResult = _reader.ReadLineAsync(cancellationToken);
+                    line = await readLineAsyncResult.ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
                     throw;
                 }
-                catch (ObjectDisposedException) when (Volatile.Read(ref _disposed) == 1)
+                catch (ObjectDisposedException)when (Volatile.Read(ref _disposed) == 1)
                 {
                     return null;
                 }
                 catch (System.Text.DecoderFallbackException exception)
                 {
-                    SetCloseResult(new WorkerTransportCloseResult(WorkerTransportCloseReason.Faulted, true, exception));
-                    throw new WorkerTransportException(
-                        WorkerTransportErrorCodes.InvalidFrame,
-                        "The Worker transport received invalid UTF-8 data. Worker 传输收到无效的 UTF-8 数据。",
-                        exception,
-                        CloseResult);
+                    var workerTransportCloseResult2 = new WorkerTransportCloseResult(WorkerTransportCloseReason.Faulted, true, exception);
+                    SetCloseResult(workerTransportCloseResult2);
+                    throw new WorkerTransportException(WorkerTransportErrorCodes.InvalidFrame, "The Worker transport received invalid UTF-8 data. Worker 传输收到无效的 UTF-8 数据。", exception, CloseResult);
                 }
                 catch (IOException exception)
                 {
-                    SetCloseResult(new WorkerTransportCloseResult(WorkerTransportCloseReason.Faulted, true, exception));
-                    throw new WorkerTransportException(
-                        WorkerTransportErrorCodes.ReceiveFailed,
-                        "The Worker transport could not receive a message. Worker 传输无法接收消息。",
-                        exception,
-                        CloseResult);
+                    var workerTransportCloseResult3 = new WorkerTransportCloseResult(WorkerTransportCloseReason.Faulted, true, exception);
+                    SetCloseResult(workerTransportCloseResult3);
+                    throw new WorkerTransportException(WorkerTransportErrorCodes.ReceiveFailed, "The Worker transport could not receive a message. Worker 传输无法接收消息。", exception, CloseResult);
                 }
 
                 if (line is null)
                 {
-                    SetCloseResult(new WorkerTransportCloseResult(WorkerTransportCloseReason.RemoteEof, true));
+                    var workerTransportCloseResult4 = new WorkerTransportCloseResult(WorkerTransportCloseReason.RemoteEof, true);
+                    SetCloseResult(workerTransportCloseResult4);
                     return null;
                 }
+
                 if (string.IsNullOrWhiteSpace(line))
+                {
                     continue;
+                }
 
                 try
                 {
-                    return WorkerProtocolCodec.Deserialize(line);
+                    var deserializeResult = WorkerProtocolCodec.Deserialize(line);
+                    return deserializeResult;
                 }
-                catch (WorkerProtocolException exception)
-                    when (exception.Code == WorkerErrorCodes.InvalidMessage
-                        && !line.TrimStart().StartsWith('{'))
+                catch (WorkerProtocolException exception)when (exception.Code == WorkerErrorCodes.InvalidMessage && !StartsWithJsonObject(line))
                 {
                     // Keep the existing stdio compatibility behavior: ignore
                     // plain-text noise, but fail on malformed JSON-looking data.
@@ -209,7 +204,7 @@ public sealed class StdioWorkerTransport : IWorkerTransport
                     }
                     catch
                     {
-                        // Diagnostics must never break protocol consumption.
+                    // Diagnostics must never break protocol consumption.
                     }
                 }
             }
@@ -223,10 +218,15 @@ public sealed class StdioWorkerTransport : IWorkerTransport
     public async ValueTask CloseAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _closed, 1) == 0)
-            SetCloseResult(new WorkerTransportCloseResult(WorkerTransportCloseReason.Local, false));
+        {
+            var workerTransportCloseResult5 = new WorkerTransportCloseResult(WorkerTransportCloseReason.Local, false);
+            SetCloseResult(workerTransportCloseResult5);
+        }
 
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
+        {
             return;
+        }
 
         // Closing is cleanup, so it remains best-effort even if its caller is
         // already cancelled. The token is intentionally not used here.
@@ -240,13 +240,16 @@ public sealed class StdioWorkerTransport : IWorkerTransport
         }
 
         if (_leaveOpen)
+        {
             return;
+        }
 
         if (!ReferenceEquals(_input, _output))
         {
             try
             {
-                await _input.DisposeAsync().ConfigureAwait(false);
+                var disposeAsyncResult = _input.DisposeAsync();
+                await disposeAsyncResult.ConfigureAwait(false);
             }
             catch
             {
@@ -255,28 +258,36 @@ public sealed class StdioWorkerTransport : IWorkerTransport
 
         try
         {
-            await _output.DisposeAsync().ConfigureAwait(false);
+            var disposeAsyncResult6 = _output.DisposeAsync();
+            await disposeAsyncResult6.ConfigureAwait(false);
         }
         catch
         {
         }
     }
 
-    public ValueTask DisposeAsync() => CloseAsync();
+    public ValueTask DisposeAsync()
+    {
+        var closeAsyncResult = CloseAsync();
+        return closeAsyncResult;
+    }
 
     private void EnsureCanSend()
     {
         if (Volatile.Read(ref _closed) == 1)
+        {
             throw CreateClosedException();
+        }
     }
 
     private WorkerTransportException CreateClosedException(Exception? innerException = null)
-        => new(
-            WorkerTransportErrorCodes.Closed,
-            "The Worker transport is closed. Worker 传输已关闭。",
-            innerException,
-            CloseResult);
+    {
+        global::SereinFlow.Worker.Protocol.WorkerTransportException evaluatedValue7 = new(WorkerTransportErrorCodes.Closed, "The Worker transport is closed. Worker 传输已关闭。", innerException, CloseResult);
+        return evaluatedValue7;
+    }
 
     private void SetCloseResult(WorkerTransportCloseResult result)
-        => Interlocked.CompareExchange(ref _closeResult, result, WorkerTransportCloseResult.Open);
+    {
+        Interlocked.CompareExchange(ref _closeResult, result, WorkerTransportCloseResult.Open);
+    }
 }

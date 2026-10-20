@@ -2,12 +2,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Application;
-
-public sealed record FlowDebugStateWaitResult(
-    FlowDebugSession? Session,
-    bool HasChanged,
-    bool TimedOut);
-
+public sealed record FlowDebugStateWaitResult(FlowDebugSession? Session, bool HasChanged, bool TimedOut);
 /// <summary>
 /// Bounded polling for durable debug state. The waiter does not own a Worker
 /// handle and can therefore be used by HTTP, MCP, or another read-only client.
@@ -17,35 +12,35 @@ public sealed record FlowDebugStateWaitResult(
 public static class FlowDebugSessionWaiter
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(100);
-
-    public static async Task<FlowDebugStateWaitResult> WaitAsync(
-        IFlowDebugSessionStore store,
-        Guid sessionId,
-        long afterRevision,
-        TimeSpan timeout,
-        CancellationToken cancellationToken = default)
+    public static async Task<FlowDebugStateWaitResult> WaitAsync(IFlowDebugSessionStore store, Guid sessionId, long afterRevision, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentOutOfRangeException.ThrowIfLessThan(afterRevision, -1);
         ArgumentOutOfRangeException.ThrowIfLessThan(timeout, TimeSpan.Zero);
-
         var deadline = DateTimeOffset.UtcNow + timeout;
         while (true)
         {
             var session = await store.FindAsync(sessionId, cancellationToken);
             if (session is null)
-                return new(null, false, false);
+            {
+                global::SereinFlow.Application.FlowDebugStateWaitResult evaluatedValue = new(null, false, false);
+                return evaluatedValue;
+            }
 
             if (session.StateRevision > afterRevision || session.IsTerminal)
-                return new(session, session.StateRevision > afterRevision, false);
+            {
+                global::SereinFlow.Application.FlowDebugStateWaitResult evaluatedValue1 = new(session, session.StateRevision > afterRevision, false);
+                return evaluatedValue1;
+            }
 
             var remaining = deadline - DateTimeOffset.UtcNow;
             if (remaining <= TimeSpan.Zero)
-                return new(session, false, true);
+            {
+                global::SereinFlow.Application.FlowDebugStateWaitResult evaluatedValue2 = new(session, false, true);
+                return evaluatedValue2;
+            }
 
-            await Task.Delay(
-                remaining < PollInterval ? remaining : PollInterval,
-                cancellationToken);
+            await Task.Delay(remaining < PollInterval ? remaining : PollInterval, cancellationToken);
         }
     }
 }

@@ -4,7 +4,6 @@ using SereinFlow.Infrastructure.Configuration;
 using SereinFlow.Library;
 
 namespace SereinFlow.Infrastructure.Persistence;
-
 /// <summary>
 /// Reads the run-scoped sidecars written by the isolated Worker. Only IDs are
 /// accepted from callers; neither route segments nor stored names are used to
@@ -12,27 +11,28 @@ namespace SereinFlow.Infrastructure.Persistence;
 /// </summary>
 public sealed class FileFlowWorkpieceStore : IFlowWorkpieceStore
 {
-    private static readonly JsonSerializerOptions JsonOptions =
-        SereinFlow.Contracts.SereinJsonSerialization.CreateContractOptions();
+    private static readonly JsonSerializerOptions JsonOptions = SereinFlow.Contracts.SereinJsonSerialization.CreateContractOptions();
     private readonly string _root;
-
     public FileFlowWorkpieceStore(SereinFlowStorageOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         _root = Path.GetFullPath(options.WorkpieceDirectory);
     }
 
-    public Task<IReadOnlyList<FlowWorkpieceRecord>> ListAsync(
-        Guid runId,
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<FlowWorkpieceRecord>> ListAsync(Guid runId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (runId == Guid.Empty)
+        {
             throw new ArgumentException("Run ID cannot be empty. 运行 ID 不能为空。", nameof(runId));
+        }
 
         var directory = GetRunDirectory(runId);
         if (!Directory.Exists(directory))
-            return Task.FromResult<IReadOnlyList<FlowWorkpieceRecord>>([]);
+        {
+            var fromResultResult = Task.FromResult<IReadOnlyList<FlowWorkpieceRecord>>([]);
+            return fromResultResult;
+        }
 
         var result = new List<FlowWorkpieceRecord>();
         foreach (var metadataPath in Directory.EnumerateFiles(directory, "*.json", SearchOption.TopDirectoryOnly))
@@ -40,67 +40,73 @@ public sealed class FileFlowWorkpieceStore : IFlowWorkpieceStore
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                var info = JsonSerializer.Deserialize<FlowWorkpieceInfo>(File.ReadAllText(metadataPath), JsonOptions);
+                var readAllTextResult = File.ReadAllText(metadataPath);
+                var info = JsonSerializer.Deserialize<FlowWorkpieceInfo>(readAllTextResult, JsonOptions);
                 var metadataId = Path.GetFileNameWithoutExtension(metadataPath);
-                if (info is null
-                    || !IsSafeId(info.Id)
-                    || !string.Equals(metadataId, info.Id, StringComparison.Ordinal)
-                    || info.Length < 0)
+                if (info is null || !IsSafeId(info.Id) || !string.Equals(metadataId, info.Id, StringComparison.Ordinal) || info.Length < 0)
+                {
                     continue;
+                }
+
                 var dataPath = Path.Combine(directory, info.Id + ".bin");
                 if (!File.Exists(dataPath))
+                {
                     continue;
-                result.Add(new FlowWorkpieceRecord(
-                    runId,
-                    info.Id,
-                    info.Kind.ToString(),
-                    info.Name,
-                    info.ContentType,
-                    info.Length,
-                    info.CreatedAt,
-                    info.NodeId,
-                    info.ExecutionId));
+                }
+
+                var toStringResult = info.Kind.ToString();
+                var flowWorkpieceRecord = new FlowWorkpieceRecord(runId, info.Id, toStringResult, info.Name, info.ContentType, info.Length, info.CreatedAt, info.NodeId, info.ExecutionId);
+                result.Add(flowWorkpieceRecord);
             }
             catch (JsonException)
             {
-                // An incomplete sidecar can be visible during the final write.
-                // It is ignored until the next read after the atomic rename.
+            // An incomplete sidecar can be visible during the final write.
+            // It is ignored until the next read after the atomic rename.
             }
             catch (IOException)
             {
-                // A concurrently removed or unavailable workpiece is not a
-                // reason to fail the complete run listing.
+            // A concurrently removed or unavailable workpiece is not a
+            // reason to fail the complete run listing.
             }
         }
 
-        return Task.FromResult<IReadOnlyList<FlowWorkpieceRecord>>(
-            result.OrderBy(static item => item.CreatedAt).ThenBy(static item => item.Id, StringComparer.Ordinal).ToArray());
+        var orderByResult = result.OrderBy(static item => item.CreatedAt);
+        var thenByResult = orderByResult.ThenBy(static item => item.Id, StringComparer.Ordinal);
+        var toArrayResult = thenByResult.ToArray();
+        var fromResultResult1 = Task.FromResult<IReadOnlyList<FlowWorkpieceRecord>>(toArrayResult);
+        return fromResultResult1;
     }
 
-    public async Task<FlowWorkpieceRecord?> FindAsync(
-        Guid runId,
-        string workpieceId,
-        CancellationToken cancellationToken = default)
+    public async Task<FlowWorkpieceRecord?> FindAsync(Guid runId, string workpieceId, CancellationToken cancellationToken = default)
     {
         if (!IsSafeId(workpieceId))
+        {
             return null;
+        }
+
         var items = await ListAsync(runId, cancellationToken);
-        return items.FirstOrDefault(item => string.Equals(item.Id, workpieceId, StringComparison.Ordinal));
+        var firstOrDefaultResult = items.FirstOrDefault(item =>
+        {
+            var equalsResult = string.Equals(item.Id, workpieceId, StringComparison.Ordinal);
+            return equalsResult;
+        });
+        return firstOrDefaultResult;
     }
 
-    public async Task<Stream?> OpenReadAsync(
-        Guid runId,
-        string workpieceId,
-        CancellationToken cancellationToken = default)
+    public async Task<Stream?> OpenReadAsync(Guid runId, string workpieceId, CancellationToken cancellationToken = default)
     {
         var item = await FindAsync(runId, workpieceId, cancellationToken);
         if (item is null)
+        {
             return null;
+        }
 
-        var path = Path.Combine(GetRunDirectory(runId), item.Id + ".bin");
+        var getRunDirectoryResult = GetRunDirectory(runId);
+        var path = Path.Combine(getRunDirectoryResult, item.Id + ".bin");
         try
         {
-            return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            return fileStream;
         }
         catch (FileNotFoundException)
         {
@@ -113,9 +119,15 @@ public sealed class FileFlowWorkpieceStore : IFlowWorkpieceStore
     }
 
     private string GetRunDirectory(Guid runId)
-        => Path.Combine(_root, runId.ToString("N"));
+    {
+        var toStringResult2 = runId.ToString("N");
+        var combineResult = Path.Combine(_root, toStringResult2);
+        return combineResult;
+    }
 
     private static bool IsSafeId(string? value)
-        => value is { Length: 32 }
-            && value.All(static character => character is >= 'a' and <= 'f' or >= '0' and <= '9');
+    {
+        var evaluatedValue = value is { Length: 32 } && value.All(static character => character is >= 'a' and <= 'f' or >= '0' and <= '9');
+        return evaluatedValue;
+    }
 }

@@ -1,7 +1,6 @@
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Infrastructure.Persistence;
-
 /// <summary>
 /// Extracts library artifact references from immutable DTOs without resolving
 /// catalog metadata. It deliberately records only the persisted binding, not
@@ -12,13 +11,23 @@ namespace SereinFlow.Infrastructure.Persistence;
 internal static class LibraryBindingIndex
 {
     public static IReadOnlyList<string> Extract(FlowDefinitionDto definition)
-        => definition.Canvases
-            .SelectMany(static canvas => canvas.Nodes)
-            .Where(static node => node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop)
-            .Select(static node => node.Ui?.LibraryId)
-            .Where(static id => !string.IsNullOrWhiteSpace(id))
-            .Select(static id => id!.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+    {
+        var selectManyResult = definition.Canvases.SelectMany(static canvas => canvas.Nodes);
+        var whereResult = selectManyResult.Where(static node => node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop);
+        var selectResult = whereResult.Select(static node => node.Ui?.LibraryId);
+        var whereResult1 = selectResult.Where(static id =>
+        {
+            var evaluatedValue = !string.IsNullOrWhiteSpace(id);
+            return evaluatedValue;
+        });
+        var selectResult2 = whereResult1.Select(static id =>
+        {
+            var trimResult = id!.Trim();
+            return trimResult;
+        });
+        var distinctResult = selectResult2.Distinct(StringComparer.OrdinalIgnoreCase);
+        var orderResult = distinctResult.Order(StringComparer.Ordinal);
+        var toArrayResult = orderResult.ToArray();
+        return toArrayResult;
+    }
 }

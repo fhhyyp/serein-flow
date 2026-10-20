@@ -5,7 +5,6 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Api.Controllers;
-
 [Route("api/environment/interfaces")]
 public sealed class FlowInterfacesController : ApiControllerBase
 {
@@ -13,12 +12,7 @@ public sealed class FlowInterfacesController : ApiControllerBase
     private readonly IFlowVersionRepository _versions;
     private readonly IProjectRepository _projects;
     private readonly IFlowDefinitionRepository _flows;
-
-    public FlowInterfacesController(
-        IFlowInterfaceRepository interfaces,
-        IFlowVersionRepository versions,
-        IProjectRepository projects,
-        IFlowDefinitionRepository flows)
+    public FlowInterfacesController(IFlowInterfaceRepository interfaces, IFlowVersionRepository versions, IProjectRepository projects, IFlowDefinitionRepository flows)
     {
         _interfaces = interfaces;
         _versions = versions;
@@ -33,16 +27,15 @@ public sealed class FlowInterfacesController : ApiControllerBase
         var items = new List<FlowInterfaceDto>();
         foreach (var flowInterface in await _interfaces.ListAsync(cancellationToken))
         {
-            items.Add(flowInterface with
+            var evaluatedValue = flowInterface with
             {
-                ProductionVersion = await _versions.FindProductionVersionAsync(
-                    flowInterface.ProjectId,
-                    flowInterface.FlowId,
-                    cancellationToken),
-            });
+                ProductionVersion = await _versions.FindProductionVersionAsync(flowInterface.ProjectId, flowInterface.FlowId, cancellationToken),
+            };
+            items.Add(evaluatedValue);
         }
 
-        return Ok(items);
+        var okResult = Ok(items);
+        return okResult;
     }
 
     [HttpPost]
@@ -50,79 +43,71 @@ public sealed class FlowInterfacesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult> Create(
-        [FromBody] CreateFlowInterfaceRequestDto request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult> Create([FromBody] CreateFlowInterfaceRequestDto request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 80)
         {
-            return ApiProblem(
-                StatusCodes.Status400BadRequest,
-                "The interface name must contain 1 to 80 characters. 接口名称长度必须为 1 到 80 个字符。");
+            var apiProblemResult = ApiProblem(StatusCodes.Status400BadRequest, "The interface name must contain 1 to 80 characters. 接口名称长度必须为 1 到 80 个字符。");
+            return apiProblemResult;
         }
+
         if (!Enum.IsDefined(request.InvocationMode))
         {
-            return ApiProblem(
-                StatusCodes.Status400BadRequest,
-                "The interface invocation mode is invalid. 接口调用模式无效。");
+            var apiProblemResult1 = ApiProblem(StatusCodes.Status400BadRequest, "The interface invocation mode is invalid. 接口调用模式无效。");
+            return apiProblemResult1;
         }
 
         var project = await _projects.FindAsync(request.ProjectId, cancellationToken);
-        if (project is null || await _flows.FindAsync(request.ProjectId, request.FlowId, cancellationToken) is null)
+        if (project is null || await _flows.FindAsync(request.ProjectId, request.FlowId, cancellationToken)is null)
         {
-            return ApiProblem(
-                StatusCodes.Status404NotFound,
-                "The selected project or flow was not found. 所选项目或流程不存在。");
-        }
-        if (project.Status == ProjectStatus.Archived)
-        {
-            return ApiProblem(
-                StatusCodes.Status409Conflict,
-                "Archived projects cannot be published through environment interfaces. 已归档项目不能发布为环境接口。");
+            var apiProblemResult2 = ApiProblem(StatusCodes.Status404NotFound, "The selected project or flow was not found. 所选项目或流程不存在。");
+            return apiProblemResult2;
         }
 
-        var productionVersion = await _versions.FindProductionVersionAsync(
-            request.ProjectId,
-            request.FlowId,
-            cancellationToken);
+        if (project.Status == ProjectStatus.Archived)
+        {
+            var apiProblemResult3 = ApiProblem(StatusCodes.Status409Conflict, "Archived projects cannot be published through environment interfaces. 已归档项目不能发布为环境接口。");
+            return apiProblemResult3;
+        }
+
+        var productionVersion = await _versions.FindProductionVersionAsync(request.ProjectId, request.FlowId, cancellationToken);
         if (productionVersion is null)
         {
-            return ApiProblem(
-                StatusCodes.Status409Conflict,
-                "A production flow version is required before creating an environment interface. 创建环境接口前必须先发布生产流程版本。",
-                extensions: new Dictionary<string, object?> { ["code"] = FlowErrorCodes.ProductionVersionRequired });
+            var dictionary = new Dictionary<string, object?>
+            {
+                ["code"] = FlowErrorCodes.ProductionVersionRequired
+            };
+            var apiProblemResult4 = ApiProblem(StatusCodes.Status409Conflict, "A production flow version is required before creating an environment interface. 创建环境接口前必须先发布生产流程版本。", extensions: dictionary);
+            return apiProblemResult4;
         }
 
         var now = DateTimeOffset.UtcNow;
-        var flowInterface = new FlowInterfaceDto(
-            Guid.NewGuid(),
-            request.ProjectId,
-            request.FlowId,
-            request.Name.Trim(),
-            request.InvocationMode,
-            request.IsEnabled,
-            now,
-            now,
-            productionVersion);
+        var newGuidResult = Guid.NewGuid();
+        var trimResult = request.Name.Trim();
+        var flowInterface = new FlowInterfaceDto(newGuidResult, request.ProjectId, request.FlowId, trimResult, request.InvocationMode, request.IsEnabled, now, now, productionVersion);
         await _interfaces.AddAsync(flowInterface, cancellationToken);
-        return Created($"/api/environment/interfaces/{flowInterface.Id:D}", flowInterface);
+        var createdResult = Created($"/api/environment/interfaces/{flowInterface.Id:D}", flowInterface);
+        return createdResult;
     }
 
     [HttpPut("{interfaceId:guid}")]
     [ProducesResponseType(typeof(FlowInterfaceDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> Update(
-        [FromRoute] Guid interfaceId,
-        [FromBody] UpdateFlowInterfaceRequestDto request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult> Update([FromRoute] Guid interfaceId, [FromBody] UpdateFlowInterfaceRequestDto request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 80 || !Enum.IsDefined(request.InvocationMode))
-            return ApiProblem(StatusCodes.Status400BadRequest, "The interface configuration is invalid. 接口配置无效。");
+        {
+            var apiProblemResult5 = ApiProblem(StatusCodes.Status400BadRequest, "The interface configuration is invalid. 接口配置无效。");
+            return apiProblemResult5;
+        }
 
         var existing = await _interfaces.FindAsync(interfaceId, cancellationToken);
         if (existing is null)
-            return ApiProblem(StatusCodes.Status404NotFound, "Flow interface not found. 流程接口不存在。");
+        {
+            var apiProblemResult6 = ApiProblem(StatusCodes.Status404NotFound, "Flow interface not found. 流程接口不存在。");
+            return apiProblemResult6;
+        }
 
         var updated = existing with
         {
@@ -132,14 +117,16 @@ public sealed class FlowInterfacesController : ApiControllerBase
             UpdatedAt = DateTimeOffset.UtcNow,
         };
         await _interfaces.UpdateAsync(updated, cancellationToken);
-        return Ok(updated);
+        var okResult7 = Ok(updated);
+        return okResult7;
     }
 
     [HttpDelete("{interfaceId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Delete([FromRoute] Guid interfaceId, CancellationToken cancellationToken)
-        => await _interfaces.DeleteAsync(interfaceId, cancellationToken)
-            ? NoContent()
-            : ApiProblem(StatusCodes.Status404NotFound, "Flow interface not found. 流程接口不存在。");
+    {
+        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue8 = await _interfaces.DeleteAsync(interfaceId, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Flow interface not found. 流程接口不存在。");
+        return evaluatedValue8;
+    }
 }

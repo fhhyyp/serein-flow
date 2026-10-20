@@ -4,10 +4,9 @@ using SereinFlow.ScriptModules;
 using ScriptLang;
 using ScriptLang.Runtime;
 using ScriptLang.Runtime.ByteCode;
-
 using SereinFlow.Contracts;
-namespace SereinFlow.ScriptAdapter;
 
+namespace SereinFlow.ScriptAdapter;
 public interface IScriptNodeExecutor : INodeExecutor
 {
 }
@@ -16,7 +15,6 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
 {
     private readonly ScriptArtifactStore? _artifactStore;
     private readonly string _defaultProjectId;
-
     public SereinScriptNodeExecutor(ScriptArtifactStore? artifactStore = null, string defaultProjectId = "default")
     {
         _artifactStore = artifactStore;
@@ -28,21 +26,25 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
     public async ValueTask<NodeExecutionResult> ExecuteAsync(NodeExecutionRequest request, CancellationToken cancellationToken)
     {
         if (request is null)
+        {
             throw new ArgumentNullException(nameof(request), "The script execution request cannot be null. 脚本执行请求不能为空。");
+        }
+
         var definition = request.Node.Script;
         if (definition is null)
-            return NodeExecutionResult.Error(ScriptErrorCodes.DefinitionMissing, "Script node definition is missing. 脚本节点定义缺失。");
+        {
+            var errorResult = NodeExecutionResult.Error(ScriptErrorCodes.DefinitionMissing, "Script node definition is missing. 脚本节点定义缺失。");
+            return errorResult;
+        }
 
         try
         {
             ValidateInputs(definition, request.Inputs);
             cancellationToken.ThrowIfCancellationRequested();
-
             var projectId = request.Context.Read("projectId") as string ?? _defaultProjectId;
             var engine = new ScriptEngine();
-            SereinFlowScriptModuleRegistration.Register(
-                engine,
-                new SereinFlowScriptModuleContext(request.Runtime, cancellationToken));
+            var sereinFlowScriptModuleContext = new SereinFlowScriptModuleContext(request.Runtime, cancellationToken);
+            SereinFlowScriptModuleRegistration.Register(engine, sereinFlowScriptModuleContext);
             ByteCodeChunk chunk;
             string? artifactPath = null;
             if (_artifactStore?.TryLoad(projectId, definition, out var persistedChunk, out artifactPath) == true && persistedChunk is not null)
@@ -51,10 +53,8 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
             }
             else
             {
-                chunk = engine.CompileSource(
-                    definition.Source,
-                    $"{definition.NodeId}.script",
-                    definition.Inputs.Select(input => input.Name));
+                var selectResult = definition.Inputs.Select(input => input.Name);
+                chunk = engine.CompileSource(definition.Source, $"{definition.NodeId}.script", selectResult);
             }
 
             var task = engine.CreateTask(chunk, artifactPath);
@@ -68,73 +68,101 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
                 // 已持久化的 .ssc 仅包含源码实际引用的全局变量；重新注册全部声明输入，
                 // 使当前未在源码中使用但合法的连接器也能安全赋值。
                 engine.RegisterGlobal(input.Name);
-                engine.SetGlobal(input.Name, ScriptValueConverter.ToScriptValue(request.Inputs.GetValueOrDefault(inputId)));
+                var getValueOrDefaultResult = request.Inputs.GetValueOrDefault(inputId);
+                var toScriptValueResult = ScriptValueConverter.ToScriptValue(getValueOrDefaultResult);
+                engine.SetGlobal(input.Name, toScriptValueResult);
             }
 
             var result = await task.RunAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            return NodeExecutionResult.Success(MapOutputs(definition, result));
+            var mapOutputsResult = MapOutputs(definition, result);
+            var successResult = NodeExecutionResult.Success(mapOutputsResult);
+            return successResult;
         }
         catch (OperationCanceledException)
         {
-            return NodeExecutionResult.Failure(ScriptErrorCodes.Cancelled, "Script execution was cancelled. 脚本执行已取消。");
+            var failureResult = NodeExecutionResult.Failure(ScriptErrorCodes.Cancelled, "Script execution was cancelled. 脚本执行已取消。");
+            return failureResult;
         }
         catch (ScriptExecutionException exception)
         {
+            var errorResult1 = NodeExecutionResult.Error(exception.Code, exception.Message);
             // Script exceptions are engine-visible errors rather than a
             // business Failure branch.  This keeps unhandled script faults
             // distinguishable from a script that deliberately returns a
             // failure value.
             // 脚本异常属于引擎错误，统一进入 Error 分支；只有脚本显式返回业务结果时才走 Success/Failure。
-            return NodeExecutionResult.Error(exception.Code, exception.Message);
+            return errorResult1;
         }
         catch (NotSupportedException exception)
         {
-            return NodeExecutionResult.Error(ScriptErrorCodes.ValueUnsupported, $"Script value is not supported. 脚本值不受支持。 {exception.Message}");
+            var errorResult2 = NodeExecutionResult.Error(ScriptErrorCodes.ValueUnsupported, $"Script value is not supported. 脚本值不受支持。 {exception.Message}");
+            return errorResult2;
         }
         catch (InvalidOperationException exception)
         {
-            return NodeExecutionResult.Error(ScriptErrorCodes.CompileFailed, $"Script compilation failed. 脚本编译失败。 {exception.Message}");
+            var errorResult3 = NodeExecutionResult.Error(ScriptErrorCodes.CompileFailed, $"Script compilation failed. 脚本编译失败。 {exception.Message}");
+            return errorResult3;
         }
         catch (Exception exception)
         {
-            return NodeExecutionResult.Error(ScriptErrorCodes.RuntimeFailed, $"Script runtime execution failed. 脚本运行时执行失败。 {exception.Message}");
+            var errorResult4 = NodeExecutionResult.Error(ScriptErrorCodes.RuntimeFailed, $"Script runtime execution failed. 脚本运行时执行失败。 {exception.Message}");
+            return errorResult4;
         }
     }
 
     private static void ValidateInputs(ScriptNodeDefinition definition, IReadOnlyDictionary<string, object?> inputs)
     {
         var contracts = definition.Inputs.ToDictionary(input => input.Id ?? input.Name, StringComparer.Ordinal);
-        var unknown = inputs.Keys.FirstOrDefault(id => !contracts.ContainsKey(id));
+        var unknown = inputs.Keys.FirstOrDefault(id =>
+        {
+            var evaluatedValue = !contracts.ContainsKey(id);
+            return evaluatedValue;
+        });
         if (unknown is not null)
+        {
             throw new ScriptExecutionException(ScriptErrorCodes.InputUnknown, $"Unknown script input '{unknown}'. 未知的脚本输入“{unknown}”。");
+        }
 
-        var missing = definition.Inputs.FirstOrDefault(input => input.Required && !inputs.ContainsKey(input.Id ?? input.Name));
+        var missing = definition.Inputs.FirstOrDefault(input =>
+        {
+            var evaluatedValue5 = input.Required && !inputs.ContainsKey(input.Id ?? input.Name);
+            return evaluatedValue5;
+        });
         if (missing is not null)
+        {
             throw new ScriptExecutionException(ScriptErrorCodes.InputMissing, $"Required script input '{missing.Name}' is missing. 缺少必需的脚本输入“{missing.Name}”。");
+        }
     }
 
     private static Dictionary<string, object?> MapOutputs(ScriptNodeDefinition definition, Value result)
     {
         if (definition.Outputs.Count == 0)
-            return new Dictionary<string, object?>();
+        {
+            var dictionary = new Dictionary<string, object?>();
+            return dictionary;
+        }
 
         if (definition.Outputs.Count == 1)
-            return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            var dictionary6 = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 [definition.Outputs[0].Id ?? definition.Outputs[0].Name] = result
             };
+            return dictionary6;
+        }
 
         if (result is not ObjectValue objectResult)
+        {
             throw new ScriptExecutionException(ScriptErrorCodes.OutputShapeInvalid, "A script with multiple outputs must return an object. 包含多个输出的脚本必须返回对象。");
+        }
 
         var outputs = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var output in definition.Outputs)
         {
-            outputs[output.Id ?? output.Name] = objectResult.TryGetValue(output.Name, out var value)
-                ? value
-                : null;
+            outputs[output.Id ?? output.Name] = objectResult.TryGetValue(output.Name, out var value) ? value : null;
         }
+
         return outputs;
     }
 }

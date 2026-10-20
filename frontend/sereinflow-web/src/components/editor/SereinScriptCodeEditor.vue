@@ -1,24 +1,22 @@
 <script setup lang="ts">
-import { history, historyKeymap, defaultKeymap, indentWithTab } from '@codemirror/commands'
-import { javascript } from '@codemirror/lang-javascript'
-import { bracketMatching, defaultHighlightStyle, foldGutter, indentOnInput, syntaxHighlighting } from '@codemirror/language'
-import { EditorState } from '@codemirror/state'
-import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view'
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-
+import { history, historyKeymap, defaultKeymap, indentWithTab } from '@codemirror/commands';
+import { javascript } from '@codemirror/lang-javascript';
+import { bracketMatching, defaultHighlightStyle, foldGutter, indentOnInput, syntaxHighlighting } from '@codemirror/language';
+import { EditorState } from '@codemirror/state';
+import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 const props = defineProps<{
-  modelValue: string
-  editorLabel: string
-}>()
-
+  modelValue: string;
+  editorLabel: string;
+}>();
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
-}>()
-
-const editorHost = ref<HTMLDivElement>()
-let editorView: EditorView | undefined
-let isApplyingExternalValue = false
-
+  'update:modelValue': [
+    value: string
+  ];
+}>();
+const editorHost = ref<HTMLDivElement>();
+let editorView: EditorView | undefined;
+let isApplyingExternalValue = false;
 const editorTheme = EditorView.theme({
   '&': {
     height: '100%',
@@ -61,30 +59,26 @@ const editorTheme = EditorView.theme({
   '&.cm-focused .cm-cursor': {
     borderLeftColor: 'var(--ink)',
   },
-})
-
+});
 function replaceDocument(value: string): void {
   if (!editorView || editorView.state.doc.toString() === value) {
-    return
+    return;
   }
-
-  isApplyingExternalValue = true
+  isApplyingExternalValue = true;
   editorView.dispatch({
     changes: {
       from: 0,
       to: editorView.state.doc.length,
       insert: value,
     },
-  })
-  isApplyingExternalValue = false
+  });
+  isApplyingExternalValue = false;
 }
-
 onMounted(() => {
   if (!editorHost.value) {
-    return
+    return;
   }
-
-  const state = EditorState.create({
+  const evaluatedValue: import("@codemirror/state").EditorStateConfig | undefined = {
     doc: props.modelValue,
     extensions: [
       lineNumbers(),
@@ -107,24 +101,29 @@ onMounted(() => {
       editorTheme,
       EditorView.updateListener.of((update) => {
         if (update.docChanged && !isApplyingExternalValue) {
-          emit('update:modelValue', update.state.doc.toString())
+          const toStringResult: string = update.state.doc.toString();
+          emit('update:modelValue', toStringResult);
         }
       }),
     ],
-  })
-
-  editorView = new EditorView({ state, parent: editorHost.value })
-  requestAnimationFrame(() => editorView?.focus())
-})
-
-watch(() => props.modelValue, replaceDocument)
-
+  };
+  const state = EditorState.create(evaluatedValue);
+  editorView = new EditorView({ state, parent: editorHost.value });
+  requestAnimationFrame(() => {
+    const focusResult: void = editorView?.focus();
+    return focusResult;
+  });
+});
+watch(() => props.modelValue, replaceDocument);
 onBeforeUnmount(() => {
-  editorView?.destroy()
-  editorView = undefined
-})
+  editorView?.destroy();
+  editorView = undefined;
+});
 </script>
 
 <template>
-  <div ref="editorHost" class="serein-script-code-editor"></div>
+  <div
+    ref="editorHost"
+    class="serein-script-code-editor"
+  ></div>
 </template>

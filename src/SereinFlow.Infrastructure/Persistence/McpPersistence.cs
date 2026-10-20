@@ -3,47 +3,63 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Infrastructure.Persistence;
-
 public sealed class SqlSugarMcpApiKeyStore : IMcpApiKeyStore
 {
     private readonly IRepository<McpApiKeyRecord> _records;
-
-    public SqlSugarMcpApiKeyStore(IRepository<McpApiKeyRecord> records) => _records = records;
+    public SqlSugarMcpApiKeyStore(IRepository<McpApiKeyRecord> records)
+    {
+        _records = records;
+    }
 
     public async Task<IReadOnlyList<McpApiKeyEntry>> ListAsync(CancellationToken cancellationToken = default)
-        => (await _records.ListAsync(cancellationToken: cancellationToken)).Select(Map).ToArray();
+    {
+        var evaluatedValue = (await _records.ListAsync(cancellationToken: cancellationToken));
+        var selectResult = evaluatedValue.Select(Map);
+        var toArrayResult = selectResult.ToArray();
+        return toArrayResult;
+    }
 
     public async Task<McpApiKeyEntry?> FindAsync(string id, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(id))
+        {
             return null;
+        }
+
         var record = await _records.GetByIdAsync(id, cancellationToken);
-        return record is null ? null : Map(record);
+        global::SereinFlow.Application.Persistence.McpApiKeyEntry? evaluatedValue1 = record is null ? null : Map(record);
+        return evaluatedValue1;
     }
 
     public Task AddAsync(McpApiKeyEntry entry, CancellationToken cancellationToken = default)
-        => _records.AddAsync(Map(entry), cancellationToken);
+    {
+        var mapResult = Map(entry);
+        var addAsyncResult = _records.AddAsync(mapResult, cancellationToken);
+        return addAsyncResult;
+    }
 
     public Task<bool> UpdateAsync(McpApiKeyEntry entry, CancellationToken cancellationToken = default)
-        => _records.UpdateAsync(Map(entry), cancellationToken);
+    {
+        var mapResult2 = Map(entry);
+        var updateAsyncResult = _records.UpdateAsync(mapResult2, cancellationToken);
+        return updateAsyncResult;
+    }
 
     private static McpApiKeyEntry Map(McpApiKeyRecord record)
-        => new(
-            record.Id,
-            Guid.TryParse(record.ProjectId, out var projectId) ? projectId : null,
-            record.Name,
-            record.KeyPrefix,
-            record.SecretHash,
-            record.Salt,
-            DeserializePermissions(record.PermissionsJson),
-            ParseDate(record.CreatedAt),
-            ParseNullableDate(record.ExpiresAt),
-            ParseNullableDate(record.RevokedAt),
-            ParseNullableDate(record.LastUsedAt),
-            record.IsAdministrator);
+    {
+        global::System.Guid? evaluatedValue3 = Guid.TryParse(record.ProjectId, out var projectId) ? projectId : null;
+        var deserializePermissionsResult = DeserializePermissions(record.PermissionsJson);
+        var parseDateResult = ParseDate(record.CreatedAt);
+        var parseNullableDateResult = ParseNullableDate(record.ExpiresAt);
+        var parseNullableDateResult4 = ParseNullableDate(record.RevokedAt);
+        var parseNullableDateResult5 = ParseNullableDate(record.LastUsedAt);
+        global::SereinFlow.Application.Persistence.McpApiKeyEntry evaluatedValue6 = new(record.Id, evaluatedValue3, record.Name, record.KeyPrefix, record.SecretHash, record.Salt, deserializePermissionsResult, parseDateResult, parseNullableDateResult, parseNullableDateResult4, parseNullableDateResult5, record.IsAdministrator);
+        return evaluatedValue6;
+    }
 
     private static McpApiKeyRecord Map(McpApiKeyEntry entry)
-        => new()
+    {
+        global::SereinFlow.Infrastructure.Persistence.McpApiKeyRecord evaluatedValue7 = new()
         {
             Id = entry.Id,
             ProjectId = entry.ProjectId?.ToString("D"),
@@ -56,54 +72,76 @@ public sealed class SqlSugarMcpApiKeyStore : IMcpApiKeyStore
             ExpiresAt = entry.ExpiresAt?.ToString("O"),
             RevokedAt = entry.RevokedAt?.ToString("O"),
             LastUsedAt = entry.LastUsedAt?.ToString("O"),
-            IsAdministrator = entry.IsAdministrator,
+            IsAdministrator = entry.IsAdministrator
         };
+        return evaluatedValue7;
+    }
 
     private static McpPermissionDto[] DeserializePermissions(string json)
-        => JsonSerializer.Deserialize<McpPermissionDto[]>(json) ?? [];
+    {
+        var evaluatedValue8 = JsonSerializer.Deserialize<McpPermissionDto[]>(json) ?? [];
+        return evaluatedValue8;
+    }
 
     private static DateTimeOffset ParseDate(string value)
-        => DateTimeOffset.TryParse(value, out var parsed) ? parsed : DateTimeOffset.UtcNow;
+    {
+        global::System.DateTimeOffset evaluatedValue9 = DateTimeOffset.TryParse(value, out var parsed) ? parsed : DateTimeOffset.UtcNow;
+        return evaluatedValue9;
+    }
 
     private static DateTimeOffset? ParseNullableDate(string? value)
-        => DateTimeOffset.TryParse(value, out var parsed) ? parsed : null;
+    {
+        global::System.DateTimeOffset? evaluatedValue10 = DateTimeOffset.TryParse(value, out var parsed) ? parsed : null;
+        return evaluatedValue10;
+    }
 }
 
 public sealed class SqlSugarMcpPreviewStore : IMcpPreviewStore
 {
     private readonly IRepository<McpPreviewRecord> _records;
-
-    public SqlSugarMcpPreviewStore(IRepository<McpPreviewRecord> records) => _records = records;
+    public SqlSugarMcpPreviewStore(IRepository<McpPreviewRecord> records)
+    {
+        _records = records;
+    }
 
     public async Task<McpPreviewEntry?> FindAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var record = await _records.GetByIdAsync(id.ToString("D"), cancellationToken);
-        return record is null ? null : Map(record);
+        var toStringResult = id.ToString("D");
+        var record = await _records.GetByIdAsync(toStringResult, cancellationToken);
+        global::SereinFlow.Application.Persistence.McpPreviewEntry? evaluatedValue11 = record is null ? null : Map(record);
+        return evaluatedValue11;
     }
 
     public Task AddAsync(McpPreviewEntry entry, CancellationToken cancellationToken = default)
-        => _records.AddAsync(Map(entry), cancellationToken);
+    {
+        var mapResult12 = Map(entry);
+        var addAsyncResult13 = _records.AddAsync(mapResult12, cancellationToken);
+        return addAsyncResult13;
+    }
 
     public Task<bool> UpdateAsync(McpPreviewEntry entry, CancellationToken cancellationToken = default)
-        => _records.UpdateAsync(Map(entry), cancellationToken);
+    {
+        var mapResult14 = Map(entry);
+        var updateAsyncResult15 = _records.UpdateAsync(mapResult14, cancellationToken);
+        return updateAsyncResult15;
+    }
 
     private static McpPreviewEntry Map(McpPreviewRecord record)
-        => new(
-            Guid.Parse(record.Id),
-            record.Operation,
-            record.PrincipalId,
-            Guid.TryParse(record.ProjectId, out var projectId) ? projectId : null,
-            Guid.TryParse(record.FlowId, out var flowId) ? flowId : null,
-            record.ExpectedVersion,
-            record.PayloadJson,
-            record.PreviewFingerprint,
-            Enum.TryParse<McpMutationPreviewStatusDto>(record.Status, true, out var status) ? status : McpMutationPreviewStatusDto.Pending,
-            DateTimeOffset.TryParse(record.CreatedAt, out var createdAt) ? createdAt : DateTimeOffset.UtcNow,
-            DateTimeOffset.TryParse(record.ExpiresAt, out var expiresAt) ? expiresAt : DateTimeOffset.UtcNow,
-            DateTimeOffset.TryParse(record.AppliedAt, out var appliedAt) ? appliedAt : null);
+    {
+        var parseResult = Guid.Parse(record.Id);
+        global::System.Guid? evaluatedValue16 = Guid.TryParse(record.ProjectId, out var projectId) ? projectId : null;
+        global::System.Guid? evaluatedValue17 = Guid.TryParse(record.FlowId, out var flowId) ? flowId : null;
+        global::SereinFlow.Contracts.McpMutationPreviewStatusDto evaluatedValue18 = Enum.TryParse<McpMutationPreviewStatusDto>(record.Status, true, out var status) ? status : McpMutationPreviewStatusDto.Pending;
+        global::System.DateTimeOffset evaluatedValue19 = DateTimeOffset.TryParse(record.CreatedAt, out var createdAt) ? createdAt : DateTimeOffset.UtcNow;
+        global::System.DateTimeOffset evaluatedValue20 = DateTimeOffset.TryParse(record.ExpiresAt, out var expiresAt) ? expiresAt : DateTimeOffset.UtcNow;
+        global::System.DateTimeOffset? evaluatedValue21 = DateTimeOffset.TryParse(record.AppliedAt, out var appliedAt) ? appliedAt : null;
+        global::SereinFlow.Application.Persistence.McpPreviewEntry evaluatedValue22 = new(parseResult, record.Operation, record.PrincipalId, evaluatedValue16, evaluatedValue17, record.ExpectedVersion, record.PayloadJson, record.PreviewFingerprint, evaluatedValue18, evaluatedValue19, evaluatedValue20, evaluatedValue21);
+        return evaluatedValue22;
+    }
 
     private static McpPreviewRecord Map(McpPreviewEntry entry)
-        => new()
+    {
+        global::SereinFlow.Infrastructure.Persistence.McpPreviewRecord evaluatedValue23 = new()
         {
             Id = entry.Id.ToString("D"),
             Operation = entry.Operation,
@@ -116,18 +154,23 @@ public sealed class SqlSugarMcpPreviewStore : IMcpPreviewStore
             Status = entry.Status.ToString(),
             CreatedAt = entry.CreatedAt.ToString("O"),
             ExpiresAt = entry.ExpiresAt.ToString("O"),
-            AppliedAt = entry.AppliedAt?.ToString("O"),
+            AppliedAt = entry.AppliedAt?.ToString("O")
         };
+        return evaluatedValue23;
+    }
 }
 
 public sealed class SqlSugarMcpAuditStore : IMcpAuditStore
 {
     private readonly IRepository<McpAuditRecord> _records;
-
-    public SqlSugarMcpAuditStore(IRepository<McpAuditRecord> records) => _records = records;
+    public SqlSugarMcpAuditStore(IRepository<McpAuditRecord> records)
+    {
+        _records = records;
+    }
 
     public Task AddAsync(McpAuditEntry entry, CancellationToken cancellationToken = default)
-        => _records.AddAsync(new McpAuditRecord
+    {
+        var mcpAuditRecord = new McpAuditRecord
         {
             Id = entry.Id.ToString("D"),
             PrincipalId = entry.PrincipalId,
@@ -144,31 +187,32 @@ public sealed class SqlSugarMcpAuditStore : IMcpAuditStore
             DurationMilliseconds = entry.DurationMilliseconds,
             InputBytes = entry.InputBytes,
             OutputBytes = entry.OutputBytes,
-        }, cancellationToken);
+        };
+        var addAsyncResult24 = _records.AddAsync(mcpAuditRecord, cancellationToken);
+        return addAsyncResult24;
+    }
 }
 
 public sealed class SqlSugarMcpIdempotencyStore : IMcpIdempotencyStore
 {
     private readonly IRepository<McpIdempotencyRecord> _records;
+    public SqlSugarMcpIdempotencyStore(IRepository<McpIdempotencyRecord> records)
+    {
+        _records = records;
+    }
 
-    public SqlSugarMcpIdempotencyStore(IRepository<McpIdempotencyRecord> records) => _records = records;
-
-    public async Task<McpIdempotencyEntry?> FindAsync(
-        string principalId,
-        string operation,
-        string keyHash,
-        CancellationToken cancellationToken = default)
-        => (await _records.ListAsync(
-                item => item.PrincipalId == principalId
-                    && item.Operation == operation
-                    && item.KeyHash == keyHash,
-                cancellationToken))
-            .OrderByDescending(item => item.CreatedAt, StringComparer.Ordinal)
-            .Select(Map)
-            .FirstOrDefault();
+    public async Task<McpIdempotencyEntry?> FindAsync(string principalId, string operation, string keyHash, CancellationToken cancellationToken = default)
+    {
+        var evaluatedValue25 = (await _records.ListAsync(item => item.PrincipalId == principalId && item.Operation == operation && item.KeyHash == keyHash, cancellationToken));
+        var orderByDescendingResult = evaluatedValue25.OrderByDescending(item => item.CreatedAt, StringComparer.Ordinal);
+        var selectResult26 = orderByDescendingResult.Select(Map);
+        var firstOrDefaultResult = selectResult26.FirstOrDefault();
+        return firstOrDefaultResult;
+    }
 
     public Task AddAsync(McpIdempotencyEntry entry, CancellationToken cancellationToken = default)
-        => _records.AddAsync(new McpIdempotencyRecord
+    {
+        var mcpIdempotencyRecord = new McpIdempotencyRecord
         {
             Id = entry.Id.ToString("D"),
             PrincipalId = entry.PrincipalId,
@@ -177,15 +221,16 @@ public sealed class SqlSugarMcpIdempotencyStore : IMcpIdempotencyStore
             RequestHash = entry.RequestHash,
             ResponseJson = entry.ResponseJson,
             CreatedAt = entry.CreatedAt.ToString("O"),
-        }, cancellationToken);
+        };
+        var addAsyncResult27 = _records.AddAsync(mcpIdempotencyRecord, cancellationToken);
+        return addAsyncResult27;
+    }
 
     private static McpIdempotencyEntry Map(McpIdempotencyRecord record)
-        => new(
-            Guid.Parse(record.Id),
-            record.PrincipalId,
-            record.Operation,
-            record.KeyHash,
-            record.RequestHash,
-            record.ResponseJson,
-            DateTimeOffset.TryParse(record.CreatedAt, out var createdAt) ? createdAt : DateTimeOffset.UtcNow);
+    {
+        var parseResult28 = Guid.Parse(record.Id);
+        global::System.DateTimeOffset evaluatedValue29 = DateTimeOffset.TryParse(record.CreatedAt, out var createdAt) ? createdAt : DateTimeOffset.UtcNow;
+        global::SereinFlow.Application.Persistence.McpIdempotencyEntry evaluatedValue30 = new(parseResult28, record.PrincipalId, record.Operation, record.KeyHash, record.RequestHash, record.ResponseJson, evaluatedValue29);
+        return evaluatedValue30;
+    }
 }

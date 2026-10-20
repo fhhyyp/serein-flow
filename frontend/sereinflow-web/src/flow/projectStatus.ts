@@ -1,3 +1,6 @@
 export function isArchivedProjectStatus(status: string | undefined): boolean {
-  return status?.trim().toLowerCase() === 'archived'
+  const trimmedStatus = status?.trim();
+  const normalizedStatus = trimmedStatus?.toLowerCase();
+  const evaluatedValue: boolean = normalizedStatus === 'archived';
+  return evaluatedValue;
 }

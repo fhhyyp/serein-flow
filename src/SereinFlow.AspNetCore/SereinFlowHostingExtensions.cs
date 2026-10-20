@@ -10,7 +10,6 @@ using SereinFlow.Mcp;
 using SereinFlow.Worker.Client;
 
 namespace SereinFlow.AspNetCore;
-
 public sealed class SereinFlowWebApiOptions
 {
     public bool? EnableSwagger { get; set; }
@@ -36,7 +35,10 @@ public sealed class SereinFlowHostBuilder
     public SereinFlowHostBuilder UseWebApi(Action<SereinFlowWebApiOptions>? configure = null)
     {
         if (WebApiEnabled)
+        {
             throw new InvalidOperationException("SereinFlow Web API has already been enabled.");
+        }
+
         WebApiEnabled = true;
         configure?.Invoke(WebApiOptions);
         return this;
@@ -45,31 +47,38 @@ public sealed class SereinFlowHostBuilder
     public SereinFlowHostBuilder UseMcp(Action<SereinFlowHttpMcpOptions>? configure = null)
     {
         if (McpEnabled)
+        {
             throw new InvalidOperationException("SereinFlow HTTP MCP has already been enabled.");
+        }
+
         McpEnabled = true;
         configure?.Invoke(McpOptions);
-        if (string.IsNullOrWhiteSpace(McpOptions.EndpointPath)
-            || !McpOptions.EndpointPath.StartsWith("/", StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(McpOptions.EndpointPath) || !McpOptions.EndpointPath.StartsWith("/", StringComparison.Ordinal))
+        {
             throw new ArgumentException("The MCP endpoint path must start with '/'.", nameof(configure));
+        }
+
         return this;
     }
 }
 
 public static class SereinFlowHostingExtensions
 {
-    public static IServiceCollection AddSereinFlow(
-        this IServiceCollection services,
-        Action<SereinFlowHostBuilder> configure)
+    public static IServiceCollection AddSereinFlow(this IServiceCollection services, Action<SereinFlowHostBuilder> configure)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configure);
         if (services.Any(static descriptor => descriptor.ServiceType == typeof(SereinFlowHostBuilder)))
+        {
             throw new InvalidOperationException("AddSereinFlow can only be called once per host.");
+        }
 
         var options = new SereinFlowHostBuilder();
         configure(options);
         if (!options.WebApiEnabled && !options.McpEnabled)
+        {
             throw new InvalidOperationException("Enable UseWebApi() or UseMcp() in AddSereinFlow.");
+        }
 
         services.AddSingleton(options);
         services.AddSereinFlowStorage();
@@ -82,46 +91,70 @@ public static class SereinFlowHostingExtensions
             services.AddProblemDetails();
             services.AddSereinFlowWebApi();
             services.AddSereinFlowApiDocumentation();
-            services.AddOptions<CorsOptions>().Configure<IConfiguration>((cors, configuration) =>
+            var addOptionsResult = services.AddOptions<CorsOptions>();
+            addOptionsResult.Configure<IConfiguration>((cors, configuration) =>
             {
                 cors.AddPolicy("sereinflow-webapi", policy =>
                 {
-                    policy.AllowAnyHeader().AllowAnyMethod();
+                    var allowAnyHeaderResult = policy.AllowAnyHeader();
+                    allowAnyHeaderResult.AllowAnyMethod();
                     if (options.WebApiOptions.AllowAnyOrigin)
+                    {
                         policy.AllowAnyOrigin();
+                    }
                     else
                     {
-                        var origins = options.WebApiOptions.AllowedOrigins.Length > 0
-                            ? options.WebApiOptions.AllowedOrigins
-                            : configuration.GetSection("SereinFlow:Api:Cors:AllowedOrigins").Get<string[]>() ?? [];
-                        if (origins.Length > 0)
-                            policy.WithOrigins(origins);
+                        string[] origins;
+                        if (options.WebApiOptions.AllowedOrigins.Length > 0)
+                        {
+                            origins = options.WebApiOptions.AllowedOrigins;
+                        }
                         else
+                        {
+                            var allowedOriginsSection = configuration.GetSection("SereinFlow:Api:Cors:AllowedOrigins");
+                            origins = allowedOriginsSection.Get<string[]>() ?? [];
+                        }
+                        if (origins.Length > 0)
+                        {
+                            policy.WithOrigins(origins);
+                        }
+                        else
+                        {
                             policy.SetIsOriginAllowed(static _ => false);
+                        }
                     }
                 });
             });
             services.Configure<FormOptions>(form =>
-                form.MultipartBodyLengthLimit = FileUploadLimits.GetApiRequestBodyLimit(
-                    FileUploadLimits.MaximumMaxFileSizeBytes));
+            {
+                form.MultipartBodyLengthLimit = FileUploadLimits.GetApiRequestBodyLimit(FileUploadLimits.MaximumMaxFileSizeBytes);
+            });
         }
-        if (options.McpEnabled)
-            services.AddSereinFlowMcp();
 
-        services.AddOptions<KestrelServerOptions>().Configure<IConfiguration>((kestrel, configuration) =>
+        if (options.McpEnabled)
+        {
+            services.AddSereinFlowMcp();
+        }
+
+        var addOptionsResult1 = services.AddOptions<KestrelServerOptions>();
+        addOptionsResult1.Configure<IConfiguration>((kestrel, configuration) =>
         {
             var required = RequiredRequestBodyLimit(options, configuration);
             // Kestrel's built-in default is 30,000,000 bytes. Preserve an explicit
             // larger or unlimited host limit instead of replacing it.
             if (kestrel.Limits.MaxRequestBodySize == 30_000_000)
+            {
                 kestrel.Limits.MaxRequestBodySize = required;
+            }
         });
-        services.AddOptions<KestrelServerOptions>().PostConfigure<IConfiguration>((kestrel, configuration) =>
+        var addOptionsResult2 = services.AddOptions<KestrelServerOptions>();
+        addOptionsResult2.PostConfigure<IConfiguration>((kestrel, configuration) =>
         {
             var required = RequiredRequestBodyLimit(options, configuration);
             if (kestrel.Limits.MaxRequestBodySize is long current && current < required)
-                throw new InvalidOperationException(
-                    $"Kestrel MaxRequestBodySize ({current}) is below SereinFlow's required upload limit ({required}).");
+            {
+                throw new InvalidOperationException($"Kestrel MaxRequestBodySize ({current}) is below SereinFlow's required upload limit ({required}).");
+            }
         });
         services.AddSereinFlowExecution();
         return services;
@@ -129,16 +162,11 @@ public static class SereinFlowHostingExtensions
 
     private static long RequiredRequestBodyLimit(SereinFlowHostBuilder options, IConfiguration configuration)
     {
-        var mcpMax = options.McpEnabled
-            ? SereinFlowMcpOptions.FromConfiguration(configuration).MaxRequestBytes
-            : 0;
-        return Math.Max(
-            options.WebApiEnabled
-                ? FileUploadLimits.GetApiRequestBodyLimit(FileUploadLimits.MaximumMaxFileSizeBytes)
-                : 0,
-            options.McpEnabled
-                ? FileUploadLimits.GetMcpRequestBodyLimit(FileUploadLimits.MaximumMaxFileSizeBytes, mcpMax)
-                : 0);
+        var mcpMax = options.McpEnabled ? SereinFlowMcpOptions.FromConfiguration(configuration).MaxRequestBytes : 0;
+        long evaluatedValue3 = options.WebApiEnabled ? FileUploadLimits.GetApiRequestBodyLimit(FileUploadLimits.MaximumMaxFileSizeBytes) : 0;
+        long evaluatedValue4 = options.McpEnabled ? FileUploadLimits.GetMcpRequestBodyLimit(FileUploadLimits.MaximumMaxFileSizeBytes, mcpMax) : 0;
+        var maxResult = Math.Max(evaluatedValue3, evaluatedValue4);
+        return maxResult;
     }
 
     public static WebApplication UseSereinFlow(this WebApplication app)
@@ -146,20 +174,21 @@ public static class SereinFlowHostingExtensions
         ArgumentNullException.ThrowIfNull(app);
         var properties = ((IApplicationBuilder)app).Properties;
         if (properties.ContainsKey("SereinFlow:MiddlewareInstalled"))
+        {
             throw new InvalidOperationException("UseSereinFlow can only be called once per host.");
+        }
+
         properties["SereinFlow:MiddlewareInstalled"] = true;
         var options = app.Services.GetRequiredService<SereinFlowHostBuilder>();
         if (options.WebApiEnabled)
         {
-            var swagger = options.WebApiOptions.EnableSwagger
-                ?? app.Configuration.GetValue<bool?>("SereinFlow:ApiDocumentation:Enabled")
-                ?? app.Environment.IsDevelopment();
+            var swagger = options.WebApiOptions.EnableSwagger ?? app.Configuration.GetValue<bool?>("SereinFlow:ApiDocumentation:Enabled") ?? app.Environment.IsDevelopment();
             if (swagger)
-                app.UseSereinFlowApiDocumentation(
-                    true,
-                    options.WebApiOptions.OpenApiRouteTemplate,
-                    options.WebApiOptions.SwaggerUiRoutePrefix);
+            {
+                app.UseSereinFlowApiDocumentation(true, options.WebApiOptions.OpenApiRouteTemplate, options.WebApiOptions.SwaggerUiRoutePrefix);
+            }
         }
+
         app.UseCors();
         return app;
     }
@@ -169,28 +198,32 @@ public static class SereinFlowHostingExtensions
         ArgumentNullException.ThrowIfNull(app);
         var properties = ((IApplicationBuilder)app).Properties;
         if (properties.ContainsKey("SereinFlow:EndpointsMapped"))
+        {
             throw new InvalidOperationException("MapSereinFlow can only be called once per host.");
+        }
+
         properties["SereinFlow:EndpointsMapped"] = true;
         var options = app.Services.GetRequiredService<SereinFlowHostBuilder>();
         options.EndpointRouteBuilder = app;
         if (options.WebApiEnabled)
         {
             app.MapControllers();
-            app.MapHub<RunEventsHub>("/hubs/runs").RequireCors("sereinflow-webapi");
-            app.MapHub<WorkspaceEventsHub>("/hubs/workspace").RequireCors("sereinflow-webapi");
+            var mapHubResult = app.MapHub<RunEventsHub>("/hubs/runs");
+            mapHubResult.RequireCors("sereinflow-webapi");
+            var mapHubResult5 = app.MapHub<WorkspaceEventsHub>("/hubs/workspace");
+            mapHubResult5.RequireCors("sereinflow-webapi");
         }
+
         if (options.McpEnabled)
+        {
             app.MapSereinFlowMcp(options.McpOptions.EndpointPath);
+        }
+
         return app;
     }
 }
 
-internal sealed class SereinFlowInitializationService(
-    SqliteDatabase database,
-    SupervisorWorkerRunClient workerClient,
-    IOptions<KestrelServerOptions> kestrelOptions,
-    IServiceProvider services,
-    SereinFlowHostBuilder options) : IHostedService
+internal sealed class SereinFlowInitializationService(SqliteDatabase database, SupervisorWorkerRunClient workerClient, IOptions<KestrelServerOptions> kestrelOptions, IServiceProvider services, SereinFlowHostBuilder options) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -199,41 +232,53 @@ internal sealed class SereinFlowInitializationService(
         _ = workerClient;
         _ = kestrelOptions.Value;
         if (options.McpEnabled)
+        {
             _ = services.GetRequiredService<McpAiGuidanceProvider>();
+        }
+
         return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-
     private static void ValidateRoutes(IEndpointRouteBuilder? endpoints)
     {
         if (endpoints is null)
+        {
             throw new InvalidOperationException("MapSereinFlow() must be called before SereinFlow starts.");
+        }
 
-        var routes = endpoints.DataSources
-            .SelectMany(static source => source.Endpoints)
-            .OfType<RouteEndpoint>()
-            .Select(endpoint => (Endpoint: endpoint,
-                Action: endpoint.Metadata.GetMetadata<ControllerActionDescriptor>(),
-                Methods: endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods))
-            .ToArray();
-
-        foreach (var route in routes.Where(static route =>
-                     route.Action?.ControllerTypeInfo.Assembly == typeof(AssemblyMarker).Assembly))
+        var selectManyResult = endpoints.DataSources.SelectMany(static source => source.Endpoints);
+        var ofTypeResult = selectManyResult.OfType<RouteEndpoint>();
+        var selectResult = ofTypeResult.Select(endpoint =>
+        {
+            var evaluatedValue6 = (Endpoint: endpoint, Action: endpoint.Metadata.GetMetadata<ControllerActionDescriptor>(), Methods: endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods);
+            return evaluatedValue6;
+        });
+        var routes = selectResult.ToArray();
+        foreach (var route in routes.Where(static route => route.Action?.ControllerTypeInfo.Assembly == typeof(AssemblyMarker).Assembly))
         {
             foreach (var other in routes)
             {
-                if (ReferenceEquals(route.Endpoint, other.Endpoint)
-                    || !string.Equals(route.Endpoint.RoutePattern.RawText?.TrimStart('/'),
-                        other.Endpoint.RoutePattern.RawText?.TrimStart('/'),
-                        StringComparison.OrdinalIgnoreCase)
-                    || route.Methods is not null && other.Methods is not null
-                        && !route.Methods.Intersect(other.Methods, StringComparer.OrdinalIgnoreCase).Any())
+                if (ReferenceEquals(route.Endpoint, other.Endpoint) || !resolveEqualsResult() || route.Methods is not null && other.Methods is not null && !resolveAnyResult())
+                {
                     continue;
+                }
 
-                throw new InvalidOperationException(
-                    $"SereinFlow route conflict at '{route.Endpoint.RoutePattern.RawText}'. " +
-                    $"Endpoints '{route.Endpoint.DisplayName}' and '{other.Endpoint.DisplayName}' overlap.");
+                throw new InvalidOperationException($"SereinFlow route conflict at '{route.Endpoint.RoutePattern.RawText}'. " + $"Endpoints '{route.Endpoint.DisplayName}' and '{other.Endpoint.DisplayName}' overlap.");
+                bool resolveEqualsResult()
+                {
+                    var evaluatedValue1 = route.Endpoint.RoutePattern.RawText?.TrimStart('/');
+                    var evaluatedValue2 = other.Endpoint.RoutePattern.RawText?.TrimStart('/');
+                    var equalsResult = string.Equals(evaluatedValue1, evaluatedValue2, StringComparison.OrdinalIgnoreCase);
+                    return equalsResult;
+                }
+
+                bool resolveAnyResult()
+                {
+                    var intersectResult = route.Methods.Intersect(other.Methods, StringComparer.OrdinalIgnoreCase);
+                    var anyResult = intersectResult.Any();
+                    return anyResult;
+                }
             }
         }
     }

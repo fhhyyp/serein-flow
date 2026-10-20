@@ -1,7 +1,6 @@
 using SereinFlow.Domain;
 
 namespace SereinFlow.Application.Persistence;
-
 /// <summary>
 /// Durable, queryable node outputs for a flow run. This is intentionally
 /// separate from IFlowRunEventStore, which remains a diagnostic event stream.
@@ -10,6 +9,5 @@ namespace SereinFlow.Application.Persistence;
 public interface IFlowRunOutputStore
 {
     Task AppendAsync(IReadOnlyList<FlowRunOutput> outputs, CancellationToken cancellationToken = default);
-
     Task<IReadOnlyList<FlowRunOutput>> ListAsync(Guid runId, CancellationToken cancellationToken = default);
 }

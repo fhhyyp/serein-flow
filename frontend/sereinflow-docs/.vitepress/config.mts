@@ -1,8 +1,6 @@
-import { defineConfig } from 'vitepress'
-import sereinlang from './sereinlang.tmLanguage.json'
-
-const repository = 'https://github.com/fhhyyp/serein-flow'
-
+import { defineConfig } from 'vitepress';
+import sereinlang from './sereinlang.tmLanguage.json';
+const repository = 'https://github.com/fhhyyp/serein-flow';
 const sections = {
   guide: {
     zh: ['从零开始', ['快速开始', 'getting-started'], ['创建第一个流程', 'first-flow'], ['用 API 运行流程', 'run-with-api']],
@@ -28,33 +26,53 @@ const sections = {
     zh: ['REST API', ['API 概览', ''], ['地址、密钥与报错', 'basics'], ['项目与流程', 'projects'], ['流程版本', 'versions'], ['运行、事件与工件', 'runs'], ['节点类库', 'libraries'], ['公开流程接口', 'public-interfaces'], ['环境设置与密钥', 'environment'], ['调试会话', 'debug']],
     en: ['REST API', ['API overview', ''], ['URLs, keys, and errors', 'basics'], ['Projects and flows', 'projects'], ['Flow versions', 'versions'], ['Runs, events, and artifacts', 'runs'], ['Node libraries', 'libraries'], ['Public interfaces', 'public-interfaces'], ['Environment and keys', 'environment'], ['Debug sessions', 'debug']],
   },
-} as const
+} as const;
+type SidebarPageDefinition = readonly [text: string, slug: string];
+type SidebarSectionDefinition = {
+  text: string;
+  items: Array<{ text: string; link: string }>;
+};
 
 function sidebar(locale: 'zh' | 'en') {
-  const prefix = locale === 'en' ? '/en' : ''
-  return Object.fromEntries(
-    Object.entries(sections).map(([section, labels]) => {
-      const [text, ...pages] = labels[locale]
-      return [`${prefix}/${section}/`, [{
-        text,
-        items: pages.map(([pageText, slug]) => ({
-          text: pageText,
-          link: `${prefix}/${section}/${slug}`,
-        })),
-      }]]
-    }),
-  )
+  const prefix = locale === 'en' ? '/en' : '';
+  const sectionDefinitions = Object.entries(sections);
+  const sectionMappings = sectionDefinitions.map((sectionDefinition) => {
+    const section = sectionDefinition[0];
+    const localizedLabels = sectionDefinition[1][locale];
+    const heading = localizedLabels[0];
+    const pageDefinitions = localizedLabels.slice(1) as readonly SidebarPageDefinition[];
+    const pageItems = pageDefinitions.map((pageDefinition) => {
+      const pageText = pageDefinition[0];
+      const slug = pageDefinition[1];
+      return { text: pageText, link: `${prefix}/${section}/${slug}` };
+    });
+    const sectionItems: SidebarSectionDefinition[] = [{ text: heading, items: pageItems }];
+    const sectionMapping: [string, SidebarSectionDefinition[]] = [`${prefix}/${section}/`, sectionItems];
+    return sectionMapping;
+  });
+  const configuredSidebar = Object.fromEntries(sectionMappings);
+  return configuredSidebar;
 }
 
 function nav(locale: 'zh' | 'en') {
-  const prefix = locale === 'en' ? '/en' : ''
-  const items = locale === 'en'
+  const prefix = locale === 'en' ? '/en' : '';
+  const items: Array<readonly [string, string]> = locale === 'en'
     ? [['Get started', '/guide/getting-started'], ['Concepts', '/modules/'], ['SereinScript', '/script/'], ['Node libraries', '/library/'], ['Integration', '/integration/'], ['REST API', '/api/']]
-    : [['开始使用', '/guide/getting-started'], ['认识各模块', '/modules/'], ['SereinScript', '/script/'], ['编写节点类库', '/library/'], ['服务与接入', '/integration/'], ['REST API', '/api/']]
-  return items.map(([text, path]) => ({ text, link: prefix + path }))
+    : [['开始使用', '/guide/getting-started'], ['认识各模块', '/modules/'], ['SereinScript', '/script/'], ['编写节点类库', '/library/'], ['服务与接入', '/integration/'], ['REST API', '/api/']];
+  const navigationItems = items.map((item) => {
+    const text = item[0];
+    const route = item[1];
+    return { text, link: prefix + route };
+  });
+  return navigationItems;
 }
 
-export default defineConfig({
+const chineseNavigation = nav('zh');
+const chineseSidebar = sidebar('zh');
+const englishNavigation = nav('en');
+const englishSidebar = sidebar('en');
+
+const documentationOptions: Parameters<typeof defineConfig>[0] = {
   srcDir: 'content',
   title: 'SereinFlow',
   description: 'SereinFlow 工作流编排与执行文档',
@@ -68,11 +86,17 @@ export default defineConfig({
     ['script', {}, `(() => {
       try {
         const path = window.location.pathname
-        if (path.startsWith('/en/')) return
+        if (path.startsWith('/en/')) {
+          return
+        }
         const saved = window.localStorage.getItem('sereinflow-docs-language')
         const language = navigator.languages?.[0] || navigator.language || 'zh'
         const preferred = saved || (/^zh(?:-|$)/i.test(language) ? 'zh' : 'en')
-        if (preferred === 'en') window.location.replace('/en' + (path === '/' ? '/' : path) + window.location.search + window.location.hash)
+        if (preferred === 'en') {
+          const localizedPath = path === '/' ? '/' : path
+          const targetUrl = '/en' + localizedPath + window.location.search + window.location.hash
+          window.location.replace(targetUrl)
+        }
       } catch { /* Keep the Chinese page if detection is unavailable. */ }
     })()`],
   ],
@@ -82,8 +106,8 @@ export default defineConfig({
       lang: 'zh-CN',
       description: 'SereinFlow 工作流编排与执行文档',
       themeConfig: {
-        nav: nav('zh'),
-        sidebar: sidebar('zh'),
+        nav: chineseNavigation,
+        sidebar: chineseSidebar,
         footer: { message: 'SereinFlow 使用与开发文档' },
         outline: { label: '本页目录', level: [2, 3] },
         docFooter: { prev: '上一页', next: '下一页' },
@@ -97,8 +121,8 @@ export default defineConfig({
       lang: 'en-US',
       description: 'SereinFlow workflow orchestration and execution documentation',
       themeConfig: {
-        nav: nav('en'),
-        sidebar: sidebar('en'),
+        nav: englishNavigation,
+        sidebar: englishSidebar,
         footer: { message: 'SereinFlow user and developer documentation' },
         outline: { label: 'On this page', level: [2, 3] },
         docFooter: { prev: 'Previous', next: 'Next' },
@@ -116,31 +140,33 @@ export default defineConfig({
       options: {
         locales: {
           root: { translations: {
-            button: { buttonText: '搜索文档', buttonAriaLabel: '搜索文档' },
-            modal: {
-              displayDetails: '显示详细列表', resetButtonTitle: '重置搜索',
-              backButtonTitle: '关闭搜索', noResultsText: '没有结果',
-              footer: {
-                selectText: '选择', selectKeyAriaLabel: '回车', navigateText: '导航',
-                navigateUpKeyAriaLabel: '上箭头', navigateDownKeyAriaLabel: '下箭头',
-                closeText: '关闭', closeKeyAriaLabel: 'Esc',
+              button: { buttonText: '搜索文档', buttonAriaLabel: '搜索文档' },
+              modal: {
+                displayDetails: '显示详细列表', resetButtonTitle: '重置搜索',
+                backButtonTitle: '关闭搜索', noResultsText: '没有结果',
+                footer: {
+                  selectText: '选择', selectKeyAriaLabel: '回车', navigateText: '导航',
+                  navigateUpKeyAriaLabel: '上箭头', navigateDownKeyAriaLabel: '下箭头',
+                  closeText: '关闭', closeKeyAriaLabel: 'Esc',
+                },
               },
-            },
-          } },
+            } },
           en: { translations: {
-            button: { buttonText: 'Search docs', buttonAriaLabel: 'Search docs' },
-            modal: {
-              displayDetails: 'Display detailed list', resetButtonTitle: 'Reset search',
-              backButtonTitle: 'Close search', noResultsText: 'No results',
-              footer: {
-                selectText: 'Select', selectKeyAriaLabel: 'Enter', navigateText: 'Navigate',
-                navigateUpKeyAriaLabel: 'Arrow up', navigateDownKeyAriaLabel: 'Arrow down',
-                closeText: 'Close', closeKeyAriaLabel: 'Escape',
+              button: { buttonText: 'Search docs', buttonAriaLabel: 'Search docs' },
+              modal: {
+                displayDetails: 'Display detailed list', resetButtonTitle: 'Reset search',
+                backButtonTitle: 'Close search', noResultsText: 'No results',
+                footer: {
+                  selectText: 'Select', selectKeyAriaLabel: 'Enter', navigateText: 'Navigate',
+                  navigateUpKeyAriaLabel: 'Arrow up', navigateDownKeyAriaLabel: 'Arrow down',
+                  closeText: 'Close', closeKeyAriaLabel: 'Escape',
+                },
               },
-            },
-          } },
+            } },
         },
       },
     },
   },
-})
+};
+const documentationConfig = defineConfig(documentationOptions);
+export default documentationConfig;

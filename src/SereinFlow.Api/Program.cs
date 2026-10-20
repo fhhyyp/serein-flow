@@ -1,7 +1,11 @@
 using SereinFlow.Api;
 using SereinFlow.AspNetCore;
 
-if (args.Any(static argument => string.Equals(argument, "--mcp-stdio", StringComparison.OrdinalIgnoreCase)))
+if (args.Any(static argument =>
+{
+    var equalsResult = string.Equals(argument, "--mcp-stdio", StringComparison.OrdinalIgnoreCase);
+    return equalsResult;
+}))
 {
     await McpStdioHost.RunAsync(args);
     return;
@@ -9,7 +13,6 @@ if (args.Any(static argument => string.Equals(argument, "--mcp-stdio", StringCom
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration["SereinFlow:Api:RequireAuthentication"] ??= "false";
-
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
@@ -21,21 +24,22 @@ builder.Services.AddProblemDetails(options =>
         }
     };
 });
-builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
-    .AllowAnyOrigin()
-    .AllowAnyHeader()
-    .AllowAnyMethod()));
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        var allowAnyOriginResult = policy.AllowAnyOrigin();
+        var allowAnyHeaderResult = allowAnyOriginResult.AllowAnyHeader();
+        allowAnyHeaderResult.AllowAnyMethod();
+    });
+});
 builder.Services.AddSereinFlow(options =>
 {
     options.UseWebApi(api => api.AllowAnyOrigin = true);
     options.UseMcp();
 });
-
 var app = builder.Build();
-
 app.UseSereinFlow();
 app.MapSereinFlow();
-
 app.Run();
-
 public partial class Program;

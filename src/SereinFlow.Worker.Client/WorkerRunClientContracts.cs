@@ -1,7 +1,6 @@
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Worker.Client;
-
 /// <summary>
 /// Trusted API-side port for submitting a serialized flow snapshot to the Worker boundary.
 /// Implementations must not deserialize or load user assemblies in the API process.
@@ -9,10 +8,7 @@ namespace SereinFlow.Worker.Client;
 /// </summary>
 public interface IWorkerRunClient
 {
-    Task<WorkerRunResultDto> RunAsync(
-        WorkerRunRequestDto request,
-        IWorkerRunEventSink eventSink,
-        CancellationToken cancellationToken = default);
+    Task<WorkerRunResultDto> RunAsync(WorkerRunRequestDto request, IWorkerRunEventSink eventSink, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -25,29 +21,23 @@ public interface IWorkerMessageRunClient
     /// Delivers a message and waits only for the Worker accepted/rejected acknowledgement.
     /// 投递消息，并仅等待 Worker 的 accepted/rejected 接收应答。
     /// </summary>
-    Task<WorkerMessageDeliveryResponseDto> DeliverMessageAsync(
-        WorkerMessageDeliveryDto delivery,
-        CancellationToken cancellationToken = default);
+    Task<WorkerMessageDeliveryResponseDto> DeliverMessageAsync(WorkerMessageDeliveryDto delivery, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Reads and writes the variable table owned by an active Worker run.</summary>
 public interface IWorkerVariableRunClient
 {
-    Task<WorkerVariableResponseDto> AccessVariablesAsync(
-        WorkerVariableRequestDto request, CancellationToken cancellationToken = default);
+    Task<WorkerVariableResponseDto> AccessVariablesAsync(WorkerVariableRequestDto request, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
 /// Optional extension for Worker clients that support a long-lived debug
-/// session. Normal production execution continues to use <see cref="IWorkerRunClient"/>.
-/// 支持长寿命调试会话的 Worker 客户端可选扩展；普通生产运行仍使用 <see cref="IWorkerRunClient"/>。
+/// session. Normal production execution continues to use <see cref = "IWorkerRunClient"/>.
+/// 支持长寿命调试会话的 Worker 客户端可选扩展；普通生产运行仍使用 <see cref = "IWorkerRunClient"/>。
 /// </summary>
 public interface IWorkerDebugRunClient : IWorkerRunClient
 {
-    Task<IWorkerDebugRunHandle> StartDebugAsync(
-        WorkerRunRequestDto request,
-        IWorkerRunEventSink eventSink,
-        CancellationToken cancellationToken = default);
+    Task<IWorkerDebugRunHandle> StartDebugAsync(WorkerRunRequestDto request, IWorkerRunEventSink eventSink, CancellationToken cancellationToken = default);
 }
 
 public interface IWorkerDebugRunHandle : IAsyncDisposable
@@ -59,9 +49,7 @@ public interface IWorkerDebugRunHandle : IAsyncDisposable
     Task<WorkerRunResultDto> Completion { get; }
 
     Task ContinueAsync(long commandSequence, CancellationToken cancellationToken = default);
-
     Task StepAsync(long commandSequence, CancellationToken cancellationToken = default);
-
     Task StopAsync(long commandSequence, CancellationToken cancellationToken = default);
 }
 
@@ -72,9 +60,10 @@ public interface IWorkerRunEventSink
 
 public sealed class DelegateWorkerRunEventSink(Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publish) : IWorkerRunEventSink
 {
-    private readonly Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> _publish = publish
-        ?? throw new ArgumentNullException(nameof(publish), "The worker event publisher cannot be null. Worker 事件发布器不能为空。");
-
+    private readonly Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> _publish = publish ?? throw new ArgumentNullException(nameof(publish), "The worker event publisher cannot be null. Worker 事件发布器不能为空。");
     public ValueTask PublishAsync(WorkerEventEnvelopeDto workerEvent, CancellationToken cancellationToken = default)
-        => _publish(workerEvent, cancellationToken);
+    {
+        var publishResult = _publish(workerEvent, cancellationToken);
+        return publishResult;
+    }
 }

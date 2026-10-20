@@ -1,205 +1,204 @@
-import type { ProjectWorkspaceDto } from './flowApi'
-
-export type McpPermission =
-  | 'project.read'
-  | 'project.write'
-  | 'library.read'
-  | 'run.read'
-  | 'debug.read'
-  | 'flow.write'
-  | 'debug.control'
-  | 'flow.publish'
-  | 'flow.rollback'
-  | 'script.compile'
-  | 'library.import'
-  | 'library.manage'
-  | 'mcp.keys.manage'
-  | 'sensitive.read'
-  | 'run.variable.write'
-
+import type { ProjectWorkspaceDto } from './flowApi';
+export type McpPermission = 'project.read' | 'project.write' | 'library.read' | 'run.read' | 'debug.read' | 'flow.write' | 'debug.control' | 'flow.publish' | 'flow.rollback' | 'script.compile' | 'library.import' | 'library.manage' | 'mcp.keys.manage' | 'sensitive.read' | 'run.variable.write';
 export interface McpApiKeyDto {
-  id: string
-  projectId?: string | null
-  name: string
-  keyPrefix: string
-  permissions: McpPermission[]
-  createdAt: string
-  expiresAt?: string | null
-  revokedAt?: string | null
-  lastUsedAt?: string | null
-  isAdministrator: boolean
+  id: string;
+  projectId?: string | null;
+  name: string;
+  keyPrefix: string;
+  permissions: McpPermission[];
+  createdAt: string;
+  expiresAt?: string | null;
+  revokedAt?: string | null;
+  lastUsedAt?: string | null;
+  isAdministrator: boolean;
 }
-
 export interface CreatedMcpApiKeyDto {
-  key: McpApiKeyDto
-  secret: string
+  key: McpApiKeyDto;
+  secret: string;
 }
-
 export interface RotatedMcpApiKeyDto {
-  revokedKeyId: string
-  key: McpApiKeyDto
-  secret?: string | null
+  revokedKeyId: string;
+  key: McpApiKeyDto;
+  secret?: string | null;
 }
-
 export interface CreateMcpApiKeyRequestDto {
-  projectId?: string | null
-  name: string
-  permissions: McpPermission[]
-  expiresAt?: string | null
-  isAdministrator?: boolean
+  projectId?: string | null;
+  name: string;
+  permissions: McpPermission[];
+  expiresAt?: string | null;
+  isAdministrator?: boolean;
 }
-
 export interface McpKeyProjectOption {
-  id: string
-  name: string
+  id: string;
+  name: string;
 }
-
 export interface McpSkillResourceDto {
-  key: string
-  uri: string
-  name: string
-  description: string
-  source: 'embedded' | 'disk'
+  key: string;
+  uri: string;
+  name: string;
+  description: string;
+  source: 'embedded' | 'disk';
 }
-
 export interface McpSkillContentDto {
-  resource: McpSkillResourceDto
-  content: string
-  revision: string
-  maxBytes: number
+  resource: McpSkillResourceDto;
+  content: string;
+  revision: string;
+  maxBytes: number;
 }
-
 export async function listMcpSkills(secret: string): Promise<McpSkillResourceDto[]> {
-  return request<McpSkillResourceDto[]>('/api/environment/settings/mcp-skills', { secret })
+  const requestResult: McpSkillResourceDto[] | PromiseLike<McpSkillResourceDto[]> = request<McpSkillResourceDto[]>('/api/environment/settings/mcp-skills', { secret });
+  return requestResult;
 }
-
 export async function readMcpSkill(secret: string, key: string): Promise<McpSkillContentDto> {
-  return request<McpSkillContentDto>(`/api/environment/settings/mcp-skills/${encodeURIComponent(key)}`, { secret })
+  const evaluatedValue: string = `/api/environment/settings/mcp-skills/${encodeURIComponent(key)}`;
+  const requestResult1: McpSkillContentDto | PromiseLike<McpSkillContentDto> = request<McpSkillContentDto>(evaluatedValue, { secret });
+  return requestResult1;
 }
-
 export async function saveMcpSkill(secret: string, key: string, content: string, expectedRevision: string): Promise<McpSkillContentDto> {
-  return request<McpSkillContentDto>(`/api/environment/settings/mcp-skills/${encodeURIComponent(key)}`, {
+  const evaluatedValue1: string = `/api/environment/settings/mcp-skills/${encodeURIComponent(key)}`;
+  const requestResult2: McpSkillContentDto | PromiseLike<McpSkillContentDto> = request<McpSkillContentDto>(evaluatedValue1, {
     method: 'PUT', secret, body: { content, expectedRevision },
-  })
+  });
+  return requestResult2;
 }
-
 export async function resetMcpSkill(secret: string, key: string, expectedRevision: string): Promise<McpSkillContentDto> {
-  return request<McpSkillContentDto>(`/api/environment/settings/mcp-skills/${encodeURIComponent(key)}/reset`, {
+  const evaluatedValue2: string = `/api/environment/settings/mcp-skills/${encodeURIComponent(key)}/reset`;
+  const requestResult3: McpSkillContentDto | PromiseLike<McpSkillContentDto> = request<McpSkillContentDto>(evaluatedValue2, {
     method: 'POST', secret, body: { expectedRevision },
-  })
+  });
+  return requestResult3;
 }
-
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
-const sessionCredentialKey = 'sereinflow.mcp.management-key'
-const rememberedCredentialKey = 'sereinflow.mcp.management-key.remembered'
-
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+const sessionCredentialKey = 'sereinflow.mcp.management-key';
+const rememberedCredentialKey = 'sereinflow.mcp.management-key.remembered';
 export function getMcpManagementCredential(): string | undefined {
-  if (typeof window === 'undefined') return undefined
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
   try {
-    return window.sessionStorage.getItem(sessionCredentialKey)
+    const evaluatedValue3: string | undefined = window.sessionStorage.getItem(sessionCredentialKey)
       ?? window.localStorage.getItem(rememberedCredentialKey)
-      ?? undefined
-  } catch {
-    return undefined
+      ?? undefined;
+    return evaluatedValue3;
+  }
+  catch {
+    return undefined;
   }
 }
-
 export function hasRememberedMcpManagementCredential(): boolean {
-  if (typeof window === 'undefined') return false
+  if (typeof window === 'undefined') {
+    return false;
+  }
   try {
-    return Boolean(window.localStorage.getItem(rememberedCredentialKey))
-  } catch {
-    return false
+    const getItemResult: string | null | undefined = window.localStorage.getItem(rememberedCredentialKey);
+    const booleanResult: boolean = Boolean(getItemResult);
+    return booleanResult;
+  }
+  catch {
+    return false;
   }
 }
-
 export function storeMcpManagementCredential(secret: string, remember: boolean): void {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined') {
+    return;
+  }
   try {
-    window.sessionStorage.setItem(sessionCredentialKey, secret)
-    if (remember) window.localStorage.setItem(rememberedCredentialKey, secret)
-    else window.localStorage.removeItem(rememberedCredentialKey)
-  } catch {
-    // Storage may be disabled by the browser; the current request still succeeds.
+    window.sessionStorage.setItem(sessionCredentialKey, secret);
+    if (remember) {
+      window.localStorage.setItem(rememberedCredentialKey, secret);
+    }
+    else {
+      window.localStorage.removeItem(rememberedCredentialKey);
+    }
+  }
+  catch {
   }
 }
-
 export function clearMcpManagementCredential(): void {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined') {
+    return;
+  }
   try {
-    window.sessionStorage.removeItem(sessionCredentialKey)
-    window.localStorage.removeItem(rememberedCredentialKey)
-  } catch {
-    // Ignore storage cleanup failures.
+    window.sessionStorage.removeItem(sessionCredentialKey);
+    window.localStorage.removeItem(rememberedCredentialKey);
+  }
+  catch {
   }
 }
-
 export async function setupMcpApiKey(): Promise<CreatedMcpApiKeyDto> {
-  return request<CreatedMcpApiKeyDto>('/api/environment/settings/mcp-keys/setup', { method: 'POST' })
+  const requestResult4: CreatedMcpApiKeyDto | PromiseLike<CreatedMcpApiKeyDto> = request<CreatedMcpApiKeyDto>('/api/environment/settings/mcp-keys/setup', { method: 'POST' });
+  return requestResult4;
 }
-
 export async function listMcpApiKeys(secret: string): Promise<McpApiKeyDto[]> {
-  return request<McpApiKeyDto[]>('/api/environment/settings/mcp-keys', { secret })
+  const requestResult5: McpApiKeyDto[] | PromiseLike<McpApiKeyDto[]> = request<McpApiKeyDto[]>('/api/environment/settings/mcp-keys', { secret });
+  return requestResult5;
 }
-
-export async function createMcpApiKey(
-  secret: string,
-  body: CreateMcpApiKeyRequestDto,
-): Promise<CreatedMcpApiKeyDto> {
-  return request<CreatedMcpApiKeyDto>('/api/environment/settings/mcp-keys', {
+export async function createMcpApiKey(secret: string, body: CreateMcpApiKeyRequestDto): Promise<CreatedMcpApiKeyDto> {
+  const requestResult6: CreatedMcpApiKeyDto | PromiseLike<CreatedMcpApiKeyDto> = request<CreatedMcpApiKeyDto>('/api/environment/settings/mcp-keys', {
     method: 'POST',
     secret,
     body,
-  })
+  });
+  return requestResult6;
 }
-
 export async function rotateMcpApiKey(secret: string, keyId: string): Promise<RotatedMcpApiKeyDto> {
-  return request<RotatedMcpApiKeyDto>(`/api/environment/settings/mcp-keys/${encodeURIComponent(keyId)}/rotate`, {
+  const evaluatedValue4: string = `/api/environment/settings/mcp-keys/${encodeURIComponent(keyId)}/rotate`;
+  const requestResult7: RotatedMcpApiKeyDto | PromiseLike<RotatedMcpApiKeyDto> = request<RotatedMcpApiKeyDto>(evaluatedValue4, {
     method: 'POST',
     secret,
-  })
+  });
+  return requestResult7;
 }
-
 export async function revokeMcpApiKey(secret: string, keyId: string): Promise<McpApiKeyDto> {
-  return request<McpApiKeyDto>(`/api/environment/settings/mcp-keys/${encodeURIComponent(keyId)}`, {
+  const evaluatedValue5: string = `/api/environment/settings/mcp-keys/${encodeURIComponent(keyId)}`;
+  const requestResult8: McpApiKeyDto | PromiseLike<McpApiKeyDto> = request<McpApiKeyDto>(evaluatedValue5, {
     method: 'DELETE',
     secret,
-  })
+  });
+  return requestResult8;
 }
-
 export function mcpKeyProjectOptions(workspaces: ProjectWorkspaceDto[]): McpKeyProjectOption[] {
-  return workspaces
-    .filter((workspace) => workspace.project.status !== 'archived')
-    .map((workspace) => ({ id: workspace.project.id, name: workspace.project.name }))
+  const filterResult = workspaces
+    .filter((workspace) => workspace.project.status !== 'archived');
+  const mapResult: McpKeyProjectOption[] = filterResult.map((workspace) => ({ id: workspace.project.id, name: workspace.project.name }));
+  return mapResult;
 }
-
-async function request<T>(
-  path: string,
-  options: { method?: 'POST' | 'PUT' | 'DELETE'; secret?: string; body?: unknown } = {},
-): Promise<T> {
-  const headers: Record<string, string> = {}
-  if (options.body !== undefined) headers['content-type'] = 'application/json'
-  if (options.secret) headers.authorization = `Bearer ${options.secret}`
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+async function request<T>(path: string, options: {
+  method?: 'POST' | 'PUT' | 'DELETE';
+  secret?: string;
+  body?: unknown;
+} = {}): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (options.body !== undefined) {
+    headers['content-type'] = 'application/json';
+  }
+  if (options.secret) {
+    headers.authorization = `Bearer ${options.secret}`;
+  }
+  const argumentValue: RequestInfo | URL = `${apiBaseUrl}${path}`;
+  const evaluatedValue7: RequestInit | undefined = {
     method: options.method,
     headers: Object.keys(headers).length > 0 ? headers : undefined,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  })
+  };
+  const response = await fetch(argumentValue, evaluatedValue7);
   if (response.ok) {
-    const payload = await response.text()
-    return (payload ? JSON.parse(payload) : undefined) as T
+    const payload = await response.text();
+    const evaluatedValue6: T | PromiseLike<T> = (payload ? JSON.parse(payload) : undefined) as T;
+    return evaluatedValue6;
   }
-
-  const problem = await response.json().catch(() => ({})) as { detail?: string; title?: string }
-  throw new McpApiError(response.status, problem.detail ?? problem.title ?? `MCP request failed (${response.status}).`)
+  const jsonResult = response.json();
+  const problem = await jsonResult.catch(() => ({})) as {
+    detail?: string;
+    title?: string;
+  };
+  throw new McpApiError(response.status, problem.detail ?? problem.title ?? `MCP request failed (${response.status}).`);
 }
-
 export class McpApiError extends Error {
-  public readonly status: number
-
+  public readonly status: number;
   constructor(status: number, message: string) {
-    super(message)
-    this.status = status
-    this.name = 'McpApiError'
+    super(message);
+    this.status = status;
+    this.name = 'McpApiError';
   }
 }

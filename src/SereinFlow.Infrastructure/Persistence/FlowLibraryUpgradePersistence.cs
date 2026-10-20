@@ -4,7 +4,6 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Infrastructure.Persistence;
-
 /// <summary>
 /// SqlSugar implementation of the application-level library-upgrade commit
 /// boundary. All records touched by a successful apply share one transaction.
@@ -13,8 +12,10 @@ namespace SereinFlow.Infrastructure.Persistence;
 public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions(options =>
-        options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
-
+    {
+        var jsonStringEnumConverter = new JsonStringEnumConverter(JsonNamingPolicy.CamelCase);
+        options.Converters.Add(jsonStringEnumConverter);
+    });
     private readonly IRepository<LibraryUpgradePlanRecord> _plans;
     private readonly IRepository<FlowDefinitionRecord> _definitions;
     private readonly IRepository<FlowDefinitionVersionRecord> _versions;
@@ -23,16 +24,7 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
     private readonly IRepository<LibraryRecord> _libraries;
     private readonly IRepository<FlowLibraryBindingRecord> _bindings;
     private readonly IUnitOfWork _unitOfWork;
-
-    public SqlSugarFlowLibraryUpgradeStore(
-        IRepository<LibraryUpgradePlanRecord> plans,
-        IRepository<FlowDefinitionRecord> definitions,
-        IRepository<FlowDefinitionVersionRecord> versions,
-        IRepository<FlowVersionCounterRecord> versionCounters,
-        IRepository<ProjectLibraryReferenceRecord> references,
-        IRepository<LibraryRecord> libraries,
-        IRepository<FlowLibraryBindingRecord> bindings,
-        IUnitOfWork unitOfWork)
+    public SqlSugarFlowLibraryUpgradeStore(IRepository<LibraryUpgradePlanRecord> plans, IRepository<FlowDefinitionRecord> definitions, IRepository<FlowDefinitionVersionRecord> versions, IRepository<FlowVersionCounterRecord> versionCounters, IRepository<ProjectLibraryReferenceRecord> references, IRepository<LibraryRecord> libraries, IRepository<FlowLibraryBindingRecord> bindings, IUnitOfWork unitOfWork)
     {
         _plans = plans;
         _definitions = definitions;
@@ -45,21 +37,26 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
     }
 
     public SqlSugarFlowLibraryUpgradeStore(SqliteDatabase database)
-        : this(
-            new SqlSugarRepository<LibraryUpgradePlanRecord>(database.Client),
-            new SqlSugarRepository<FlowDefinitionRecord>(database.Client),
-            new SqlSugarRepository<FlowDefinitionVersionRecord>(database.Client),
-            new SqlSugarRepository<FlowVersionCounterRecord>(database.Client),
-            new SqlSugarRepository<ProjectLibraryReferenceRecord>(database.Client),
-            new SqlSugarRepository<LibraryRecord>(database.Client),
-            new SqlSugarRepository<FlowLibraryBindingRecord>(database.Client),
-            new SqlSugarUnitOfWork(database.Client))
     {
+        var plans = new SqlSugarRepository<LibraryUpgradePlanRecord>(database.Client);
+        var definitions = new SqlSugarRepository<FlowDefinitionRecord>(database.Client);
+        var versions = new SqlSugarRepository<FlowDefinitionVersionRecord>(database.Client);
+        var versionCounters = new SqlSugarRepository<FlowVersionCounterRecord>(database.Client);
+        var references = new SqlSugarRepository<ProjectLibraryReferenceRecord>(database.Client);
+        var libraries = new SqlSugarRepository<LibraryRecord>(database.Client);
+        var bindings = new SqlSugarRepository<FlowLibraryBindingRecord>(database.Client);
+        var unitOfWork = new SqlSugarUnitOfWork(database.Client);
+        _plans = plans;
+        _definitions = definitions;
+        _versions = versions;
+        _versionCounters = versionCounters;
+        _references = references;
+        _libraries = libraries;
+        _bindings = bindings;
+        _unitOfWork = unitOfWork;
     }
 
-    public async Task<LibraryUpgradePlanDto> SavePlanAsync(
-        LibraryUpgradePlanDto plan,
-        CancellationToken cancellationToken = default)
+    public async Task<LibraryUpgradePlanDto> SavePlanAsync(LibraryUpgradePlanDto plan, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(plan);
         var record = ToRecord(plan);
@@ -67,69 +64,78 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
         return plan;
     }
 
-    public async Task<LibraryUpgradePlanDto?> FindPlanAsync(
-        Guid projectId,
-        Guid planId,
-        CancellationToken cancellationToken = default)
+    public async Task<LibraryUpgradePlanDto?> FindPlanAsync(Guid projectId, Guid planId, CancellationToken cancellationToken = default)
     {
-        var record = await _plans.GetByIdAsync(planId.ToString("D"), cancellationToken);
-        if (record is null || !string.Equals(record.ProjectId, projectId.ToString("D"), StringComparison.OrdinalIgnoreCase))
+        var toStringResult = planId.ToString("D");
+        var record = await _plans.GetByIdAsync(toStringResult, cancellationToken);
+        if (record is null || !resolveEqualsResult())
+        {
             return null;
-        return Map(record);
+        }
+
+        var mapResult = Map(record);
+        return mapResult;
+        bool resolveEqualsResult()
+        {
+            var toStringResult1 = projectId.ToString("D");
+            var equalsResult = string.Equals(record.ProjectId, toStringResult1, StringComparison.OrdinalIgnoreCase);
+            return equalsResult;
+        }
     }
 
-    public Task<FlowLibraryUpgradeCommitResult> CommitAsync(
-        Guid projectId,
-        Guid planId,
-        FlowDefinitionDto upgradedDefinition,
-        long expectedVersion,
-        string targetArtifactId,
-        LibraryUpgradePlanFlowResultDto? appliedFlow = null,
-        CancellationToken cancellationToken = default)
+    public Task<FlowLibraryUpgradeCommitResult> CommitAsync(Guid projectId, Guid planId, FlowDefinitionDto upgradedDefinition, long expectedVersion, string targetArtifactId, LibraryUpgradePlanFlowResultDto? appliedFlow = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(upgradedDefinition);
         if (expectedVersion < 1)
-            throw new ArgumentOutOfRangeException(nameof(expectedVersion), "Expected flow version must be positive. 期望流程版本必须为正数。");
-        if (string.IsNullOrWhiteSpace(targetArtifactId))
-            throw new ArgumentException("Target artifact ID cannot be empty. 目标工件 ID 不能为空。", nameof(targetArtifactId));
-
-        return _unitOfWork.ExecuteAsync(async token =>
         {
-            var current = await _definitions.GetByIdAsync(upgradedDefinition.Id.ToString("D"), token);
-            if (current is null
-                || !string.Equals(current.ProjectId, projectId.ToString("D"), StringComparison.OrdinalIgnoreCase)
-                || current.Version != expectedVersion)
+            throw new ArgumentOutOfRangeException(nameof(expectedVersion), "Expected flow version must be positive. 期望流程版本必须为正数。");
+        }
+
+        if (string.IsNullOrWhiteSpace(targetArtifactId))
+        {
+            throw new ArgumentException("Target artifact ID cannot be empty. 目标工件 ID 不能为空。", nameof(targetArtifactId));
+        }
+
+        var executeAsyncResult = _unitOfWork.ExecuteAsync(async token =>
+        {
+            var toStringResult5 = upgradedDefinition.Id.ToString("D");
+            var current = await _definitions.GetByIdAsync(toStringResult5, token);
+            if (current is null || !resolveEqualsResult6() || current.Version != expectedVersion)
             {
-                return new FlowLibraryUpgradeCommitResult(null, current?.Version);
+                var flowLibraryUpgradeCommitResult = new FlowLibraryUpgradeCommitResult(null, current?.Version);
+                return flowLibraryUpgradeCommitResult;
             }
 
-            var plan = await _plans.GetByIdAsync(planId.ToString("D"), token);
-            if (plan is null
-                || !string.Equals(plan.ProjectId, projectId.ToString("D"), StringComparison.OrdinalIgnoreCase)
-                || (!string.Equals(plan.Status, LibraryUpgradePlanStatusDto.Analyzed.ToString(), StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(plan.Status, LibraryUpgradePlanStatusDto.Applied.ToString(), StringComparison.OrdinalIgnoreCase)))
+            var toStringResult9 = planId.ToString("D");
+            var plan = await _plans.GetByIdAsync(toStringResult9, token);
+            if (plan is null || !resolveEqualsResult10() || (!resolveEqualsResult13() && !resolveEqualsResult16()))
             {
-                return new FlowLibraryUpgradeCommitResult(null, current.Version);
+                var flowLibraryUpgradeCommitResult2 = new FlowLibraryUpgradeCommitResult(null, current.Version);
+                return flowLibraryUpgradeCommitResult2;
             }
 
             var planDto = Map(plan);
-            if (!planDto.Flows.Any(preview => preview.FlowId == upgradedDefinition.Id)
-                || (planDto.AppliedFlows ?? []).Any(result => result.FlowId == upgradedDefinition.Id))
+            if (!planDto.Flows.Any(preview => preview.FlowId == upgradedDefinition.Id) || (planDto.AppliedFlows ?? []).Any(result => result.FlowId == upgradedDefinition.Id))
             {
-                return new FlowLibraryUpgradeCommitResult(null, current.Version);
+                var flowLibraryUpgradeCommitResult3 = new FlowLibraryUpgradeCommitResult(null, current.Version);
+                return flowLibraryUpgradeCommitResult3;
             }
 
-            var saved = upgradedDefinition with { Version = await AllocateVersionAsync(upgradedDefinition.Id, token) };
+            var saved = upgradedDefinition with
+            {
+                Version = await AllocateVersionAsync(upgradedDefinition.Id, token)
+            };
             var definitionJson = JsonSerializer.Serialize(saved, JsonOptions);
-            await _definitions.UpdateAsync(new FlowDefinitionRecord
+            var flowDefinitionRecord = new FlowDefinitionRecord
             {
                 Id = saved.Id.ToString("D"),
                 ProjectId = projectId.ToString("D"),
                 Version = saved.Version,
                 DefinitionJson = definitionJson,
                 Checksum = saved.Checksum,
-            }, token);
-            await _versions.AddAsync(new FlowDefinitionVersionRecord
+            };
+            await _definitions.UpdateAsync(flowDefinitionRecord, token);
+            var flowDefinitionVersionRecord = new FlowDefinitionVersionRecord
             {
                 FlowId = saved.Id.ToString("D"),
                 Version = saved.Version,
@@ -141,22 +147,22 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
                 SourceVersion = null,
                 Remark = "类库升级",
                 CreatedAt = DateTimeOffset.UtcNow.ToString("O"),
-            }, token);
-
+            };
+            await _versions.AddAsync(flowDefinitionVersionRecord, token);
             var referenceId = CreateReferenceId(projectId, targetArtifactId);
-            if (await _references.GetByIdAsync(referenceId, token) is null)
+            if (await _references.GetByIdAsync(referenceId, token)is null)
             {
-                await _references.AddAsync(new ProjectLibraryReferenceRecord
+                var projectLibraryReferenceRecord = new ProjectLibraryReferenceRecord
                 {
                     Id = referenceId,
                     ProjectId = projectId.ToString("D"),
                     LibraryId = targetArtifactId.Trim(),
                     ReferencedAt = DateTimeOffset.UtcNow.ToString("O"),
-                }, token);
+                };
+                await _references.AddAsync(projectLibraryReferenceRecord, token);
             }
 
             await RemoveSourceReferenceWhenUnusedAsync(projectId, planDto.SourceArtifactId, token);
-
             foreach (var artifactId in LibraryBindingIndex.Extract(saved))
             {
                 // A binding is a secondary index, while the serialized flow
@@ -164,35 +170,42 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
                 // definitions that mention an unavailable legacy artifact.
                 // 绑定是二级索引，流程定义序列化内容才是真实来源。历史流程提及
                 // 不可用的旧工件时，仍应保留其定义而不是让绑定索引导致事务失败。
-                if (await _libraries.GetByIdAsync(artifactId, token) is null)
-                    continue;
-
-                await _bindings.AddAsync(new FlowLibraryBindingRecord
+                if (await _libraries.GetByIdAsync(artifactId, token)is null)
                 {
-                    Id = Guid.NewGuid().ToString("N"),
+                    continue;
+                }
+
+                var flowLibraryBindingRecord = new FlowLibraryBindingRecord
+                {
+                    Id = resolveToStringResult(),
                     ProjectId = projectId.ToString("D"),
                     FlowId = saved.Id.ToString("D"),
                     FlowVersion = saved.Version,
                     LibraryArtifactId = artifactId,
                     CreatedAt = DateTimeOffset.UtcNow.ToString("O"),
-                }, token);
+                };
+                await _bindings.AddAsync(flowLibraryBindingRecord, token);
+                string resolveToStringResult()
+                {
+                    var newGuidResult = Guid.NewGuid();
+                    var toStringResult4 = newGuidResult.ToString("N");
+                    return toStringResult4;
+                }
             }
 
-            var result = (appliedFlow ?? new LibraryUpgradePlanFlowResultDto(
-                saved.Id,
-                expectedVersion,
-                saved.Version,
-                DateTimeOffset.UtcNow)) with
+            var result = (appliedFlow ?? new LibraryUpgradePlanFlowResultDto(saved.Id, expectedVersion, saved.Version, DateTimeOffset.UtcNow))with
             {
                 PreviousVersion = expectedVersion,
                 NewVersion = saved.Version,
             };
-            var appliedFlows = (planDto.AppliedFlows ?? [])
-                .Append(result)
-                .OrderBy(item => item.FlowId)
-                .ToArray();
-            var allFlowsApplied = planDto.Flows.Count == 0
-                || planDto.Flows.All(preview => appliedFlows.Any(result => result.FlowId == preview.FlowId));
+            var appendResult = (planDto.AppliedFlows ?? []).Append(result);
+            var orderByResult = appendResult.OrderBy(item => item.FlowId);
+            var appliedFlows = orderByResult.ToArray();
+            var allFlowsApplied = planDto.Flows.Count == 0 || planDto.Flows.All(preview =>
+            {
+                var anyResult = appliedFlows.Any(result => result.FlowId == preview.FlowId);
+                return anyResult;
+            });
             var updatedPlan = planDto with
             {
                 Status = allFlowsApplied ? LibraryUpgradePlanStatusDto.Applied : LibraryUpgradePlanStatusDto.Analyzed,
@@ -205,26 +218,54 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
             plan.AppliedAt = updatedPlan.AppliedAt?.ToString("O");
             plan.FailureMessage = null;
             await _plans.UpdateAsync(plan, token);
-            return new FlowLibraryUpgradeCommitResult(saved);
+            var flowLibraryUpgradeCommitResult19 = new FlowLibraryUpgradeCommitResult(saved);
+            return flowLibraryUpgradeCommitResult19;
+            bool resolveEqualsResult6()
+            {
+                var toStringResult7 = projectId.ToString("D");
+                var equalsResult8 = string.Equals(current.ProjectId, toStringResult7, StringComparison.OrdinalIgnoreCase);
+                return equalsResult8;
+            }
+
+            bool resolveEqualsResult10()
+            {
+                var toStringResult11 = projectId.ToString("D");
+                var equalsResult12 = string.Equals(plan.ProjectId, toStringResult11, StringComparison.OrdinalIgnoreCase);
+                return equalsResult12;
+            }
+
+            bool resolveEqualsResult13()
+            {
+                var toStringResult14 = LibraryUpgradePlanStatusDto.Analyzed.ToString();
+                var equalsResult15 = string.Equals(plan.Status, toStringResult14, StringComparison.OrdinalIgnoreCase);
+                return equalsResult15;
+            }
+
+            bool resolveEqualsResult16()
+            {
+                var toStringResult17 = LibraryUpgradePlanStatusDto.Applied.ToString();
+                var equalsResult18 = string.Equals(plan.Status, toStringResult17, StringComparison.OrdinalIgnoreCase);
+                return equalsResult18;
+            }
         }, cancellationToken);
+        return executeAsyncResult;
     }
 
-    private async Task RemoveSourceReferenceWhenUnusedAsync(
-        Guid projectId,
-        string sourceArtifactId,
-        CancellationToken cancellationToken)
+    private async Task RemoveSourceReferenceWhenUnusedAsync(Guid projectId, string sourceArtifactId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(sourceArtifactId))
+        {
             return;
+        }
 
         var referenceId = CreateReferenceId(projectId, sourceArtifactId);
-        if (await _references.GetByIdAsync(referenceId, cancellationToken) is null)
+        if (await _references.GetByIdAsync(referenceId, cancellationToken)is null)
+        {
             return;
+        }
 
         var projectIdValue = projectId.ToString("D");
-        var currentDefinitions = await _definitions.ListAsync(
-            definition => definition.ProjectId == projectIdValue,
-            cancellationToken);
+        var currentDefinitions = await _definitions.ListAsync(definition => definition.ProjectId == projectIdValue, cancellationToken);
         foreach (var currentDefinition in currentDefinitions)
         {
             FlowDefinitionDto? definition;
@@ -238,28 +279,49 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
                 return;
             }
 
-            if (definition is null
-                || LibraryBindingIndex.Extract(definition).Contains(sourceArtifactId.Trim(), StringComparer.OrdinalIgnoreCase))
+            if (definition is null || resolveContainsResult())
             {
                 return;
             }
+
+            bool resolveContainsResult()
+            {
+                var extractResult = LibraryBindingIndex.Extract(definition);
+                var trimResult = sourceArtifactId.Trim();
+                var containsResult = extractResult.Contains(trimResult, StringComparer.OrdinalIgnoreCase);
+                return containsResult;
+            }
         }
 
-        var projectFlowIds = currentDefinitions
-            .Select(static definition => definition.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var selectResult = currentDefinitions.Select(static definition => definition.Id);
+        var projectFlowIds = selectResult.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var productionVersions = await _versions.ListAsync(cancellationToken: cancellationToken);
         foreach (var version in productionVersions.Where(version =>
-                     projectFlowIds.Contains(version.FlowId)
-                     && string.Equals(version.Track, FlowVersionTrackDto.Production.ToString(), StringComparison.OrdinalIgnoreCase)))
+        {
+            var evaluatedValue = projectFlowIds.Contains(version.FlowId) && resolveEqualsResult20();
+            return evaluatedValue;
+            bool resolveEqualsResult20()
+            {
+                var toStringResult21 = FlowVersionTrackDto.Production.ToString();
+                var equalsResult22 = string.Equals(version.Track, toStringResult21, StringComparison.OrdinalIgnoreCase);
+                return equalsResult22;
+            }
+        }))
         {
             try
             {
                 var definition = JsonSerializer.Deserialize<FlowDefinitionDto>(version.DefinitionJson, JsonOptions);
-                if (definition is null
-                    || LibraryBindingIndex.Extract(definition).Contains(sourceArtifactId.Trim(), StringComparer.OrdinalIgnoreCase))
+                if (definition is null || resolveContainsResult23())
                 {
                     return;
+                }
+
+                bool resolveContainsResult23()
+                {
+                    var extractResult24 = LibraryBindingIndex.Extract(definition);
+                    var trimResult25 = sourceArtifactId.Trim();
+                    var containsResult26 = extractResult24.Contains(trimResult25, StringComparer.OrdinalIgnoreCase);
+                    return containsResult26;
                 }
             }
             catch (JsonException)
@@ -281,11 +343,12 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
         {
             var versions = await _versions.ListAsync(version => version.FlowId == key, cancellationToken);
             var allocated = versions.Count == 0 ? 1 : checked(versions.Max(static version => version.Version) + 1);
-            await _versionCounters.AddAsync(new FlowVersionCounterRecord
+            var flowVersionCounterRecord = new FlowVersionCounterRecord
             {
                 FlowId = key,
                 NextVersion = checked(allocated + 1),
-            }, cancellationToken);
+            };
+            await _versionCounters.AddAsync(flowVersionCounterRecord, cancellationToken);
             return allocated;
         }
 
@@ -296,7 +359,8 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
     }
 
     private static LibraryUpgradePlanRecord ToRecord(LibraryUpgradePlanDto plan)
-        => new()
+    {
+        global::SereinFlow.Infrastructure.Persistence.LibraryUpgradePlanRecord evaluatedValue27 = new()
         {
             Id = plan.Id.ToString("D"),
             ProjectId = plan.ProjectId.ToString("D"),
@@ -306,16 +370,15 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
             AnalysisJson = JsonSerializer.Serialize(plan, JsonOptions),
             CreatedAt = plan.CreatedAt.ToString("O"),
             AppliedAt = plan.AppliedAt?.ToString("O"),
-            FailureMessage = plan.FailureMessage,
+            FailureMessage = plan.FailureMessage
         };
+        return evaluatedValue27;
+    }
 
     private static LibraryUpgradePlanDto Map(LibraryUpgradePlanRecord record)
     {
-        var plan = JsonSerializer.Deserialize<LibraryUpgradePlanDto>(record.AnalysisJson, JsonOptions)
-            ?? throw new InvalidOperationException("The library upgrade plan is empty. 类库升级计划为空。");
-        var status = Enum.TryParse<LibraryUpgradePlanStatusDto>(record.Status, ignoreCase: true, out var parsedStatus)
-            ? parsedStatus
-            : LibraryUpgradePlanStatusDto.Failed;
+        var plan = JsonSerializer.Deserialize<LibraryUpgradePlanDto>(record.AnalysisJson, JsonOptions) ?? throw new InvalidOperationException("The library upgrade plan is empty. 类库升级计划为空。");
+        var status = Enum.TryParse<LibraryUpgradePlanStatusDto>(record.Status, ignoreCase: true, out var parsedStatus) ? parsedStatus : LibraryUpgradePlanStatusDto.Failed;
         var createdAt = DateTimeOffset.TryParse(record.CreatedAt, out var parsedCreated) ? parsedCreated : plan.CreatedAt;
         var appliedAt = DateTimeOffset.TryParse(record.AppliedAt, out var parsedApplied) ? parsedApplied : plan.AppliedAt;
         return plan with
@@ -329,5 +392,14 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
     }
 
     private static string CreateReferenceId(Guid projectId, string artifactId)
-        => $"{projectId:N}:{artifactId.Trim().ToLowerInvariant()}";
+    {
+        var evaluatedValue29 = $"{projectId:N}:{resolveToLowerInvariantResult()}";
+        return evaluatedValue29;
+        string resolveToLowerInvariantResult()
+        {
+            var trimResult28 = artifactId.Trim();
+            var toLowerInvariantResult = trimResult28.ToLowerInvariant();
+            return toLowerInvariantResult;
+        }
+    }
 }

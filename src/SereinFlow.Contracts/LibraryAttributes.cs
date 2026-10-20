@@ -8,7 +8,7 @@ using SereinFlow.Library;
 [assembly: TypeForwardedTo(typeof(FlowNodeAttribute))]
 [assembly: TypeForwardedTo(typeof(NodeResultAttribute))]
 [assembly: TypeForwardedTo(typeof(NodeResultAttribute<>))]
-[assembly: TypeForwardedTo(typeof(INodeResultConverter<,>))]
+[assembly: TypeForwardedTo(typeof(INodeResultConverter<, >))]
 [assembly: TypeForwardedTo(typeof(IFlowNativeLibraryLoader))]
 [assembly: TypeForwardedTo(typeof(FlowNativeLibraryException))]
 [assembly: TypeForwardedTo(typeof(NativeLibraryDirectoryAttribute))]

@@ -1,37 +1,31 @@
-import { ConnectionLineType } from '@vue-flow/core'
-import type { ConnectionSemantic, FlowEdge, FlowEdgeLineType } from './types'
-
-export type ConnectionLineSettings = Record<ConnectionSemantic, FlowEdgeLineType>
-
+import { ConnectionLineType } from '@vue-flow/core';
+import type { ConnectionSemantic, FlowEdge, FlowEdgeLineType } from './types';
+export type ConnectionLineSettings = Record<ConnectionSemantic, FlowEdgeLineType>;
 export interface ConnectionLineTypeOption {
-  value: FlowEdgeLineType
-  labelKey: string
+  value: FlowEdgeLineType;
+  labelKey: string;
 }
-
 export interface ConnectionLineStyle {
   /** Vue Flow edge type used for both persisted edges and the drag preview. */
   /** 持久化连接线和拖拽预览共用的 Vue Flow 边类型。 */
-  lineType: FlowEdgeLineType
+  lineType: FlowEdgeLineType;
   /** Dash pattern used only while a new connection is being previewed. */
   /** 仅在预创建新连接时使用的虚线样式。 */
-  previewDashArray: string
+  previewDashArray: string;
   /** Theme color for the preview path. */
   /** 预览路径使用的主题色。 */
-  color: string
+  color: string;
 }
-
 export const defaultConnectionLineTypes: ConnectionLineSettings = {
   execution: ConnectionLineType.SmoothStep,
   data: ConnectionLineType.SmoothStep,
-}
-
+};
 /** The console intentionally exposes only the two requested editor choices. */
 /** 控制台只暴露需求中指定的两种编辑器选项。 */
 export const connectionLineTypeOptions: readonly ConnectionLineTypeOption[] = [
   { value: ConnectionLineType.SmoothStep, labelKey: 'connectionLine.segment' },
   { value: ConnectionLineType.Bezier, labelKey: 'connectionLine.bezier' },
-]
-
+];
 /**
  * Semantic connection defaults. Keep this object intentionally mutable so a
  * host application can replace either line type without changing canvas code.
@@ -50,21 +44,19 @@ export const connectionLineStyles: Record<ConnectionSemantic, ConnectionLineStyl
     previewDashArray: '6 4',
     color: '#6d42a5',
   },
-}
-
+};
 export function connectionLineStyleFor(semantic: ConnectionSemantic, settings?: Partial<ConnectionLineSettings>): ConnectionLineStyle {
-  const style = connectionLineStyles[semantic]
-  const configuredType = normalizeLineType(settings?.[semantic])
-  return configuredType ? { ...style, lineType: configuredType } : style
+  const style = connectionLineStyles[semantic];
+  const configuredType = normalizeLineType(settings?.[semantic]);
+  return configuredType ? { ...style, lineType: configuredType } : style;
 }
-
 export function connectionLineTypeForEdge(edge: Pick<FlowEdge, 'data'>, settings?: Partial<ConnectionLineSettings>): FlowEdgeLineType {
-  return normalizeLineType(edge.data.lineType) ?? connectionLineStyleFor(edge.data.semantic, settings).lineType
+  const evaluatedValue: FlowEdgeLineType = normalizeLineType(edge.data.lineType) ?? connectionLineStyleFor(edge.data.semantic, settings).lineType;
+  return evaluatedValue;
 }
-
 export function normalizeConnectionLineTypes(value?: Partial<ConnectionLineSettings> | null): ConnectionLineSettings {
-  const configuredExecution = normalizeLineType(value?.execution)
-  const configuredData = normalizeLineType(value?.data)
+  const configuredExecution = normalizeLineType(value?.execution);
+  const configuredData = normalizeLineType(value?.data);
   return {
     // `straight` was never exposed by the console; migrate any interim
     // preview setting to the requested orthogonal line-segment style.
@@ -75,21 +67,18 @@ export function normalizeConnectionLineTypes(value?: Partial<ConnectionLineSetti
     data: configuredData === ConnectionLineType.Straight
       ? defaultConnectionLineTypes.data
       : configuredData ?? defaultConnectionLineTypes.data,
-  }
+  };
 }
-
 export function normalizeLineType(value: string | undefined): FlowEdgeLineType | undefined {
   if (value === ConnectionLineType.Bezier
     || value === ConnectionLineType.SimpleBezier
     || value === ConnectionLineType.Straight
     || value === ConnectionLineType.Step
     || value === ConnectionLineType.SmoothStep) {
-    return value
+    return value;
   }
-
-  return undefined
+  return undefined;
 }
-
 export function semanticFromConnectionHandles(sourceHandle?: string | null, targetHandle?: string | null): ConnectionSemantic | undefined {
   // The source seat is available for the whole drag, so it is the strongest
   // signal while the pointer has not reached a target yet (or is currently on
@@ -97,20 +86,16 @@ export function semanticFromConnectionHandles(sourceHandle?: string | null, targ
   // 源连接席位在整个拖拽过程中都可用，因此在指针尚未到达目标或位于无效目标时，
   // 它是最可靠的连接类型信号。
   if (sourceHandle === 'exec-success' || sourceHandle === 'exec-failure' || sourceHandle === 'exec-error') {
-    return 'execution'
+    return 'execution';
   }
-
   if (sourceHandle === 'data-out') {
-    return 'data'
+    return 'data';
   }
-
   if (targetHandle === 'exec-in') {
-    return 'execution'
+    return 'execution';
   }
-
   if (targetHandle?.startsWith('param-') === true) {
-    return 'data'
+    return 'data';
   }
-
-  return undefined
+  return undefined;
 }

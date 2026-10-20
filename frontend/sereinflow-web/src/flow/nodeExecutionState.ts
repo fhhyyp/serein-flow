@@ -1,28 +1,25 @@
-import type { FlowRunEventDto } from '../api/flowApi'
-
-export type NodeExecutionStatus = 'running' | 'paused' | 'completed' | 'failed' | 'error'
-
+import type { FlowRunEventDto } from '../api/flowApi';
+export type NodeExecutionStatus = 'running' | 'paused' | 'completed' | 'failed' | 'error';
 export interface NodeExecutionState {
-  id: string
-  nodeId: string
-  executionId?: string
-  status: NodeExecutionStatus
-  startedAt?: string
-  endedAt?: string
-  startSequence?: number
-  terminalSequence?: number
-  pauseSequence?: number
-  step?: number
-  frameDepth?: number
-  triggerInvocationId?: string
-  branch?: string
-  inputs?: unknown
-  outputs?: unknown
-  errorCode?: string
-  errorMessage?: string
-  isGlobal?: boolean
+  id: string;
+  nodeId: string;
+  executionId?: string;
+  status: NodeExecutionStatus;
+  startedAt?: string;
+  endedAt?: string;
+  startSequence?: number;
+  terminalSequence?: number;
+  pauseSequence?: number;
+  step?: number;
+  frameDepth?: number;
+  triggerInvocationId?: string;
+  branch?: string;
+  inputs?: unknown;
+  outputs?: unknown;
+  errorCode?: string;
+  errorMessage?: string;
+  isGlobal?: boolean;
 }
-
 /**
  * Orders execution entries from the first executed step to the latest one.
  * The step number is the primary order because it is assigned by the flow
@@ -30,72 +27,68 @@ export interface NodeExecutionState {
  * step number and as a deterministic tie-breaker.
  */
 export function sortNodeExecutionStates(states: readonly NodeExecutionState[]): NodeExecutionState[] {
-  return [...states].sort((left, right) => {
-    if (left.step !== undefined && right.step !== undefined && left.step !== right.step)
-      return left.step - right.step
-
-    const sequenceDifference = sequenceFor(left) - sequenceFor(right)
-    return sequenceDifference !== 0
+  const sortResult: NodeExecutionState[] = [...states].sort((left, right) => {
+    if (left.step !== undefined && right.step !== undefined && left.step !== right.step) {
+      return left.step - right.step;
+    }
+    const sequenceDifference = sequenceFor(left) - sequenceFor(right);
+    const evaluatedValue: number = sequenceDifference !== 0
       ? sequenceDifference
-      : left.id.localeCompare(right.id)
-  })
+      : left.id.localeCompare(right.id);
+    return evaluatedValue;
+  });
+  return sortResult;
 }
-
-type EventPayload = Record<string, unknown>
-
+type EventPayload = Record<string, unknown>;
 const terminalStatuses: Record<string, Extract<NodeExecutionStatus, 'completed' | 'failed' | 'error'>> = {
   'node.completed': 'completed',
   'node.failed': 'failed',
   'node.error': 'error',
-}
-
+};
 export function buildNodeExecutionStates(events: readonly FlowRunEventDto[]): NodeExecutionState[] {
-  const states: NodeExecutionState[] = []
-  const orderedEvents = [...events].sort((left, right) => left.sequence - right.sequence)
-
+  const states: NodeExecutionState[] = [];
+  const orderedEvents = [...events].sort((left, right) => left.sequence - right.sequence);
   for (const event of orderedEvents) {
-    if (event.type !== 'node.started' && event.type !== 'debug.paused' && !(event.type in terminalStatuses)) continue
-
-    const payload = parsePayload(event.payloadJson)
-    const nodeId = event.nodeId?.trim() || stringValue(payload?.nodeId)?.trim()
-    if (!nodeId) continue
-
+    if (event.type !== 'node.started' && event.type !== 'debug.paused' && !(event.type in terminalStatuses)) {
+      continue;
+    }
+    const payload = parsePayload(event.payloadJson);
+    const nodeId = event.nodeId?.trim() || trimmedStringValue(payload?.nodeId);
+    if (!nodeId) {
+      continue;
+    }
     if (event.type === 'node.started') {
-      states.push(createState(nodeId, event, payload, 'running'))
-      continue
+      const createStateResult: NodeExecutionState = createState(nodeId, event, payload, 'running');
+      states.push(createStateResult);
+      continue;
     }
-
-    const matching = findMatchingState(states, nodeId, payload)
+    const matching = findMatchingState(states, nodeId, payload);
     if (event.type === 'debug.paused') {
-      const state = matching ?? createState(nodeId, event, payload, 'paused')
-      if (!matching) states.push(state)
-      updateContext(state, payload)
-      state.status = 'paused'
-      state.pauseSequence = event.sequence
-      continue
+      const state = matching ?? createState(nodeId, event, payload, 'paused');
+      if (!matching) {
+        states.push(state);
+      }
+      updateContext(state, payload);
+      state.status = 'paused';
+      state.pauseSequence = event.sequence;
+      continue;
     }
-
-    const status = terminalStatuses[event.type]
-    const state = matching ?? createState(nodeId, event, payload, status)
-    if (!matching) states.push(state)
-    updateContext(state, payload)
-    state.status = status
-    state.endedAt = event.timestamp
-    state.terminalSequence = event.sequence
+    const status = terminalStatuses[event.type];
+    const state = matching ?? createState(nodeId, event, payload, status);
+    if (!matching) {
+      states.push(state);
+    }
+    updateContext(state, payload);
+    state.status = status;
+    state.endedAt = event.timestamp;
+    state.terminalSequence = event.sequence;
   }
-
-  return states
+  return states;
 }
-
-function createState(
-  nodeId: string,
-  event: FlowRunEventDto,
-  payload: EventPayload | undefined,
-  status: NodeExecutionStatus,
-): NodeExecutionState {
-  const step = numberValue(payload?.step)
-  const executionId = stringValue(payload?.executionId)?.trim() || undefined
-  const invocationId = stringValue(payload?.triggerInvocationId)
+function createState(nodeId: string, event: FlowRunEventDto, payload: EventPayload | undefined, status: NodeExecutionStatus): NodeExecutionState {
+  const step = numberValue(payload?.step);
+  const executionId = trimmedStringValue(payload?.executionId) || undefined;
+  const invocationId = stringValue(payload?.triggerInvocationId);
   const state: NodeExecutionState = {
     id: executionId ?? derivedExecutionId(nodeId, event.sequence, step, invocationId),
     nodeId,
@@ -105,100 +98,124 @@ function createState(
     frameDepth: numberValue(payload?.frameDepth),
     triggerInvocationId: invocationId,
     isGlobal: booleanValue(payload?.global),
-  }
-
+  };
   if (status === 'running' || status === 'paused') {
-    state.startedAt = event.timestamp
-    state.startSequence = event.sequence
-  } else {
-    state.endedAt = event.timestamp
-    state.terminalSequence = event.sequence
+    state.startedAt = event.timestamp;
+    state.startSequence = event.sequence;
   }
-  updateContext(state, payload)
-  return state
+  else {
+    state.endedAt = event.timestamp;
+    state.terminalSequence = event.sequence;
+  }
+  updateContext(state, payload);
+  return state;
 }
-
-function findMatchingState(
-  states: readonly NodeExecutionState[],
-  nodeId: string,
-  payload: EventPayload | undefined,
-): NodeExecutionState | undefined {
-  const candidates = states.filter((state) => state.nodeId === nodeId && !isTerminal(state.status))
-  if (candidates.length === 0) return undefined
-
-  const step = numberValue(payload?.step)
-  const executionId = stringValue(payload?.executionId)?.trim() || undefined
-  const invocationId = stringValue(payload?.triggerInvocationId)
+function findMatchingState(states: readonly NodeExecutionState[], nodeId: string, payload: EventPayload | undefined): NodeExecutionState | undefined {
+  const candidates = states.filter((state) => {
+    const evaluatedValue1: boolean = state.nodeId === nodeId && !isTerminal(state.status);
+    return evaluatedValue1;
+  });
+  if (candidates.length === 0) {
+    return undefined;
+  }
+  const step = numberValue(payload?.step);
+  const executionId = trimmedStringValue(payload?.executionId) || undefined;
+  const invocationId = stringValue(payload?.triggerInvocationId);
   if (executionId) {
-    const exact = [...candidates].reverse().find((state) => state.executionId === executionId || state.id === executionId)
-    if (exact) return exact
+    const reverseResult = [...candidates].reverse();
+    const exact = reverseResult.find((state) => state.executionId === executionId || state.id === executionId);
+    if (exact) {
+      return exact;
+    }
   }
   if (step !== undefined || invocationId !== undefined) {
-    const exact = [...candidates].reverse().find((state) => (
-      (step === undefined || state.step === step)
-      && (invocationId === undefined || state.triggerInvocationId === invocationId)
-    ))
-    if (exact) return exact
+    const reverseResult1 = [...candidates].reverse();
+    const exact = reverseResult1.find((state) => ((step === undefined || state.step === step)
+      && (invocationId === undefined || state.triggerInvocationId === invocationId)));
+    if (exact) {
+      return exact;
+    }
   }
-
-  return candidates.at(-1)
+  const atResult: NodeExecutionState | undefined = candidates.at(-1);
+  return atResult;
 }
-
 function updateContext(state: NodeExecutionState, payload: EventPayload | undefined): void {
-  if (!payload) return
-  const step = numberValue(payload.step)
-  const executionId = stringValue(payload.executionId)?.trim() || undefined
-  const frameDepth = numberValue(payload.frameDepth)
-  const invocationId = stringValue(payload.triggerInvocationId)
-  const branch = stringValue(payload.branch)
-  const errorCode = stringValue(payload.errorCode)
-  const errorMessage = stringValue(payload.errorMessage)
-
-  if (step !== undefined) state.step = step
-  if (executionId !== undefined) state.executionId = executionId
-  if (frameDepth !== undefined) state.frameDepth = frameDepth
-  if (invocationId !== undefined) state.triggerInvocationId = invocationId
-  if (branch !== undefined) state.branch = branch
-  if (errorCode !== undefined) state.errorCode = errorCode
-  if (errorMessage !== undefined) state.errorMessage = errorMessage
-  if (typeof payload.global === 'boolean') state.isGlobal = payload.global
-  if (Object.hasOwn(payload, 'inputs')) state.inputs = payload.inputs
-  if (Object.hasOwn(payload, 'outputs')) state.outputs = payload.outputs
+  if (!payload) {
+    return;
+  }
+  const step = numberValue(payload.step);
+  const executionId = trimmedStringValue(payload.executionId) || undefined;
+  const frameDepth = numberValue(payload.frameDepth);
+  const invocationId = stringValue(payload.triggerInvocationId);
+  const branch = stringValue(payload.branch);
+  const errorCode = stringValue(payload.errorCode);
+  const errorMessage = stringValue(payload.errorMessage);
+  if (step !== undefined) {
+    state.step = step;
+  }
+  if (executionId !== undefined) {
+    state.executionId = executionId;
+  }
+  if (frameDepth !== undefined) {
+    state.frameDepth = frameDepth;
+  }
+  if (invocationId !== undefined) {
+    state.triggerInvocationId = invocationId;
+  }
+  if (branch !== undefined) {
+    state.branch = branch;
+  }
+  if (errorCode !== undefined) {
+    state.errorCode = errorCode;
+  }
+  if (errorMessage !== undefined) {
+    state.errorMessage = errorMessage;
+  }
+  if (typeof payload.global === 'boolean') {
+    state.isGlobal = payload.global;
+  }
+  if (Object.hasOwn(payload, 'inputs')) {
+    state.inputs = payload.inputs;
+  }
+  if (Object.hasOwn(payload, 'outputs')) {
+    state.outputs = payload.outputs;
+  }
 }
-
 function derivedExecutionId(nodeId: string, sequence: number, step?: number, invocationId?: string): string {
-  return `${nodeId}:${invocationId ?? 'root'}:${step === undefined ? `event-${sequence}` : `step-${step}`}`
+  return `${nodeId}:${invocationId ?? 'root'}:${step === undefined ? `event-${sequence}` : `step-${step}`}`;
 }
-
 function sequenceFor(state: NodeExecutionState): number {
-  return state.terminalSequence ?? state.pauseSequence ?? state.startSequence ?? 0
+  return state.terminalSequence ?? state.pauseSequence ?? state.startSequence ?? 0;
 }
-
 function isTerminal(status: NodeExecutionStatus): boolean {
-  return status === 'completed' || status === 'failed' || status === 'error'
+  return status === 'completed' || status === 'failed' || status === 'error';
 }
-
 function parsePayload(value: string): EventPayload | undefined {
   try {
-    const parsed: unknown = JSON.parse(value)
-    return isRecord(parsed) ? parsed : undefined
-  } catch {
-    return undefined
+    const parsed: unknown = JSON.parse(value);
+    const evaluatedValue2: EventPayload | undefined = isRecord(parsed) ? parsed : undefined;
+    return evaluatedValue2;
+  }
+  catch {
+    return undefined;
   }
 }
-
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+  const evaluatedValue3: boolean = typeof value === 'object' && value !== null && !Array.isArray(value);
+  return evaluatedValue3;
 }
-
 function stringValue(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined
+  return typeof value === 'string' ? value : undefined;
 }
-
 function numberValue(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+  const evaluatedValue4: number | undefined = typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  return evaluatedValue4;
 }
-
 function booleanValue(value: unknown): boolean | undefined {
-  return typeof value === 'boolean' ? value : undefined
+  return typeof value === 'boolean' ? value : undefined;
+}
+function trimmedStringValue(value: unknown): string | undefined {
+  const textValue = stringValue(value);
+  const trimmedValue = textValue?.trim();
+  return trimmedValue;
 }

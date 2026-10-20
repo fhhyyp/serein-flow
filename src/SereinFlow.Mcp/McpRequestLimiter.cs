@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 
 namespace SereinFlow.Mcp;
-
 /// <summary>
 /// Bounds remote MCP work per authenticated principal. The limiter is kept in
 /// the HTTP host and is deliberately independent from business authorization.
@@ -9,10 +8,10 @@ namespace SereinFlow.Mcp;
 /// </summary>
 public sealed class McpRequestLimiter : IDisposable
 {
+    private static readonly TimeSpan RequestWindowDuration = TimeSpan.FromMinutes(1);
     private readonly SemaphoreSlim _concurrency;
     private readonly int _maxRequestsPerMinute;
     private readonly ConcurrentDictionary<string, RateWindow> _windows = new(StringComparer.Ordinal);
-
     public McpRequestLimiter(int maxConcurrentRequests = 16, int maxRequestsPerMinute = 120)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(maxConcurrentRequests, 1);
@@ -29,13 +28,20 @@ public sealed class McpRequestLimiter : IDisposable
             return false;
         }
 
-        var window = _windows.GetOrAdd(principalId, static _ => new RateWindow());
+        var window = _windows.GetOrAdd(principalId, static _ =>
+        {
+            var rateWindow = new RateWindow();
+            return rateWindow;
+        });
         var now = DateTimeOffset.UtcNow;
         var accepted = false;
         lock (window.Gate)
         {
-            while (window.Requests.Count > 0 && now - window.Requests.Peek() >= TimeSpan.FromMinutes(1))
+            while (window.Requests.Count > 0 && now - window.Requests.Peek() >= RequestWindowDuration)
+            {
                 window.Requests.Dequeue();
+            }
+
             if (window.Requests.Count < _maxRequestsPerMinute)
             {
                 window.Requests.Enqueue(now);
@@ -54,7 +60,10 @@ public sealed class McpRequestLimiter : IDisposable
         return true;
     }
 
-    public void Dispose() => _concurrency.Dispose();
+    public void Dispose()
+    {
+        _concurrency.Dispose();
+    }
 
     private sealed class RateWindow
     {
@@ -65,11 +74,12 @@ public sealed class McpRequestLimiter : IDisposable
     private sealed class LimiterLease(SemaphoreSlim semaphore) : IDisposable
     {
         private int _released;
-
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _released, 1) == 0)
+            {
                 semaphore.Release();
+            }
         }
     }
 }

@@ -4,13 +4,14 @@ using SereinFlow.Library;
 using SereinFlow.Worker.Runner;
 
 namespace SereinFlow.Worker.IntegrationTests;
-
 public sealed class WorkerNativeLibraryLoaderTests
 {
     [Fact]
     public void DirectoryLoadingUsesCurrentRidSkipsManagedAssembliesAndIsIdempotent()
     {
-        var root = Path.Combine(Path.GetTempPath(), $"sereinflow-native-loader-{Guid.NewGuid():N}");
+        var getTempPathResult = Path.GetTempPath();
+        var evaluatedValue = $"sereinflow-native-loader-{Guid.NewGuid():N}";
+        var root = Path.Combine(getTempPathResult, evaluatedValue);
         var rid = RuntimeInformation.RuntimeIdentifier;
         var nativeDirectory = Path.Combine(root, "runtimes", rid, "native");
         Directory.CreateDirectory(nativeDirectory);
@@ -18,24 +19,21 @@ public sealed class WorkerNativeLibraryLoaderTests
         var managedFile = Path.Combine(nativeDirectory, "managed-one.dll");
         File.WriteAllBytes(nativeFile, [0x4D, 0x5A]);
         File.Copy(typeof(WorkerNativeLibraryLoader).Assembly.Location, managedFile);
-
         try
         {
             var loadedPaths = new List<string>();
-            using var loader = new WorkerNativeLibraryLoader(
-                root,
-                path =>
-                {
-                    loadedPaths.Add(path);
-                    return (nint)1;
-                });
-
-            Assert.True(loader.LoadNativeLibrary("runtimes/{rid}/native/native-one.dll"));
+            using var loader = new WorkerNativeLibraryLoader(root, path =>
+            {
+                loadedPaths.Add(path);
+                return (nint)1;
+            });
+            var loadNativeLibraryResult = loader.LoadNativeLibrary("runtimes/{rid}/native/native-one.dll");
+            Assert.True(loadNativeLibraryResult);
             loader.LoadNativeLibraryDirectory("runtimes/{rid}/native", recursive: false);
             loader.LoadNativeLibraryDirectory("runtimes/{rid}/native", recursive: false);
-
             var loadedPath = Assert.Single(loadedPaths);
-            Assert.Equal(Path.GetFullPath(nativeFile), loadedPath);
+            var getFullPathResult = Path.GetFullPath(nativeFile);
+            Assert.Equal(getFullPathResult, loadedPath);
         }
         finally
         {
@@ -46,19 +44,22 @@ public sealed class WorkerNativeLibraryLoaderTests
     [Fact]
     public void RequiredDirectoryRejectsUnsafeOrMissingPaths()
     {
-        var root = Path.Combine(Path.GetTempPath(), $"sereinflow-native-loader-{Guid.NewGuid():N}");
+        var getTempPathResult1 = Path.GetTempPath();
+        var evaluatedValue2 = $"sereinflow-native-loader-{Guid.NewGuid():N}";
+        var root = Path.Combine(getTempPathResult1, evaluatedValue2);
         Directory.CreateDirectory(root);
-
         try
         {
             using var loader = new WorkerNativeLibraryLoader(root, static _ => (nint)1);
-
             var missing = Assert.Throws<FlowNativeLibraryException>(() =>
-                loader.LoadNativeLibraryDirectory("missing", required: true));
+            {
+                loader.LoadNativeLibraryDirectory("missing", required: true);
+            });
             Assert.Equal(LibraryErrorCodes.NativeDirectoryMissing, missing.Code);
-
             var unsafePath = Assert.Throws<FlowNativeLibraryException>(() =>
-                loader.LoadNativeLibraryDirectory("../outside", required: true));
+            {
+                loader.LoadNativeLibraryDirectory("../outside", required: true);
+            });
             Assert.Equal(LibraryErrorCodes.NativeDirectoryInvalid, unsafePath.Code);
         }
         finally
@@ -72,7 +73,9 @@ public sealed class WorkerNativeLibraryLoaderTests
         try
         {
             if (Directory.Exists(path))
+            {
                 Directory.Delete(path, recursive: true);
+            }
         }
         catch (IOException)
         {

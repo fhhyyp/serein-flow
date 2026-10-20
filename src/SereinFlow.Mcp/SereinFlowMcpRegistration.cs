@@ -14,7 +14,6 @@ using System.Text;
 using System.Text.Json;
 
 namespace SereinFlow.Mcp;
-
 public static class McpHttpDefaults
 {
     public const string EndpointPath = "/mcp";
@@ -23,7 +22,6 @@ public static class McpHttpDefaults
 public sealed class SereinFlowMcpOptions
 {
     public const string SectionName = "SereinFlow:Mcp";
-
     public long MaxRequestBytes { get; init; } = 16 * 1024 * 1024;
     public long MaxResponseBytes { get; init; } = 4 * 1024 * 1024;
     public int MaxConcurrentRequests { get; init; } = 16;
@@ -35,7 +33,7 @@ public sealed class SereinFlowMcpOptions
     public static SereinFlowMcpOptions FromConfiguration(IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
-        return new SereinFlowMcpOptions
+        var sereinFlowMcpOptions = new SereinFlowMcpOptions
         {
             MaxRequestBytes = ReadPositiveLong(configuration["SereinFlow:Mcp:Http:MaxRequestBytes"], 16 * 1024 * 1024),
             MaxResponseBytes = ReadPositiveLong(configuration["SereinFlow:Mcp:Http:MaxResponseBytes"], 4 * 1024 * 1024),
@@ -45,139 +43,177 @@ public sealed class SereinFlowMcpOptions
             AllowedOrigins = ReadAllowedOrigins(configuration["SereinFlow:Mcp:Http:AllowedOrigins"]),
             AiGuidance = McpAiGuidanceOptions.FromConfiguration(configuration)
         };
+        return sereinFlowMcpOptions;
     }
 
     private static long ReadPositiveLong(string? value, long fallback)
-        => long.TryParse(value, out var parsed) && parsed > 0 ? parsed : fallback;
+    {
+        long evaluatedValue = long.TryParse(value, out var parsed) && parsed > 0 ? parsed : fallback;
+        return evaluatedValue;
+    }
 
     private static int ReadPositiveInt(string? value, int fallback)
-        => int.TryParse(value, out var parsed) && parsed > 0 ? parsed : fallback;
+    {
+        int evaluatedValue1 = int.TryParse(value, out var parsed) && parsed > 0 ? parsed : fallback;
+        return evaluatedValue1;
+    }
 
     private static string[] ReadAllowedOrigins(string? value)
-        => string.IsNullOrWhiteSpace(value)
-            ? []
-            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(static origin => Uri.TryCreate(origin, UriKind.Absolute, out var uri)
-                    && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
-                    && !string.IsNullOrWhiteSpace(uri.Host))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
+    {
+        string[] conditionalValue;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            conditionalValue = [];
+        }
+        else
+        {
+            var splitResult = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var whereResult = splitResult.Where(static origin =>
+            {
+                var evaluatedValue2 = Uri.TryCreate(origin, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) && !string.IsNullOrWhiteSpace(uri.Host);
+                return evaluatedValue2;
+            });
+            var distinctResult = whereResult.Distinct(StringComparer.OrdinalIgnoreCase);
+            conditionalValue = distinctResult.ToArray();
+        }
+
+        string[] evaluatedValue3 = conditionalValue;
+        return evaluatedValue3;
+    }
 }
 
 public static class SereinFlowMcpServiceCollectionExtensions
 {
-    public static IServiceCollection AddSereinFlowMcp(
-        this IServiceCollection services,
-        IConfiguration? configuration = null,
-        string? contentRootPath = null)
+    public static IServiceCollection AddSereinFlowMcp(this IServiceCollection services, IConfiguration? configuration = null, string? contentRootPath = null)
     {
         ArgumentNullException.ThrowIfNull(services);
-
-        services.AddSingleton(serviceProvider => SereinFlowMcpOptions.FromConfiguration(
-            configuration ?? serviceProvider.GetRequiredService<IConfiguration>()));
-        services.TryAddSingleton<McpAiGuidanceProvider>(serviceProvider => new McpAiGuidanceProvider(
-            configuration ?? serviceProvider.GetRequiredService<IConfiguration>(),
-            contentRootPath
-                ?? serviceProvider.GetService<Microsoft.Extensions.Hosting.IHostEnvironment>()?.ContentRootPath
-                ?? AppContext.BaseDirectory));
-
+        services.AddSingleton(serviceProvider =>
+        {
+            var evaluatedValue4 = configuration ?? serviceProvider.GetRequiredService<IConfiguration>();
+            var fromConfigurationResult = SereinFlowMcpOptions.FromConfiguration(evaluatedValue4);
+            return fromConfigurationResult;
+        });
+        services.TryAddSingleton<McpAiGuidanceProvider>(serviceProvider =>
+        {
+            var evaluatedValue5 = configuration ?? serviceProvider.GetRequiredService<IConfiguration>();
+            var evaluatedValue6 = contentRootPath ?? serviceProvider.GetService<Microsoft.Extensions.Hosting.IHostEnvironment>()?.ContentRootPath ?? AppContext.BaseDirectory;
+            var mcpAiGuidanceProvider = new McpAiGuidanceProvider(evaluatedValue5, evaluatedValue6);
+            return mcpAiGuidanceProvider;
+        });
         services.AddCors();
-        services.AddOptions<CorsOptions>().Configure<IConfiguration>((cors, resolvedConfiguration) =>
+        var addOptionsResult = services.AddOptions<CorsOptions>();
+        addOptionsResult.Configure<IConfiguration>((cors, resolvedConfiguration) =>
         {
             var options = SereinFlowMcpOptions.FromConfiguration(configuration ?? resolvedConfiguration);
             cors.AddPolicy("sereinflow-mcp", policy =>
             {
-                policy.AllowAnyHeader().AllowAnyMethod();
+                var allowAnyHeaderResult = policy.AllowAnyHeader();
+                allowAnyHeaderResult.AllowAnyMethod();
                 if (options.AllowedOrigins.Length > 0)
+                {
                     policy.WithOrigins(options.AllowedOrigins);
+                }
                 else
+                {
                     policy.SetIsOriginAllowed(static _ => false);
+                }
             });
         });
-
         services.TryAddScoped<ISereinLangCompiler, SereinLangCompiler>();
         services.TryAddScoped<McpSecurityService>(serviceProvider =>
-            new McpSecurityService(
-                serviceProvider.GetRequiredService<IMcpApiKeyStore>(),
-                (configuration ?? serviceProvider.GetRequiredService<IConfiguration>())["SereinFlow:Mcp:BootstrapAdminKey"]));
+        {
+            var getRequiredServiceResult = serviceProvider.GetRequiredService<IMcpApiKeyStore>();
+            var evaluatedValue7 = (configuration ?? serviceProvider.GetRequiredService<IConfiguration>())["SereinFlow:Mcp:BootstrapAdminKey"];
+            var mcpSecurityService = new McpSecurityService(getRequiredServiceResult, evaluatedValue7);
+            return mcpSecurityService;
+        });
         services.TryAddSingleton<IMcpPrincipalAccessor, McpPrincipalAccessor>();
         services.TryAddSingleton<IMcpRequestContextAccessor, McpRequestContextAccessor>();
         services.TryAddSingleton<McpHttpSessionRegistry>();
         services.TryAddSingleton<McpRequestLimiter>(serviceProvider =>
         {
             var options = serviceProvider.GetRequiredService<SereinFlowMcpOptions>();
-            return new McpRequestLimiter(options.MaxConcurrentRequests, options.MaxRequestsPerMinute);
+            var mcpRequestLimiter = new McpRequestLimiter(options.MaxConcurrentRequests, options.MaxRequestsPerMinute);
+            return mcpRequestLimiter;
         });
         services.TryAddSingleton<McpMutationGate>();
         services.TryAddSingleton<McpToolAuditService>();
         services.TryAddSingleton<McpToolExecutor>();
         services.TryAddSingleton<McpResourceReader>();
-        services.TryAddSingleton<McpToolCatalog>(_ => SereinFlowMcpToolCatalogFactory.Create());
+        services.TryAddSingleton<McpToolCatalog>(_ =>
+        {
+            var createResult = SereinFlowMcpToolCatalogFactory.Create();
+            return createResult;
+        });
         services.TryAddSingleton<ISereinFlowMcpBackend, SereinFlowMcpBackend>();
         services.TryAddSingleton<SereinFlowMcpServer>(serviceProvider =>
         {
             var options = serviceProvider.GetRequiredService<SereinFlowMcpOptions>();
-            return new SereinFlowMcpServer(
-                serviceProvider.GetRequiredService<ISereinFlowMcpBackend>(),
-                Console.Error,
-                checked((int)options.MaxRequestBytes),
-                checked((int)options.MaxResponseBytes),
-                serviceProvider.GetRequiredService<IMcpRequestContextAccessor>(),
-                serviceProvider.GetRequiredService<IFileUploadSettings>(),
-                serviceProvider.GetRequiredService<McpAiGuidanceProvider>());
+            var getRequiredServiceResult8 = serviceProvider.GetRequiredService<ISereinFlowMcpBackend>();
+            var getRequiredServiceResult9 = serviceProvider.GetRequiredService<IMcpRequestContextAccessor>();
+            var getRequiredServiceResult10 = serviceProvider.GetRequiredService<IFileUploadSettings>();
+            var getRequiredServiceResult11 = serviceProvider.GetRequiredService<McpAiGuidanceProvider>();
+            var sereinFlowMcpServer = new SereinFlowMcpServer(getRequiredServiceResult8, Console.Error, checked((int)options.MaxRequestBytes), checked((int)options.MaxResponseBytes), getRequiredServiceResult9, getRequiredServiceResult10, getRequiredServiceResult11);
+            return sereinFlowMcpServer;
         });
-
         return services;
     }
 }
 
 public static class SereinFlowMcpEndpointRouteBuilderExtensions
 {
-    public static IEndpointConventionBuilder MapSereinFlowMcp(
-        this IEndpointRouteBuilder endpoints,
-        string pattern = McpHttpDefaults.EndpointPath)
+    public static IEndpointConventionBuilder MapSereinFlowMcp(this IEndpointRouteBuilder endpoints, string pattern = McpHttpDefaults.EndpointPath)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
         var options = endpoints.ServiceProvider.GetRequiredService<SereinFlowMcpOptions>();
         var fileUploadSettings = endpoints.ServiceProvider.GetRequiredService<IFileUploadSettings>();
-
-        var getEndpoint = endpoints.MapMethods(pattern, ["GET"], static () => Results.StatusCode(StatusCodes.Status405MethodNotAllowed))
-            .RequireCors("sereinflow-mcp");
-        var deleteEndpoint = endpoints.MapDelete(pattern, async (
-            HttpContext context,
-            McpSecurityService security,
-            McpHttpSessionRegistry sessions,
-            CancellationToken cancellationToken) =>
+        var mapMethodsResult = endpoints.MapMethods(pattern, ["GET"], static () =>
+        {
+            var statusCodeResult = Results.StatusCode(StatusCodes.Status405MethodNotAllowed);
+            return statusCodeResult;
+        });
+        var getEndpoint = mapMethodsResult.RequireCors("sereinflow-mcp");
+        var mapDeleteResult = endpoints.MapDelete(pattern, async (HttpContext context, McpSecurityService security, McpHttpSessionRegistry sessions, CancellationToken cancellationToken) =>
         {
             var principal = await AuthenticateAsync(context, security, cancellationToken);
             if (principal is null)
-                return Unauthorized(context);
+            {
+                var unauthorizedResult = Unauthorized(context);
+                return unauthorizedResult;
+            }
+
             var sessionId = context.Request.Headers["Mcp-Session-Id"].FirstOrDefault();
             if (string.IsNullOrWhiteSpace(sessionId) || !sessions.Remove(sessionId, principal.Id))
-                return Results.StatusCode(StatusCodes.Status404NotFound);
-            return Results.NoContent();
-        }).RequireCors("sereinflow-mcp");
-        var postEndpoint = endpoints.MapPost(pattern, async (
-            HttpContext context,
-            SereinFlowMcpServer server,
-            McpSecurityService security,
-            IMcpPrincipalAccessor principalAccessor,
-            IMcpRequestContextAccessor requestContextAccessor,
-            McpHttpSessionRegistry sessions,
-            McpRequestLimiter limiter,
-            CancellationToken cancellationToken) =>
+            {
+                var statusCodeResult12 = Results.StatusCode(StatusCodes.Status404NotFound);
+                return statusCodeResult12;
+            }
+
+            var noContentResult = Results.NoContent();
+            return noContentResult;
+        });
+        var deleteEndpoint = mapDeleteResult.RequireCors("sereinflow-mcp");
+        var mapPostResult = endpoints.MapPost(pattern, async (HttpContext context, SereinFlowMcpServer server, McpSecurityService security, IMcpPrincipalAccessor principalAccessor, IMcpRequestContextAccessor requestContextAccessor, McpHttpSessionRegistry sessions, McpRequestLimiter limiter, CancellationToken cancellationToken) =>
         {
-            var maxRequestBytes = FileUploadLimits.GetMcpRequestBodyLimit(
-                fileUploadSettings.MaxLibraryUploadBytes,
-                options.MaxRequestBytes);
-            if (context.Request.ContentLength is > 0 && context.Request.ContentLength > maxRequestBytes)
-                return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+            var maxRequestBytes = FileUploadLimits.GetMcpRequestBodyLimit(fileUploadSettings.MaxLibraryUploadBytes, options.MaxRequestBytes);
+            if (context.Request.ContentLength is> 0 && context.Request.ContentLength > maxRequestBytes)
+            {
+                var statusCodeResult13 = Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+                return statusCodeResult13;
+            }
 
             var principal = await AuthenticateAsync(context, security, cancellationToken);
             if (principal is null)
-                return Unauthorized(context);
+            {
+                var unauthorizedResult14 = Unauthorized(context);
+                return unauthorizedResult14;
+            }
+
             if (!limiter.TryAcquire(principal.Id, out var limiterLease))
-                return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+            {
+                var statusCodeResult15 = Results.StatusCode(StatusCodes.Status429TooManyRequests);
+                return statusCodeResult15;
+            }
 
             using (limiterLease)
             {
@@ -188,7 +224,8 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                 }
                 catch (InvalidOperationException)
                 {
-                    return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+                    var statusCodeResult16 = Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+                    return statusCodeResult16;
                 }
 
                 var method = TryGetMethod(body);
@@ -196,43 +233,56 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                 if (string.Equals(method, "initialize", StringComparison.Ordinal))
                 {
                     if (string.IsNullOrWhiteSpace(sessionId))
+                    {
                         sessionId = sessions.Create(principal.Id);
+                    }
                     else if (!sessions.Validate(sessionId, principal.Id))
-                        return Results.StatusCode(StatusCodes.Status404NotFound);
+                    {
+                        var statusCodeResult17 = Results.StatusCode(StatusCodes.Status404NotFound);
+                        return statusCodeResult17;
+                    }
                 }
                 else if (string.IsNullOrWhiteSpace(sessionId) || !sessions.Validate(sessionId, principal.Id))
                 {
-                    return Results.Json(new { error = new { code = McpErrorCodes.SessionRequired, message = "A valid Mcp-Session-Id is required." } }, statusCode: StatusCodes.Status400BadRequest);
+                    var jsonResult = Results.Json(new { error = new { code = McpErrorCodes.SessionRequired, message = "A valid Mcp-Session-Id is required." } }, statusCode: StatusCodes.Status400BadRequest);
+                    return jsonResult;
                 }
 
                 principalAccessor.Current = principal;
                 requestContextAccessor.Current = new McpRequestContext(principal, "http", sessionId);
                 using var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                requestTimeout.CancelAfter(TimeSpan.FromSeconds(options.MaxToolExecutionSeconds));
+                var fromSecondsResult = TimeSpan.FromSeconds(options.MaxToolExecutionSeconds);
+                requestTimeout.CancelAfter(fromSecondsResult);
                 try
                 {
                     var response = await server.HandleRequestAsync(body, requestTimeout.Token);
                     if (sessionId is not null)
-                        context.Response.Headers["Mcp-Session-Id"] = sessionId;
-                    if (response is null)
-                        return Results.StatusCode(StatusCodes.Status202Accepted);
-                    if (Encoding.UTF8.GetByteCount(response) > options.MaxResponseBytes)
-                        return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
-                    return Results.Text(response, "application/json", Encoding.UTF8);
-                }
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-                {
-                    var diagnosticId = Guid.NewGuid().ToString("N");
-                    Console.Error.WriteLine($"MCP request exceeded its execution time limit; diagnosticId={diagnosticId}.");
-                    return Results.Json(new
                     {
-                        error = new
-                        {
-                            code = McpErrorCodes.ToolTimeout,
-                            message = "The MCP tool exceeded the configured execution time limit.",
-                            data = new { code = McpErrorCodes.ToolTimeout, diagnosticId }
-                        }
-                    }, statusCode: StatusCodes.Status504GatewayTimeout);
+                        context.Response.Headers["Mcp-Session-Id"] = sessionId;
+                    }
+
+                    if (response is null)
+                    {
+                        var statusCodeResult18 = Results.StatusCode(StatusCodes.Status202Accepted);
+                        return statusCodeResult18;
+                    }
+
+                    if (Encoding.UTF8.GetByteCount(response) > options.MaxResponseBytes)
+                    {
+                        var statusCodeResult19 = Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+                        return statusCodeResult19;
+                    }
+
+                    var textResult = Results.Text(response, "application/json", Encoding.UTF8);
+                    return textResult;
+                }
+                catch (OperationCanceledException)when (!cancellationToken.IsCancellationRequested)
+                {
+                    var newGuidResult = Guid.NewGuid();
+                    var diagnosticId = newGuidResult.ToString("N");
+                    Console.Error.WriteLine($"MCP request exceeded its execution time limit; diagnosticId={diagnosticId}.");
+                    var jsonResult20 = Results.Json(new { error = new { code = McpErrorCodes.ToolTimeout, message = "The MCP tool exceeded the configured execution time limit.", data = new { code = McpErrorCodes.ToolTimeout, diagnosticId } } }, statusCode: StatusCodes.Status504GatewayTimeout);
+                    return jsonResult20;
                 }
                 finally
                 {
@@ -240,30 +290,30 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                     principalAccessor.Current = null;
                 }
             }
-        }).RequireCors("sereinflow-mcp");
-
-        return new CompositeEndpointConventionBuilder(getEndpoint, deleteEndpoint, postEndpoint);
+        });
+        var postEndpoint = mapPostResult.RequireCors("sereinflow-mcp");
+        var compositeEndpointConventionBuilder = new CompositeEndpointConventionBuilder(getEndpoint, deleteEndpoint, postEndpoint);
+        return compositeEndpointConventionBuilder;
     }
 
-    private static async Task<McpPrincipal?> AuthenticateAsync(
-        HttpContext context,
-        McpSecurityService security,
-        CancellationToken cancellationToken)
+    private static async Task<McpPrincipal?> AuthenticateAsync(HttpContext context, McpSecurityService security, CancellationToken cancellationToken)
     {
         var header = context.Request.Headers["Authorization"].FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(header)
-            || !header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(header) || !header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
             return null;
+        }
+
         var secret = header["Bearer ".Length..].Trim();
-        return await security.AuthenticateAsync(secret, cancellationToken);
+        var authenticateAsyncResult = await security.AuthenticateAsync(secret, cancellationToken);
+        return authenticateAsyncResult;
     }
 
     private static IResult Unauthorized(HttpContext context)
     {
         context.Response.Headers.WWWAuthenticate = "Bearer";
-        return Results.Json(
-            new { error = new { code = McpErrorCodes.Unauthenticated, message = "MCP authentication is required." } },
-            statusCode: StatusCodes.Status401Unauthorized);
+        var jsonResult21 = Results.Json(new { error = new { code = McpErrorCodes.Unauthenticated, message = "MCP authentication is required." } }, statusCode: StatusCodes.Status401Unauthorized);
+        return jsonResult21;
     }
 
     private static async Task<string> ReadBodyAsync(Stream body, long maxBytes, CancellationToken cancellationToken)
@@ -273,15 +323,26 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
         long total = 0;
         while (true)
         {
-            var read = await body.ReadAsync(chunk.AsMemory(), cancellationToken);
+            var asMemoryResult = chunk.AsMemory();
+            var read = await body.ReadAsync(asMemoryResult, cancellationToken);
             if (read == 0)
+            {
                 break;
+            }
+
             total += read;
             if (total > maxBytes)
+            {
                 throw new InvalidOperationException("The MCP request body is too large.");
-            await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken);
+            }
+
+            var asMemoryResult22 = chunk.AsMemory(0, read);
+            await buffer.WriteAsync(asMemoryResult22, cancellationToken);
         }
-        return Encoding.UTF8.GetString(buffer.ToArray());
+
+        var toArrayResult = buffer.ToArray();
+        var getStringResult = Encoding.UTF8.GetString(toArrayResult);
+        return getStringResult;
     }
 
     private static string? TryGetMethod(string body)
@@ -289,10 +350,8 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
         try
         {
             using var document = JsonDocument.Parse(body);
-            return document.RootElement.TryGetProperty("method", out var method)
-                && method.ValueKind == JsonValueKind.String
-                ? method.GetString()
-                : null;
+            string? evaluatedValue23 = document.RootElement.TryGetProperty("method", out var method) && method.ValueKind == JsonValueKind.String ? method.GetString() : null;
+            return evaluatedValue23;
         }
         catch (JsonException)
         {
@@ -303,7 +362,6 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
     private sealed class CompositeEndpointConventionBuilder : IEndpointConventionBuilder
     {
         private readonly IEndpointConventionBuilder[] _builders;
-
         public CompositeEndpointConventionBuilder(params IEndpointConventionBuilder[] builders)
         {
             _builders = builders;
@@ -313,7 +371,9 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
         {
             ArgumentNullException.ThrowIfNull(convention);
             foreach (var builder in _builders)
+            {
                 builder.Add(convention);
+            }
         }
     }
 }

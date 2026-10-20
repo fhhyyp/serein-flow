@@ -1,7 +1,6 @@
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application.Persistence;
-
 /// <summary>
 /// Persists an upgrade preview and atomically creates the next flow version,
 /// target project reference, removes an unused source project reference,
@@ -13,28 +12,12 @@ namespace SereinFlow.Application.Persistence;
 /// </summary>
 public interface IFlowLibraryUpgradeStore
 {
-    Task<LibraryUpgradePlanDto> SavePlanAsync(
-        LibraryUpgradePlanDto plan,
-        CancellationToken cancellationToken = default);
-
-    Task<LibraryUpgradePlanDto?> FindPlanAsync(
-        Guid projectId,
-        Guid planId,
-        CancellationToken cancellationToken = default);
-
-    Task<FlowLibraryUpgradeCommitResult> CommitAsync(
-        Guid projectId,
-        Guid planId,
-        FlowDefinitionDto upgradedDefinition,
-        long expectedVersion,
-        string targetArtifactId,
-        LibraryUpgradePlanFlowResultDto? appliedFlow = null,
-        CancellationToken cancellationToken = default);
+    Task<LibraryUpgradePlanDto> SavePlanAsync(LibraryUpgradePlanDto plan, CancellationToken cancellationToken = default);
+    Task<LibraryUpgradePlanDto?> FindPlanAsync(Guid projectId, Guid planId, CancellationToken cancellationToken = default);
+    Task<FlowLibraryUpgradeCommitResult> CommitAsync(Guid projectId, Guid planId, FlowDefinitionDto upgradedDefinition, long expectedVersion, string targetArtifactId, LibraryUpgradePlanFlowResultDto? appliedFlow = null, CancellationToken cancellationToken = default);
 }
 
-public sealed record FlowLibraryUpgradeCommitResult(
-    FlowDefinitionDto? Definition,
-    long? CurrentVersion = null)
+public sealed record FlowLibraryUpgradeCommitResult(FlowDefinitionDto? Definition, long? CurrentVersion = null)
 {
     public bool IsCommitted => Definition is not null;
 }

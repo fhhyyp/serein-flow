@@ -1,19 +1,13 @@
-import assert from 'node:assert/strict'
-import test from 'node:test'
-import { normalizeBreakpointNodeIds } from '../src/flow/debugBreakpoints.ts'
-
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { normalizeBreakpointNodeIds } from '../src/flow/debugBreakpoints.ts';
 test('debug breakpoints are sorted, de-duplicated, and constrained to current flow nodes', () => {
-  const normalized = normalizeBreakpointNodeIds(
-    [' node-b ', 'node-a', 'node-b', '', 'removed-node'],
-    new Set(['node-a', 'node-b']),
-  )
-
-  assert.deepEqual(normalized, ['node-a', 'node-b'])
-})
-
+  const argumentValue: readonly string[] = [' node-b ', 'node-a', 'node-b', '', 'removed-node'];
+  const setInstance: ReadonlySet<string> | undefined = new Set(['node-a', 'node-b']);
+  const normalized = normalizeBreakpointNodeIds(argumentValue, setInstance);
+  assert.deepEqual(normalized, ['node-a', 'node-b']);
+});
 test('debug breakpoint normalization retains all valid node IDs when no flow filter is supplied', () => {
-  assert.deepEqual(
-    normalizeBreakpointNodeIds(['node-c', 'node-a', 'node-c']),
-    ['node-a', 'node-c'],
-  )
-})
+  const normalizeBreakpointNodeIdsResult = normalizeBreakpointNodeIds(['node-c', 'node-a', 'node-c']);
+  assert.deepEqual(normalizeBreakpointNodeIdsResult, ['node-a', 'node-c']);
+});

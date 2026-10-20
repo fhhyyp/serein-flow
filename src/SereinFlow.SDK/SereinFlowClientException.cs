@@ -1,23 +1,10 @@
 using System.Text.Json;
 
 namespace SereinFlow.Client;
-
-public sealed record SereinFlowApiError(
-    int StatusCode,
-    string? Code,
-    string? Title,
-    string? Detail,
-    string? Instance,
-    IReadOnlyDictionary<string, JsonElement> Extensions);
-
+public sealed record SereinFlowApiError(int StatusCode, string? Code, string? Title, string? Detail, string? Instance, IReadOnlyDictionary<string, JsonElement> Extensions);
 public class SereinFlowClientException : Exception
 {
-    public SereinFlowClientException(
-        int statusCode,
-        Uri requestUri,
-        SereinFlowApiError error,
-        string? responseBody = null)
-        : base(error.Detail ?? error.Title ?? $"SereinFlow request failed with status {statusCode}.")
+    public SereinFlowClientException(int statusCode, Uri requestUri, SereinFlowApiError error, string? responseBody = null) : base(error.Detail ?? error.Title ?? $"SereinFlow request failed with status {statusCode}.")
     {
         StatusCode = statusCode;
         RequestUri = requestUri;
@@ -26,23 +13,15 @@ public class SereinFlowClientException : Exception
     }
 
     public int StatusCode { get; }
-
     public Uri RequestUri { get; }
-
     public SereinFlowApiError Error { get; }
-
     public string? Code => Error.Code;
-
     public string? ResponseBody { get; }
 }
 
 public sealed class SereinFlowClientTimeoutException : TimeoutException
 {
-    public SereinFlowClientTimeoutException(
-        Guid resourceId,
-        TimeSpan timeout,
-        object? lastKnownState)
-        : base($"SereinFlow resource '{resourceId:D}' did not complete within {timeout}.")
+    public SereinFlowClientTimeoutException(Guid resourceId, TimeSpan timeout, object? lastKnownState) : base($"SereinFlow resource '{resourceId:D}' did not complete within {timeout}.")
     {
         ResourceId = resourceId;
         Timeout = timeout;
@@ -50,8 +29,6 @@ public sealed class SereinFlowClientTimeoutException : TimeoutException
     }
 
     public Guid ResourceId { get; }
-
     public TimeSpan Timeout { get; }
-
     public object? LastKnownState { get; }
 }

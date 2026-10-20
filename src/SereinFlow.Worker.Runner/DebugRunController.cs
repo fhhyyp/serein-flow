@@ -3,7 +3,6 @@ using SereinFlow.Runtime;
 using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Worker.Runner;
-
 internal sealed class DebugRunController
 {
     private readonly Guid _runId;
@@ -11,14 +10,11 @@ internal sealed class DebugRunController
     private readonly object _sync = new();
     private DebugExecutionGate? _gate;
     private long _lastCommandSequence;
-
     public DebugRunController(Guid runId, WorkerDebugOptionsDto options)
     {
         if (options.DebugSessionId == Guid.Empty)
         {
-            throw new ArgumentException(
-                "The debug session ID cannot be empty. 调试会话 ID 不能为空。",
-                nameof(options));
+            throw new ArgumentException("The debug session ID cannot be empty. 调试会话 ID 不能为空。", nameof(options));
         }
 
         _runId = runId;
@@ -29,38 +25,53 @@ internal sealed class DebugRunController
     {
         var gate = new DebugExecutionGate(_options.BreakpointNodeIds, (boundary, token) =>
         {
-            var pause = new WorkerDebugPauseDto(
-                _options.DebugSessionId,
-                boundary.RunId,
-                boundary.NodeId,
-                boundary.NodeType.ToString(),
-                boundary.Step,
-                boundary.Inputs,
-                boundary.FrameDepth,
-                boundary.InvocationId,
-                boundary.ExecutionId);
-            return publisher.PublishDebugPausedAsync(pause, session.NextSequence(), token);
+            var toStringResult = boundary.NodeType.ToString();
+            var pause = new WorkerDebugPauseDto(_options.DebugSessionId, boundary.RunId, boundary.NodeId, toStringResult, boundary.Step, boundary.Inputs, boundary.FrameDepth, boundary.InvocationId, boundary.ExecutionId);
+            var nextSequenceResult = session.NextSequence();
+            var publishDebugPausedAsyncResult = publisher.PublishDebugPausedAsync(pause, nextSequenceResult, token);
+            return publishDebugPausedAsyncResult;
         });
         lock (_sync)
+        {
             _gate = gate;
+        }
+
         return gate;
     }
 
     public bool TryContinue(WorkerDebugCommandDto command)
-        => TryApply(command, static gate => gate.TryContinue());
+    {
+        var tryApplyResult = TryApply(command, static gate =>
+        {
+            var tryContinueResult = gate.TryContinue();
+            return tryContinueResult;
+        });
+        return tryApplyResult;
+    }
 
     public bool TryStep(WorkerDebugCommandDto command)
-        => TryApply(command, static gate => gate.TryStep());
+    {
+        var tryApplyResult1 = TryApply(command, static gate =>
+        {
+            var tryStepResult = gate.TryStep();
+            return tryStepResult;
+        });
+        return tryApplyResult1;
+    }
 
     public bool TryStop(WorkerDebugCommandDto command)
     {
         if (!IsValidCommand(command))
+        {
             return false;
+        }
 
         lock (_sync)
         {
             if (command.CommandSequence <= _lastCommandSequence)
+            {
                 return false;
+            }
 
             // A listener may be blocked in WaitForTriggerAsync and have no
             // current boundary. Stop still needs to cancel that wait.
@@ -73,24 +84,26 @@ internal sealed class DebugRunController
     private bool TryApply(WorkerDebugCommandDto command, Func<DebugExecutionGate, bool> apply)
     {
         if (!IsValidCommand(command))
+        {
             return false;
+        }
 
         lock (_sync)
         {
             if (command.CommandSequence <= _lastCommandSequence || _gate is null)
+            {
                 return false;
+            }
 
             if (!apply(_gate))
+            {
                 return false;
+            }
 
             _lastCommandSequence = command.CommandSequence;
             return true;
         }
     }
 
-    private bool IsValidCommand(WorkerDebugCommandDto command)
-        => command.ProtocolVersion == WorkerProtocolConstants.Version
-           && command.RunId == _runId
-           && command.DebugSessionId == _options.DebugSessionId
-           && command.CommandSequence >= 1;
+    private bool IsValidCommand(WorkerDebugCommandDto command) => command.ProtocolVersion == WorkerProtocolConstants.Version && command.RunId == _runId && command.DebugSessionId == _options.DebugSessionId && command.CommandSequence >= 1;
 }

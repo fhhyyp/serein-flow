@@ -1,48 +1,22 @@
-import { MarkerType } from '@vue-flow/core'
-import type {
-  ApiCanvasLifecycle,
-  ApiDataSource,
-  ApiNodeType,
-  CanvasDto,
-  ConnectionDto,
-  FlowDefinitionDto,
-  NodeDto,
-  NodeParameterDto,
-  NodePortDto,
-  ScriptNodeDataDto,
-} from '../api/flowApi'
-import type {
-  CanvasLifecycle,
-  CanvasState,
-  ConnectionSemantic,
-  FlowEdge,
-  FlowNode,
-  MethodParameter,
-  NodeKind,
-  NodeStatus,
-  ParameterInputMode,
-  ParameterSource,
-  ScriptNodeData,
-} from './types'
-import { allNodeKinds } from './nodeCatalog.ts'
-import { connectionLineStyleFor, defaultConnectionLineTypes, normalizeConnectionLineTypes } from './connectionLine.ts'
-import { defaultCanvasFocusSettings, normalizeCanvasFocusSettings } from './canvasFocus.ts'
-import { canonicalParameterId, executionBranchFromHandle, parameterHandleFor } from './connectionSeats.ts'
-import type { WorkspaceSnapshot } from './workspaceHistory'
-
+import { MarkerType } from '@vue-flow/core';
+import type { ApiCanvasLifecycle, ApiDataSource, ApiNodeType, CanvasDto, ConnectionDto, FlowDefinitionDto, NodeDto, NodeParameterDto, NodePortDto, ScriptNodeDataDto, } from '../api/flowApi';
+import type { CanvasLifecycle, CanvasState, ConnectionSemantic, FlowEdge, FlowNode, MethodParameter, NodeKind, NodeStatus, ParameterInputMode, ParameterSource, ScriptNodeData, } from './types';
+import { allNodeKinds } from './nodeCatalog.ts';
+import { connectionLineStyleFor, defaultConnectionLineTypes, normalizeConnectionLineTypes } from './connectionLine.ts';
+import { defaultCanvasFocusSettings, normalizeCanvasFocusSettings } from './canvasFocus.ts';
+import { canonicalParameterId, executionBranchFromHandle, parameterHandleFor } from './connectionSeats.ts';
+import type { WorkspaceSnapshot } from './workspaceHistory';
 export interface FlowIdentity {
-  id: string
-  version: number
+  id: string;
+  version: number;
 }
-
-const lifecycleValues: CanvasLifecycle[] = ['main', 'init', 'loading', 'exit', 'custom']
-const nodeKinds: NodeKind[] = [...allNodeKinds]
-const nodeStatuses: NodeStatus[] = ['idle', 'running', 'success', 'failed', 'error', 'ready', 'active']
-const parameterSources: ParameterSource[] = ['literal', 'previousNode', 'projectInput', 'expression']
-const parameterInputModes: ParameterInputMode[] = ['connection', 'manual', 'select']
-
+const lifecycleValues: CanvasLifecycle[] = ['main', 'init', 'loading', 'exit', 'custom'];
+const nodeKinds: NodeKind[] = [...allNodeKinds];
+const nodeStatuses: NodeStatus[] = ['idle', 'running', 'success', 'failed', 'error', 'ready', 'active'];
+const parameterSources: ParameterSource[] = ['literal', 'previousNode', 'projectInput', 'expression'];
+const parameterInputModes: ParameterInputMode[] = ['connection', 'manual', 'select'];
 export function workspaceToFlowDefinition(snapshot: WorkspaceSnapshot, identity: FlowIdentity): FlowDefinitionDto {
-  return {
+  const evaluatedValue: FlowDefinitionDto = {
     id: identity.id,
     schemaVersion: 5,
     version: identity.version,
@@ -66,16 +40,16 @@ export function workspaceToFlowDefinition(snapshot: WorkspaceSnapshot, identity:
         callees: snapshot.canvasFocusSettings?.callees ?? defaultCanvasFocusSettings.callees,
       },
     },
-  }
+  };
+  return evaluatedValue;
 }
-
 export function flowDefinitionToWorkspace(definition: FlowDefinitionDto, preferredActiveCanvasId?: string): WorkspaceSnapshot {
-  const canvases = definition.canvases.map(toCanvasState)
-  const defaultActiveCanvasId = canvases.find((canvas) => canvas.lifecycle === 'main')?.id ?? canvases[0]?.id ?? 'main'
+  const canvases = definition.canvases.map(toCanvasState);
+  const defaultActiveCanvasId = canvases.find((canvas) => canvas.lifecycle === 'main')?.id ?? canvases[0]?.id ?? 'main';
   const activeCanvasId = preferredActiveCanvasId && canvases.some((canvas) => canvas.id === preferredActiveCanvasId)
     ? preferredActiveCanvasId
-    : defaultActiveCanvasId
-  return {
+    : defaultActiveCanvasId;
+  const evaluatedValue1: WorkspaceSnapshot = {
     canvases,
     activeCanvasId,
     nextNodeNumber: getNextNodeNumber(canvases),
@@ -83,22 +57,22 @@ export function flowDefinitionToWorkspace(definition: FlowDefinitionDto, preferr
     connectionLineTypes: normalizeConnectionLineTypes(definition.ui?.connectionLineTypes),
     canvasFocusSettings: normalizeCanvasFocusSettings(definition.ui?.canvasFocusSettings),
     runPolicy: definition.runPolicy ?? { concurrencyMode: 'parallel' },
-  }
+  };
+  return evaluatedValue1;
 }
-
 function toCanvasDto(canvas: CanvasState): CanvasDto {
-  return {
+  const evaluatedValue2: CanvasDto = {
     id: canvas.id,
     lifecycle: canvas.lifecycle,
     nodes: canvas.nodes.map(toNodeDto),
     connections: canvas.edges.map(toConnectionDto),
     name: canvas.name,
-  }
+  };
+  return evaluatedValue2;
 }
-
 function toNodeDto(node: FlowNode): NodeDto {
-  const hasDataOutput = exposesDataOutput(node)
-  return {
+  const hasDataOutput = exposesDataOutput(node);
+  const evaluatedValue3: NodeDto = {
     id: node.id,
     type: toApiNodeType(node.data.kind),
     displayName: node.data.displayName?.trim() || node.data.titleKey,
@@ -133,26 +107,26 @@ function toNodeDto(node: FlowNode): NodeDto {
       flowCallParameterBindings: node.data.runtime?.flowCallParameterBindings,
       libraryNodeContractId: node.data.runtime?.libraryNodeContractId,
     },
-  }
+  };
+  return evaluatedValue3;
 }
-
 function createPorts(node: FlowNode): NodePortDto[] {
-  const ports: NodePortDto[] = []
-  ports.push({ id: 'exec-in', name: 'Execution input', direction: 'input', required: false })
-  ports.push({ id: 'exec-success', name: 'Success', direction: 'output', required: false })
-  ports.push({ id: 'exec-failure', name: 'Failure', direction: 'output', required: false })
-  ports.push({ id: 'exec-error', name: 'Error', direction: 'output', required: false })
+  const ports: NodePortDto[] = [];
+  ports.push({ id: 'exec-in', name: 'Execution input', direction: 'input', required: false });
+  ports.push({ id: 'exec-success', name: 'Success', direction: 'output', required: false });
+  ports.push({ id: 'exec-failure', name: 'Failure', direction: 'output', required: false });
+  ports.push({ id: 'exec-error', name: 'Error', direction: 'output', required: false });
   if (exposesDataOutput(node)) {
-    ports.push({ id: 'data-out', name: 'Data output', direction: 'output', required: false })
+    ports.push({ id: 'data-out', name: 'Data output', direction: 'output', required: false });
   }
   for (const parameter of node.data.parameters) {
-    ports.push({ id: parameterHandleFor(parameter.id), name: parameter.id, direction: 'input', required: false })
+    const evaluatedValue4: NodePortDto = { id: parameterHandleFor(parameter.id), name: parameter.id, direction: 'input', required: false };
+    ports.push(evaluatedValue4);
   }
-  return ports
+  return ports;
 }
-
 function toParameterDto(parameter: MethodParameter): NodeParameterDto {
-  return {
+  const evaluatedValue5: NodeParameterDto = {
     // The API/Worker name must remain the reflected method parameter name
     // (for example `left`), while `id` is only the stable canvas connector
     // identifier (for example `1`). Mixing the two makes the Worker unable
@@ -180,44 +154,53 @@ function toParameterDto(parameter: MethodParameter): NodeParameterDto {
       variadicMode: parameter.variadicMode,
       enumMetadata: parameter.enumMetadata,
     },
-  }
+  };
+  return evaluatedValue5;
 }
-
 function toConnectionDto(edge: FlowEdge): ConnectionDto {
-  return {
+  const resolveExecutionHandleForBranchResult = () => {
+    const evaluatedValue20: "success" | "failure" | "error" | undefined = edge.data.branch ?? executionBranchFromHandle(edge.sourceHandle);
+    const executionHandleForBranchResult: string = executionHandleForBranch(evaluatedValue20);
+    return executionHandleForBranchResult;
+  };
+  const resolveCanonicalParameterIdResult = () => {
+    const evaluatedValue21: string = edge.data.targetParameterId ?? edge.targetHandle?.replace(/^param-/, '') ?? 'input';
+    const canonicalParameterIdResult: string = canonicalParameterId(evaluatedValue21);
+    return canonicalParameterIdResult;
+  };
+  const evaluatedValue6: ConnectionDto = {
     id: edge.id,
     fromNodeId: edge.source,
     fromPortId: edge.data.semantic === 'execution'
-      ? executionHandleForBranch(edge.data.branch ?? executionBranchFromHandle(edge.sourceHandle))
-      : (edge.sourceHandle ?? 'data-out'),
+      ? resolveExecutionHandleForBranchResult() : (edge.sourceHandle ?? 'data-out'),
     toNodeId: edge.target,
     toPortId: edge.data.semantic === 'execution'
       ? (edge.targetHandle ?? 'exec-in')
-      : canonicalParameterId(edge.data.targetParameterId ?? edge.targetHandle?.replace(/^param-/, '') ?? 'input'),
+      : resolveCanonicalParameterIdResult(),
     kind: edge.data.semantic === 'execution' ? 'execution' : 'data',
     branch: edge.data.semantic === 'execution' ? (edge.data.branch ?? executionBranchFromHandle(edge.sourceHandle)) : undefined,
     dataSource: edge.data.semantic === 'data' ? 'previousNode' : undefined,
     priority: 0,
-  }
+  };
+  return evaluatedValue6;
 }
-
 function toCanvasState(canvas: CanvasDto): CanvasState {
-  const lifecycle = isLifecycle(canvas.lifecycle) ? canvas.lifecycle : 'main'
-  return {
+  const lifecycle = isLifecycle(canvas.lifecycle) ? canvas.lifecycle : 'main';
+  const evaluatedValue7: CanvasState = {
     id: canvas.id,
     lifecycle,
     nameKey: `canvas.${lifecycle}`,
     name: canvas.name?.trim() || undefined,
     nodes: canvas.nodes.map(toFlowNode),
     edges: canvas.connections.map(toFlowEdge),
-  }
+  };
+  return evaluatedValue7;
 }
-
 function toFlowNode(node: NodeDto): FlowNode {
-  const kind = normalizeNodeKind(node.ui?.kind) ?? fromApiNodeType(node.type)
-  const titleKey = node.ui?.titleKey || `node.kind.${kind}`
-  const runtime = toRuntimeMetadata(node)
-  return {
+  const kind = normalizeNodeKind(node.ui?.kind) ?? fromApiNodeType(node.type);
+  const titleKey = node.ui?.titleKey || `node.kind.${kind}`;
+  const runtime = toRuntimeMetadata(node);
+  const evaluatedValue8: FlowNode = {
     id: node.id,
     type: 'workflow',
     position: { x: node.x, y: node.y },
@@ -230,18 +213,21 @@ function toFlowNode(node: NodeDto): FlowNode {
       description: node.ui?.description,
       status: normalizeNodeStatus(node.ui?.status),
       hasDataOutput: hasDataOutputFromDto(node),
-      parameters: node.parameters.map((parameter) => toMethodParameter(parameter, node.ui?.category === 'method')),
+      parameters: node.parameters.map((parameter) => {
+        const toMethodParameterResult: MethodParameter = toMethodParameter(parameter, node.ui?.category === 'method');
+        return toMethodParameterResult;
+      }),
       script: node.script ? toScriptData(node.script) : undefined,
       runtime,
     },
-  }
+  };
+  return evaluatedValue8;
 }
-
 function toMethodParameter(parameter: NodeParameterDto, isMethodNode: boolean): MethodParameter {
-  const source = isParameterSource(parameter.source) ? parameter.source : 'literal'
-  const reflectedName = parameter.name?.trim()
-  const uiName = parameter.ui?.nameKey?.trim()
-  return {
+  const source = isParameterSource(parameter.source) ? parameter.source : 'literal';
+  const reflectedName = parameter.name?.trim();
+  const uiName = parameter.ui?.nameKey?.trim();
+  const evaluatedValue9: MethodParameter = {
     id: canonicalParameterId(parameter.ui?.id || parameter.name),
     nameKey: uiName || reflectedName,
     valueKind: parameter.ui?.valueKind || 'JSON',
@@ -265,9 +251,9 @@ function toMethodParameter(parameter: NodeParameterDto, isMethodNode: boolean): 
     elementType: parameter.ui?.elementType,
     variadicMode: parameter.ui?.variadicMode,
     enumMetadata: parameter.ui?.enumMetadata,
-  }
+  };
+  return evaluatedValue9;
 }
-
 function toScriptDto(script: ScriptNodeData): ScriptNodeDataDto {
   return {
     nodeId: script.nodeId,
@@ -276,9 +262,8 @@ function toScriptDto(script: ScriptNodeData): ScriptNodeDataDto {
     sourceHash: script.sourceHash,
     inputs: script.inputs,
     outputs: script.outputs,
-  }
+  };
 }
-
 function toScriptData(script: ScriptNodeDataDto): ScriptNodeData {
   return {
     nodeId: script.nodeId,
@@ -287,18 +272,17 @@ function toScriptData(script: ScriptNodeDataDto): ScriptNodeData {
     sourceHash: script.sourceHash,
     inputs: script.inputs,
     outputs: script.outputs,
-  }
+  };
 }
-
 function toFlowEdge(connection: ConnectionDto): FlowEdge {
-  const semantic: ConnectionSemantic = connection.kind === 'execution' ? 'execution' : 'data'
-  const isExecution = semantic === 'execution'
+  const semantic: ConnectionSemantic = connection.kind === 'execution' ? 'execution' : 'data';
+  const isExecution = semantic === 'execution';
   if (isExecution && !connection.branch) {
-    throw new Error('Execution connections must declare Success, Failure, or Error. 流程连接必须声明 Success、Failure 或 Error 分支。')
+    throw new Error('Execution connections must declare Success, Failure, or Error. 流程连接必须声明 Success、Failure 或 Error 分支。');
   }
-  const branch = isExecution ? connection.branch : undefined
-  const lineType = connectionLineStyleFor(semantic).lineType
-  return {
+  const branch = isExecution ? connection.branch : undefined;
+  const lineType = connectionLineStyleFor(semantic).lineType;
+  const evaluatedValue10: FlowEdge = {
     id: connection.id,
     source: connection.fromNodeId,
     target: connection.toNodeId,
@@ -320,65 +304,56 @@ function toFlowEdge(connection: ConnectionDto): FlowEdge {
     ariaLabel: isExecution
       ? `Flow scheduling connection · ${branch} branch`
       : 'Parameter source connection',
-  }
+  };
+  return evaluatedValue10;
 }
-
 function executionHandleForBranch(branch: 'success' | 'failure' | 'error' | undefined): string {
   if (!branch) {
-    throw new Error('Execution connections must declare Success, Failure, or Error. 流程连接必须声明 Success、Failure 或 Error 分支。')
+    throw new Error('Execution connections must declare Success, Failure, or Error. 流程连接必须声明 Success、Failure 或 Error 分支。');
   }
-
-  return `exec-${branch}`
+  return `exec-${branch}`;
 }
-
 function executionBranchColor(branch: 'success' | 'failure' | 'error' | undefined): string {
-  return branch === 'failure' ? '#b45309' : branch === 'error' ? '#dc2626' : '#15803d'
+  return branch === 'failure' ? '#b45309' : branch === 'error' ? '#dc2626' : '#15803d';
 }
-
 function toApiNodeType(kind: NodeKind): ApiNodeType {
-  return kind
+  return kind;
 }
-
 function fromApiNodeType(type: ApiNodeType): NodeKind {
-  return type
+  return type;
 }
-
 function exposesDataOutput(node: FlowNode): boolean {
-  const returnType = node.data.runtime?.returnType?.trim()
+  const returnType = node.data.runtime?.returnType?.trim();
   if (returnType) {
-    return returnType.toLowerCase() !== 'void'
+    const evaluatedValue11: boolean = returnType.toLowerCase() !== 'void';
+    return evaluatedValue11;
   }
-
-  return node.data.hasDataOutput
+  return node.data.hasDataOutput;
 }
-
 function hasDataOutputFromDto(node: NodeDto): boolean {
-  const returnType = node.ui?.returnType?.trim()
+  const returnType = node.ui?.returnType?.trim();
   if (returnType) {
-    return returnType.toLowerCase() !== 'void'
+    const evaluatedValue12: boolean = returnType.toLowerCase() !== 'void';
+    return evaluatedValue12;
   }
-
   if (node.ui?.hasDataOutput !== undefined) {
-    return node.ui.hasDataOutput
+    return node.ui.hasDataOutput;
   }
-
   // Older documents omitted UI metadata. An explicit result port is the
   // strongest signal; an empty port collection falls back to the old default.
   // 旧文档可能没有 UI 元数据；显式结果端口优先级最高，空端口集合回退到旧默认值。
   if (node.ports.length > 0) {
-    return node.ports.some((port) => port.id === 'data-out' || port.id === 'result')
+    const someResult: boolean = node.ports.some((port) => port.id === 'data-out' || port.id === 'result');
+    return someResult;
   }
-
-  return true
+  return true;
 }
-
 function toRuntimeMetadata(node: NodeDto) {
-  const ui = node.ui
+  const ui = node.ui;
   if (!ui || [ui.category, ui.libraryId, ui.flowLibraryName, ui.className, ui.methodName, ui.dllName, ui.dllVersion, ui.returnType, ui.targetNodeId, ui.targetFlowId, ui.isAwaitable, ui.staticReturnType, ui.isDynamicReturnType, ui.targetCanvasId, ui.isPublic, ui.flowCallParameterBindings, ui.libraryNodeContractId].every((value) => value === undefined)) {
-    return undefined
+    return undefined;
   }
-
-  return {
+  const evaluatedValue13 = {
     category: isNodeCategory(ui.category) ? ui.category : undefined,
     libraryId: ui.libraryId,
     flowLibraryName: ui.flowLibraryName,
@@ -396,57 +371,66 @@ function toRuntimeMetadata(node: NodeDto) {
     isPublic: ui.isPublic,
     flowCallParameterBindings: ui.flowCallParameterBindings,
     libraryNodeContractId: ui.libraryNodeContractId,
-  }
+  };
+  return evaluatedValue13;
 }
-
 function getNextNodeNumber(canvases: CanvasState[]): number {
-  const highest = canvases.flatMap((canvas) => canvas.nodes)
-    .map((node) => Number(node.id.match(/-(\d+)$/)?.[1] ?? 0))
-    .reduce((maximum, value) => Math.max(maximum, value), 0)
-  return highest + 1
+  const flatMapResult = canvases.flatMap((canvas) => canvas.nodes);
+  const mapResult = flatMapResult.map((node) => {
+    const evaluatedValue14 = node.id.match(/-(\d+)$/)?.[1] ?? 0;
+    const numberResult: number = Number(evaluatedValue14);
+    return numberResult;
+  });
+  const highest = mapResult.reduce((maximum, value) => {
+    const maxResult: number = Math.max(maximum, value);
+    return maxResult;
+  }, 0);
+  return highest + 1;
 }
-
 function isLifecycle(value: ApiCanvasLifecycle): value is CanvasLifecycle {
-  return lifecycleValues.includes(value as CanvasLifecycle)
+  const includesResult: boolean = lifecycleValues.includes(value as CanvasLifecycle);
+  return includesResult;
 }
-
 function isNodeKind(value: string | undefined): value is NodeKind {
-  return value !== undefined && nodeKinds.includes(value as NodeKind)
+  const evaluatedValue15: boolean = value !== undefined && nodeKinds.includes(value as NodeKind);
+  return evaluatedValue15;
 }
-
 function normalizeNodeKind(value: string | undefined): NodeKind | undefined {
   if (!value) {
-    return undefined
+    return undefined;
   }
-
   if (isNodeKind(value)) {
-    return value
+    return value;
   }
-
-  const normalized = value.toLowerCase()
-  return nodeKinds.find((kind) => kind.toLowerCase() === normalized)
+  const normalized = value.toLowerCase();
+  const findResult: import("./types").ReferenceNodeKind | undefined = nodeKinds.find((kind) => {
+    const evaluatedValue16: boolean = kind.toLowerCase() === normalized;
+    return evaluatedValue16;
+  });
+  return findResult;
 }
-
 function isNodeStatus(value: string | undefined): value is NodeStatus {
-  return value !== undefined && nodeStatuses.includes(value as NodeStatus)
+  const evaluatedValue17: boolean = value !== undefined && nodeStatuses.includes(value as NodeStatus);
+  return evaluatedValue17;
 }
-
 function normalizeNodeStatus(value: string | undefined): NodeStatus {
-  const normalized = value?.trim().toLowerCase()
-  return isNodeStatus(normalized) ? normalized : 'ready'
+  const trimmedValue = value?.trim();
+  const normalized = trimmedValue?.toLowerCase();
+  const evaluatedValue18: NodeStatus = isNodeStatus(normalized) ? normalized : 'ready';
+  return evaluatedValue18;
 }
-
 function isNodeCategory(value: string | undefined): value is 'method' | 'basic' {
-  return value === 'method' || value === 'basic'
+  return value === 'method' || value === 'basic';
 }
-
 function normalizeParameterInputMode(value: string | undefined): ParameterInputMode | undefined {
-  const normalized = value?.trim().toLowerCase()
-  return normalized !== undefined && parameterInputModes.includes(normalized as ParameterInputMode)
+  const trimmedValue = value?.trim();
+  const normalized = trimmedValue?.toLowerCase();
+  const evaluatedValue19: ParameterInputMode | undefined = normalized !== undefined && parameterInputModes.includes(normalized as ParameterInputMode)
     ? normalized as ParameterInputMode
-    : undefined
+    : undefined;
+  return evaluatedValue19;
 }
-
 function isParameterSource(value: ApiDataSource): value is ParameterSource {
-  return parameterSources.includes(value as ParameterSource)
+  const includesResult1: boolean = parameterSources.includes(value as ParameterSource);
+  return includesResult1;
 }

@@ -3,38 +3,34 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Application.Tests;
-
 public sealed class FlowDefinitionValidationTests
 {
     [Fact]
     public void ScriptNormalizationDerivesHashFromSourceInsteadOfClientMetadata()
     {
         const string source = "return 1";
-        var node = new NodeDto(
-            "script-node", NodeTypeDto.Script, "Script", 0, 0, [], [],
-            new ScriptNodeDataDto("script-node", source, "0.1", "stale-source-hash", [], []));
-        var definition = new FlowDefinitionDto(
-            Guid.NewGuid(), FlowDefinition.CurrentSchemaVersion, 1,
-            [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])],
-            node.Id, string.Empty);
-
+        var scriptNodeDataDto = new ScriptNodeDataDto("script-node", source, "0.1", "stale-source-hash", [], []);
+        var node = new NodeDto("script-node", NodeTypeDto.Script, "Script", 0, 0, [], [], scriptNodeDataDto);
+        var newGuidResult = Guid.NewGuid();
+        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue = [new CanvasDto("main", CanvasLifecycleDto.Main, [node], [])];
+        var definition = new FlowDefinitionDto(newGuidResult, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue, node.Id, string.Empty);
         var normalized = FlowDefinitionContractNormalizer.NormalizeForExecution(definition);
-
-        var script = Assert.Single(Assert.Single(normalized.Canvases).Nodes).Script;
+        var evaluatedValue1 = Assert.Single(normalized.Canvases).Nodes;
+        var script = Assert.Single(evaluatedValue1).Script;
         Assert.NotNull(script);
-        Assert.Equal(ScriptNodeDefinition.ComputeSourceHash(source), script.SourceHash);
-        Assert.Equal(FlowDiffService.GetChecksum(normalized), normalized.Checksum);
+        var computeSourceHashResult = ScriptNodeDefinition.ComputeSourceHash(source);
+        Assert.Equal(computeSourceHashResult, script.SourceHash);
+        var getChecksumResult = FlowDiffService.GetChecksum(normalized);
+        Assert.Equal(getChecksumResult, normalized.Checksum);
     }
 
     [Fact]
     public void BlankEditorDraftCanPersistButCannotExecute()
     {
         var definition = CreateBlankDraft();
-
         var persistence = FlowDefinitionContractValidator.ValidateForPersistence(definition);
         var normalized = FlowDefinitionContractNormalizer.NormalizeForPersistence(definition);
         var execution = FlowDefinitionContractValidator.ValidateForExecution(definition);
-
         Assert.True(persistence.IsValid);
         Assert.Same(definition, normalized);
         Assert.False(execution.IsValid);
@@ -44,8 +40,8 @@ public sealed class FlowDefinitionValidationTests
     [Fact]
     public void LegacyValidatorRemainsStrictForExecutionCallers()
     {
-        var validation = FlowDefinitionContractValidator.Validate(CreateBlankDraft());
-
+        var createBlankDraftResult = CreateBlankDraft();
+        var validation = FlowDefinitionContractValidator.Validate(createBlankDraftResult);
         Assert.False(validation.IsValid);
         Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == SereinFlow.Domain.DomainErrorCodes.UnknownEntryNode);
     }
@@ -56,12 +52,12 @@ public sealed class FlowDefinitionValidationTests
     [InlineData("Automatic, Manual", false)]
     public void KnownEnumLiteralsAreValidatedDuringPersistence(string value, bool expectedValid)
     {
-        var validation = FlowDefinitionContractValidator.ValidateForPersistence(CreateEnumDraft(value, isFlags: false));
-
+        var createEnumDraftResult = CreateEnumDraft(value, isFlags: false);
+        var validation = FlowDefinitionContractValidator.ValidateForPersistence(createEnumDraftResult);
         Assert.Equal(expectedValid, validation.IsValid);
         if (!expectedValid)
         {
-        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == SereinFlow.Domain.DomainErrorCodes.InvalidEnumLiteral);
+            Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == SereinFlow.Domain.DomainErrorCodes.InvalidEnumLiteral);
         }
     }
 
@@ -73,85 +69,74 @@ public sealed class FlowDefinitionValidationTests
     [InlineData("Execute", false)]
     public void FlagsEnumLiteralsValidateMembersAndZeroValueExclusivity(string value, bool expectedValid)
     {
-        var validation = FlowDefinitionContractValidator.ValidateForPersistence(CreateEnumDraft(value, isFlags: true));
-
+        var createEnumDraftResult2 = CreateEnumDraft(value, isFlags: true);
+        var validation = FlowDefinitionContractValidator.ValidateForPersistence(createEnumDraftResult2);
         Assert.Equal(expectedValid, validation.IsValid);
         if (!expectedValid)
         {
-        Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == SereinFlow.Domain.DomainErrorCodes.InvalidEnumLiteral);
+            Assert.Contains(validation.Diagnostics, diagnostic => diagnostic.Code == SereinFlow.Domain.DomainErrorCodes.InvalidEnumLiteral);
         }
     }
 
     [Fact]
     public void DynamicEnumSourcesRemainRuntimeValidated()
     {
-        var definition = CreateEnumDraft("not-a-member", isFlags: false) with
+        var definition = CreateEnumDraft("not-a-member", isFlags: false)with
         {
-            Canvases = [new CanvasDto(
-                "main",
-                CanvasLifecycleDto.Main,
-                [CreateEnumNode("not-a-member", isFlags: false, DataSourceDto.ProjectInput)],
-                [])],
+            Canvases = [resolveCanvasDto()],
         };
-
-        Assert.True(FlowDefinitionContractValidator.ValidateForPersistence(definition).IsValid);
+        var evaluatedValue4 = FlowDefinitionContractValidator.ValidateForPersistence(definition).IsValid;
+        Assert.True(evaluatedValue4);
+        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto()
+        {
+            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> evaluatedValue3 = [CreateEnumNode("not-a-member", isFlags: false, DataSourceDto.ProjectInput)];
+            var canvasDto = new CanvasDto("main", CanvasLifecycleDto.Main, evaluatedValue3, []);
+            return canvasDto;
+        }
     }
 
     private static FlowDefinitionDto CreateBlankDraft()
-        => new(
-            Guid.NewGuid(),
-            FlowDefinition.CurrentSchemaVersion,
-            1,
-            [new CanvasDto("main", CanvasLifecycleDto.Main, [], [])],
-            string.Empty,
-            string.Empty,
-            RunPolicy: new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel));
+    {
+        var newGuidResult5 = Guid.NewGuid();
+        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue6 = [new CanvasDto("main", CanvasLifecycleDto.Main, [], [])];
+        var flowRunPolicyDto = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
+        global::SereinFlow.Contracts.FlowDefinitionDto evaluatedValue7 = new(newGuidResult5, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue6, string.Empty, string.Empty, RunPolicy: flowRunPolicyDto);
+        return evaluatedValue7;
+    }
 
     private static FlowDefinitionDto CreateEnumDraft(string value, bool isFlags)
-        => new(
-            Guid.NewGuid(),
-            FlowDefinition.CurrentSchemaVersion,
-            1,
-            [new CanvasDto("main", CanvasLifecycleDto.Main, [CreateEnumNode(value, isFlags, DataSourceDto.Literal)], [])],
-            string.Empty,
-            string.Empty,
-            RunPolicy: new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel));
+    {
+        var newGuidResult8 = Guid.NewGuid();
+        global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.CanvasDto> evaluatedValue12 = [resolveCanvasDto9()];
+        var flowRunPolicyDto13 = new FlowRunPolicyDto(FlowConcurrencyModeDto.Parallel);
+        global::SereinFlow.Contracts.FlowDefinitionDto evaluatedValue14 = new(newGuidResult8, FlowDefinition.CurrentSchemaVersion, 1, evaluatedValue12, string.Empty, string.Empty, RunPolicy: flowRunPolicyDto13);
+        return evaluatedValue14;
+        global::SereinFlow.Contracts.CanvasDto resolveCanvasDto9()
+        {
+            global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.NodeDto> evaluatedValue10 = [CreateEnumNode(value, isFlags, DataSourceDto.Literal)];
+            var canvasDto11 = new CanvasDto("main", CanvasLifecycleDto.Main, evaluatedValue10, []);
+            return canvasDto11;
+        }
+    }
 
     private static NodeDto CreateEnumNode(string value, bool isFlags, DataSourceDto source)
     {
-        var options = isFlags
-            ? new[]
-            {
-                new EnumValueOptionDto("None", "0"),
-                new EnumValueOptionDto("Read", "1"),
-                new EnumValueOptionDto("Write", "2"),
-            }
-            : new[]
-            {
-                new EnumValueOptionDto("Automatic", "0"),
-                new EnumValueOptionDto("Manual", "1"),
-            };
-        var metadata = new EnumParameterMetadataDto(
-            isFlags ? "Tests.Access" : "Tests.Mode",
-            isFlags,
-            "System.Int32",
-            options);
-        var parameter = new NodeParameterDto(
-            "mode",
-            value,
-            source,
-            false,
-            new NodeParameterUiMetadataDto(
-                "mode",
-                "mode",
-                isFlags ? "Tests.Access" : "Tests.Mode",
-                value,
-                source == DataSourceDto.ProjectInput ? "mode" : null,
-                null,
-                null,
-                null,
-                isFlags ? "Tests.Access" : "Tests.Mode",
-                EnumMetadata: metadata));
-        return new NodeDto("enum-node", NodeTypeDto.Action, "Enum node", 0, 0, [], [parameter], null);
+        var options = isFlags ? new[]
+        {
+            new EnumValueOptionDto("None", "0"),
+            new EnumValueOptionDto("Read", "1"),
+            new EnumValueOptionDto("Write", "2"),
+        }
+
+        : new[]
+        {
+            new EnumValueOptionDto("Automatic", "0"),
+            new EnumValueOptionDto("Manual", "1"),
+        };
+        var metadata = new EnumParameterMetadataDto(isFlags ? "Tests.Access" : "Tests.Mode", isFlags, "System.Int32", options);
+        var nodeParameterUiMetadataDto = new NodeParameterUiMetadataDto("mode", "mode", isFlags ? "Tests.Access" : "Tests.Mode", value, source == DataSourceDto.ProjectInput ? "mode" : null, null, null, null, isFlags ? "Tests.Access" : "Tests.Mode", EnumMetadata: metadata);
+        var parameter = new NodeParameterDto("mode", value, source, false, nodeParameterUiMetadataDto);
+        var nodeDto = new NodeDto("enum-node", NodeTypeDto.Action, "Enum node", 0, 0, [], [parameter], null);
+        return nodeDto;
     }
 }

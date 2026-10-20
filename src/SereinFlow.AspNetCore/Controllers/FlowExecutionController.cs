@@ -3,18 +3,13 @@ using SereinFlow.Application;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.Controllers;
-
 [Route("api/projects/{projectId:guid}/flows/{flowId:guid}")]
 public sealed class FlowExecutionController : ApiControllerBase
 {
     private readonly RunSubmissionService _submissions;
     private readonly FlowDebugSessionService _debugSessions;
     private readonly SereinFlowApiAuthorizationService _authorization;
-
-    public FlowExecutionController(
-        RunSubmissionService submissions,
-        FlowDebugSessionService debugSessions,
-        SereinFlowApiAuthorizationService authorization)
+    public FlowExecutionController(RunSubmissionService submissions, FlowDebugSessionService debugSessions, SereinFlowApiAuthorizationService authorization)
     {
         _submissions = submissions;
         _debugSessions = debugSessions;
@@ -27,23 +22,18 @@ public sealed class FlowExecutionController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult> StartRun(
-        [FromRoute] Guid projectId,
-        [FromRoute] Guid flowId,
-        [FromBody] RunFlowRequestDto request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult> StartRun([FromRoute] Guid projectId, [FromRoute] Guid flowId, [FromBody] RunFlowRequestDto request, CancellationToken cancellationToken)
     {
-        var authorization = await _authorization.AuthorizeAsync(
-            HttpContext,
-            McpPermissionDto.RunExecute,
-            projectId,
-            cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunExecute, projectId, cancellationToken);
         var failure = ToAuthorizationFailure(authorization);
         if (failure is not null)
+        {
             return failure;
+        }
 
-        return ToRunSubmissionResponse(
-            await _submissions.SubmitAsync(projectId, flowId, request, cancellationToken));
+        var submitAsyncResult = await _submissions.SubmitAsync(projectId, flowId, request, cancellationToken);
+        var toRunSubmissionResponseResult = ToRunSubmissionResponse(submitAsyncResult);
+        return toRunSubmissionResponseResult;
     }
 
     [HttpPost("debug-sessions")]
@@ -51,22 +41,22 @@ public sealed class FlowExecutionController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult> StartDebugSession(
-        [FromRoute] Guid projectId,
-        [FromRoute] Guid flowId,
-        [FromBody] StartFlowDebugSessionRequestDto request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult> StartDebugSession([FromRoute] Guid projectId, [FromRoute] Guid flowId, [FromBody] StartFlowDebugSessionRequestDto request, CancellationToken cancellationToken)
     {
         var result = await _debugSessions.CreateAsync(projectId, flowId, request, cancellationToken);
         if (result.IsAccepted)
         {
-            return Accepted(
-                $"/api/debug-sessions/{result.Session!.Id:D}",
-                ApiEndpointHelpers.ToFlowDebugSessionDto(result.Session));
+            var toFlowDebugSessionDtoResult = ApiEndpointHelpers.ToFlowDebugSessionDto(result.Session);
+            var acceptedResult = Accepted($"/api/debug-sessions/{result.Session!.Id:D}", toFlowDebugSessionDtoResult);
+            return acceptedResult;
         }
 
-        return result.ErrorBody is not null
-            ? new JsonResult(result.ErrorBody) { StatusCode = result.StatusCode }
-            : ApiProblem(result.StatusCode, result.ErrorTitle);
+        global::Microsoft.AspNetCore.Mvc.ActionResult evaluatedValue = result.ErrorBody is not null ? new JsonResult(result.ErrorBody)
+        {
+            StatusCode = result.StatusCode
+        }
+
+        : ApiProblem(result.StatusCode, result.ErrorTitle);
+        return evaluatedValue;
     }
 }

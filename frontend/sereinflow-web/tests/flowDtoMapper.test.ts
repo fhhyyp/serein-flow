@@ -1,10 +1,9 @@
-import assert from 'node:assert/strict'
-import test from 'node:test'
-import { createInitialCanvases } from '../src/flow/initialCanvases.ts'
-import { flowDefinitionToWorkspace, workspaceToFlowDefinition } from '../src/flow/flowDtoMapper.ts'
-import type { FlowDefinitionDto } from '../src/api/flowApi.ts'
-import type { WorkspaceSnapshot } from '../src/flow/workspaceHistory.ts'
-
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { createInitialCanvases } from '../src/flow/initialCanvases.ts';
+import { flowDefinitionToWorkspace, workspaceToFlowDefinition } from '../src/flow/flowDtoMapper.ts';
+import type { FlowDefinitionDto } from '../src/api/flowApi.ts';
+import type { WorkspaceSnapshot } from '../src/flow/workspaceHistory.ts';
 test('the workbench DTO round trip retains user-created multi-canvas execution and data connections', () => {
   const original: WorkspaceSnapshot = {
     canvases: [
@@ -126,94 +125,90 @@ test('the workbench DTO round trip retains user-created multi-canvas execution a
       callers: false,
       callees: true,
     },
-  }
-
+  };
   const definition = workspaceToFlowDefinition(original, {
     id: '9d922e9d-a0f0-48b4-babb-20f7e4dd982e',
     version: 1,
-  })
-  const restored = flowDefinitionToWorkspace(definition)
-  const main = restored.canvases.find((canvas) => canvas.id === 'main')
-  const init = restored.canvases.find((canvas) => canvas.id === 'init')
-
-  assert.equal(definition.schemaVersion, 5)
-  assert.equal(definition.entryNodeId, 'prepare')
-  assert.equal(definition.canvases.find((canvas) => canvas.id === 'main')?.connections.length, 2)
-  assert.equal(definition.ui?.connectionLineTypes?.execution, 'default')
-  assert.equal(definition.ui?.connectionLineTypes?.data, 'smoothstep')
-  assert.equal(definition.ui?.canvasFocusSettings?.parameterConsumers, false)
-  assert.equal(definition.ui?.canvasFocusSettings?.callers, false)
-  assert.equal(main?.edges.length, 2)
-  assert.equal(main?.edges.filter((edge) => edge.data.semantic === 'execution').length, 1)
-  assert.equal(main?.edges.filter((edge) => edge.data.semantic === 'data').length, 1)
-  assert.equal(init?.edges[0]?.id, 'exec-prepare-catalog')
-  assert.equal(main?.nodes.find((node) => node.id === 'normalize')?.data.parameters[0]?.sourceNodeId, 'flipflop')
-  assert.equal(restored.entryNodeId, 'prepare')
-  assert.deepEqual(restored.canvases.map((canvas) => canvas.id), ['main', 'init'])
-  assert.deepEqual(restored.canvasFocusSettings, original.canvasFocusSettings)
-})
-
+  });
+  const restored = flowDefinitionToWorkspace(definition);
+  const main = restored.canvases.find((canvas) => canvas.id === 'main');
+  const init = restored.canvases.find((canvas) => canvas.id === 'init');
+  assert.equal(definition.schemaVersion, 5);
+  assert.equal(definition.entryNodeId, 'prepare');
+  const evaluatedValue = definition.canvases.find((canvas) => canvas.id === 'main')?.connections.length;
+  assert.equal(evaluatedValue, 2);
+  assert.equal(definition.ui?.connectionLineTypes?.execution, 'default');
+  assert.equal(definition.ui?.connectionLineTypes?.data, 'smoothstep');
+  assert.equal(definition.ui?.canvasFocusSettings?.parameterConsumers, false);
+  assert.equal(definition.ui?.canvasFocusSettings?.callers, false);
+  assert.equal(main?.edges.length, 2);
+  const evaluatedValue1 = main?.edges.filter((edge) => edge.data.semantic === 'execution').length;
+  assert.equal(evaluatedValue1, 1);
+  const evaluatedValue2 = main?.edges.filter((edge) => edge.data.semantic === 'data').length;
+  assert.equal(evaluatedValue2, 1);
+  assert.equal(init?.edges[0]?.id, 'exec-prepare-catalog');
+  const evaluatedValue3 = main?.nodes.find((node) => node.id === 'normalize')?.data.parameters[0]?.sourceNodeId;
+  assert.equal(evaluatedValue3, 'flipflop');
+  assert.equal(restored.entryNodeId, 'prepare');
+  const mapResult = restored.canvases.map((canvas) => canvas.id);
+  assert.deepEqual(mapResult, ['main', 'init']);
+  assert.deepEqual(restored.canvasFocusSettings, original.canvasFocusSettings);
+});
 test('the empty default workspace round trips without an artificial entry node', () => {
   const original: WorkspaceSnapshot = {
     canvases: createInitialCanvases(),
     activeCanvasId: 'main',
     nextNodeNumber: 1,
-  }
-
+  };
   const definition = workspaceToFlowDefinition(original, {
     id: '9d922e9d-a0f0-48b4-babb-20f7e4dd982e',
     version: 1,
-  })
-  const restored = flowDefinitionToWorkspace(definition)
-
-  assert.equal(definition.entryNodeId, '')
-  assert.equal(definition.canvases.length, 1)
-  assert.deepEqual(definition.canvases[0]?.nodes, [])
-  assert.deepEqual(definition.canvases[0]?.connections, [])
-  assert.deepEqual(restored.canvases[0]?.nodes, [])
-  assert.deepEqual(restored.canvases[0]?.edges, [])
-  assert.deepEqual(restored.connectionLineTypes, { execution: 'smoothstep', data: 'smoothstep' })
+  });
+  const restored = flowDefinitionToWorkspace(definition);
+  assert.equal(definition.entryNodeId, '');
+  assert.equal(definition.canvases.length, 1);
+  assert.deepEqual(definition.canvases[0]?.nodes, []);
+  assert.deepEqual(definition.canvases[0]?.connections, []);
+  assert.deepEqual(restored.canvases[0]?.nodes, []);
+  assert.deepEqual(restored.canvases[0]?.edges, []);
+  assert.deepEqual(restored.connectionLineTypes, { execution: 'smoothstep', data: 'smoothstep' });
   assert.deepEqual(restored.canvasFocusSettings, {
     enabled: true,
     parameterSources: true,
     parameterConsumers: true,
     callers: true,
     callees: true,
-  })
-})
-
+  });
+});
 test('custom canvas names and lifecycle survive DTO round trips', () => {
-  const main = createInitialCanvases()[0]!
+  const main = createInitialCanvases()[0]!;
   const custom = {
     ...main,
     id: 'custom-1',
     nameKey: 'canvas.custom',
     name: '审计流程',
     lifecycle: 'custom' as const,
-  }
+  };
   const snapshot: WorkspaceSnapshot = {
     canvases: [main, custom],
     activeCanvasId: custom.id,
     nextNodeNumber: 1,
     projectName: '运行编排',
-  }
-
+  };
   const definition = workspaceToFlowDefinition(snapshot, {
     id: '9d922e9d-a0f0-48b4-babb-20f7e4dd982e',
     version: 1,
-  })
-  const restored = flowDefinitionToWorkspace(definition)
-  const restoredCustom = restored.canvases.find((canvas) => canvas.id === custom.id)
-
-  assert.equal(definition.canvases[1]?.lifecycle, 'custom')
-  assert.equal(definition.canvases[1]?.name, '审计流程')
-  assert.equal(restoredCustom?.lifecycle, 'custom')
-  assert.equal(restoredCustom?.name, '审计流程')
-  assert.equal(restored.activeCanvasId, 'main')
-})
-
+  });
+  const restored = flowDefinitionToWorkspace(definition);
+  const restoredCustom = restored.canvases.find((canvas) => canvas.id === custom.id);
+  assert.equal(definition.canvases[1]?.lifecycle, 'custom');
+  assert.equal(definition.canvases[1]?.name, '审计流程');
+  assert.equal(restoredCustom?.lifecycle, 'custom');
+  assert.equal(restoredCustom?.name, '审计流程');
+  assert.equal(restored.activeCanvasId, 'main');
+});
 test('a preferred canvas remains active when a saved definition is reloaded', () => {
-  const main = createInitialCanvases()[0]!
+  const main = createInitialCanvases()[0]!;
   const definition = workspaceToFlowDefinition({
     canvases: [
       main,
@@ -221,13 +216,14 @@ test('a preferred canvas remains active when a saved definition is reloaded', ()
     ],
     activeCanvasId: 'init',
     nextNodeNumber: 1,
-  }, { id: 'flow', version: 1 })
-
-  assert.equal(flowDefinitionToWorkspace(definition).activeCanvasId, 'main')
-  assert.equal(flowDefinitionToWorkspace(definition, 'init').activeCanvasId, 'init')
-  assert.equal(flowDefinitionToWorkspace(definition, 'missing').activeCanvasId, 'main')
-})
-
+  }, { id: 'flow', version: 1 });
+  const evaluatedValue4 = flowDefinitionToWorkspace(definition).activeCanvasId;
+  assert.equal(evaluatedValue4, 'main');
+  const evaluatedValue5 = flowDefinitionToWorkspace(definition, 'init').activeCanvasId;
+  assert.equal(evaluatedValue5, 'init');
+  const evaluatedValue6 = flowDefinitionToWorkspace(definition, 'missing').activeCanvasId;
+  assert.equal(evaluatedValue6, 'main');
+});
 test('restored parameter connections target the rendered parameter handle', () => {
   const definition: FlowDefinitionDto = {
     id: 'flow',
@@ -236,166 +232,204 @@ test('restored parameter connections target the rendered parameter handle', () =
     entryNodeId: 'source',
     checksum: '',
     canvases: [{
-      id: 'main',
-      lifecycle: 'main',
-      nodes: [
-        { id: 'source', type: 'action', displayName: 'Source', x: 0, y: 0, ports: [{ id: 'data-out', name: 'Data', direction: 'output', required: false }], parameters: [], script: null },
-        { id: 'target', type: 'action', displayName: 'Target', x: 320, y: 0, ports: [{ id: 'param-param-1', name: 'param-1', direction: 'input', required: false }], parameters: [{ name: 'param-1', source: 'previousNode', required: false, ui: { id: 'param-1', nameKey: 'value', valueKind: 'JSON' } }], script: null },
-      ],
-      connections: [{ id: 'data-1', fromNodeId: 'source', fromPortId: 'data-out', toNodeId: 'target', toPortId: 'param-1', kind: 'data', dataSource: 'previousNode', priority: 0 }],
-    }],
-  }
-
-  const restored = flowDefinitionToWorkspace(definition)
-  const edge = restored.canvases[0]?.edges[0]
-  const parameter = restored.canvases[0]?.nodes.find((node) => node.id === 'target')?.data.parameters[0]
-
-  assert.equal(parameter?.id, '1')
-  assert.equal(edge?.targetHandle, 'param-1')
-  assert.equal(edge?.data.targetParameterId, '1')
-})
-
+        id: 'main',
+        lifecycle: 'main',
+        nodes: [
+          { id: 'source', type: 'action', displayName: 'Source', x: 0, y: 0, ports: [{ id: 'data-out', name: 'Data', direction: 'output', required: false }], parameters: [], script: null },
+          { id: 'target', type: 'action', displayName: 'Target', x: 320, y: 0, ports: [{ id: 'param-param-1', name: 'param-1', direction: 'input', required: false }], parameters: [{ name: 'param-1', source: 'previousNode', required: false, ui: { id: 'param-1', nameKey: 'value', valueKind: 'JSON' } }], script: null },
+        ],
+        connections: [{ id: 'data-1', fromNodeId: 'source', fromPortId: 'data-out', toNodeId: 'target', toPortId: 'param-1', kind: 'data', dataSource: 'previousNode', priority: 0 }],
+      }],
+  };
+  const restored = flowDefinitionToWorkspace(definition);
+  const edge = restored.canvases[0]?.edges[0];
+  const parameter = restored.canvases[0]?.nodes.find((node) => node.id === 'target')?.data.parameters[0];
+  assert.equal(parameter?.id, '1');
+  assert.equal(edge?.targetHandle, 'param-1');
+  assert.equal(edge?.data.targetParameterId, '1');
+});
 test('library method parameters keep reflected names separate from connector ids', () => {
   const snapshot: WorkspaceSnapshot = {
     canvases: [{
-      id: 'main',
-      nameKey: 'canvas.main',
-      lifecycle: 'main',
-      nodes: [{
-        id: 'add',
-        type: 'workflow',
-        position: { x: 0, y: 0 },
-        data: {
-          kind: 'action',
-          titleKey: 'node.catalogMethod',
-          subtitleKey: 'node.catalogSubtitle',
-          status: 'ready',
-          hasDataOutput: true,
-          runtime: { category: 'method', methodName: 'Add' },
-          parameters: [
-            { id: '1', nameKey: 'left', name: 'left', valueKind: 'System.Int32', required: true, source: 'literal', literalValue: '10' },
-            { id: '2', nameKey: 'right', name: 'right', valueKind: 'System.Int32', required: true, source: 'literal', literalValue: '20' },
-          ],
-        },
-      }],
-      edges: [],
-    }],
-    activeCanvasId: 'main',
-    nextNodeNumber: 2,
-  }
-
-  const definition = workspaceToFlowDefinition(snapshot, { id: 'flow', version: 1 })
-  const parameters = definition.canvases[0]?.nodes[0]?.parameters ?? []
-  assert.deepEqual(parameters.map((parameter) => parameter.name), ['left', 'right'])
-  assert.deepEqual(parameters.map((parameter) => parameter.ui?.id), ['1', '2'])
-  assert.deepEqual(parameters.map((parameter) => parameter.required), [true, true])
-
-  const restored = flowDefinitionToWorkspace(definition)
-  assert.deepEqual(restored.canvases[0]?.nodes[0]?.data.parameters.map((parameter) => parameter.name), ['left', 'right'])
-
-  const legacyDefinition = {
-    ...definition,
-    canvases: definition.canvases.map((canvas) => ({
-      ...canvas,
-      nodes: canvas.nodes.map((node) => ({
-        ...node,
-        parameters: node.parameters.map((parameter) => ({ ...parameter, name: parameter.ui?.id ?? parameter.name })),
-      })),
-    })),
-  }
-  const migrated = flowDefinitionToWorkspace(legacyDefinition)
-  assert.deepEqual(migrated.canvases[0]?.nodes[0]?.data.parameters.map((parameter) => parameter.name), ['left', 'right'])
-})
-
-test('enum parameter metadata remains available after a workspace DTO round trip', () => {
-  const snapshot: WorkspaceSnapshot = {
-    canvases: [{
-      id: 'main',
-      nameKey: 'canvas.main',
-      lifecycle: 'main',
-      nodes: [{
-        id: 'configure-mode',
-        type: 'workflow',
-        position: { x: 0, y: 0 },
-        data: {
-          kind: 'action',
-          titleKey: 'node.catalogMethod',
-          subtitleKey: 'node.catalogSubtitle',
-          status: 'ready',
-          hasDataOutput: true,
-          runtime: {
-            flowLibraryName: '生产线设备与质量数据示例库',
-          },
-          parameters: [{
-            id: 'mode',
-            nameKey: 'parameter.mode',
-            name: 'mode',
-            valueKind: 'DeviceMode',
-            required: true,
-            source: 'literal',
-            literalValue: 'Manual',
-            enumMetadata: {
-              typeName: 'Example.DeviceMode',
-              isFlags: false,
-              underlyingType: 'System.Int32',
-              options: [
-                { name: 'Automatic', numericValue: '0' },
-                { name: 'Manual', numericValue: '1' },
+        id: 'main',
+        nameKey: 'canvas.main',
+        lifecycle: 'main',
+        nodes: [{
+            id: 'add',
+            type: 'workflow',
+            position: { x: 0, y: 0 },
+            data: {
+              kind: 'action',
+              titleKey: 'node.catalogMethod',
+              subtitleKey: 'node.catalogSubtitle',
+              status: 'ready',
+              hasDataOutput: true,
+              runtime: { category: 'method', methodName: 'Add' },
+              parameters: [
+                { id: '1', nameKey: 'left', name: 'left', valueKind: 'System.Int32', required: true, source: 'literal', literalValue: '10' },
+                { id: '2', nameKey: 'right', name: 'right', valueKind: 'System.Int32', required: true, source: 'literal', literalValue: '20' },
               ],
             },
           }],
-        },
+        edges: [],
       }],
-      edges: [],
-    }],
     activeCanvasId: 'main',
     nextNodeNumber: 2,
-  }
-
-  const definition = workspaceToFlowDefinition(snapshot, { id: 'flow', version: 1 })
-  const restored = flowDefinitionToWorkspace(definition)
-  const parameter = restored.canvases[0]?.nodes[0]?.data.parameters[0]
-
-  assert.equal(definition.canvases[0]?.nodes[0]?.ui?.flowLibraryName, '生产线设备与质量数据示例库')
-  assert.equal(restored.canvases[0]?.nodes[0]?.data.runtime?.flowLibraryName, '生产线设备与质量数据示例库')
-  assert.deepEqual(definition.canvases[0]?.nodes[0]?.parameters[0]?.ui?.enumMetadata, snapshot.canvases[0]?.nodes[0]?.data.parameters[0]?.enumMetadata)
-  assert.deepEqual(parameter?.enumMetadata, snapshot.canvases[0]?.nodes[0]?.data.parameters[0]?.enumMetadata)
-})
-
+  };
+  const definition = workspaceToFlowDefinition(snapshot, { id: 'flow', version: 1 });
+  const parameters = definition.canvases[0]?.nodes[0]?.parameters ?? [];
+  const mapResult1 = parameters.map((parameter) => parameter.name);
+  assert.deepEqual(mapResult1, ['left', 'right']);
+  const mapResult2 = parameters.map((parameter) => parameter.ui?.id);
+  assert.deepEqual(mapResult2, ['1', '2']);
+  const mapResult3 = parameters.map((parameter) => parameter.required);
+  assert.deepEqual(mapResult3, [true, true]);
+  const restored = flowDefinitionToWorkspace(definition);
+  const mapResult4 = restored.canvases[0]?.nodes[0]?.data.parameters.map((parameter) => parameter.name);
+  assert.deepEqual(mapResult4, ['left', 'right']);
+  const legacyDefinition = {
+    ...definition,
+    canvases: definition.canvases.map((canvas) => {
+      const evaluatedValue8: {
+        nodes: {
+          parameters: {
+            name: string;
+            valueJson?: string;
+            source: import("../src/api/flowApi.ts").ApiDataSource;
+            required: boolean;
+            ui?: import("../src/api/flowApi.ts").NodeParameterUiMetadataDto;
+          }[];
+          id: string;
+          type: import("../src/api/flowApi.ts").ApiNodeType;
+          displayName: string;
+          x: number;
+          y: number;
+          ports: import("../src/api/flowApi.ts").NodePortDto[];
+          script: import("../src/api/flowApi.ts").ScriptNodeDataDto | null;
+          ui?: import("../src/api/flowApi.ts").NodeUiMetadataDto;
+        }[];
+        id: string;
+        lifecycle: import("../src/api/flowApi.ts").ApiCanvasLifecycle;
+        connections: import("../src/api/flowApi.ts").ConnectionDto[];
+        name?: string;
+      } = ({
+        ...canvas,
+        nodes: canvas.nodes.map((node) => {
+          const evaluatedValue7: {
+            parameters: {
+              name: string;
+              valueJson?: string;
+              source: import("../src/api/flowApi.ts").ApiDataSource;
+              required: boolean;
+              ui?: import("../src/api/flowApi.ts").NodeParameterUiMetadataDto;
+            }[];
+            id: string;
+            type: import("../src/api/flowApi.ts").ApiNodeType;
+            displayName: string;
+            x: number;
+            y: number;
+            ports: import("../src/api/flowApi.ts").NodePortDto[];
+            script: import("../src/api/flowApi.ts").ScriptNodeDataDto | null;
+            ui?: import("../src/api/flowApi.ts").NodeUiMetadataDto;
+          } = ({
+            ...node,
+            parameters: node.parameters.map((parameter) => ({ ...parameter, name: parameter.ui?.id ?? parameter.name })),
+          });
+          return evaluatedValue7;
+        }),
+      });
+      return evaluatedValue8;
+    }),
+  };
+  const migrated = flowDefinitionToWorkspace(legacyDefinition);
+  const mapResult5 = migrated.canvases[0]?.nodes[0]?.data.parameters.map((parameter) => parameter.name);
+  assert.deepEqual(mapResult5, ['left', 'right']);
+});
+test('enum parameter metadata remains available after a workspace DTO round trip', () => {
+  const snapshot: WorkspaceSnapshot = {
+    canvases: [{
+        id: 'main',
+        nameKey: 'canvas.main',
+        lifecycle: 'main',
+        nodes: [{
+            id: 'configure-mode',
+            type: 'workflow',
+            position: { x: 0, y: 0 },
+            data: {
+              kind: 'action',
+              titleKey: 'node.catalogMethod',
+              subtitleKey: 'node.catalogSubtitle',
+              status: 'ready',
+              hasDataOutput: true,
+              runtime: {
+                flowLibraryName: '生产线设备与质量数据示例库',
+              },
+              parameters: [{
+                  id: 'mode',
+                  nameKey: 'parameter.mode',
+                  name: 'mode',
+                  valueKind: 'DeviceMode',
+                  required: true,
+                  source: 'literal',
+                  literalValue: 'Manual',
+                  enumMetadata: {
+                    typeName: 'Example.DeviceMode',
+                    isFlags: false,
+                    underlyingType: 'System.Int32',
+                    options: [
+                      { name: 'Automatic', numericValue: '0' },
+                      { name: 'Manual', numericValue: '1' },
+                    ],
+                  },
+                }],
+            },
+          }],
+        edges: [],
+      }],
+    activeCanvasId: 'main',
+    nextNodeNumber: 2,
+  };
+  const definition = workspaceToFlowDefinition(snapshot, { id: 'flow', version: 1 });
+  const restored = flowDefinitionToWorkspace(definition);
+  const parameter = restored.canvases[0]?.nodes[0]?.data.parameters[0];
+  assert.equal(definition.canvases[0]?.nodes[0]?.ui?.flowLibraryName, '生产线设备与质量数据示例库');
+  assert.equal(restored.canvases[0]?.nodes[0]?.data.runtime?.flowLibraryName, '生产线设备与质量数据示例库');
+  assert.deepEqual(definition.canvases[0]?.nodes[0]?.parameters[0]?.ui?.enumMetadata, snapshot.canvases[0]?.nodes[0]?.data.parameters[0]?.enumMetadata);
+  assert.deepEqual(parameter?.enumMetadata, snapshot.canvases[0]?.nodes[0]?.data.parameters[0]?.enumMetadata);
+});
 test('FlowCall-only runtime metadata survives a workspace DTO round trip', () => {
   const snapshot: WorkspaceSnapshot = {
     canvases: [{
-      id: 'main',
-      nameKey: 'canvas.main',
-      lifecycle: 'main',
-      nodes: [{
-        id: 'call',
-        type: 'workflow',
-        position: { x: 0, y: 0 },
-        data: {
-          kind: 'flowCall',
-          titleKey: 'node.kind.flowCall',
-          subtitleKey: 'node.flowCallSubtitle',
-          status: 'ready',
-          hasDataOutput: true,
-          runtime: {
-            targetCanvasId: 'main',
-            isPublic: true,
-            flowCallParameterBindings: [{ callParameterId: 'input', targetParameterId: 'input' }],
-          },
-          parameters: [],
-        },
+        id: 'main',
+        nameKey: 'canvas.main',
+        lifecycle: 'main',
+        nodes: [{
+            id: 'call',
+            type: 'workflow',
+            position: { x: 0, y: 0 },
+            data: {
+              kind: 'flowCall',
+              titleKey: 'node.kind.flowCall',
+              subtitleKey: 'node.flowCallSubtitle',
+              status: 'ready',
+              hasDataOutput: true,
+              runtime: {
+                targetCanvasId: 'main',
+                isPublic: true,
+                flowCallParameterBindings: [{ callParameterId: 'input', targetParameterId: 'input' }],
+              },
+              parameters: [],
+            },
+          }],
+        edges: [],
       }],
-      edges: [],
-    }],
     activeCanvasId: 'main',
     nextNodeNumber: 2,
-  }
-
-  const restored = flowDefinitionToWorkspace(workspaceToFlowDefinition(snapshot, { id: 'flow', version: 1 }))
-  const runtime = restored.canvases[0]?.nodes[0]?.data.runtime
-
-  assert.equal(runtime?.targetCanvasId, 'main')
-  assert.equal(runtime?.isPublic, true)
-  assert.deepEqual(runtime?.flowCallParameterBindings, [{ callParameterId: 'input', targetParameterId: 'input' }])
-})
+  };
+  const workspaceToFlowDefinitionResult: FlowDefinitionDto = workspaceToFlowDefinition(snapshot, { id: 'flow', version: 1 });
+  const restored = flowDefinitionToWorkspace(workspaceToFlowDefinitionResult);
+  const runtime = restored.canvases[0]?.nodes[0]?.data.runtime;
+  assert.equal(runtime?.targetCanvasId, 'main');
+  assert.equal(runtime?.isPublic, true);
+  assert.deepEqual(runtime?.flowCallParameterBindings, [{ callParameterId: 'input', targetParameterId: 'input' }]);
+});

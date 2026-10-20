@@ -5,19 +5,15 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
-
-public sealed record McpPrincipal(
-    string Id,
-    Guid? ProjectId,
-    IReadOnlySet<McpPermissionDto> Permissions,
-    bool IsLocal = false,
-    bool IsAdministrator = false)
+public sealed record McpPrincipal(string Id, Guid? ProjectId, IReadOnlySet<McpPermissionDto> Permissions, bool IsLocal = false, bool IsAdministrator = false)
 {
     public bool Has(McpPermissionDto permission)
-        => IsLocal || IsAdministrator || Permissions.Contains(permission);
+    {
+        var evaluatedValue = IsLocal || IsAdministrator || Permissions.Contains(permission);
+        return evaluatedValue;
+    }
 
-    public bool CanAccess(Guid projectId)
-        => IsLocal || IsAdministrator || ProjectId == projectId;
+    public bool CanAccess(Guid projectId) => IsLocal || IsAdministrator || ProjectId == projectId;
 }
 
 /// <summary>
@@ -27,12 +23,7 @@ public sealed record McpPrincipal(
 /// MCP 请求级主体和传输元数据，供 stdio 与 HTTP 共用；JSON-RPC 消息处理期间由
 /// 协议分发器填充 RequestId。
 /// </summary>
-public sealed record McpRequestContext(
-    McpPrincipal? Principal,
-    string Transport,
-    string? SessionId = null,
-    string? RequestId = null);
-
+public sealed record McpRequestContext(McpPrincipal? Principal, string Transport, string? SessionId = null, string? RequestId = null);
 public interface IMcpRequestContextAccessor
 {
     McpRequestContext? Current { get; set; }
@@ -41,12 +32,7 @@ public interface IMcpRequestContextAccessor
 public sealed class McpRequestContextAccessor : IMcpRequestContextAccessor
 {
     private readonly AsyncLocal<McpRequestContext?> _current = new();
-
-    public McpRequestContext? Current
-    {
-        get => _current.Value;
-        set => _current.Value = value;
-    }
+    public McpRequestContext? Current { get => _current.Value; set => _current.Value = value; }
 }
 
 public interface IMcpPrincipalAccessor
@@ -57,21 +43,14 @@ public interface IMcpPrincipalAccessor
 public sealed class McpPrincipalAccessor : IMcpPrincipalAccessor
 {
     private readonly AsyncLocal<McpPrincipal?> _current = new();
-
-    public McpPrincipal? Current
-    {
-        get => _current.Value;
-        set => _current.Value = value;
-    }
+    public McpPrincipal? Current { get => _current.Value; set => _current.Value = value; }
 }
 
 public sealed class McpSecurityService
 {
-    private static readonly IReadOnlySet<McpPermissionDto> AllPermissions =
-        Enum.GetValues<McpPermissionDto>().ToHashSet();
+    private static readonly IReadOnlySet<McpPermissionDto> AllPermissions = createAllPermissionsInitialValue();
     private readonly IMcpApiKeyStore _keys;
     private readonly string? _bootstrapAdminKey;
-
     public McpSecurityService(IMcpApiKeyStore keys, string? bootstrapAdminKey = null)
     {
         _keys = keys;
@@ -81,22 +60,29 @@ public sealed class McpSecurityService
     public async Task<McpPrincipal?> AuthenticateAsync(string? secret, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(secret))
-            return null;
-        var bootstrap = _bootstrapAdminKey;
-        if (!string.IsNullOrWhiteSpace(bootstrap)
-            && CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(bootstrap),
-                Encoding.UTF8.GetBytes(secret)))
         {
-            return new("bootstrap-admin", null, AllPermissions, IsAdministrator: true);
+            return null;
+        }
+
+        var bootstrap = _bootstrapAdminKey;
+        if (!string.IsNullOrWhiteSpace(bootstrap) && resolveFixedTimeEqualsResult())
+        {
+            global::SereinFlow.Application.McpPrincipal evaluatedValue1 = new("bootstrap-admin", null, AllPermissions, IsAdministrator: true);
+            return evaluatedValue1;
         }
 
         foreach (var entry in await _keys.ListAsync(cancellationToken))
         {
             if (entry.RevokedAt is not null || entry.ExpiresAt <= DateTimeOffset.UtcNow)
+            {
                 continue;
+            }
+
             if (!Verify(secret, entry.Salt, entry.SecretHash))
+            {
                 continue;
+            }
+
             try
             {
                 // Last-used tracking is telemetry, but it must finish before the
@@ -108,99 +94,169 @@ public sealed class McpSecurityService
             }
             catch
             {
-                // Authentication remains successful when usage telemetry fails.
+            // Authentication remains successful when usage telemetry fails.
             }
-            return new(entry.Id, entry.ProjectId, entry.Permissions.ToHashSet(), false, entry.IsAdministrator);
+
+            var toHashSetResult = entry.Permissions.ToHashSet();
+            global::SereinFlow.Application.McpPrincipal evaluatedValue2 = new(entry.Id, entry.ProjectId, toHashSetResult, false, entry.IsAdministrator);
+            return evaluatedValue2;
         }
+
         return null;
+        bool resolveFixedTimeEqualsResult()
+        {
+            var getBytesResult = Encoding.UTF8.GetBytes(bootstrap);
+            var getBytesResult3 = Encoding.UTF8.GetBytes(secret);
+            var fixedTimeEqualsResult = CryptographicOperations.FixedTimeEquals(getBytesResult, getBytesResult3);
+            return fixedTimeEqualsResult;
+        }
     }
 
     public void Require(McpPrincipal? principal, McpPermissionDto permission, Guid? projectId = null)
     {
         if (principal is null)
+        {
             throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required.", StatusCodes.Status401Unauthorized);
+        }
+
         if (!principal.Has(permission))
+        {
             throw new McpSecurityException(McpErrorCodes.PermissionDenied, "The MCP caller does not have the required permission.", StatusCodes.Status403Forbidden);
+        }
+
         if (projectId is not null && !principal.CanAccess(projectId.Value))
+        {
             throw new McpSecurityException(McpErrorCodes.ProjectAccessDenied, "The MCP caller cannot access this project.", StatusCodes.Status403Forbidden);
+        }
     }
 
-    public void RequireAny(
-        McpPrincipal? principal,
-        Guid? projectId,
-        params McpPermissionDto[] permissions)
+    public void RequireAny(McpPrincipal? principal, Guid? projectId, params McpPermissionDto[] permissions)
     {
         if (principal is null)
+        {
             throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required.", StatusCodes.Status401Unauthorized);
+        }
+
         if (permissions is null || permissions.Length == 0 || !permissions.Any(principal.Has))
+        {
             throw new McpSecurityException(McpErrorCodes.PermissionDenied, "The MCP caller does not have the required permission.", StatusCodes.Status403Forbidden);
+        }
+
         if (projectId is not null && !principal.CanAccess(projectId.Value))
+        {
             throw new McpSecurityException(McpErrorCodes.ProjectAccessDenied, "The MCP caller cannot access this project.", StatusCodes.Status403Forbidden);
+        }
     }
 
     public void RequireAdministrator(McpPrincipal? principal)
     {
         if (principal is null)
+        {
             throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required.", StatusCodes.Status401Unauthorized);
+        }
+
         if (!principal.IsLocal && !principal.IsAdministrator)
+        {
             throw new McpSecurityException(McpErrorCodes.AdministratorRequired, "Administrator permission is required for this MCP operation.", StatusCodes.Status403Forbidden);
+        }
     }
 
     public static CreatedMcpApiKeyDto CreateKey(CreateMcpApiKeyRequestDto request)
-        => CreateKeyWithEntry(request).Dto;
+    {
+        var evaluatedValue4 = CreateKeyWithEntry(request).Dto;
+        return evaluatedValue4;
+    }
 
     public static (McpApiKeyEntry Entry, CreatedMcpApiKeyDto Dto) CreateKeyWithEntry(CreateMcpApiKeyRequestDto request)
     {
         ArgumentNullException.ThrowIfNull(request);
         if (string.IsNullOrWhiteSpace(request.Name))
+        {
             throw new ArgumentException("The MCP API key name is required.", nameof(request));
+        }
+
         ArgumentNullException.ThrowIfNull(request.Permissions);
         if (request.ExpiresAt is not null && request.ExpiresAt <= DateTimeOffset.UtcNow)
+        {
             throw new ArgumentException("The MCP API key expiration must be in the future.", nameof(request));
+        }
+
         if (request.IsAdministrator && request.ProjectId is not null)
+        {
             throw new ArgumentException("Administrator API keys cannot be project-scoped.", nameof(request));
+        }
+
         if (!request.IsAdministrator && request.ProjectId is null)
+        {
             throw new ArgumentException("A non-administrator API key must be bound to a project.", nameof(request));
-        var secret = $"sfk_{Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant()}";
-        var salt = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
-        var id = Guid.NewGuid().ToString("N");
-        var entry = new McpApiKeyEntry(
-            id,
-            request.ProjectId,
-            request.Name.Trim(),
-            secret[..12],
-            Hash(secret, salt),
-            salt,
-            request.Permissions.Distinct().ToArray(),
-            DateTimeOffset.UtcNow,
-            request.ExpiresAt,
-            null,
-            null,
-            request.IsAdministrator);
-        return (entry, new CreatedMcpApiKeyDto(ToDto(entry), secret));
+        }
+
+        var secret = $"sfk_{resolveToLowerInvariantResult()}";
+        var getBytesResult6 = RandomNumberGenerator.GetBytes(16);
+        var toHexStringResult7 = Convert.ToHexString(getBytesResult6);
+        var salt = toHexStringResult7.ToLowerInvariant();
+        var newGuidResult = Guid.NewGuid();
+        var id = newGuidResult.ToString("N");
+        var trimResult = request.Name.Trim();
+        var hashResult = Hash(secret, salt);
+        var distinctResult = request.Permissions.Distinct();
+        var toArrayResult = distinctResult.ToArray();
+        var entry = new McpApiKeyEntry(id, request.ProjectId, trimResult, secret[..12], hashResult, salt, toArrayResult, DateTimeOffset.UtcNow, request.ExpiresAt, null, null, request.IsAdministrator);
+        var evaluatedValue8 = (entry, resolveCreatedMcpApiKeyDto());
+        return evaluatedValue8;
+        string resolveToLowerInvariantResult()
+        {
+            var getBytesResult5 = RandomNumberGenerator.GetBytes(24);
+            var toHexStringResult = Convert.ToHexString(getBytesResult5);
+            var toLowerInvariantResult = toHexStringResult.ToLowerInvariant();
+            return toLowerInvariantResult;
+        }
+
+        global::SereinFlow.Contracts.CreatedMcpApiKeyDto resolveCreatedMcpApiKeyDto()
+        {
+            var toDtoResult = ToDto(entry);
+            var createdMcpApiKeyDto = new CreatedMcpApiKeyDto(toDtoResult, secret);
+            return createdMcpApiKeyDto;
+        }
     }
 
     public static (McpApiKeyEntry Entry, CreatedMcpApiKeyDto Dto) RotateKeyWithEntry(McpApiKeyEntry existing)
     {
         ArgumentNullException.ThrowIfNull(existing);
-        return CreateKeyWithEntry(new CreateMcpApiKeyRequestDto(
-            existing.ProjectId,
-            existing.Name,
-            existing.Permissions,
-            existing.ExpiresAt,
-            existing.IsAdministrator));
+        var createMcpApiKeyRequestDto = new CreateMcpApiKeyRequestDto(existing.ProjectId, existing.Name, existing.Permissions, existing.ExpiresAt, existing.IsAdministrator);
+        var createKeyWithEntryResult = CreateKeyWithEntry(createMcpApiKeyRequestDto);
+        return createKeyWithEntryResult;
     }
 
     public static McpApiKeyDto ToDto(McpApiKeyEntry entry)
-        => new(entry.Id, entry.ProjectId, entry.Name, entry.KeyPrefix, entry.Permissions, entry.CreatedAt, entry.ExpiresAt, entry.RevokedAt, entry.LastUsedAt, entry.IsAdministrator);
+    {
+        global::SereinFlow.Contracts.McpApiKeyDto evaluatedValue9 = new(entry.Id, entry.ProjectId, entry.Name, entry.KeyPrefix, entry.Permissions, entry.CreatedAt, entry.ExpiresAt, entry.RevokedAt, entry.LastUsedAt, entry.IsAdministrator);
+        return evaluatedValue9;
+    }
 
     public static string Hash(string secret, string salt)
-        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{salt}:{secret}"))).ToLowerInvariant();
+    {
+        var getBytesResult10 = Encoding.UTF8.GetBytes($"{salt}:{secret}");
+        var hashDataResult = SHA256.HashData(getBytesResult10);
+        var toHexStringResult11 = Convert.ToHexString(hashDataResult);
+        var toLowerInvariantResult12 = toHexStringResult11.ToLowerInvariant();
+        return toLowerInvariantResult12;
+    }
 
     private static bool Verify(string secret, string salt, string expected)
     {
         var actual = Hash(secret, salt);
-        return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(actual), Encoding.UTF8.GetBytes(expected));
+        var getBytesResult13 = Encoding.UTF8.GetBytes(actual);
+        var getBytesResult14 = Encoding.UTF8.GetBytes(expected);
+        var fixedTimeEqualsResult15 = CryptographicOperations.FixedTimeEquals(getBytesResult13, getBytesResult14);
+        return fixedTimeEqualsResult15;
+    }
+
+    private static IReadOnlySet<McpPermissionDto> createAllPermissionsInitialValue()
+    {
+        var getValuesResult = Enum.GetValues<McpPermissionDto>();
+        IReadOnlySet<McpPermissionDto> allPermissionsInitialValue = getValuesResult.ToHashSet();
+        return allPermissionsInitialValue;
     }
 }
 

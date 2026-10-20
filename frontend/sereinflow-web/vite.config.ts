@@ -1,10 +1,10 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
 // Vite configuration reference: https://vite.dev/config/
 // Vite 配置参考：https://vite.dev/config/
-export default defineConfig({
-  plugins: [vue()],
+const vuePlugin = vue();
+const viteOptions = {
+  plugins: [vuePlugin],
   server: {
     proxy: {
       '/api': {
@@ -23,4 +23,6 @@ export default defineConfig({
       },
     },
   },
-})
+};
+const viteConfiguration = defineConfig(viteOptions);
+export default viteConfiguration;

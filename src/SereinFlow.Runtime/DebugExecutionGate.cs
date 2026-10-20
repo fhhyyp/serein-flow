@@ -1,7 +1,6 @@
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Runtime;
-
 /// <summary>
 /// A single-foreground debug gate. It pauses before configured breakpoints and
 /// can grant one node permission at a time through continue, step, or cancel.
@@ -15,17 +14,20 @@ public sealed class DebugExecutionGate : IExecutionGate
     private TaskCompletionSource<ExecutionGateDecision>? _pendingDecision;
     private NodeExecutionBoundary? _currentBoundary;
     private bool _pauseBeforeNextNode;
-
-    public DebugExecutionGate(
-        IEnumerable<string> breakpointNodeIds,
-        Func<NodeExecutionBoundary, CancellationToken, ValueTask>? onPaused = null)
+    public DebugExecutionGate(IEnumerable<string> breakpointNodeIds, Func<NodeExecutionBoundary, CancellationToken, ValueTask>? onPaused = null)
     {
         ArgumentNullException.ThrowIfNull(breakpointNodeIds);
-
-        _breakpointNodeIds = breakpointNodeIds
-            .Where(static nodeId => !string.IsNullOrWhiteSpace(nodeId))
-            .Select(static nodeId => nodeId.Trim())
-            .ToHashSet(StringComparer.Ordinal);
+        var whereResult = breakpointNodeIds.Where(static nodeId =>
+        {
+            var evaluatedValue = !string.IsNullOrWhiteSpace(nodeId);
+            return evaluatedValue;
+        });
+        var selectResult = whereResult.Select(static nodeId =>
+        {
+            var trimResult = nodeId.Trim();
+            return trimResult;
+        });
+        _breakpointNodeIds = selectResult.ToHashSet(StringComparer.Ordinal);
         _onPaused = onPaused;
     }
 
@@ -34,42 +36,46 @@ public sealed class DebugExecutionGate : IExecutionGate
         get
         {
             lock (_sync)
+            {
                 return _currentBoundary;
+            }
         }
     }
 
-    public async ValueTask<ExecutionGateDecision> BeforeNodeAsync(
-        NodeExecutionBoundary boundary,
-        CancellationToken cancellationToken)
+    public async ValueTask<ExecutionGateDecision> BeforeNodeAsync(NodeExecutionBoundary boundary, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(boundary);
-
         TaskCompletionSource<ExecutionGateDecision>? decisionSource;
         lock (_sync)
         {
             var shouldPause = _pauseBeforeNextNode || _breakpointNodeIds.Contains(boundary.NodeId);
             if (!shouldPause)
+            {
                 return ExecutionGateDecision.Proceed;
+            }
 
             if (_pendingDecision is { Task.IsCompleted: false })
             {
-                throw new InvalidOperationException(
-                    "The debug gate already has a paused node. 调试闸门已有暂停节点。");
+                throw new InvalidOperationException("The debug gate already has a paused node. 调试闸门已有暂停节点。");
             }
 
             _pauseBeforeNextNode = false;
             _currentBoundary = boundary;
-            decisionSource = new TaskCompletionSource<ExecutionGateDecision>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
+            decisionSource = new TaskCompletionSource<ExecutionGateDecision>(TaskCreationOptions.RunContinuationsAsynchronously);
             _pendingDecision = decisionSource;
         }
 
         try
         {
             if (_onPaused is not null)
-                await _onPaused(boundary, cancellationToken).ConfigureAwait(false);
+            {
+                var onPausedResult = _onPaused(boundary, cancellationToken);
+                await onPausedResult.ConfigureAwait(false);
+            }
 
-            return await decisionSource.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            var waitAsyncResult = decisionSource.Task.WaitAsync(cancellationToken);
+            var configureAwaitResult = await waitAsyncResult.ConfigureAwait(false);
+            return configureAwaitResult;
         }
         finally
         {
@@ -84,23 +90,40 @@ public sealed class DebugExecutionGate : IExecutionGate
         }
     }
 
-    public bool TryContinue() => TryRelease(ExecutionGateDecision.Proceed, pauseBeforeNextNode: false);
+    public bool TryContinue()
+    {
+        var tryReleaseResult = TryRelease(ExecutionGateDecision.Proceed, pauseBeforeNextNode: false);
+        return tryReleaseResult;
+    }
 
-    public bool TryStep() => TryRelease(ExecutionGateDecision.Proceed, pauseBeforeNextNode: true);
+    public bool TryStep()
+    {
+        var tryReleaseResult1 = TryRelease(ExecutionGateDecision.Proceed, pauseBeforeNextNode: true);
+        return tryReleaseResult1;
+    }
 
-    public bool TryCancel() => TryRelease(ExecutionGateDecision.Cancel, pauseBeforeNextNode: false);
+    public bool TryCancel()
+    {
+        var tryReleaseResult2 = TryRelease(ExecutionGateDecision.Cancel, pauseBeforeNextNode: false);
+        return tryReleaseResult2;
+    }
 
     private bool TryRelease(ExecutionGateDecision decision, bool pauseBeforeNextNode)
     {
         lock (_sync)
         {
             if (_pendingDecision is null || _pendingDecision.Task.IsCompleted)
+            {
                 return false;
+            }
 
             if (pauseBeforeNextNode)
+            {
                 _pauseBeforeNextNode = true;
+            }
 
-            return _pendingDecision.TrySetResult(decision);
+            var trySetResultResult = _pendingDecision.TrySetResult(decision);
+            return trySetResultResult;
         }
     }
 }

@@ -3,7 +3,6 @@ using System.Text.Json;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Worker.Protocol;
-
 public static class WorkerProtocolConstants
 {
     public const int Version = SereinFlow.Contracts.WorkerProtocol.Version;
@@ -32,27 +31,23 @@ public static class WorkerProtocolConstants
     public const string VariableResponseKind = VariableErrorCodes.Response;
 }
 
-public sealed record WorkerMessage(
-    int ProtocolVersion,
-    string Kind,
-    string RequestId,
-    Guid? RunId = null,
-    long? Sequence = null,
-    DateTimeOffset? Deadline = null,
-    string? PayloadJson = null)
+public sealed record WorkerMessage(int ProtocolVersion, string Kind, string RequestId, Guid? RunId = null, long? Sequence = null, DateTimeOffset? Deadline = null, string? PayloadJson = null)
 {
-    public static WorkerMessage Create(
-        string kind,
-        string? payloadJson = null,
-        Guid? runId = null,
-        DateTimeOffset? deadline = null,
-        long? sequence = null,
-        string? requestId = null)
-        => new(WorkerProtocolConstants.Version, kind, requestId ?? Guid.NewGuid().ToString("N"), runId, sequence, deadline, payloadJson);
+    public static WorkerMessage Create(string kind, string? payloadJson = null, Guid? runId = null, DateTimeOffset? deadline = null, long? sequence = null, string? requestId = null)
+    {
+        var evaluatedValue = requestId ?? resolveToStringResult();
+        global::SereinFlow.Worker.Protocol.WorkerMessage evaluatedValue1 = new(WorkerProtocolConstants.Version, kind, evaluatedValue, runId, sequence, deadline, payloadJson);
+        return evaluatedValue1;
+        string resolveToStringResult()
+        {
+            var newGuidResult = Guid.NewGuid();
+            var toStringResult = newGuidResult.ToString("N");
+            return toStringResult;
+        }
+    }
 }
 
 public sealed record WorkerErrorDto(string Code, string Message, RunVariableSnapshotDto? FinalVariables = null);
-
 public static class WorkerProtocolCodec
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions(options =>
@@ -60,63 +55,83 @@ public static class WorkerProtocolCodec
         options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         options.WriteIndented = false;
     });
-
     public static string Serialize(WorkerMessage message)
     {
         if (message is null)
+        {
             throw new ArgumentNullException(nameof(message), "The worker message cannot be null. Worker 消息不能为空。");
+        }
+
         if (message.ProtocolVersion != WorkerProtocolConstants.Version)
+        {
             throw new WorkerProtocolException(WorkerErrorCodes.ProtocolMismatch, $"Unsupported protocol version '{message.ProtocolVersion}'. 不支持的协议版本“{message.ProtocolVersion}”。");
+        }
 
         var json = JsonSerializer.Serialize(message, JsonOptions);
         var byteCount = Encoding.UTF8.GetByteCount(json);
         if (byteCount > WorkerProtocolConstants.MaxMessageBytes)
+        {
             throw new WorkerProtocolException(WorkerErrorCodes.MessageTooLarge, $"Worker messages are limited to {WorkerProtocolConstants.MaxMessageBytes} bytes. Worker 消息大小不能超过 {WorkerProtocolConstants.MaxMessageBytes} 字节。");
+        }
+
         return json;
     }
 
     public static WorkerMessage Deserialize(string line)
     {
         if (string.IsNullOrWhiteSpace(line))
+        {
             throw new WorkerProtocolException(WorkerErrorCodes.InvalidMessage, "Worker message cannot be empty. Worker 消息不能为空。");
+        }
+
         if (Encoding.UTF8.GetByteCount(line) > WorkerProtocolConstants.MaxMessageBytes)
+        {
             throw new WorkerProtocolException(WorkerErrorCodes.MessageTooLarge, $"Worker messages are limited to {WorkerProtocolConstants.MaxMessageBytes} bytes. Worker 消息大小不能超过 {WorkerProtocolConstants.MaxMessageBytes} 字节。");
+        }
 
         try
         {
-            var message = JsonSerializer.Deserialize<WorkerMessage>(line, JsonOptions)
-                ?? throw new WorkerProtocolException(WorkerErrorCodes.InvalidMessage, "Worker message payload is null. Worker 消息载荷为空。");
+            var message = JsonSerializer.Deserialize<WorkerMessage>(line, JsonOptions) ?? throw new WorkerProtocolException(WorkerErrorCodes.InvalidMessage, "Worker message payload is null. Worker 消息载荷为空。");
             if (message.ProtocolVersion != WorkerProtocolConstants.Version)
+            {
                 throw new WorkerProtocolException(WorkerErrorCodes.ProtocolMismatch, $"Unsupported protocol version '{message.ProtocolVersion}'. 不支持的协议版本“{message.ProtocolVersion}”。");
+            }
+
             if (string.IsNullOrWhiteSpace(message.Kind) || string.IsNullOrWhiteSpace(message.RequestId))
+            {
                 throw new WorkerProtocolException(WorkerErrorCodes.InvalidMessage, "Worker message kind and requestId are required. Worker 消息类型和 requestId 不能为空。");
+            }
+
             if (message.PayloadJson is { Length: > WorkerProtocolConstants.MaxPayloadBytes })
+            {
                 throw new WorkerProtocolException(WorkerErrorCodes.PayloadTooLarge, $"Worker payloads are limited to {WorkerProtocolConstants.MaxPayloadBytes} characters. Worker 载荷不能超过 {WorkerProtocolConstants.MaxPayloadBytes} 个字符。");
+            }
+
             return message;
         }
         catch (JsonException exception)
         {
-            throw new WorkerProtocolException(
-                WorkerErrorCodes.InvalidMessage,
-                "Worker message is not valid JSON. Worker 消息不是有效的 JSON。",
-                exception,
-                line,
-                exception.LineNumber,
-                exception.BytePositionInLine);
+            throw new WorkerProtocolException(WorkerErrorCodes.InvalidMessage, "Worker message is not valid JSON. Worker 消息不是有效的 JSON。", exception, line, exception.LineNumber, exception.BytePositionInLine);
         }
     }
 
     public static string SerializePayload<T>(T payload)
-        => JsonSerializer.Serialize(payload, JsonOptions);
+    {
+        var serializeResult = JsonSerializer.Serialize(payload, JsonOptions);
+        return serializeResult;
+    }
 
     public static T DeserializePayload<T>(WorkerMessage message)
     {
         if (string.IsNullOrWhiteSpace(message.PayloadJson))
+        {
             throw new WorkerProtocolException(WorkerErrorCodes.InvalidPayload, $"Message '{message.Kind}' requires a payload. 消息“{message.Kind}”需要载荷。");
+        }
+
         try
         {
-            return JsonSerializer.Deserialize<T>(message.PayloadJson, JsonOptions)
-                ?? throw new WorkerProtocolException(WorkerErrorCodes.InvalidPayload, $"Message '{message.Kind}' payload is null. 消息“{message.Kind}”的载荷为空。");
+            var evaluatedValue2 = JsonSerializer.Deserialize<T>(message.PayloadJson, JsonOptions) ?? throw new WorkerProtocolException(WorkerErrorCodes.InvalidPayload, $"Message '{message.Kind}' payload is null. 消息“{message.Kind}”的载荷为空。");
+            return evaluatedValue2;
         }
         catch (JsonException exception)
         {
@@ -127,14 +142,7 @@ public static class WorkerProtocolCodec
 
 public sealed class WorkerProtocolException : Exception
 {
-    public WorkerProtocolException(
-        string code,
-        string message,
-        Exception? innerException = null,
-        string? rawMessage = null,
-        long? jsonLineNumber = null,
-        long? jsonBytePositionInLine = null)
-        : base(message, innerException)
+    public WorkerProtocolException(string code, string message, Exception? innerException = null, string? rawMessage = null, long? jsonLineNumber = null, long? jsonBytePositionInLine = null) : base(message, innerException)
     {
         Code = code;
         RawMessage = rawMessage;
@@ -143,10 +151,7 @@ public sealed class WorkerProtocolException : Exception
     }
 
     public string Code { get; }
-
     public string? RawMessage { get; }
-
     public long? JsonLineNumber { get; }
-
     public long? JsonBytePositionInLine { get; }
 }

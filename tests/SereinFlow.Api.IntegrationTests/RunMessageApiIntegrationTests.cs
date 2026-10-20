@@ -15,7 +15,6 @@ using SereinFlow.Worker.Client;
 using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Api.IntegrationTests;
-
 public sealed class RunMessageApiIntegrationTests
 {
     [Fact]
@@ -26,43 +25,36 @@ public sealed class RunMessageApiIntegrationTests
         var worker = new RecordingWorkerClient();
         using var factory = new ApiFactory(run, worker);
         using var client = factory.CreateClient();
-        using var content = new StringContent(
-            "{\"payload\":[null,\"订单\",42,true],\"contractId\":\"order.v1\",\"channelKind\":\"eventBus\"}",
-            Encoding.UTF8,
-            "application/json");
-
-        using var response = await client.PostAsync(
-            $"/api/runs/{run.Id:D}/messages/ orders.created ",
-            content);
-
+        using var content = new StringContent("{\"payload\":[null,\"订单\",42,true],\"contractId\":\"order.v1\",\"channelKind\":\"eventBus\"}", Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync($"/api/runs/{run.Id:D}/messages/ orders.created ", content);
         var responseBody = await response.Content.ReadAsStringAsync();
-        Assert.True(
-            response.StatusCode == HttpStatusCode.Accepted,
-            $"{responseBody}; deliveries={worker.Deliveries.Count}; runStatus={run.Status}");
+        Assert.True(response.StatusCode == HttpStatusCode.Accepted, $"{responseBody}; deliveries={worker.Deliveries.Count}; runStatus={run.Status}");
         Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Single(worker.Deliveries);
         Assert.Equal("orders.created", worker.Deliveries[0].Topic);
         Assert.Equal(WorkerMessageChannelKindDto.EventBus, worker.Deliveries[0].ChannelKind);
         Assert.Equal("[null,\"订单\",42,true]", worker.Deliveries[0].PayloadJson);
-
         using var responseDocument = JsonDocument.Parse(responseBody);
-        Assert.Equal("accepted", responseDocument.RootElement.GetProperty("status").GetString());
-        Assert.Equal(run.Id, responseDocument.RootElement.GetProperty("runId").GetGuid());
+        var getPropertyResult = responseDocument.RootElement.GetProperty("status");
+        var getStringResult = getPropertyResult.GetString();
+        Assert.Equal("accepted", getStringResult);
+        var getPropertyResult1 = responseDocument.RootElement.GetProperty("runId");
+        var getGuidResult = getPropertyResult1.GetGuid();
+        Assert.Equal(run.Id, getGuidResult);
     }
 
     private static FlowRun CreateRunningRun()
     {
-        var run = FlowRun.Start(Guid.NewGuid(), Guid.NewGuid(), 1, DateTimeOffset.UtcNow);
+        var newGuidResult = Guid.NewGuid();
+        var newGuidResult2 = Guid.NewGuid();
+        var run = FlowRun.Start(newGuidResult, newGuidResult2, 1, DateTimeOffset.UtcNow);
         run.MarkRunning(DateTimeOffset.UtcNow);
         return run;
     }
 
     private sealed class ApiFactory(FlowRun run, RecordingWorkerClient worker) : WebApplicationFactory<Program>
     {
-        private readonly string _dataRoot = Path.Combine(
-            Path.GetTempPath(),
-            $"sereinflow-run-message-api-{Guid.NewGuid():N}");
-
+        private readonly string _dataRoot = createdataRootInitialValue();
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing");
@@ -71,17 +63,19 @@ public sealed class RunMessageApiIntegrationTests
             builder.ConfigureAppConfiguration(configuration =>
             {
                 configuration.Sources.Clear();
-                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _dataRoot,
                     ["SereinFlow:Api:RequireAuthentication"] = "false",
                     ["SereinFlow:ApiDocumentation:Enabled"] = "true",
-                });
+                };
+                configuration.AddInMemoryCollection(dictionary);
             });
             builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<IFlowRunStore>();
-                services.AddSingleton<IFlowRunStore>(new TestRunStore(run));
+                var testRunStore = new TestRunStore(run);
+                services.AddSingleton<IFlowRunStore>(testRunStore);
                 services.RemoveAll<IWorkerMessageRunClient>();
                 services.AddSingleton<IWorkerMessageRunClient>(worker);
             });
@@ -104,64 +98,83 @@ public sealed class RunMessageApiIntegrationTests
                 }
             }
         }
+
+        private static string createdataRootInitialValue()
+        {
+            var getTempPathResult = Path.GetTempPath();
+            var evaluatedValue = $"sereinflow-run-message-api-{Guid.NewGuid():N}";
+            string dataRootInitialValue = Path.Combine(getTempPathResult, evaluatedValue);
+            return dataRootInitialValue;
+        }
     }
 
     private sealed class RecordingWorkerClient : IWorkerMessageRunClient
     {
         public List<WorkerMessageDeliveryDto> Deliveries { get; } = [];
 
-        public Task<WorkerMessageDeliveryResponseDto> DeliverMessageAsync(
-            WorkerMessageDeliveryDto delivery,
-            CancellationToken cancellationToken = default)
+        public Task<WorkerMessageDeliveryResponseDto> DeliverMessageAsync(WorkerMessageDeliveryDto delivery, CancellationToken cancellationToken = default)
         {
             Deliveries.Add(delivery);
-            return Task.FromResult(new WorkerMessageDeliveryResponseDto(
-                WorkerMessageDeliveryStatusDto.Accepted,
-                WorkerProtocol.Version,
-                delivery.RunId,
-                delivery.MessageId,
-                delivery.Topic,
-                null,
-                null));
+            var workerMessageDeliveryResponseDto = new WorkerMessageDeliveryResponseDto(WorkerMessageDeliveryStatusDto.Accepted, WorkerProtocol.Version, delivery.RunId, delivery.MessageId, delivery.Topic, null, null);
+            var fromResultResult = Task.FromResult(workerMessageDeliveryResponseDto);
+            return fromResultResult;
         }
     }
 
     private sealed class TestRunStore(FlowRun run) : IFlowRunStore
     {
         public Task<FlowRun> CreateWithSnapshotAsync(FlowRun value, FlowDefinitionDto flow, FlowRunExecutionOptions options, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+        {
+            throw new NotSupportedException();
+        }
 
         public Task<FlowRunAdmissionResult> TryCreateWithSnapshotAsync(FlowRun value, FlowDefinitionDto flow, FlowRunExecutionOptions options, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+        {
+            throw new NotSupportedException();
+        }
 
         public Task<IReadOnlyList<PendingFlowRun>> ListPendingAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<PendingFlowRun>>([]);
+        {
+            var fromResultResult3 = Task.FromResult<IReadOnlyList<PendingFlowRun>>([]);
+            return fromResultResult3;
+        }
 
         public Task<IReadOnlyList<FlowRun>> ListAsync(FlowRunQuery query, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<FlowRun>>([]);
+        {
+            var fromResultResult4 = Task.FromResult<IReadOnlyList<FlowRun>>([]);
+            return fromResultResult4;
+        }
 
         public Task<FlowRun> CreateWithSnapshotAsync(FlowRun value, FlowDefinitionDto flow, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+        {
+            throw new NotSupportedException();
+        }
 
         public Task<FlowRun?> FindAsync(Guid runId, CancellationToken cancellationToken = default)
-            => Task.FromResult<FlowRun?>(run.Id == runId ? run : null);
+        {
+            var fromResultResult5 = Task.FromResult<FlowRun?>(run.Id == runId ? run : null);
+            return fromResultResult5;
+        }
 
         public Task<FlowDefinitionDto?> GetSnapshotAsync(Guid runId, CancellationToken cancellationToken = default)
-            => Task.FromResult<FlowDefinitionDto?>(null);
+        {
+            var fromResultResult6 = Task.FromResult<FlowDefinitionDto?>(null);
+            return fromResultResult6;
+        }
 
         public Task<bool> SaveAsync(FlowRun value, CancellationToken cancellationToken = default)
-            => Task.FromResult(false);
+        {
+            var fromResultResult7 = Task.FromResult(false);
+            return fromResultResult7;
+        }
 
         public FlowRun CreateWithSnapshot(FlowRun value, FlowDefinitionDto flow)
-            => throw new NotSupportedException();
+        {
+            throw new NotSupportedException();
+        }
 
-        public FlowRun? Find(Guid runId)
-            => run.Id == runId ? run : null;
-
-        public FlowDefinitionDto? GetSnapshot(Guid runId)
-            => null;
-
-        public bool Save(FlowRun value)
-            => false;
+        public FlowRun? Find(Guid runId) => run.Id == runId ? run : null;
+        public FlowDefinitionDto? GetSnapshot(Guid runId) => null;
+        public bool Save(FlowRun value) => false;
     }
 }

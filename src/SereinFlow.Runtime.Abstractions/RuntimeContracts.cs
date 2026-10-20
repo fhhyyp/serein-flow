@@ -2,46 +2,26 @@ using SereinFlow.Domain;
 using LibraryVariableService = SereinFlow.Library.LibraryVariableService;
 
 namespace SereinFlow.Runtime.Abstractions;
-
 public interface IExecutionContext
 {
     object? Read(string key);
-
     void Write(string key, object? value);
-
     IReadOnlyDictionary<string, object?> Snapshot();
 }
 
-public sealed record NodeExecutionRequest(
-    NodeDefinition Node,
-    IExecutionContext Context,
-    IReadOnlyDictionary<string, object?> Inputs,
-    NodeExecutionRuntime? Runtime = null,
-    int Step = 0,
-    Guid ExecutionId = default);
-
+public sealed record NodeExecutionRequest(NodeDefinition Node, IExecutionContext Context, IReadOnlyDictionary<string, object?> Inputs, NodeExecutionRuntime? Runtime = null, int Step = 0, Guid ExecutionId = default);
 /// <summary>
 /// Immutable metadata exposed to a node execution. It is intentionally smaller
 /// than the flow session so executors cannot inspect or mutate arbitrary flow data.
 /// 节点执行可见的不可变元数据。它刻意小于流程会话，避免执行器读取或修改任意流程数据。
 /// </summary>
-public sealed record NodeExecutionEnvironment(
-    Guid RunId,
-    string ProjectId,
-    Guid FlowId,
-    string CanvasId,
-    string NodeId,
-    int FrameDepth,
-    int Step = 0,
-    Guid? ExecutionId = null);
-
+public sealed record NodeExecutionEnvironment(Guid RunId, string ProjectId, Guid FlowId, string CanvasId, string NodeId, int FrameDepth, int Step = 0, Guid? ExecutionId = null);
 /// <summary>
 /// A structured log entry emitted by a node executor. The runtime assigns the
 /// final sequence, run identity, node identity and persistence route.
 /// 节点执行器发出的结构化日志。运行时负责分配最终序号、运行标识、节点标识和持久化链路。
 /// </summary>
 public sealed record NodeExecutionLogEntry(string Level, string Message, object? Value);
-
 /// <summary>
 /// The only event surface made available to a node executor.
 /// 节点执行器唯一可用的事件出口。
@@ -54,13 +34,11 @@ public interface INodeExecutionEventSink
 public sealed class NullNodeExecutionEventSink : INodeExecutionEventSink
 {
     public static readonly NullNodeExecutionEventSink Instance = new();
-
     private NullNodeExecutionEventSink()
     {
     }
 
-    public ValueTask PublishLogAsync(NodeExecutionLogEntry entry, CancellationToken cancellationToken)
-        => ValueTask.CompletedTask;
+    public ValueTask PublishLogAsync(NodeExecutionLogEntry entry, CancellationToken cancellationToken) => ValueTask.CompletedTask;
 }
 
 /// <summary>
@@ -71,12 +49,7 @@ public sealed class NullNodeExecutionEventSink : INodeExecutionEventSink
 public sealed class NodeExecutionRuntime
 {
     private readonly Func<bool> _isCancellationRequested;
-
-    public NodeExecutionRuntime(
-        NodeExecutionEnvironment environment,
-        INodeExecutionEventSink? eventSink = null,
-        Func<bool>? isCancellationRequested = null,
-        LibraryVariableService? variables = null)
+    public NodeExecutionRuntime(NodeExecutionEnvironment environment, INodeExecutionEventSink? eventSink = null, Func<bool>? isCancellationRequested = null, LibraryVariableService? variables = null)
     {
         Environment = environment ?? throw new ArgumentNullException(nameof(environment));
         EventSink = eventSink ?? NullNodeExecutionEventSink.Instance;
@@ -85,35 +58,45 @@ public sealed class NodeExecutionRuntime
     }
 
     public NodeExecutionEnvironment Environment { get; }
-
     public INodeExecutionEventSink EventSink { get; }
-
     /// <summary>
     /// The table shared by all node invocations in this run, when supplied by the host.
     /// 宿主提供的运行级变量表，由本次运行的全部节点调用共用。
     /// </summary>
     public LibraryVariableService? Variables { get; }
 
-    public bool IsCancellationRequested => _isCancellationRequested();
+    public bool IsCancellationRequested
+    {
+        get
+        {
+            var isCancellationRequestedResult = _isCancellationRequested();
+            return isCancellationRequestedResult;
+        }
+    }
 }
 
-public sealed record NodeExecutionResult(
-    bool IsSuccess,
-    IReadOnlyDictionary<string, object?> Outputs,
-    ExecutionBranch NextBranch = ExecutionBranch.Success,
-    string? ErrorCode = null,
-    string? ErrorMessage = null,
-    IReadOnlyDictionary<string, object?>? Inputs = null,
-    IReadOnlyDictionary<string, object?>? TransferOutputs = null)
+public sealed record NodeExecutionResult(bool IsSuccess, IReadOnlyDictionary<string, object?> Outputs, ExecutionBranch NextBranch = ExecutionBranch.Success, string? ErrorCode = null, string? ErrorMessage = null, IReadOnlyDictionary<string, object?>? Inputs = null, IReadOnlyDictionary<string, object?>? TransferOutputs = null)
 {
     public static NodeExecutionResult Success(IReadOnlyDictionary<string, object?>? outputs = null)
-        => new(true, outputs ?? new Dictionary<string, object?>(), ExecutionBranch.Success);
+    {
+        var evaluatedValue = outputs ?? new Dictionary<string, object?>();
+        global::SereinFlow.Runtime.Abstractions.NodeExecutionResult evaluatedValue1 = new(true, evaluatedValue, ExecutionBranch.Success);
+        return evaluatedValue1;
+    }
 
     public static NodeExecutionResult Failure(string errorCode, string errorMessage)
-        => new(false, new Dictionary<string, object?>(), ExecutionBranch.Failure, errorCode, errorMessage);
+    {
+        var dictionary = new Dictionary<string, object?>();
+        global::SereinFlow.Runtime.Abstractions.NodeExecutionResult evaluatedValue2 = new(false, dictionary, ExecutionBranch.Failure, errorCode, errorMessage);
+        return evaluatedValue2;
+    }
 
     public static NodeExecutionResult Error(string errorCode, string errorMessage)
-        => new(false, new Dictionary<string, object?>(), ExecutionBranch.Error, errorCode, errorMessage);
+    {
+        var dictionary3 = new Dictionary<string, object?>();
+        global::SereinFlow.Runtime.Abstractions.NodeExecutionResult evaluatedValue4 = new(false, dictionary3, ExecutionBranch.Error, errorCode, errorMessage);
+        return evaluatedValue4;
+    }
 }
 
 public interface INodeExecutor
@@ -125,9 +108,7 @@ public interface INodeExecutor
 
 public interface IGlobalFlipflopExecutor
 {
-    ValueTask<NodeExecutionResult> WaitForTriggerAsync(
-        NodeExecutionRequest request,
-        CancellationToken cancellationToken);
+    ValueTask<NodeExecutionResult> WaitForTriggerAsync(NodeExecutionRequest request, CancellationToken cancellationToken);
 }
 
 public interface IFlowCallExecutorConfiguration
@@ -135,14 +116,7 @@ public interface IFlowCallExecutorConfiguration
     void Configure(Func<NodeExecutionRequest, CancellationToken, ValueTask<NodeExecutionResult>> execute);
 }
 
-public sealed record RuntimeEvent(
-    Guid RunId,
-    long Sequence,
-    DateTimeOffset Timestamp,
-    string Type,
-    string? NodeId,
-    IReadOnlyDictionary<string, object?> Payload);
-
+public sealed record RuntimeEvent(Guid RunId, long Sequence, DateTimeOffset Timestamp, string Type, string? NodeId, IReadOnlyDictionary<string, object?> Payload);
 public interface IRunEventPublisher
 {
     ValueTask PublishAsync(RuntimeEvent runtimeEvent, CancellationToken cancellationToken);

@@ -6,7 +6,6 @@ using SereinFlow.Library;
 using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Worker.Runner;
-
 /// <summary>Projects run variables without invoking arbitrary user-object getters or converters.</summary>
 public static class WorkerVariableService
 {
@@ -14,8 +13,10 @@ public static class WorkerVariableService
     public const int MaxResponseBytes = 512_000;
     public const int MaxFinalSnapshotBytes = 256_000;
     public const int MaxFinalVariables = 2_000;
-    private static readonly JsonSerializerOptions JsonOptions = new() { MaxDepth = 16 };
-
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        MaxDepth = 16
+    };
     /// <summary>Captures bounded, JSON-safe values once, before the Worker exits.</summary>
     public static RunVariableSnapshotDto CaptureFinal(Guid runId, LibraryVariableService variables)
     {
@@ -23,52 +24,88 @@ public static class WorkerVariableService
         var entries = new List<RunVariableDto>();
         var remainingBytes = MaxFinalSnapshotBytes - 1_024;
         var truncated = values.Count > MaxFinalVariables;
-        foreach (var (name, value) in values.OrderBy(static item => item.Key, StringComparer.Ordinal).Take(MaxFinalVariables))
+        var orderByResult1 = values.OrderBy(static item => item.Key, StringComparer.Ordinal);
+        foreach (var deconstructedEntry in orderByResult1.Take(MaxFinalVariables))
         {
+            var name = deconstructedEntry.Key;
+            var value = deconstructedEntry.Value;
             if (name.Length > 256)
             {
                 truncated = true;
                 continue;
             }
+
             var entry = Project(name, value);
-            var bytes = Encoding.UTF8.GetByteCount(WorkerProtocolCodec.SerializePayload(entry)) + 1;
+            var bytes = resolveGetByteCountResult1() + 1;
             if (bytes > remainingBytes && entry.ValueAvailable)
             {
-                entry = entry with { Value = null, ValueJson = null, ValueAvailable = false, UnavailableReason = "snapshot_limit" };
-                bytes = Encoding.UTF8.GetByteCount(WorkerProtocolCodec.SerializePayload(entry)) + 1;
+                entry = entry with
+                {
+                    Value = null,
+                    ValueJson = null,
+                    ValueAvailable = false,
+                    UnavailableReason = "snapshot_limit"
+                };
+                bytes = resolveGetByteCountResult() + 1;
                 truncated = true;
+                int resolveGetByteCountResult()
+                {
+                    var serializePayloadResult = WorkerProtocolCodec.SerializePayload(entry);
+                    var getByteCountResult = Encoding.UTF8.GetByteCount(serializePayloadResult);
+                    return getByteCountResult;
+                }
             }
+
             if (bytes > remainingBytes)
             {
                 truncated = true;
                 continue;
             }
+
             entries.Add(entry);
             remainingBytes -= bytes;
+            int resolveGetByteCountResult1()
+            {
+                var serializePayloadResult2 = WorkerProtocolCodec.SerializePayload(entry);
+                var getByteCountResult3 = Encoding.UTF8.GetByteCount(serializePayloadResult2);
+                return getByteCountResult3;
+            }
         }
-        return new(runId, entries, values.Count, 0, false, DateTimeOffset.UtcNow, IsFinal: true, IsTruncated: truncated);
+
+        global::SereinFlow.Contracts.RunVariableSnapshotDto evaluatedValue = new(runId, entries, values.Count, 0, false, DateTimeOffset.UtcNow, IsFinal: true, IsTruncated: truncated);
+        return evaluatedValue;
     }
 
-    public static WorkerVariableResponseDto Execute(
-        Guid runId,
-        LibraryVariableService variables,
-        WorkerVariableRequestDto request)
+    public static WorkerVariableResponseDto Execute(Guid runId, LibraryVariableService variables, WorkerVariableRequestDto request)
     {
         if (request.ProtocolVersion != WorkerProtocolConstants.Version || request.RunId != runId)
-            return Failure(runId, VariableErrorCodes.InvalidRequest, "Variable request does not match this run.");
-        if (request.Operation is not ("list" or "get" or "set")
-            || request.Offset < 0 || request.Take is < 1 or > 200
-            || (request.Operation != "list" && (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 256)))
-            return Failure(runId, VariableErrorCodes.InvalidRequest, "Invalid variable operation, name or page.");
+        {
+            var failureResult = Failure(runId, VariableErrorCodes.InvalidRequest, "Variable request does not match this run.");
+            return failureResult;
+        }
+
+        if (request.Operation is not ("list" or "get" or "set") || request.Offset < 0 || request.Take is < 1 or > 200 || (request.Operation != "list" && (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 256)))
+        {
+            var failureResult4 = Failure(runId, VariableErrorCodes.InvalidRequest, "Invalid variable operation, name or page.");
+            return failureResult4;
+        }
 
         WorkerVariableResponseDto response;
         if (request.Operation == "set")
         {
             var input = request.Value;
             if (input.ValueKind == JsonValueKind.Undefined)
-                return Failure(runId, VariableErrorCodes.ValueInvalid, "A JSON value is required, including explicit null.");
-            if (Encoding.UTF8.GetByteCount(input.GetRawText()) > MaxValueBytes)
-                return Failure(runId, VariableErrorCodes.TooLarge, "Variable values are limited to 16384 JSON bytes.", 413);
+            {
+                var failureResult5 = Failure(runId, VariableErrorCodes.ValueInvalid, "A JSON value is required, including explicit null.");
+                return failureResult5;
+            }
+
+            if (resolveGetByteCountResult9() > MaxValueBytes)
+            {
+                var failureResult6 = Failure(runId, VariableErrorCodes.TooLarge, "Variable values are limited to 16384 JSON bytes.", 413);
+                return failureResult6;
+            }
+
             object? value;
             try
             {
@@ -76,14 +113,24 @@ public static class WorkerVariableService
             }
             catch (NotSupportedException)
             {
-                return Failure(runId, VariableErrorCodes.TypeInvalid, "Use null, boolean, string, int32, int64, double, decimal or json.");
+                var failureResult7 = Failure(runId, VariableErrorCodes.TypeInvalid, "Use null, boolean, string, int32, int64, double, decimal or json.");
+                return failureResult7;
             }
-            catch (Exception exception) when (exception is InvalidOperationException or FormatException or OverflowException or JsonException)
+            catch (Exception exception)when (exception is InvalidOperationException or FormatException or OverflowException or JsonException)
             {
-                return Failure(runId, VariableErrorCodes.ValueInvalid, "The JSON value does not match valueType.");
+                var failureResult8 = Failure(runId, VariableErrorCodes.ValueInvalid, "The JSON value does not match valueType.");
+                return failureResult8;
             }
+
             variables.Set(request.Name!, value);
-            response = new(WorkerProtocolConstants.Version, runId, 200, Variable: Project(request.Name!, value));
+            var projectResult = Project(request.Name!, value);
+            response = new(WorkerProtocolConstants.Version, runId, 200, Variable: projectResult);
+            int resolveGetByteCountResult9()
+            {
+                var getRawTextResult = input.GetRawText();
+                var getByteCountResult10 = Encoding.UTF8.GetByteCount(getRawTextResult);
+                return getByteCountResult10;
+            }
         }
         else
         {
@@ -91,36 +138,76 @@ public static class WorkerVariableService
             if (request.Operation == "get")
             {
                 if (!snapshot.TryGetValue(request.Name!, out var value))
-                    return Failure(runId, VariableErrorCodes.NotFound, "Variable not found. 未找到变量。", 404);
-                response = new(WorkerProtocolConstants.Version, runId, 200, Variable: Project(request.Name!, value));
+                {
+                    var failureResult11 = Failure(runId, VariableErrorCodes.NotFound, "Variable not found. 未找到变量。", 404);
+                    return failureResult11;
+                }
+
+                var projectResult12 = Project(request.Name!, value);
+                response = new(WorkerProtocolConstants.Version, runId, 200, Variable: projectResult12);
             }
             else
             {
-                var entries = snapshot.OrderBy(static item => item.Key, StringComparer.Ordinal)
-                    .Skip(request.Offset).Take(request.Take)
-                    .Select(static item => Project(item.Key, item.Value)).ToArray();
-                response = new(WorkerProtocolConstants.Version, runId, 200,
-                    Snapshot: new(runId, entries, snapshot.Count, request.Offset,
-                        request.Offset + entries.Length < snapshot.Count, DateTimeOffset.UtcNow));
+                var orderByResult = snapshot.OrderBy(static item => item.Key, StringComparer.Ordinal);
+                var skipResult = orderByResult.Skip(request.Offset);
+                var takeResult = skipResult.Take(request.Take);
+                var selectResult = takeResult.Select(static item =>
+                {
+                    var projectResult13 = Project(item.Key, item.Value);
+                    return projectResult13;
+                });
+                var entries = selectResult.ToArray();
+                global::SereinFlow.Contracts.RunVariableSnapshotDto evaluatedValue14 = new(runId, entries, snapshot.Count, request.Offset, request.Offset + entries.Length < snapshot.Count, DateTimeOffset.UtcNow);
+                response = new(WorkerProtocolConstants.Version, runId, 200, Snapshot: evaluatedValue14);
             }
         }
 
         // Drop large value projections while retaining names/types and paging metadata.
-        if (Encoding.UTF8.GetByteCount(WorkerProtocolCodec.SerializePayload(response)) > MaxResponseBytes)
+        if (resolveGetByteCountResult20() > MaxResponseBytes)
         {
             if (response.Snapshot is { } snapshot)
-                response = response with { Snapshot = snapshot with { Variables = snapshot.Variables.Select(
-                    static item => item.ValueAvailable
-                        ? item with { Value = null, ValueJson = null, ValueAvailable = false, UnavailableReason = "snapshot_limit" }
-                        : item).ToArray() } };
-            if (Encoding.UTF8.GetByteCount(WorkerProtocolCodec.SerializePayload(response)) > MaxResponseBytes)
-                return Failure(runId, VariableErrorCodes.TooLarge, "Variable metadata exceeds the response limit; request a smaller page.", 413);
+            {
+                response = response with
+                {
+                    Snapshot = snapshot with
+                    {
+                        Variables = resolveToArrayResult()
+                    }
+                };
+                global::System.Collections.Generic.IReadOnlyList<global::SereinFlow.Contracts.RunVariableDto> resolveToArrayResult()
+                {
+                    var selectResult15 = snapshot.Variables.Select(static item => item.ValueAvailable ? item with { Value = null, ValueJson = null, ValueAvailable = false, UnavailableReason = "snapshot_limit" } : item);
+                    var toArrayResult = selectResult15.ToArray();
+                    return toArrayResult;
+                }
+            }
+
+            if (resolveGetByteCountResult17() > MaxResponseBytes)
+            {
+                var failureResult16 = Failure(runId, VariableErrorCodes.TooLarge, "Variable metadata exceeds the response limit; request a smaller page.", 413);
+                return failureResult16;
+            }
+
+            int resolveGetByteCountResult17()
+            {
+                var serializePayloadResult18 = WorkerProtocolCodec.SerializePayload(response);
+                var getByteCountResult19 = Encoding.UTF8.GetByteCount(serializePayloadResult18);
+                return getByteCountResult19;
+            }
         }
+
         return response;
+        int resolveGetByteCountResult20()
+        {
+            var serializePayloadResult21 = WorkerProtocolCodec.SerializePayload(response);
+            var getByteCountResult22 = Encoding.UTF8.GetByteCount(serializePayloadResult21);
+            return getByteCountResult22;
+        }
     }
 
     private static object? ParseValue(JsonElement value, string? valueType)
-        => valueType switch
+    {
+        object? evaluatedValue23 = valueType switch
         {
             "null" when value.ValueKind == JsonValueKind.Null => null,
             "string" when value.ValueKind == JsonValueKind.Null => null,
@@ -128,15 +215,26 @@ public static class WorkerVariableService
             "boolean" => value.GetBoolean(),
             "int32" => value.GetInt32(),
             "int64" => value.GetInt64(),
-            "double" => FiniteDouble(value.GetDouble()),
+            "double" => resolveFiniteDoubleResult(),
             "decimal" => value.GetDecimal(),
             "json" => value.Clone(),
             "null" => throw new InvalidOperationException(),
             _ => throw new NotSupportedException(),
         };
+        return evaluatedValue23;
+        object resolveFiniteDoubleResult()
+        {
+            var getDoubleResult = value.GetDouble();
+            var finiteDoubleResult = FiniteDouble(getDoubleResult);
+            return finiteDoubleResult;
+        }
+    }
 
     private static double FiniteDouble(double value)
-        => double.IsFinite(value) ? value : throw new OverflowException();
+    {
+        double evaluatedValue24 = double.IsFinite(value) ? value : throw new OverflowException();
+        return evaluatedValue24;
+    }
 
     private static RunVariableDto Project(string name, object? value)
     {
@@ -144,49 +242,82 @@ public static class WorkerVariableService
         try
         {
             if (!TryProjectValue(value, 0, out var safe))
-                return new(name, type, false, null, "unsupported_type");
+            {
+                global::SereinFlow.Contracts.RunVariableDto evaluatedValue25 = new(name, type, false, null, "unsupported_type");
+                return evaluatedValue25;
+            }
+
             var json = JsonSerializer.SerializeToElement(safe, JsonOptions);
             var raw = json.GetRawText();
-            return Encoding.UTF8.GetByteCount(raw) <= MaxValueBytes
-                ? new(name, type, true, json, ValueJson: raw)
-                : new(name, type, false, null, "value_limit");
+            global::SereinFlow.Contracts.RunVariableDto evaluatedValue26 = Encoding.UTF8.GetByteCount(raw) <= MaxValueBytes ? new(name, type, true, json, ValueJson: raw) : new(name, type, false, null, "value_limit");
+            return evaluatedValue26;
         }
-        catch (Exception exception) when (exception is JsonException or NotSupportedException or InvalidOperationException or ObjectDisposedException or ArgumentException)
+        catch (Exception exception)when (exception is JsonException or NotSupportedException or InvalidOperationException or ObjectDisposedException or ArgumentException)
         {
-            return new(name, type, false, null, "not_json");
+            global::SereinFlow.Contracts.RunVariableDto evaluatedValue27 = new(name, type, false, null, "not_json");
+            return evaluatedValue27;
         }
     }
 
     private static bool TryProjectValue(object? value, int depth, out object? safe)
     {
         safe = value;
-        if (depth > 8) return false;
-        if (value is null or bool or char or byte or sbyte or short or ushort or int or uint or long or ulong
-            or float or double or decimal or Guid or DateTime or DateTimeOffset or TimeSpan)
+        if (depth > 8)
+        {
+            return false;
+        }
+
+        if (value is null or bool or char or byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal or Guid or DateTime or DateTimeOffset or TimeSpan)
+        {
             return true;
-        if (value is string text) return text.Length <= MaxValueBytes;
-        if (value is JsonElement json) return json.ValueKind != JsonValueKind.Undefined;
-        if (value is Enum) { safe = value.ToString(); return true; }
+        }
+
+        if (value is string text)
+        {
+            return text.Length <= MaxValueBytes;
+        }
+
+        if (value is JsonElement json)
+        {
+            return json.ValueKind != JsonValueKind.Undefined;
+        }
+
+        if (value is Enum)
+        {
+            safe = value.ToString();
+            return true;
+        }
+
         var type = value.GetType();
         if (value is Array { Rank: 1 } array && array.Length <= 128)
-            return ProjectCollection(array, depth, out safe);
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>)
-            && value is IList { Count: <= 128 } list)
-            return ProjectCollection(list, depth, out safe);
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>)
-            && type.GetGenericArguments()[0] == typeof(string)
-            && value is IDictionary { Count: <= 128 } dictionary)
+        {
+            var projectCollectionResult = ProjectCollection(array, depth, out safe);
+            return projectCollectionResult;
+        }
+
+        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>) && value is IList { Count: <= 128 } list)
+        {
+            var projectCollectionResult28 = ProjectCollection(list, depth, out safe);
+            return projectCollectionResult28;
+        }
+
+        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<, >) && type.GetGenericArguments()[0] == typeof(string) && value is IDictionary { Count: <= 128 } dictionary)
         {
             var result = new Dictionary<string, object?>();
             foreach (DictionaryEntry entry in dictionary)
             {
-                if (entry.Key is not string key || key.Length > MaxValueBytes
-                    || !TryProjectValue(entry.Value, depth + 1, out var item)) return false;
+                if (entry.Key is not string key || key.Length > MaxValueBytes || !TryProjectValue(entry.Value, depth + 1, out var item))
+                {
+                    return false;
+                }
+
                 result[key] = item;
             }
+
             safe = result;
             return true;
         }
+
         return false;
     }
 
@@ -195,13 +326,22 @@ public static class WorkerVariableService
         var result = new List<object?>();
         foreach (var value in values)
         {
-            if (!TryProjectValue(value, depth + 1, out var item)) { safe = null; return false; }
+            if (!TryProjectValue(value, depth + 1, out var item))
+            {
+                safe = null;
+                return false;
+            }
+
             result.Add(item);
         }
+
         safe = result;
         return true;
     }
 
     private static WorkerVariableResponseDto Failure(Guid runId, string code, string message, int status = 400)
-        => new(WorkerProtocolConstants.Version, runId, status, Code: code, Message: message);
+    {
+        global::SereinFlow.Contracts.WorkerVariableResponseDto evaluatedValue29 = new(WorkerProtocolConstants.Version, runId, status, Code: code, Message: message);
+        return evaluatedValue29;
+    }
 }
