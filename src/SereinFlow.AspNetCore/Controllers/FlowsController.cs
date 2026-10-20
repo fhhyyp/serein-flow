@@ -72,11 +72,7 @@ public sealed class FlowsController : ApiControllerBase
         return evaluatedValue5;
         ObjectResult resolveApiProblemResult()
         {
-            var dictionary = new Dictionary<string, object?>
-            {
-                ["currentVersion"] = result.CurrentVersion
-            };
-            var apiProblemResult4 = ApiProblem(StatusCodes.Status409Conflict, "Flow definition was changed by another editor. 流程定义已被其他编辑器修改。", extensions: dictionary);
+            var apiProblemResult4 = ApiVersionProblem(StatusCodes.Status409Conflict, "Flow definition was changed by another editor. 流程定义已被其他编辑器修改。", currentVersion: result.CurrentVersion);
             return apiProblemResult4;
         }
     }

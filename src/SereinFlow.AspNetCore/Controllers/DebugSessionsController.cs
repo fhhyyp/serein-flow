@@ -38,22 +38,14 @@ public sealed class DebugSessionsController : ApiControllerBase
         var revision = afterRevision ?? -1;
         if (afterRevision is not null && revision < 0)
         {
-            var dictionary = new Dictionary<string, object?>
-            {
-                ["code"] = DebugErrorCodes.InvalidStateRevision
-            };
-            var apiProblemResult = ApiProblem(StatusCodes.Status400BadRequest, "The debug state revision cannot be negative. 调试状态修订号不能为负数。", extensions: dictionary);
+            var apiProblemResult = ApiProblemWithCode(StatusCodes.Status400BadRequest, "The debug state revision cannot be negative. 调试状态修订号不能为负数。", code: DebugErrorCodes.InvalidStateRevision);
             return apiProblemResult;
         }
 
         var seconds = timeoutSeconds ?? 15;
         if (seconds is < 0 or > 60)
         {
-            var dictionary1 = new Dictionary<string, object?>
-            {
-                ["code"] = DebugErrorCodes.InvalidWaitTimeout
-            };
-            var apiProblemResult2 = ApiProblem(StatusCodes.Status400BadRequest, "The debug wait timeout must be between 0 and 60 seconds. 调试等待超时必须在 0 到 60 秒之间。", extensions: dictionary1);
+            var apiProblemResult2 = ApiProblemWithCode(StatusCodes.Status400BadRequest, "The debug wait timeout must be between 0 and 60 seconds. 调试等待超时必须在 0 到 60 秒之间。", code: DebugErrorCodes.InvalidWaitTimeout);
             return apiProblemResult2;
         }
 

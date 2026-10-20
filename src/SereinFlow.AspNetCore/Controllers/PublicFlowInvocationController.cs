@@ -59,11 +59,7 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
 
         if (await _versions.FindProductionDefinitionAsync(flowInterface.ProjectId, flowInterface.FlowId, cancellationToken)is null)
         {
-            var dictionary = new Dictionary<string, object?>
-            {
-                ["code"] = FlowErrorCodes.ProductionVersionRequired
-            };
-            var apiProblemResult1 = ApiProblem(StatusCodes.Status409Conflict, "The flow interface requires a published production version. 流程接口需要已发布的生产版本。", extensions: dictionary);
+            var apiProblemResult1 = ApiProblemWithCode(StatusCodes.Status409Conflict, "The flow interface requires a published production version. 流程接口需要已发布的生产版本。", code: FlowErrorCodes.ProductionVersionRequired);
             return apiProblemResult1;
         }
 

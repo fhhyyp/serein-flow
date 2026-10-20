@@ -32,6 +32,13 @@ pwsh -File ./eng/check-code-conventions.ps1 -SelfTest
 
 常量命名、来源及业务含义由人工审查；自动检查通过不代表这些语义事项已经验收。审查时也要确认调用拆分没有移动副作用、改变短路条件或扩大变量生命周期。
 
+## JSON 合同与动态数据
+
+- 固定结构的 JSON 合同优先使用具名类型；不要用 `Dictionary<string, object?>` 隐式声明字段结构。
+- MCP 工具 Schema 保持手工声明，使用 `McpJsonSchema` 和现有 Schema 构建方法。动态属性名使用 `Dictionary<string, McpJsonSchema>`，采用集合添加初始化方式检测重复键；对象 Schema 构建时检查 `required` 是否重复或引用未声明属性。调整后使用工具目录兼容性基线验证 JSON 结构。
+- API 错误通过 `ApiProblemDetailsFactory` 生成 `ProblemDetails`；控制器使用 `ApiProblemWithCode`、`ApiVersionProblem` 和通用 `ApiProblem`。显式空值与字段缺失分别处理，保留任意扩展数据入口。
+- 节点输入输出、运行变量和脚本对象仍可使用动态字典。它们可以持有 CLR 或脚本实例，不应提前转成 JSON；跨 Worker、持久化和客户端边界时继续执行审计投影。
+
 ## 必要语法例外
 
 Vue `withDefaults(defineProps<...>(), defaults)` 是编译宏，Vue 编译器要求 `defineProps` 位于宏参数中，保留其语法结构。仅在 `.vue` 中豁免该第一个参数；默认值中的调用及回调内部仍检查。当前位置如下，均位于 `frontend/sereinflow-web/src/components/`：

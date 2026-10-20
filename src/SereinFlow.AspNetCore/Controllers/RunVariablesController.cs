@@ -49,11 +49,7 @@ public sealed class RunVariablesController(IFlowRunStore runs, IRunVariableServi
         var run = await runs.FindAsync(request.RunId, cancellationToken);
         if (run is null)
         {
-            var dictionary = new Dictionary<string, object?>
-            {
-                ["code"] = RunErrorCodes.NotFound
-            };
-            var apiProblemResult = ApiProblem(404, "Run not found. 未找到运行实例。", extensions: dictionary);
+            var apiProblemResult = ApiProblemWithCode(404, "Run not found. 未找到运行实例。", code: RunErrorCodes.NotFound);
             return apiProblemResult;
         }
 
@@ -72,11 +68,7 @@ public sealed class RunVariablesController(IFlowRunStore runs, IRunVariableServi
             return evaluatedValue5;
         }
 
-        var dictionary7 = new Dictionary<string, object?>
-        {
-            ["code"] = result.Code
-        };
-        var apiProblemResult8 = ApiProblem(result.StatusCode, result.Message ?? "Variable request failed. 变量请求失败。", extensions: dictionary7);
+        var apiProblemResult8 = ApiProblemWithCode(result.StatusCode, result.Message ?? "Variable request failed. 变量请求失败。", code: result.Code);
         return apiProblemResult8;
     }
 }

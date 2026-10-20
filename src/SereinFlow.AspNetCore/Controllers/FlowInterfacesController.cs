@@ -73,11 +73,7 @@ public sealed class FlowInterfacesController : ApiControllerBase
         var productionVersion = await _versions.FindProductionVersionAsync(request.ProjectId, request.FlowId, cancellationToken);
         if (productionVersion is null)
         {
-            var dictionary = new Dictionary<string, object?>
-            {
-                ["code"] = FlowErrorCodes.ProductionVersionRequired
-            };
-            var apiProblemResult4 = ApiProblem(StatusCodes.Status409Conflict, "A production flow version is required before creating an environment interface. 创建环境接口前必须先发布生产流程版本。", extensions: dictionary);
+            var apiProblemResult4 = ApiProblemWithCode(StatusCodes.Status409Conflict, "A production flow version is required before creating an environment interface. 创建环境接口前必须先发布生产流程版本。", code: FlowErrorCodes.ProductionVersionRequired);
             return apiProblemResult4;
         }
 

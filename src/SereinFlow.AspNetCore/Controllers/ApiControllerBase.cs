@@ -13,41 +13,48 @@ public abstract class ApiControllerBase : ControllerBase
 {
     protected ActionResult? ToAuthorizationFailure(SereinFlowApiAuthorizationResult result)
     {
-        ActionResult? evaluatedValue1 = result.IsAllowed ? null : resolveApiProblemResult();
-        return evaluatedValue1;
-        ObjectResult resolveApiProblemResult()
+        if (result.IsAllowed)
         {
-            IReadOnlyDictionary<string, object>? evaluatedValue = string.IsNullOrWhiteSpace(result.Code) ? null : new Dictionary<string, object?>
-            {
-                ["code"] = result.Code
-            };
-            var apiProblemResult = ApiProblem(result.StatusCode, result.Message, extensions: evaluatedValue);
-            return apiProblemResult;
+            return null;
         }
+
+        var problem = string.IsNullOrWhiteSpace(result.Code)
+            ? ApiProblem(result.StatusCode, result.Message)
+            : ApiProblemWithCode(result.StatusCode, result.Message, result.Code);
+        return problem;
     }
 
     protected ObjectResult ApiProblem(int statusCode, string? title, string? detail = null, IReadOnlyDictionary<string, object?>? extensions = null)
     {
-        var problem = new ProblemDetails
+        var problem = ApiProblemDetailsFactory.Create(statusCode, title, detail, extensions);
+        var response = ToProblemResponse(problem);
+        return response;
+    }
+
+    protected ObjectResult ApiProblemWithCode(int statusCode, string? title, string? code, long? currentVersion = null)
+    {
+        var problem = ApiProblemDetailsFactory.WithCode(statusCode, title, code, currentVersion);
+        var response = ToProblemResponse(problem);
+        return response;
+    }
+
+    protected ObjectResult ApiVersionProblem(int statusCode, string? title, long? currentVersion)
+    {
+        var problem = ApiProblemDetailsFactory.WithCurrentVersion(statusCode, title, currentVersion);
+        var response = ToProblemResponse(problem);
+        return response;
+    }
+
+    private static ObjectResult ToProblemResponse(ProblemDetails problem)
+    {
+        if (string.IsNullOrWhiteSpace(problem.Title))
         {
-            Status = statusCode,
-            Title = string.IsNullOrWhiteSpace(title) ? "The request could not be completed. 请求无法完成。" : title,
-            Detail = detail,
-        };
-        if (extensions is not null)
-        {
-            foreach (var extension in extensions)
-            {
-                problem.Extensions[extension.Key] = extension.Value;
-            }
+            problem.Title = "The request could not be completed. 请求无法完成。";
         }
 
-        var result = new ObjectResult(problem)
-        {
-            StatusCode = statusCode
-        };
-        result.ContentTypes.Add("application/problem+json");
-        return result;
+        var response = new ObjectResult(problem) { StatusCode = problem.Status };
+        response.ContentTypes.Add("application/problem+json");
+        return response;
     }
 
     protected ActionResult ToRunSubmissionResponse(RunSubmissionResult submission)
@@ -68,12 +75,10 @@ public abstract class ApiControllerBase : ControllerBase
             return jsonResult;
         }
 
-        IReadOnlyDictionary<string, object>? evaluatedValue2 = submission.CurrentVersion is null ? null : new Dictionary<string, object?>
-        {
-            ["currentVersion"] = submission.CurrentVersion
-        };
-        var apiProblemResult3 = ApiProblem(submission.StatusCode, submission.ErrorTitle, extensions: evaluatedValue2);
-        return apiProblemResult3;
+        var response = submission.CurrentVersion is null
+            ? ApiProblem(submission.StatusCode, submission.ErrorTitle)
+            : ApiVersionProblem(submission.StatusCode, submission.ErrorTitle, submission.CurrentVersion);
+        return response;
     }
 
     protected ActionResult ToDebugCommandResponse(FlowDebugSessionCommandResult result)
@@ -84,17 +89,16 @@ public abstract class ApiControllerBase : ControllerBase
 
     protected ActionResult ToProjectLibraryResponse(ProjectLibraryOperationResult result)
     {
-        ActionResult evaluatedValue8 = result.IsSuccess ? Ok(result.References ?? []) : resolveApiProblemResult5();
-        return evaluatedValue8;
-        ObjectResult resolveApiProblemResult5()
+        if (result.IsSuccess)
         {
-            IReadOnlyDictionary<string, object>? evaluatedValue6 = string.IsNullOrWhiteSpace(result.Code) ? null : new Dictionary<string, object?>
-            {
-                ["code"] = result.Code
-            };
-            var apiProblemResult7 = ApiProblem(result.StatusCode, result.Message, extensions: evaluatedValue6);
-            return apiProblemResult7;
+            var response = Ok(result.References ?? []);
+            return response;
         }
+
+        var problem = string.IsNullOrWhiteSpace(result.Code)
+            ? ApiProblem(result.StatusCode, result.Message)
+            : ApiProblemWithCode(result.StatusCode, result.Message, result.Code);
+        return problem;
     }
 
     protected ActionResult ToLibraryUpgradeResponse<T>(LibraryUpgradeOperationResult<T> result)
@@ -111,16 +115,7 @@ public abstract class ApiControllerBase : ControllerBase
             }
         }
 
-        var extensions = new Dictionary<string, object?>
-        {
-            ["code"] = result.Code
-        };
-        if (result.CurrentVersion is not null)
-        {
-            extensions["currentVersion"] = result.CurrentVersion;
-        }
-
-        var apiProblemResult11 = ApiProblem(result.StatusCode, result.Message ?? "Library upgrade request failed. 类库升级请求失败。", extensions: extensions);
-        return apiProblemResult11;
+        var response = ApiProblemWithCode(result.StatusCode, result.Message ?? "Library upgrade request failed. 类库升级请求失败。", result.Code, result.CurrentVersion);
+        return response;
     }
 }

@@ -132,22 +132,15 @@ public sealed class ProjectsController : ApiControllerBase
 
         if (project.Version != request.ExpectedVersion)
         {
-            var dictionary = new Dictionary<string, object?>
-            {
-                ["currentVersion"] = project.Version
-            };
-            var apiProblemResult7 = ApiProblem(StatusCodes.Status409Conflict, "The project was changed by another editor. 项目已被其他编辑器修改。", extensions: dictionary);
+            var apiProblemResult7 = ApiVersionProblem(StatusCodes.Status409Conflict, "The project was changed by another editor. 项目已被其他编辑器修改。", currentVersion: project.Version);
             return apiProblemResult7;
         }
 
         project.Rename(request.Name);
         if (!await _projects.TryUpdateAsync(project, request.ExpectedVersion, cancellationToken))
         {
-            var dictionary8 = new Dictionary<string, object?>
-            {
-                ["currentVersion"] = (await _projects.FindAsync(projectId, cancellationToken))?.Version,
-            };
-            var apiProblemResult9 = ApiProblem(StatusCodes.Status409Conflict, "The project was changed by another editor. 项目已被其他编辑器修改。", extensions: dictionary8);
+            var currentVersion = (await _projects.FindAsync(projectId, cancellationToken))?.Version;
+            var apiProblemResult9 = ApiVersionProblem(StatusCodes.Status409Conflict, "The project was changed by another editor. 项目已被其他编辑器修改。", currentVersion: currentVersion);
             return apiProblemResult9;
         }
 
@@ -184,11 +177,7 @@ public sealed class ProjectsController : ApiControllerBase
 
         ObjectResult resolveApiProblemResult()
         {
-            var dictionary17 = new Dictionary<string, object?>
-            {
-                ["code"] = result.Code
-            };
-            var apiProblemResult18 = ApiProblem(result.StatusCode, result.Message, extensions: dictionary17);
+            var apiProblemResult18 = ApiProblemWithCode(result.StatusCode, result.Message, code: result.Code);
             return apiProblemResult18;
         }
     }

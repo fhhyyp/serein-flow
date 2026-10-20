@@ -102,11 +102,7 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
                 Response.Headers.WWWAuthenticate = "Bearer";
             }
 
-            var dictionary = new Dictionary<string, object?>
-            {
-                ["code"] = exception.Code
-            };
-            var apiProblemResult = ApiProblem(exception.StatusCode, exception.Message, extensions: dictionary);
+            var apiProblemResult = ApiProblemWithCode(exception.StatusCode, exception.Message, code: exception.Code);
             return apiProblemResult;
         }
         catch (McpProtocolException exception)

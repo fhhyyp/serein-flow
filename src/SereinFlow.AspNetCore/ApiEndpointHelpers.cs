@@ -117,12 +117,11 @@ internal static class ApiEndpointHelpers
             return jsonResult;
         }
 
-        Dictionary<string, object>? evaluatedValue12 = submission.CurrentVersion is null ? null : new Dictionary<string, object?>
-        {
-            ["currentVersion"] = submission.CurrentVersion
-        };
-        var problemResult = Results.Problem(statusCode: submission.StatusCode, title: submission.ErrorTitle, extensions: evaluatedValue12);
-        return problemResult;
+        var problem = submission.CurrentVersion is null
+            ? ApiProblemDetailsFactory.Create(submission.StatusCode, submission.ErrorTitle)
+            : ApiProblemDetailsFactory.WithCurrentVersion(submission.StatusCode, submission.ErrorTitle, submission.CurrentVersion);
+        var response = Results.Problem(problem);
+        return response;
     }
 
     internal static IResult ToProjectLibraryResponse(ProjectLibraryOperationResult result)
@@ -133,12 +132,11 @@ internal static class ApiEndpointHelpers
             return okResult;
         }
 
-        Dictionary<string, object>? evaluatedValue13 = string.IsNullOrWhiteSpace(result.Code) ? null : new Dictionary<string, object?>
-        {
-            ["code"] = result.Code
-        };
-        var problemResult14 = Results.Problem(statusCode: result.StatusCode, title: result.Message, extensions: evaluatedValue13);
-        return problemResult14;
+        var problem = string.IsNullOrWhiteSpace(result.Code)
+            ? ApiProblemDetailsFactory.Create(result.StatusCode, result.Message)
+            : ApiProblemDetailsFactory.WithCode(result.StatusCode, result.Message, result.Code);
+        var response = Results.Problem(problem);
+        return response;
     }
 
     internal static IResult ToLibraryUpgradeResponse<T>(LibraryUpgradeOperationResult<T> result)
@@ -157,17 +155,10 @@ internal static class ApiEndpointHelpers
             return successfulResponse;
         }
 
-        var extensions = new Dictionary<string, object?>
-        {
-            ["code"] = result.Code
-        };
-        if (result.CurrentVersion is not null)
-        {
-            extensions["currentVersion"] = result.CurrentVersion;
-        }
-
-        var problemResult16 = Results.Problem(statusCode: result.StatusCode, title: result.Message ?? "Library upgrade request failed. 类库升级请求失败。", extensions: extensions);
-        return problemResult16;
+        var title = result.Message ?? "Library upgrade request failed. 类库升级请求失败。";
+        var problem = ApiProblemDetailsFactory.WithCode(result.StatusCode, title, result.Code, result.CurrentVersion);
+        var response = Results.Problem(problem);
+        return response;
     }
 
     internal static string GetUpgradeId<T>(T? value)

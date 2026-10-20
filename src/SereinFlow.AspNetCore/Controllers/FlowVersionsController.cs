@@ -29,11 +29,7 @@ public sealed class FlowVersionsController : ApiControllerBase
     {
         if (!TryParseFlowVersionTrack(track, out var parsedTrack))
         {
-            var dictionary = new Dictionary<string, object?>
-            {
-                ["code"] = FlowErrorCodes.VersionTrackInvalid
-            };
-            var apiProblemResult = ApiProblem(StatusCodes.Status400BadRequest, "The flow version track is invalid. 流程版本轨道无效。", extensions: dictionary);
+            var apiProblemResult = ApiProblemWithCode(StatusCodes.Status400BadRequest, "The flow version track is invalid. 流程版本轨道无效。", code: FlowErrorCodes.VersionTrackInvalid);
             return apiProblemResult;
         }
 
@@ -93,11 +89,7 @@ public sealed class FlowVersionsController : ApiControllerBase
 
         if (development.Version != request.ExpectedDevelopmentVersion)
         {
-            var dictionary6 = new Dictionary<string, object?>
-            {
-                ["currentVersion"] = development.Version
-            };
-            var apiProblemResult7 = ApiProblem(StatusCodes.Status409Conflict, "The development flow version changed before publishing. 开发流程版本已变更，无法发布。", extensions: dictionary6);
+            var apiProblemResult7 = ApiVersionProblem(StatusCodes.Status409Conflict, "The development flow version changed before publishing. 开发流程版本已变更，无法发布。", currentVersion: development.Version);
             return apiProblemResult7;
         }
 
@@ -121,11 +113,7 @@ public sealed class FlowVersionsController : ApiControllerBase
         return evaluatedValue11;
         ObjectResult resolveApiProblemResult()
         {
-            var dictionary9 = new Dictionary<string, object?>
-            {
-                ["currentVersion"] = published.CurrentHeadVersion
-            };
-            var apiProblemResult10 = ApiProblem(StatusCodes.Status409Conflict, "The development flow version changed before publishing. 开发流程版本已变更，无法发布。", extensions: dictionary9);
+            var apiProblemResult10 = ApiVersionProblem(StatusCodes.Status409Conflict, "The development flow version changed before publishing. 开发流程版本已变更，无法发布。", currentVersion: published.CurrentHeadVersion);
             return apiProblemResult10;
         }
     }
@@ -182,11 +170,7 @@ public sealed class FlowVersionsController : ApiControllerBase
         return evaluatedValue21;
         ObjectResult resolveApiProblemResult18()
         {
-            var dictionary19 = new Dictionary<string, object?>
-            {
-                ["currentVersion"] = rolledBack.CurrentHeadVersion
-            };
-            var apiProblemResult20 = ApiProblem(StatusCodes.Status409Conflict, "The flow version head changed before rollback. 流程版本头已变更，无法回滚。", extensions: dictionary19);
+            var apiProblemResult20 = ApiVersionProblem(StatusCodes.Status409Conflict, "The flow version head changed before rollback. 流程版本头已变更，无法回滚。", currentVersion: rolledBack.CurrentHeadVersion);
             return apiProblemResult20;
         }
     }

@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <EmbeddedResource Include="tool-schemas.json" />
   </ItemGroup>
 
 </Project>

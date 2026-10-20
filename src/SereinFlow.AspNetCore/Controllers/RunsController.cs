@@ -47,11 +47,7 @@ public sealed class RunsController : ApiControllerBase
             {
                 if (!Enum.TryParse<FlowRunStatus>(value, ignoreCase: true, out var item))
                 {
-                    var dictionary = new Dictionary<string, object?>
-                    {
-                        ["code"] = RunErrorCodes.StatusInvalid
-                    };
-                    var apiProblemResult = ApiProblem(StatusCodes.Status400BadRequest, "A run status filter is invalid. 运行状态筛选条件无效。", extensions: dictionary);
+                    var apiProblemResult = ApiProblemWithCode(StatusCodes.Status400BadRequest, "A run status filter is invalid. 运行状态筛选条件无效。", code: RunErrorCodes.StatusInvalid);
                     return apiProblemResult;
                 }
 
@@ -309,11 +305,7 @@ public sealed class RunsController : ApiControllerBase
 
         ObjectResult resolveApiProblemResult()
         {
-            var dictionary27 = new Dictionary<string, object?>
-            {
-                ["code"] = result.ErrorCode ?? MessageErrorCodes.Rejected
-            };
-            var apiProblemResult28 = ApiProblem(result.StatusCode, result.Message, extensions: dictionary27);
+            var apiProblemResult28 = ApiProblemWithCode(result.StatusCode, result.Message, code: result.ErrorCode ?? MessageErrorCodes.Rejected);
             return apiProblemResult28;
         }
     }

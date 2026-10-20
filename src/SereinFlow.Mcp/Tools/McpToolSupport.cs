@@ -212,44 +212,36 @@ internal static class McpToolSupport
         return evaluatedValue11;
     }
 
-    internal static JsonElement Schema(Dictionary<string, object?>? properties = null, string[]? required = null)
+    internal static JsonElement Schema(Dictionary<string, McpJsonSchema>? properties = null, string[]? required = null)
     {
-        var evaluatedValue12 = properties ?? new Dictionary<string, object?>();
-        var evaluatedValue13 = new
-        {
-            type = "object",
-            properties = evaluatedValue12,
-            required = required ?? [],
-            additionalProperties = false
-        };
-        var serializeToElementResult = JsonSerializer.SerializeToElement(evaluatedValue13);
-        return serializeToElementResult;
+        var schema = McpJsonSchema.Object(properties, required);
+        var element = JsonSerializer.SerializeToElement(schema);
+        return element;
     }
 
-    internal static object StringSchema(string? description = null) => description is null ? new
+    internal static McpJsonSchema StringSchema(string? description = null)
     {
-        type = "string"
+        var schema = new McpJsonSchema { Type = "string", Description = description };
+        return schema;
     }
 
-    : new
+    internal static McpJsonSchema StringEnumSchema(string? description, params string[] values)
     {
-        type = "string",
-        description
-    };
-    internal static object StringEnumSchema(string? description, params string[] values) => new
+        var enumValues = JsonSerializer.SerializeToElement(values);
+        var schema = new McpJsonSchema { Type = "string", Enum = enumValues, Description = description };
+        return schema;
+    }
+
+    internal static McpJsonSchema NumberSchema()
     {
-        type = "string",
-        @enum = values,
-        description
-    };
-    internal static object NumberSchema() => new
+        var schema = new McpJsonSchema { Type = "integer" };
+        return schema;
+    }
+    internal static McpJsonSchema BooleanSchema()
     {
-        type = "integer"
-    };
-    internal static object BooleanSchema() => new
-    {
-        type = "boolean"
-    };
+        var schema = new McpJsonSchema { Type = "boolean" };
+        return schema;
+    }
     internal static AiReadModelOptions ReadOptions(JsonElement arguments)
     {
         var evaluatedValue14 = GetOptionalInt(arguments, "maxItems") ?? 200;
