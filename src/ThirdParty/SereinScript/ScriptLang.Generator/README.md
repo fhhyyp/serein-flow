@@ -1,7 +1,11 @@
 # ScriptLang 原型生成器
 
-使用 `Serein.Generator.Framework` 的初始化注入、符号工具、常量输出、代码构建、诊断快照和增量输出能力。
+入口继承 `FrameworkGenerator`，通过 ForClassAttribute、Require、Analyze、Emit 声明完整管线。
+使用 `Serein.Generator.Framework` 的初始化注入、候选发现、通用规则、诊断分流、常量输出和代码构建能力。
 生成器只保留脚本原型分析与模板，不再维护复制的通用缓存模型。
+`PrototypeAnalyzer` 统一校验目标方法、重复名称和接收者；分析错误不再交给输出模板判断。
+原型、成员和参数模型均不可变且按值比较；普通方法实现修改不会重新构建相同的原型输出。
+输出阶段只按预先确定的成员类型和调用类型生成属性、同步、异步代码。
 
 消费项目引用 ScriptLang 运行时，并将本项目作为 Analyzer 引用：
 

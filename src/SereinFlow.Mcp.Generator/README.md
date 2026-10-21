@@ -8,21 +8,23 @@
 
 0. `RegisterPostInitializationOutput` 注入 `McpToolkits/Output.cs` 中的声明模板，
    输出工具、上下文和参数特性，确保后续语义分析能够识别同一次编译中新生成的特性。
-1. `McpToolGenerator.Predicate/Transform` 筛选带特性的方法，建立工具缓存。
-2. `McpToolCacheExtension` 分析参数、元数据、构造函数和调用策略。
+1. `McpToolGenerator.Configure` 声明方法和宿主管线；框架完成候选筛选、特性匹配、partial 去重和诊断分流。
+2. `McpToolAnalyzer` 调用 `McpToolCacheExtension` 分析参数、元数据、构造函数和调用策略。
 3. `McpValidationCacheExtension` 建立请求对象及嵌套属性的校验模型。
    `McpPropertyBindingCacheExtension` 为声明式参数建立字段读取、默认值与类型转换模型。
 4. 在语义转换内使用 `CodeBuilder<T>` 输出工具片段与请求支持代码，形成不持有符号的 `McpToolAnalysis`。
-   汇总阶段按工具名称排序，按请求类型去重支持代码，再输出目录、注册工厂和直接调用。
+   `Collect().UniqueBy(...)` 收集成功模型、按工具名称报告冲突并排序；输出器按请求类型去重支持代码，
+   再输出目录、注册工厂和直接调用。失败目标不会阻止其他有效工具输出。
 5. `McpValidationExtension` 根据模型输出直接访问属性的递归校验。
    `McpPropertyBindingExtension` 输出请求字段绑定，并缓存参数元数据。
-6. `McpHostCacheExtension` 分析 `[McpHost]` 声明，建立 `McpHostCache`；
+6. 通用 TypeRules 和 `McpHostAnalyzer` 的注册方法名称规则校验 `[McpHost]` 声明，建立不可变 `McpHostCache`；
    `McpHostExtension` 输出注册与目录入口，并声明可选的 partial 配置钩子。
 
 入口类不拼接生成代码。工具名称重复、方法签名不支持、构造函数不明确或宿主声明不合法时，报告 MCPGEN001–004 编译错误。
 生成目录位于当前程序集命名空间的 `Generated.McpToolRegistry` 中。
 生成器只作为 Analyzer 使用，不进入 MCP 运行时依赖图。
 工具发现保留用户自定义派生特性的语义匹配；宿主使用精确特性发现，避免多个 partial 声明重复输出。
+分析结果使用明确的 Skip、Success、Failure 状态；错误会阻止该目标输出，警告仍保留模型。
 增量步骤使用值相等结果比较；无关编辑可以复用输出，独立 DTO 文件的修改会更新请求绑定。
 工具方法不接受原始 `JsonElement` 请求；动态 JSON 只能作为强类型请求的字段。
 

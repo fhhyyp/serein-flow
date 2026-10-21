@@ -8,6 +8,12 @@
 
 | API | 用途 |
 | --- | --- |
+| `FrameworkGenerator` / `GeneratorBuilder` | 声明生成器的发现、规则、分析及输出；公共基类不暴露领域模型类型 |
+| `SymbolPipeline<TSymbol>` | 精确或派生特性匹配、partial 归属去重、通用规则与异常处理 |
+| `SymbolContext<TSymbol>` | 分析期间的强类型符号、声明、匹配特性、位置与语义上下文 |
+| `AnalysisContext` / `AnalysisResult<T>` | Skip、Success、Failure 分流；错误停止模型构建，警告保留并继续输出 |
+| `TypeRules` / `SymbolRule<TSymbol>` | 可组合类型要求和领域自定义校验规则 |
+| `ModelPipeline<T>` / `CollectedPipeline<T>` | 逐目标输出，或收集成功模型、诊断冲突并汇总输出 |
 | `CodeBuilder<T>` | 带领域模型的链式文本输出，自动缩进、代码块及取消检查 |
 | `GeneratorPipeline.RegisterInitializationSource` | 在 post-initialization 阶段注入同次编译可见的声明 |
 | `GeneratorPipeline.RegisterGeneratedOutput` | 注册逐项或汇总输出，统一 UTF-8 编码、诊断报告和步骤跟踪 |
@@ -19,9 +25,10 @@
 | `AttributeReader` | 按元数据名称识别特性、可选的派生特性识别、命名常量读取 |
 | `CSharpLiteral` | 特性实例表达式，以及数组、枚举、类型、空值和精确数值常量输出 |
 
-框架采用组合式 API。发现规则、领域模型、签名校验和代码模板由具体生成器实现。
-固定特性可使用 Roslyn 的 `ForAttributeWithMetadataName`；需要识别用户自定义派生特性时，
-可以使用 `CreateSyntaxProvider` 配合 `AttributeReader.Find(..., includeDerived: true)`。
+框架采用组合式 API。领域模型、签名规则和代码模板由具体生成器实现；
+发现、partial 归属去重、规则执行、诊断分流、异常及取消处理由管线统一执行。
+固定特性默认使用 Roslyn 的 `ForAttributeWithMetadataName`；需要识别用户自定义派生特性时，
+声明 `AttributeMatch.IncludeDerived`，管线自动采用候选筛选和语义匹配。
 框架不执行特性构造函数，不推断自定义构造函数体中的赋值。
 
 ## 在仓库中接入生成器项目
@@ -48,7 +55,55 @@
 使用框架 NuGet 包开发生成器时，将框架 `PackageReference` 设为 `PrivateAssets=all`；
 包内 `build/` 下的 targets 会自动导入。生成器项目仍需自己引用兼容的 Roslyn 包。
 
-## 最小流程
+## 声明式流程
+
+ScriptLang 的实际入口如下，分析器与输出器均为项目内部类型：
+
+```csharp
+[Generator]
+public sealed partial class ScriptPrototypeGenerator : FrameworkGenerator
+{
+    protected override void Configure(GeneratorBuilder builder)
+    {
+        builder.AddInitializationSource("ScriptPrototypeToolkits.g.cs", _attributeText);
+        builder.ForClassAttribute(PrototypeModel.ExtensionAttribute)
+            .Require(PrototypeAnalyzer.InvalidMember,
+                TypeRules.TopLevel, TypeRules.Partial, TypeRules.NonGeneric, TypeRules.Instance)
+            .Analyze(PrototypeAnalyzer.Analyze)
+            .Named("ScriptPrototypeModels")
+            .Emit(PrototypeEmitter.Emit, "ScriptPrototypeOutput");
+    }
+}
+```
+
+分析器接受 `SymbolContext<TSymbol>` 和本次调用独立的 `AnalysisContext`，返回 `AnalysisResult<T>`：
+
+- `context.Skip<T>()`：忽略目标。无诊断的 Skip 不进入下游模型管线。
+- `context.Success(model)`：模型有效；此前报告的错误会自动转为 Failure，警告继续保留。
+- `context.Build(() => model)`：有错误时不执行工厂，适合校验之后才进行代码片段构建。
+- `context.Failure<T>()`：返回已报告的错误；没有错误时调用属于生成器编程错误。
+
+规则失败产生的诊断、分析器返回的诊断和分析期间追加的诊断统一合并，不能因提前创建结果而丢失。
+`.Require(descriptor, rules...)` 的诊断参数为目标名称和失败原因；每组要求报告首个失败原因。
+规则应保持纯函数语义；每次 Require 返回独立管线，不会改变此前保存的分支。
+
+汇总输出使用：
+
+```csharp
+builder.ForMethodAttribute("SereinFlow.Mcp.Framework.McpToolAttribute", AttributeMatch.IncludeDerived)
+    .Analyze(McpToolAnalyzer.Analyze)
+    .Named("McpTools")
+    .Collect()
+    .UniqueBy(tool => tool.Name, duplicateDiagnostic, tool => tool.Location)
+    .EmitWithAssemblyName(EmitRegistry, "McpRegistryOutput", "McpHost");
+```
+
+失败或忽略目标的诊断仍然报告，但只收集 Success 模型。
+UniqueBy 按 ordinal 键排序，对每个冲突目标报告诊断并排除整组；其他有效目标继续输出。
+没有任何有效目标时，汇总输出仍执行一次，可生成空目录。
+模型应不可变且具有值相等语义，使用 Named 可以检查语义模型步骤的复用。
+
+## 低层输出接口
 
 以下示例只演示固定输出；实际生成器可以自由组合 SyntaxProvider、Collect 和 Combine。
 
@@ -80,8 +135,9 @@ public sealed class ExampleGenerator : IIncrementalGenerator
 
 `GenerationResult` 的相等比较可以阻止相同文本被重新提交到编译；
 这不意味着之前的语义分析或文本构建一定被跳过。
-ScriptLang 在语义转换中完成原型输出；MCP 在转换中生成工具片段与请求支持代码，
-随后按工具名称汇总，并按请求类型去重。两个生成器的输出阶段均不保存编译符号。
+ScriptLang 在语义转换中完成原型分析与校验，输出阶段根据不可变模型选择属性、同步或异步调用代码。
+MCP 在转换中生成工具片段与请求支持代码，随后由声明式管线按工具名称处理冲突并汇总，
+输出器按请求类型去重支持代码。两个生成器的输出阶段均不保存编译符号。
 
 ## 验证
 

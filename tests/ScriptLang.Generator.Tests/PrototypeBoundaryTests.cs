@@ -122,4 +122,22 @@ public sealed class PrototypeBoundaryTests
         driver = driver.RunGeneratorsAndUpdateCompilation(input.ReplaceSyntaxTree(original, changed), out _, out _);
         Assert.Contains(driver.GetRunResult().Results.Single().GeneratedSources, source => source.SourceText.ToString().Contains("_prototypeMethods[\"renamed\"]", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void EditingMethodImplementationReusesTheAnalyzedPrototypeModel()
+    {
+        var (driver, updated) = PrototypeGeneratorTests.Run(Body);
+        var generated = driver.GetRunResult().Results.Single().GeneratedSources.Select(source => source.SyntaxTree);
+        var input = updated.RemoveSyntaxTrees(generated);
+        var original = input.SyntaxTrees.First();
+        var options = (CSharpParseOptions)original.Options;
+        var changed = CSharpSyntaxTree.ParseText(Body.Replace("=> value;", "=> ScriptLang.Runtime.Value.Null;"), options);
+        driver = driver.RunGenerators(input.ReplaceSyntaxTree(original, changed));
+        var steps = driver.GetRunResult().Results.Single().TrackedSteps["ScriptPrototypeModels"];
+        Assert.NotEmpty(steps.SelectMany(step => step.Outputs));
+        foreach (var output in steps.SelectMany(step => step.Outputs))
+        {
+            Assert.Contains(output.Reason, new[] { IncrementalStepRunReason.Cached, IncrementalStepRunReason.Unchanged });
+        }
+    }
 }

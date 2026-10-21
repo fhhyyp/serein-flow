@@ -158,19 +158,28 @@ Initialize-Consumer $author
 using Microsoft.CodeAnalysis;
 using Serein.Generator.Framework;
 [Generator]
-public sealed class ExampleGenerator : IIncrementalGenerator
+public sealed class ExampleGenerator : FrameworkGenerator
 {
-    public void Initialize(IncrementalGeneratorInitializationContext context)
+    protected override void Configure(GeneratorBuilder builder)
     {
-        var result = context.CompilationProvider.Select(static (compilation, _) => compilation.AssemblyName)
-            .Select(static (name, token) => GenerationResult.Create("Example", output =>
+        builder.AddInitializationSource("GenerateInfo.g.cs", "namespace Example { internal sealed class GenerateInfoAttribute : System.Attribute { } }");
+        builder.ForClassAttribute("Example.GenerateInfoAttribute")
+            .Analyze(static (input, context) => context.Success(new AssemblyModel(input.Compilation.AssemblyName ?? "Host")))
+            .Emit(static (model, output) =>
             {
-                var code = new CodeBuilder<string>(output, name);
+                var code = new CodeBuilder<AssemblyModel>(output, model);
                 code.AppendCode("internal static class GeneratedInfo")
-                    .AppendCodeBlock(() => code.AppendCode("public const string Assembly = " + CSharpLiteral.RenderValue(name) + ";"));
+                    .AppendCodeBlock(() => code.AppendCode("public const string Assembly = " + CSharpLiteral.RenderValue(model.Name) + ";"));
                 output.AddSource("GeneratedInfo.g.cs", code.ToCode());
-            }, token));
-        context.RegisterGeneratedOutput(result, "ExampleOutput");
+            }, "ExampleOutput");
+    }
+    private sealed class AssemblyModel : System.IEquatable<AssemblyModel>
+    {
+        public AssemblyModel(string name) => Name = name;
+        public string Name { get; }
+        public bool Equals(AssemblyModel other) => other != null && Name == other.Name;
+        public override bool Equals(object other) => Equals(other as AssemblyModel);
+        public override int GetHashCode() => System.StringComparer.Ordinal.GetHashCode(Name);
     }
 }
 '@ | Set-Content -LiteralPath (Join-Path $author 'ExampleGenerator.cs')
@@ -183,7 +192,7 @@ Initialize-Consumer $example
   <ItemGroup><PackageReference Include="Author" Version="$version" PrivateAssets="all" /></ItemGroup>
 </Project>
 "@ | Set-Content -LiteralPath (Join-Path $example 'FrameworkPackageSmoke.csproj')
-'if (GeneratedInfo.Assembly != "FrameworkPackageSmoke") throw new System.Exception("Framework package output failed"); System.Console.WriteLine("Framework package author and consumer passed.");' |
+'if (GeneratedInfo.Assembly != "FrameworkPackageSmoke") throw new System.Exception("Framework package output failed"); System.Console.WriteLine("Framework package author and consumer passed."); [Example.GenerateInfo] internal class SmokeTarget { }' |
     Set-Content -LiteralPath (Join-Path $example 'Program.cs')
 Invoke-Dotnet @('build', (Join-Path $example 'FrameworkPackageSmoke.csproj'), '-c', $Configuration, '-p:UseSharedCompilation=false', '-p:UseAppHost=false', '--verbosity', 'quiet')
 $exampleOutput = Join-Path $example "bin/$Configuration/net10.0"

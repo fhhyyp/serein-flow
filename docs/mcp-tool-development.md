@@ -161,12 +161,13 @@ Schema 采用序列化合同；DataAnnotations 是运行时校验规则，不保
 
 `SereinFlow.Mcp.Generator` 和 `ScriptLang.Generator` 共用
 `src/ThirdParty/Serein.Generator.Framework`，公共代码不再各自复制。
-入口 `McpToolGenerator` 负责候选发现、语义转换、不可变分析结果和输出注册。
+入口 `McpToolGenerator.Configure` 声明发现规则、分析器、汇总唯一性及输出器。
+框架负责候选发现、partial 归属去重、通用规则、Skip/Success/Failure 分流与输出注册。
 `McpToolkits/Output.cs` 保存初始化输出模板，采用与 ScriptLang.Generator 相同的初始化注入方式。
-`McpToolCacheExtension` 构建工具模型，`McpValidationCacheExtension` 构建请求属性图；
+`McpToolAnalyzer` 调用 `McpToolCacheExtension` 构建工具模型，`McpValidationCacheExtension` 构建请求属性图；
 `McpToolRegistryExtension` 和 `McpValidationExtension` 通过框架 `CodeBuilder<T>` 的链式扩展生成代码。
 `McpPropertyBindingCacheExtension` 构建属性绑定模型，`McpPropertyBindingExtension` 生成参数读取代码。
-`McpHostCacheExtension` 构建宿主模型，`McpHostExtension` 输出注册入口和配置钩子。
+`McpHostAnalyzer` 和通用 TypeRules 校验宿主并构建模型，`McpHostExtension` 输出注册入口和配置钩子。
 工具与请求分析在语义转换内完成，随后输出不含符号的可比较片段；汇总阶段按类型去重请求支持代码。
 框架 DLL 随生成器的 Analyzer 引用和 NuGet 包交付，业务运行时无需引用。
 

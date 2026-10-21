@@ -9,17 +9,14 @@ namespace SereinFlow.Mcp.Generator.Extensions;
 /// <summary>解析方法、特性和依赖，构建用于生成代码的工具数据模型。</summary>
 internal static class McpToolCacheExtension
 {
-    private const string ToolAttribute = "SereinFlow.Mcp.Framework.McpToolAttribute";
     private const string ContextAttribute = "SereinFlow.Mcp.Framework.McpContextAttribute";
     private static readonly DiagnosticDescriptor InvalidSignature = new DiagnosticDescriptor(
         "MCPGEN002", "Invalid MCP tool signature", "Tool '{0}': {1}", "McpGeneration", DiagnosticSeverity.Error, true);
     private static readonly DiagnosticDescriptor InvalidConstructor = new DiagnosticDescriptor(
         "MCPGEN003", "Invalid MCP tool constructor", "Tool class '{0}' must have exactly one accessible instance constructor", "McpGeneration", DiagnosticSeverity.Error, true);
 
-    internal static McpToolCache? BuildCache(this IMethodSymbol method)
+    internal static McpToolCache BuildCache(this IMethodSymbol method, AttributeData attribute)
     {
-        var attribute = method.GetAttributes().FirstOrDefault(item => AttributeReader.IsOrDerivesFrom(item.AttributeClass, ToolAttribute));
-        if (attribute is null) return null;
         var cache = new McpToolCache
         {
             Name = attribute.ConstructorArguments.FirstOrDefault().Value as string ?? string.Empty,
