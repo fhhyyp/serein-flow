@@ -7,6 +7,9 @@ session with `sereinflow_start_debug_session`, then use
 The wait tool returns the next pause after the supplied revision or a terminal
 state; running node progress does not finish the wait. A timeout returns the
 current state. Use the get tool to inspect intermediate running progress.
+Pass the `stateRevision` returned by start or control acknowledgements as
+`afterRevision` for the next wait, so a fast re-pause remains observable.
+Do not interpret a wait timeout as run failure; inspect the returned state.
 When the state is paused, send `sereinflow_step_debug` or
 `sereinflow_continue_debug` with the next strictly increasing
 `commandSequence`; use `sereinflow_stop_debug` to cancel it. Only the
@@ -70,6 +73,28 @@ redacted. Report stable MCP error codes, diagnostic IDs and safe fields. Do not
 blindly retry a rejected or non-idempotent mutation. Discovery, state and wait
 reads accept `debug.read` or `run.read`; start and control require
 `debug.control`.
+
+When run inspection reports `worker.event_queue_full`, the bounded Worker
+audit buffer could not accept another event. When it reports
+`worker.event_processing_failed`, an event sink failed or batch processing or
+final draining timed out. Inspect the persisted run status, error details and
+available events before diagnosing node logic. Report the run ID, stable error
+code and last available event sequence; ask the operator to check event-store
+latency or sink failures when server diagnostics are unavailable. Control
+responses bypass the audit queue, so a control acknowledgement alone does not
+prove preceding audit events were persisted. A successful Worker result waits
+for preceding events to finish processing. These failures may leave partial
+audit history and already-executed business side effects; do not restart the
+run automatically or assume it is safe to replay.
+
+Node input/output audit projections may contain `$kind: "DepthLimit"`,
+`$kind: "ItemLimit"`, `$kind: "TextLimit"`, `truncated: true` or
+`$truncated: true`. These markers describe bounded diagnostic projections;
+they do not by themselves indicate that business values passed between nodes
+were truncated or lost. Identify the affected field as partially observed and
+do not infer omitted values or treat a preview as complete output. Use focused
+run inspection or the workpiece tools when the requested data is available
+there; rereading the same projection cannot recover data omitted at capture.
 
 Debug start is idempotent when the same `idempotencyKey` is replayed with the
 same request. Debug control commands use `commandSequence` rather than an

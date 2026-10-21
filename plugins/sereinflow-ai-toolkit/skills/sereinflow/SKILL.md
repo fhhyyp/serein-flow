@@ -16,9 +16,8 @@ At the start of a task:
 
 1. Complete a fresh MCP `initialize` handshake and read its `instructions`.
 2. Read `sereinflow://ai/guide` with `resources/read`. This is the server's
-   authoritative routing entry point. In this repository its backing source is
-   `D:/Project/dotnet/SereinFlow/src/SereinFlow.Api/mcp/sereinflow-ai-guide.md`;
-   consume it through MCP rather than replacing it with a client-local path.
+   authoritative routing entry point; consume it through MCP rather than
+   replacing it with a client-local path.
 3. Follow the guide and read only the smallest capability module needed for the
    request. A request spanning capabilities may read multiple modules in task
    order.
@@ -163,11 +162,16 @@ after an ambiguous response without first reading current key state.
 
 ## Debug workflow
 
-For interactive debugging, use `sereinflow_list_debug_sessions` or
+For interactive debugging, load the focused runtime Resource named by the live
+guide, then use `sereinflow_list_debug_sessions` or
 `sereinflow_list_runs` to discover the target, then call
 `sereinflow_start_debug_session` with an `idempotencyKey`. Observe the
 session through `sereinflow_get_debug_state` or
-`sereinflow_wait_debug_state`. A paused session accepts
+`sereinflow_wait_debug_state`. The wait tool waits for a newer paused state or
+a terminal state; running node progress does not finish the wait. Use the get
+tool for intermediate progress. Continue from the `stateRevision` returned by
+start or control acknowledgements; a timeout returns the current state and
+does not mean the run failed. A paused session accepts
 `sereinflow_step_debug` or `sereinflow_continue_debug`; every command must use
 the next strictly increasing `commandSequence`. Use
 `sereinflow_stop_debug` to cancel an active session. Start and control require
