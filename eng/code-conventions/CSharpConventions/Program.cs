@@ -171,23 +171,14 @@ internal static class CSharpRules
                 }
             }
 
-            if (node is ReturnStatementSyntax { Expression: { } returned } && HasCall(returned) || node is ArrowExpressionClauseSyntax arrow && HasCall(arrow.Expression) || node is LambdaExpressionSyntax { Body: ExpressionSyntax lambdaBody } && HasCall(lambdaBody))
+            if (node is ReturnStatementSyntax { Expression: { } returned } && HasCall(returned) || node is LambdaExpressionSyntax { Body: ExpressionSyntax lambdaBody } && HasCall(lambdaBody))
             {
                 Report("RETURN001", node, "Store the result in a named variable before returning.");
             }
 
-            if (node is VariableDeclarationSyntax declaration && declaration.Variables.Count > SingleVariable || node is DeclarationExpressionSyntax { Designation: ParenthesizedVariableDesignationSyntax designation } && designation.Variables.Count > SingleVariable)
+            if (node is VariableDeclarationSyntax declaration && declaration.Variables.Count > SingleVariable)
             {
                 Report("DECL001", node, "Declare each variable separately.");
-            }
-
-            if (node is TupleExpressionSyntax tuple)
-            {
-                var declaredBindings = tuple.Arguments.Count(static argument => argument.Expression is DeclarationExpressionSyntax);
-                if (declaredBindings > SingleVariable)
-                {
-                    Report("DECL001", node, "Declare each destructured variable separately.");
-                }
             }
 
             if (node is IfStatementSyntax condition)
@@ -388,15 +379,43 @@ internal static class ConventionTests
         var nestedStatementDiagnostics = CSharpRules.Check(nestedStatementSource, "test.cs");
         var sharedEndDiagnostics = CSharpRules.Check(sharedEndSource, "test.cs");
         var permitsOptionalChain = optionalDiagnostics.Count == SuccessExitCode;
-        var reportsDeconstruction = deconstructionDiagnostics.Exists(static diagnostic => diagnostic.Rule == "DECL001");
+        var permitsDeconstruction = deconstructionDiagnostics.Count == SuccessExitCode;
         var reportsGlobalStatements = globalDiagnostics.Exists(static diagnostic => diagnostic.Rule == "LINE001");
         var reportsInitializerNesting = initializerDiagnostics.Exists(static diagnostic => diagnostic.Rule == "CALL001");
         var reportsNestedStatements = nestedStatementDiagnostics.Exists(static diagnostic => diagnostic.Rule == "LINE001");
         var reportsSharedEnd = sharedEndDiagnostics.Exists(static diagnostic => diagnostic.Rule == "LINE001");
-        if (!permitsOptionalChain || !reportsDeconstruction || !reportsGlobalStatements || !reportsInitializerNesting || !reportsNestedStatements || !reportsSharedEnd)
+        if (!permitsOptionalChain || !permitsDeconstruction || !reportsGlobalStatements || !reportsInitializerNesting || !reportsNestedStatements || !reportsSharedEnd)
         {
             Console.Error.WriteLine("Optional chains, deconstruction and top-level statements must be checked.");
             return FailureExitCode;
+        }
+
+        var expressionAndTupleCases = new (string Source, string? ExpectedRule)[]
+        {
+            ("object M() => Create();", null),
+            ("async Task<object> M() => await Read();", null),
+            ("object Value => Create();", null),
+            ("void M()\n{\nvar (first, second) = Read();\n}", null),
+            ("void M()\n{\n(int first, string second) = Read();\n}", null),
+            ("void M()\n{\nvar (first, (second, _)) = Read();\n}", null),
+            ("void M()\n{\nforeach (var (first, second) in items)\n{\nUse(first, second);\n}\n}", null),
+            ("object M() => Outer(Inner());", "CALL001"),
+            ("void M()\n{\nvar (first, second) = Outer(Inner());\n}", "CALL001"),
+            ("void M()\n{\nint first = 1, second = 2;\n}", "DECL001")
+        };
+        foreach (var testCase in expressionAndTupleCases)
+        {
+            var source = "class C\n{\n" + testCase.Source + "\n}";
+            var diagnostics = CSharpRules.Check(source, "test.cs");
+            var expectedRule = testCase.ExpectedRule;
+            var passed = expectedRule is null
+                ? diagnostics.Count == SuccessExitCode
+                : diagnostics.Exists(diagnostic => diagnostic.Rule == expectedRule);
+            if (!passed)
+            {
+                Console.Error.WriteLine($"Expression body or tuple convention regression: {testCase.Source}");
+                return FailureExitCode;
+            }
         }
 
         var linqCases = new (string Source, string? ExpectedRule)[]
