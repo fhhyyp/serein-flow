@@ -154,6 +154,10 @@ internal sealed class McpApiKeyToolHandlers(McpSecurityService security, IMcpApi
     }
 }
 
+/// <summary>
+/// Carries request data for revoke MCP API key operations.
+/// 承载RevokeMCPAPI密钥操作的请求数据。
+/// </summary>
 internal sealed record RevokeMcpApiKeyRequest(
     [property: Required] string KeyId,
     [property: Required] string IdempotencyKey);

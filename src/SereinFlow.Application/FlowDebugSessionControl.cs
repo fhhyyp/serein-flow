@@ -17,11 +17,19 @@ public interface IFlowDebugSessionService
     Task<FlowDebugSessionCommandResult> StopAsync(Guid sessionId, long commandSequence, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Captures the outcome of flow debug session start operations.
+/// 记录流程调试会话启动操作的结果。
+/// </summary>
 public sealed record FlowDebugSessionStartResult(FlowDebugSession? Session, int StatusCode, string? ErrorTitle = null, object? ErrorBody = null, string? ErrorCode = null)
 {
     public bool IsAccepted => Session is not null;
 }
 
+/// <summary>
+/// Captures the outcome of flow debug session command operations.
+/// 记录流程调试会话命令操作的结果。
+/// </summary>
 public sealed record FlowDebugSessionCommandResult(int StatusCode, string? ErrorTitle = null, string? ErrorCode = null, FlowDebugSession? Session = null)
 {
     public bool IsAccepted => StatusCode is >= 200 and < 300;

@@ -17,8 +17,20 @@ public static class VariableErrorCodes
 
 /// <summary>A JSON projection of one variable; arbitrary CLR objects remain in the Worker.</summary>
 public sealed record RunVariableDto(string Name, string? ClrType, bool ValueAvailable, JsonElement? Value, string? UnavailableReason = null, string? ValueJson = null);
+/// <summary>
+/// Defines the API data contract for run variable snapshot.
+/// 定义运行变量快照的 API 数据契约。
+/// </summary>
 public sealed record RunVariableSnapshotDto(Guid RunId, IReadOnlyList<RunVariableDto> Variables, int TotalCount, int Offset, bool HasMore, DateTimeOffset CapturedAt, bool IsFinal = false, bool IsTruncated = false);
 /// <summary>Writes accept only explicit built-in types, never assembly-qualified type names.</summary>
 public sealed record RunVariableSetRequestDto(JsonElement Value, string ValueType);
+/// <summary>
+/// Carries request data for worker variable operations.
+/// 承载Worker变量操作的请求数据。
+/// </summary>
 public sealed record WorkerVariableRequestDto(int ProtocolVersion, Guid RunId, string Operation, string? Name = null, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] JsonElement Value = default, string? ValueType = null, int Offset = 0, int Take = 100);
+/// <summary>
+/// Defines the API data contract for worker variable response.
+/// 定义Worker变量响应的 API 数据契约。
+/// </summary>
 public sealed record WorkerVariableResponseDto(int ProtocolVersion, Guid RunId, int StatusCode, RunVariableSnapshotDto? Snapshot = null, RunVariableDto? Variable = null, string? Code = null, string? Message = null);

@@ -501,6 +501,10 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
     private sealed record LoadedLibrary(AssemblyLoadContext LoadContext, Assembly Assembly, WorkerNativeLibraryLoader NativeLibraryLoader);
 }
 
+/// <summary>
+/// Represents resolved library method data used by SereinFlow.
+/// 表示 SereinFlow 使用的Resolved库Method数据。
+/// </summary>
 internal sealed record ResolvedLibraryMethod(Type DeclaringType, MethodInfo Method)
 {
     public NodeResultAttribute? ResultAttribute { get; } = Method.GetCustomAttribute<NodeResultAttribute>(inherit: false);
@@ -515,6 +519,10 @@ internal sealed record ResolvedLibraryMethod(Type DeclaringType, MethodInfo Meth
     public PropertyInfo? TaskResult { get; } = Method.ReturnType.IsGenericType ? Method.ReturnType.GetProperty("Result") : null;
 }
 
+/// <summary>
+/// Represents resolved library parameter data used by SereinFlow.
+/// 表示 SereinFlow 使用的Resolved库参数数据。
+/// </summary>
 internal sealed record ResolvedLibraryParameter(ParameterInfo Parameter, bool IsVariadic);
 internal sealed class LibraryRuntimeCacheException(string code, string message, Exception? innerException = null) : Exception(message, innerException)
 {

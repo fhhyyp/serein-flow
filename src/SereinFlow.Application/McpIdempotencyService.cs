@@ -6,6 +6,10 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
+/// <summary>
+/// Prevents duplicate MCP mutations by tracking idempotency keys.
+/// 通过跟踪幂等键避免重复执行 MCP 变更。
+/// </summary>
 public sealed class McpIdempotencyService
 {
     private readonly IMcpIdempotencyStore _store;

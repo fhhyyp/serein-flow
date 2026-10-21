@@ -1805,6 +1805,10 @@ public sealed class FlowPatchContractNormalizer
     private static readonly EnumValue[] ConcurrencyModes = [new("parallel", "Parallel", 0), new("exclusiveReject", "ExclusiveReject", 1)];
 }
 
+/// <summary>
+/// Carries request data for normalized flow patch operations.
+/// 承载规范化流程Patch操作的请求数据。
+/// </summary>
 public sealed record NormalizedFlowPatchRequest(FlowPatchCanonicalRequestDto Request, FlowPatchRequestDto LegacyRequest, IReadOnlyList<FlowPatchNormalizationWarningDto> Warnings);
 public sealed class FlowPatchContractException(string code, string fieldPath, string expected, string remediation) : Exception("The flow patch contract is invalid.")
 {

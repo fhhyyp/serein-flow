@@ -3,8 +3,16 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace SereinFlow.Mcp.Framework;
 
+/// <summary>
+/// Represents MCP tool failure data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCPTool失败数据。
+/// </summary>
 public sealed record McpToolFailure(Exception Exception, string Outcome, string? Summary);
 
+/// <summary>
+/// Represents MCP tool completion data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCPToolCompletion数据。
+/// </summary>
 public sealed record McpToolCompletion(McpToolExecutionContext Context, object? Value,
     McpToolFailure? Failure, TimeSpan Duration)
 {

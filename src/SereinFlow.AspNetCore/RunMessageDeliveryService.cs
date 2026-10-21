@@ -157,5 +157,9 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
         return evaluatedValue10;
     }
 
+    /// <summary>
+    /// Represents struct data used by SereinFlow.
+    /// 表示 SereinFlow 使用的struct数据。
+    /// </summary>
     internal readonly record struct MessageIdResolution(bool IsSuccess, Guid MessageId);
 }

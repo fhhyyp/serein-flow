@@ -30,6 +30,10 @@ public sealed class SereinFlowMcpOptions
     public string[] AllowedOrigins { get; init; } = [];
     public McpAiGuidanceOptions AiGuidance { get; init; } = new();
 
+    /// <summary>
+    /// Creates MCP options from application configuration.
+    /// 根据应用配置创建 MCP 选项。
+    /// </summary>
     public static SereinFlowMcpOptions FromConfiguration(IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
@@ -73,6 +77,10 @@ public sealed class SereinFlowMcpOptions
 
 public static class SereinFlowMcpServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers MCP services and their backend dependencies.
+    /// 注册 MCP 服务及其后端依赖。
+    /// </summary>
     public static IServiceCollection AddSereinFlowMcp(this IServiceCollection services, IConfiguration? configuration = null, string? contentRootPath = null)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -137,6 +145,10 @@ public static class SereinFlowMcpServiceCollectionExtensions
 
 public static class SereinFlowMcpEndpointRouteBuilderExtensions
 {
+    /// <summary>
+    /// Maps the MCP HTTP endpoint.
+    /// 映射 MCP HTTP 端点。
+    /// </summary>
     public static IEndpointConventionBuilder MapSereinFlowMcp(this IEndpointRouteBuilder endpoints, string pattern = McpHttpDefaults.EndpointPath)
     {
         ArgumentNullException.ThrowIfNull(endpoints);

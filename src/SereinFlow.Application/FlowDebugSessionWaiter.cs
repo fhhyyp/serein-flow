@@ -2,6 +2,10 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Application;
+/// <summary>
+/// Captures the outcome of flow debug state wait operations.
+/// 记录流程调试状态等待操作的结果。
+/// </summary>
 public sealed record FlowDebugStateWaitResult(FlowDebugSession? Session, bool HasChanged, bool TimedOut);
 /// <summary>
 /// Bounded polling for durable debug state. The waiter does not own a Worker

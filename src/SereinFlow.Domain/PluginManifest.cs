@@ -2,6 +2,10 @@ using System.Text.RegularExpressions;
 
 namespace SereinFlow.Domain;
 
+/// <summary>
+/// Describes a library package and the plugin metadata it exposes.
+/// 描述库包及其公开的插件元数据。
+/// </summary>
 public sealed class PluginManifest
 {
     private static readonly Regex Sha256Pattern = new("^[0-9a-fA-F]{64}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);

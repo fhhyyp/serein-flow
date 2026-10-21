@@ -4,6 +4,10 @@ using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Runtime;
 
+/// <summary>
+/// Executes flow nodes according to a validated execution plan.
+/// 根据经过校验的执行计划运行流程节点。
+/// </summary>
 public sealed class FlowRunner
 {
     private static readonly TimeSpan ListenerFailureRetryDelay = TimeSpan.FromMilliseconds(100);
@@ -29,6 +33,10 @@ public sealed class FlowRunner
         }
     }
 
+    /// <summary>
+    /// Builds an execution plan and runs a flow from its entry node.
+    /// 构建执行计划并从流程入口节点开始运行。
+    /// </summary>
     public async ValueTask<NodeExecutionResult> RunAsync(FlowDefinition definition, FlowExecutionSession session, CancellationToken cancellationToken = default)
     {
         if (definition is null)
@@ -100,6 +108,10 @@ public sealed class FlowRunner
         }
     }
 
+    /// <summary>
+    /// Runs a flow starting from the specified node.
+    /// 从指定节点开始运行流程。
+    /// </summary>
     public ValueTask<NodeExecutionResult> RunFromNodeAsync(string nodeId, FlowExecutionSession session, CancellationToken cancellationToken = default)
     {
         if (session.Plan is null)

@@ -142,6 +142,10 @@ public static class FlowDefinitionContractMapper
     }
 }
 
+/// <summary>
+/// Validates API flow definitions against domain rules.
+/// 依据领域规则校验 API 流程定义。
+/// </summary>
 public static class FlowDefinitionContractValidator
 {
     /// <summary>
@@ -232,6 +236,10 @@ public static class FlowDefinitionContractValidator
     }
 }
 
+/// <summary>
+/// Normalizes flow definitions before validation and persistence.
+/// 在校验和持久化前规范化流程定义。
+/// </summary>
 public static class FlowDefinitionContractNormalizer
 {
     /// <summary>

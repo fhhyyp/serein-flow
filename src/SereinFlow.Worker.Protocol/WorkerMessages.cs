@@ -31,6 +31,10 @@ public static class WorkerProtocolConstants
     public const string VariableResponseKind = VariableErrorCodes.Response;
 }
 
+/// <summary>
+/// Represents worker message data used by SereinFlow.
+/// 表示 SereinFlow 使用的Worker消息数据。
+/// </summary>
 public sealed record WorkerMessage(int ProtocolVersion, string Kind, string RequestId, Guid? RunId = null, long? Sequence = null, DateTimeOffset? Deadline = null, string? PayloadJson = null)
 {
     public static WorkerMessage Create(string kind, string? payloadJson = null, Guid? runId = null, DateTimeOffset? deadline = null, long? sequence = null, string? requestId = null)
@@ -47,6 +51,10 @@ public sealed record WorkerMessage(int ProtocolVersion, string Kind, string Requ
     }
 }
 
+/// <summary>
+/// Defines the API data contract for worker error.
+/// 定义Worker错误的 API 数据契约。
+/// </summary>
 public sealed record WorkerErrorDto(string Code, string Message, RunVariableSnapshotDto? FinalVariables = null);
 public static class WorkerProtocolCodec
 {

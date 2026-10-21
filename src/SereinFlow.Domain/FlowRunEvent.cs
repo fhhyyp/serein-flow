@@ -1,4 +1,8 @@
 namespace SereinFlow.Domain;
+/// <summary>
+/// Describes a flow run event.
+/// 描述流程运行事件。
+/// </summary>
 public sealed record FlowRunEvent
 {
     public FlowRunEvent(Guid runId, long sequence, DateTimeOffset timestamp, string type, string? nodeId, string? payloadJson)

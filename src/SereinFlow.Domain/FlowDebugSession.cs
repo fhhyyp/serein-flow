@@ -1,6 +1,14 @@
 namespace SereinFlow.Domain;
 
+/// <summary>
+/// Represents flow debug pause state data used by SereinFlow.
+/// 表示 SereinFlow 使用的流程调试暂停状态数据。
+/// </summary>
 public sealed record FlowDebugPauseState(string NodeId, string NodeType, int Step, int FrameDepth, Guid? InvocationId, long BoundarySequence, string InputsJson, DateTimeOffset PausedAt, Guid? ExecutionId = null);
+/// <summary>
+/// Captures the outcome of flow debug node operations.
+/// 记录流程调试节点操作的结果。
+/// </summary>
 public sealed record FlowDebugNodeResult(string NodeId, long Sequence, DateTimeOffset CompletedAt, string Outcome, string? Branch, string InputsJson, string OutputsJson, string? ErrorCode, string? ErrorMessage);
 /// <summary>
 /// Persisted control-plane state for one interactive debug run. Execution
@@ -21,12 +29,40 @@ public sealed class FlowDebugSession
         Status = FlowDebugSessionStatus.Pending;
     }
 
+    /// <summary>
+    /// Identifies the debug session.
+    /// 调试会话标识。
+    /// </summary>
     public Guid Id { get; }
+    /// <summary>
+    /// Identifies the associated flow run.
+    /// 关联的流程运行标识。
+    /// </summary>
     public Guid RunId { get; }
+    /// <summary>
+    /// Identifies the owning project.
+    /// 所属项目标识。
+    /// </summary>
     public Guid ProjectId { get; }
+    /// <summary>
+    /// Identifies the flow being debugged.
+    /// 被调试流程的标识。
+    /// </summary>
     public Guid FlowId { get; }
+    /// <summary>
+    /// Lists the nodes where execution should pause.
+    /// 需要暂停执行的断点节点。
+    /// </summary>
     public IReadOnlyList<string> BreakpointNodeIds { get; }
+    /// <summary>
+    /// Stores the current debug session state.
+    /// 当前调试会话状态。
+    /// </summary>
     public FlowDebugSessionStatus Status { get; private set; }
+    /// <summary>
+    /// Identifies the node currently being debugged.
+    /// 当前调试节点标识。
+    /// </summary>
     public string? CurrentNodeId { get; private set; }
     /// <summary>
     /// Monotonic cursor for consumers waiting on observable debug state.

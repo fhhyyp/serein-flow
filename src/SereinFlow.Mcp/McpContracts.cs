@@ -45,14 +45,50 @@ public static class McpProtocolErrorCodes
     };
 }
 
+/// <summary>
+/// Represents MCP resource descriptor data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCP资源Descriptor数据。
+/// </summary>
 public sealed record McpResourceDescriptor(string Uri, string Name, string? Description, string MimeType = "application/json");
+/// <summary>
+/// Represents MCP resource template descriptor data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCP资源TemplateDescriptor数据。
+/// </summary>
 public sealed record McpResourceTemplateDescriptor(string UriTemplate, string Name, string? Description, string MimeType = "application/json");
+/// <summary>
+/// Represents MCP prompt argument descriptor data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCPPromptArgumentDescriptor数据。
+/// </summary>
 public sealed record McpPromptArgumentDescriptor(string Name, string? Description, bool Required = false);
+/// <summary>
+/// Represents MCP prompt descriptor data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCPPromptDescriptor数据。
+/// </summary>
 public sealed record McpPromptDescriptor(string Name, string? Description, IReadOnlyList<McpPromptArgumentDescriptor> Arguments);
+/// <summary>
+/// Represents MCP prompt content data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCPPromptContent数据。
+/// </summary>
 public sealed record McpPromptContent(string Type, string Text);
+/// <summary>
+/// Represents MCP prompt message data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCPPrompt消息数据。
+/// </summary>
 public sealed record McpPromptMessage(string Role, McpPromptContent Content);
+/// <summary>
+/// Captures the outcome of MCP prompt operations.
+/// 记录MCPPrompt操作的结果。
+/// </summary>
 public sealed record McpPromptResult(string? Description, IReadOnlyList<McpPromptMessage> Messages);
+/// <summary>
+/// Captures the outcome of MCP resource read operations.
+/// 记录MCP资源Read操作的结果。
+/// </summary>
 public sealed record McpResourceReadResult(string Uri, object Value, string MimeType = "application/json");
+/// <summary>
+/// Captures the outcome of MCP tool call operations.
+/// 记录MCPToolCall操作的结果。
+/// </summary>
 public sealed record McpToolCallResult(object? Value, bool IsError = false);
 public interface ISereinFlowMcpBackend
 {

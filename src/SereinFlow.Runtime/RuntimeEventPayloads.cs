@@ -27,6 +27,10 @@ internal abstract record RuntimeEventPayload
     internal abstract void WriteTo(Dictionary<string, object?> payload);
 }
 
+/// <summary>
+/// Represents node started event payload data used by SereinFlow.
+/// 表示 SereinFlow 使用的节点Started事件载荷数据。
+/// </summary>
 internal sealed record NodeStartedEventPayload(int Step, Guid? TriggerInvocationId, bool? Global = null) : RuntimeEventPayload
 {
     internal override void WriteTo(Dictionary<string, object?> payload)
@@ -41,6 +45,10 @@ internal sealed record NodeStartedEventPayload(int Step, Guid? TriggerInvocation
     }
 }
 
+/// <summary>
+/// Represents node result event payload data used by SereinFlow.
+/// 表示 SereinFlow 使用的节点结果事件载荷数据。
+/// </summary>
 internal sealed record NodeResultEventPayload(
     bool Success,
     ExecutionBranch? Branch,
@@ -83,6 +91,10 @@ internal sealed record NodeResultEventPayload(
     }
 }
 
+/// <summary>
+/// Represents trigger event payload data used by SereinFlow.
+/// 表示 SereinFlow 使用的触发器事件载荷数据。
+/// </summary>
 internal abstract record TriggerEventPayload(Guid? TriggerInvocationId, string FlipflopNodeId) : RuntimeEventPayload
 {
     internal sealed override void WriteTo(Dictionary<string, object?> payload)
@@ -97,6 +109,10 @@ internal abstract record TriggerEventPayload(Guid? TriggerInvocationId, string F
     }
 }
 
+/// <summary>
+/// Represents trigger received event payload data used by SereinFlow.
+/// 表示 SereinFlow 使用的触发器Received事件载荷数据。
+/// </summary>
 internal sealed record TriggerReceivedEventPayload(Guid? TriggerInvocationId, string FlipflopNodeId, IReadOnlyDictionary<string, object?> Inputs)
     : TriggerEventPayload(TriggerInvocationId, FlipflopNodeId)
 {
@@ -106,6 +122,10 @@ internal sealed record TriggerReceivedEventPayload(Guid? TriggerInvocationId, st
     }
 }
 
+/// <summary>
+/// Represents trigger queued event payload data used by SereinFlow.
+/// 表示 SereinFlow 使用的触发器Queued事件载荷数据。
+/// </summary>
 internal sealed record TriggerQueuedEventPayload(Guid? TriggerInvocationId, string FlipflopNodeId, int QueuePosition)
     : TriggerEventPayload(TriggerInvocationId, FlipflopNodeId)
 {
@@ -115,6 +135,10 @@ internal sealed record TriggerQueuedEventPayload(Guid? TriggerInvocationId, stri
     }
 }
 
+/// <summary>
+/// Represents trigger rejected event payload data used by SereinFlow.
+/// 表示 SereinFlow 使用的触发器Rejected事件载荷数据。
+/// </summary>
 internal sealed record TriggerRejectedEventPayload(Guid? TriggerInvocationId, string FlipflopNodeId, string Reason, int MaximumQueuedTriggers)
     : TriggerEventPayload(TriggerInvocationId, FlipflopNodeId)
 {
@@ -125,9 +149,17 @@ internal sealed record TriggerRejectedEventPayload(Guid? TriggerInvocationId, st
     }
 }
 
+/// <summary>
+/// Represents trigger admitted event payload data used by SereinFlow.
+/// 表示 SereinFlow 使用的触发器Admitted事件载荷数据。
+/// </summary>
 internal sealed record TriggerAdmittedEventPayload(Guid? TriggerInvocationId, string FlipflopNodeId)
     : TriggerEventPayload(TriggerInvocationId, FlipflopNodeId);
 
+/// <summary>
+/// Represents trigger completed event payload data used by SereinFlow.
+/// 表示 SereinFlow 使用的触发器Completed事件载荷数据。
+/// </summary>
 internal sealed record TriggerCompletedEventPayload(Guid? TriggerInvocationId, string FlipflopNodeId, NodeExecutionResult Result)
     : TriggerEventPayload(TriggerInvocationId, FlipflopNodeId)
 {
@@ -140,6 +172,10 @@ internal sealed record TriggerCompletedEventPayload(Guid? TriggerInvocationId, s
     }
 }
 
+/// <summary>
+/// Represents trigger failed event payload data used by SereinFlow.
+/// 表示 SereinFlow 使用的触发器Failed事件载荷数据。
+/// </summary>
 internal sealed record TriggerFailedEventPayload(Guid? TriggerInvocationId, string FlipflopNodeId, string ErrorCode, string ErrorMessage)
     : TriggerEventPayload(TriggerInvocationId, FlipflopNodeId)
 {
@@ -150,6 +186,10 @@ internal sealed record TriggerFailedEventPayload(Guid? TriggerInvocationId, stri
     }
 }
 
+/// <summary>
+/// Represents node log event payload data used by SereinFlow.
+/// 表示 SereinFlow 使用的节点Log事件载荷数据。
+/// </summary>
 internal sealed record NodeLogEventPayload(NodeExecutionLogEntry Entry) : RuntimeEventPayload
 {
     internal override void WriteTo(Dictionary<string, object?> payload)

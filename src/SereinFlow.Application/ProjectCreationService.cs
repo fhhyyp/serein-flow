@@ -4,14 +4,38 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Application;
+/// <summary>
+/// Describes the outcome of creating a project.
+/// 描述创建项目的结果。
+/// </summary>
 public enum ProjectCreationStatus
 {
+    /// <summary>
+    /// Indicates the created value.
+    /// 表示“创建”这一取值。
+    /// </summary>
     Created,
+    /// <summary>
+    /// Indicates the invalid value.
+    /// 表示“无效”这一取值。
+    /// </summary>
     Invalid,
+    /// <summary>
+    /// Indicates the conflict value.
+    /// 表示“冲突”这一取值。
+    /// </summary>
     Conflict,
 }
 
+/// <summary>
+/// Represents project creation candidate data used by SereinFlow.
+/// 表示 SereinFlow 使用的项目创建候选项数据。
+/// </summary>
 public sealed record ProjectCreationCandidate(Project Project, FlowDefinitionDto Definition, FlowValidationResultDto Validation);
+/// <summary>
+/// Captures the outcome of project creation operations.
+/// 记录项目创建操作的结果。
+/// </summary>
 public sealed record ProjectCreationResult(ProjectCreationStatus Status, ProjectCreationCandidate Candidate, string? ErrorCode = null, string? ErrorMessage = null);
 /// <summary>
 /// Shared project and initial-flow creation boundary. The HTTP editor and MCP

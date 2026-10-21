@@ -7,9 +7,21 @@ namespace SereinFlow.Runtime.Abstractions;
 /// 节点输入解析完成且执行器尚未产生副作用时到达的安全执行边界。
 /// </summary>
 public sealed record NodeExecutionBoundary(Guid RunId, string NodeId, NodeType NodeType, int Step, IReadOnlyDictionary<string, object?> Inputs, int FrameDepth, Guid? InvocationId = null, Guid? ExecutionId = null);
+/// <summary>
+/// Defines whether node execution may continue.
+/// 定义节点执行是否可以继续。
+/// </summary>
 public enum ExecutionGateDecision
 {
+    /// <summary>
+    /// Indicates the proceed value.
+    /// 表示“继续”这一取值。
+    /// </summary>
     Proceed,
+    /// <summary>
+    /// Indicates the cancel value.
+    /// 表示“取消”这一取值。
+    /// </summary>
     Cancel
 }
 

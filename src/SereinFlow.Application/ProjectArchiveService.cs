@@ -4,6 +4,10 @@ using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
 
+/// <summary>
+/// Captures the outcome of project archive operations.
+/// 记录项目归档操作的结果。
+/// </summary>
 public sealed record ProjectArchiveResult(bool IsSuccess, int StatusCode, string? Code = null, string? Message = null, Project? Project = null);
 /// <summary>
 /// Owns the project archival invariant. A published environment interface is

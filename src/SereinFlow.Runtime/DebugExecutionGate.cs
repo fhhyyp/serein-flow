@@ -43,6 +43,10 @@ public sealed class DebugExecutionGate : IExecutionGate
         }
     }
 
+    /// <summary>
+    /// Pauses or advances node execution according to the active debug command.
+    /// 根据当前调试命令暂停或推进节点执行。
+    /// </summary>
     public async ValueTask<ExecutionGateDecision> BeforeNodeAsync(NodeExecutionBoundary boundary, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(boundary);

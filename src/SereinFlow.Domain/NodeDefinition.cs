@@ -1,5 +1,13 @@
 namespace SereinFlow.Domain;
+/// <summary>
+/// Represents node position data used by SereinFlow.
+/// 表示 SereinFlow 使用的节点Position数据。
+/// </summary>
 public sealed record NodePosition(double X, double Y);
+/// <summary>
+/// Represents port definition data used by SereinFlow.
+/// 表示 SereinFlow 使用的端口定义数据。
+/// </summary>
 public sealed record PortDefinition
 {
     public PortDefinition(string id, string name, PortDirection direction, bool required = false)
@@ -10,6 +18,10 @@ public sealed record PortDefinition
         Required = required;
     }
 
+    /// <summary>
+    /// Identifies the node.
+    /// 节点标识。
+    /// </summary>
     public string Id { get; }
     public string Name { get; }
     public PortDirection Direction { get; }
@@ -27,6 +39,10 @@ public sealed record PortDefinition
     }
 }
 
+/// <summary>
+/// Represents node parameter definition data used by SereinFlow.
+/// 表示 SereinFlow 使用的节点参数定义数据。
+/// </summary>
 public sealed record NodeParameterDefinition
 {
     public NodeParameterDefinition(string name, string? valueJson, DataSource source = DataSource.Literal, bool required = false, string? id = null, string? projectInputKey = null, string? expression = null, string? sourceNodeId = null, string? sourcePortId = null, string? valueKind = null, string? description = null, bool isVariadic = false, string? variadicGroupId = null, string? elementType = null, VariadicParameterMode? variadicMode = null, EnumParameterMetadata? enumMetadata = null)
@@ -49,6 +65,10 @@ public sealed record NodeParameterDefinition
         EnumMetadata = enumMetadata;
     }
 
+    /// <summary>
+    /// Identifies the node.
+    /// 节点标识。
+    /// </summary>
     public string Id { get; }
     public string Name { get; }
     public string? ValueJson { get; }
@@ -78,8 +98,20 @@ public sealed record NodeParameterDefinition
     }
 }
 
+/// <summary>
+/// Represents node runtime definition data used by SereinFlow.
+/// 表示 SereinFlow 使用的节点Runtime定义数据。
+/// </summary>
 public sealed record NodeRuntimeDefinition(string? LibraryId = null, string? ClassName = null, string? MethodName = null, string? DllName = null, string? DllVersion = null, string? ReturnType = null, string? TargetNodeId = null, Guid? TargetFlowId = null, bool IsAwaitable = false, string? StaticReturnType = null, bool IsDynamicReturnType = false, string? TargetCanvasId = null, bool IsPublic = false, IReadOnlyList<FlowCallParameterBinding>? FlowCallParameterBindings = null, string? LibraryNodeContractId = null);
+/// <summary>
+/// Represents flow call parameter binding data used by SereinFlow.
+/// 表示 SereinFlow 使用的流程Call参数Binding数据。
+/// </summary>
 public sealed record FlowCallParameterBinding(string CallParameterId, string TargetParameterId);
+/// <summary>
+/// Represents a node and its runtime configuration in a flow.
+/// 表示流程中的节点及其运行时配置。
+/// </summary>
 public sealed class NodeDefinition
 {
     private NodeDefinition(string id, NodeType type, string displayName, NodePosition position, IReadOnlyList<PortDefinition> ports, IReadOnlyList<NodeParameterDefinition> parameters, ScriptNodeDefinition? script, NodeRuntimeDefinition? runtime)
@@ -94,13 +126,45 @@ public sealed class NodeDefinition
         Runtime = runtime;
     }
 
+    /// <summary>
+    /// Identifies the node.
+    /// 节点标识。
+    /// </summary>
     public string Id { get; }
+    /// <summary>
+    /// Stores the node kind.
+    /// 节点类型。
+    /// </summary>
     public NodeType Type { get; }
+    /// <summary>
+    /// Stores the node display name.
+    /// 节点显示名称。
+    /// </summary>
     public string DisplayName { get; }
+    /// <summary>
+    /// Stores the node position on the canvas.
+    /// 节点在画布上的位置。
+    /// </summary>
     public NodePosition Position { get; }
+    /// <summary>
+    /// Defines the node input and output ports.
+    /// 定义节点的输入和输出端口。
+    /// </summary>
     public IReadOnlyList<PortDefinition> Ports { get; }
+    /// <summary>
+    /// Defines the node parameters.
+    /// 定义节点参数。
+    /// </summary>
     public IReadOnlyList<NodeParameterDefinition> Parameters { get; }
+    /// <summary>
+    /// Stores the script definition when this is a script node.
+    /// 脚本节点对应的脚本定义。
+    /// </summary>
     public ScriptNodeDefinition? Script { get; }
+    /// <summary>
+    /// Stores the node runtime configuration.
+    /// 节点运行时配置。
+    /// </summary>
     public NodeRuntimeDefinition? Runtime { get; }
 
     public NodeDefinition WithRuntime(NodeRuntimeDefinition? runtime)

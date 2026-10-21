@@ -1,6 +1,10 @@
 using System.Text.Json;
 
 namespace SereinFlow.Client;
+/// <summary>
+/// Represents serein flow API error data used by SereinFlow.
+/// 表示 SereinFlow 使用的Serein流程API错误数据。
+/// </summary>
 public sealed record SereinFlowApiError(int StatusCode, string? Code, string? Title, string? Detail, string? Instance, IReadOnlyDictionary<string, JsonElement> Extensions);
 public class SereinFlowClientException : Exception
 {

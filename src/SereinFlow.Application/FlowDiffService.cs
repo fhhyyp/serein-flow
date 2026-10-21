@@ -7,6 +7,10 @@ using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
 
+/// <summary>
+/// Compares flow definitions and describes their changes.
+/// 比较流程定义并描述其中的变更。
+/// </summary>
 public sealed class FlowDiffService
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();
@@ -301,6 +305,10 @@ public sealed class FlowDiffService
     }
 }
 
+/// <summary>
+/// Previews and applies version-checked changes to flow definitions.
+/// 预览并应用带版本检查的流程定义变更。
+/// </summary>
 public sealed class FlowPatchService
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();

@@ -1,4 +1,8 @@
 namespace SereinFlow.Domain;
+/// <summary>
+/// Tracks the identity, status, and timing of a flow run.
+/// 跟踪流程运行的标识、状态和时间信息。
+/// </summary>
 public sealed class FlowRun
 {
     private FlowRun(Guid id, Guid projectId, Guid flowId, long flowVersion, string definitionChecksum, DateTimeOffset createdAt, FlowConcurrencyMode concurrencyMode, bool isListenerRun, FlowRunExecutionKind executionKind, Guid? debugSessionId)
@@ -17,16 +21,40 @@ public sealed class FlowRun
         Status = FlowRunStatus.Pending;
     }
 
+    /// <summary>
+    /// Identifies the run.
+    /// 运行标识。
+    /// </summary>
     public Guid Id { get; }
+    /// <summary>
+    /// Identifies the owning project.
+    /// 所属项目标识。
+    /// </summary>
     public Guid ProjectId { get; }
+    /// <summary>
+    /// Identifies the executed flow.
+    /// 被执行流程的标识。
+    /// </summary>
     public Guid FlowId { get; }
+    /// <summary>
+    /// Stores the flow version used by the run.
+    /// 本次运行使用的流程版本。
+    /// </summary>
     public long FlowVersion { get; }
     /// <summary>
     /// The checksum of the immutable definition snapshot selected for this run.
     /// 运行实例选定的不可变流程定义快照校验和。
     /// </summary>
     public string DefinitionChecksum { get; }
+    /// <summary>
+    /// Stores the current run state.
+    /// 当前运行状态。
+    /// </summary>
     public FlowRunStatus Status { get; private set; }
+    /// <summary>
+    /// Records when the run was created.
+    /// 运行创建时间。
+    /// </summary>
     public DateTimeOffset CreatedAt { get; }
     public DateTimeOffset QueuedAt { get; private set; }
     public FlowConcurrencyMode ConcurrencyMode { get; }
@@ -43,6 +71,10 @@ public sealed class FlowRun
         }
     }
 
+    /// <summary>
+    /// Records when execution began.
+    /// 运行开始时间。
+    /// </summary>
     public DateTimeOffset? StartedAt { get; private set; }
     /// <summary>
     /// The execution deadline is assigned when this run actually obtains a
@@ -50,8 +82,16 @@ public sealed class FlowRun
     /// 实际取得 Worker 槽位时才设置执行截止时间；排队时间由队列等待超时控制。
     /// </summary>
     public DateTimeOffset? Deadline { get; private set; }
+    /// <summary>
+    /// Records when execution ended.
+    /// 运行结束时间。
+    /// </summary>
     public DateTimeOffset? EndedAt { get; private set; }
     public string? CancellationReason { get; private set; }
+    /// <summary>
+    /// Stores a short description of the run failure.
+    /// 运行失败的简要说明。
+    /// </summary>
     public string? ErrorSummary { get; private set; }
     public bool IsTerminal => Status is FlowRunStatus.Succeeded or FlowRunStatus.Failed or FlowRunStatus.Cancelled or FlowRunStatus.TimedOut or FlowRunStatus.Interrupted;
 

@@ -17,6 +17,10 @@ using SereinFlow.Application.Persistence;
 
 namespace SereinFlow.Infrastructure.Persistence;
 
+/// <summary>
+/// Configures library catalog behavior.
+/// 配置库Catalog行为。
+/// </summary>
 public sealed record LibraryCatalogOptions
 {
     public LibraryCatalogOptions(string rootPath, long maxPackageBytes = 100 * 1024 * 1024, long maxUncompressedBytes = 512 * 1024 * 1024, int maxEntries = 512)
@@ -1997,8 +2001,20 @@ internal static class LibraryMetadataScanner
     }
 }
 
+/// <summary>
+/// Represents node metadata data used by SereinFlow.
+/// 表示 SereinFlow 使用的节点Metadata数据。
+/// </summary>
 internal sealed record NodeMetadata(NodeTypeDto Type, string? DisplayName, string? Description, string? ContractId);
+/// <summary>
+/// Represents parameter metadata data used by SereinFlow.
+/// 表示 SereinFlow 使用的参数Metadata数据。
+/// </summary>
 internal sealed record ParameterMetadata(string? Name, string? ContractId, IReadOnlyList<string> Aliases, bool IsExplicit);
+/// <summary>
+/// Captures the outcome of library scan operations.
+/// 记录库Scan操作的结果。
+/// </summary>
 internal sealed record LibraryScanResult(string AssemblyName, string AssemblyVersion, IReadOnlyList<LibraryNodeDto> Nodes, IReadOnlyList<LibraryManifestNodeDto> ManifestNodes);
 internal sealed class MetadataTypeNameProvider : ISignatureTypeProvider<string, object?>, ICustomAttributeTypeProvider<string>
 {

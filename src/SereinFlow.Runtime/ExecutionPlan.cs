@@ -68,9 +68,17 @@ public sealed class ExecutionPlan
     }
 }
 
+/// <summary>
+/// Builds indexed execution plans from flow definitions.
+/// 根据流程定义构建索引化执行计划。
+/// </summary>
 public sealed class ExecutionPlanBuilder
 {
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Builder is an injectable composition boundary. 构建器是可注入的组合边界。")]
+    /// <summary>
+    /// Builds an execution plan for a flow definition.
+    /// 为流程定义构建执行计划。
+    /// </summary>
     public ExecutionPlan Build(FlowDefinition definition)
     {
         if (definition is null)
@@ -323,6 +331,10 @@ public sealed class ExecutionPlanBuilder
     }
 }
 
+/// <summary>
+/// Represents flow call return type analysis data used by SereinFlow.
+/// 表示 SereinFlow 使用的流程CallReturnTypeAnalysis数据。
+/// </summary>
 public sealed record FlowCallReturnTypeAnalysis(string ReturnType, bool IsDynamic);
 /// <summary>
 /// Performs the conservative static return-type analysis used by FlowCall
@@ -330,6 +342,10 @@ public sealed record FlowCallReturnTypeAnalysis(string ReturnType, bool IsDynami
 /// </summary>
 public static class FlowCallReturnTypeAnalyzer
 {
+    /// <summary>
+    /// Infers the return type of a flow call target.
+    /// 推断流程调用目标的返回类型。
+    /// </summary>
     public static FlowCallReturnTypeAnalysis Analyze(ExecutionPlan plan, string targetNodeId)
     {
         ArgumentNullException.ThrowIfNull(plan);

@@ -5,7 +5,15 @@ using SereinFlow.Domain;
 
 namespace SereinFlow.Application;
 
+/// <summary>
+/// Represents run preparation data used by SereinFlow.
+/// 表示 SereinFlow 使用的运行准备信息数据。
+/// </summary>
 public sealed record RunPreparation(FlowRun Run, FlowDefinitionDto Definition, IReadOnlyDictionary<string, JsonElement>? ProjectInputs, int TimeoutSeconds, int MaxSteps, int MaxNodeVisits, bool IsListenerRun);
+/// <summary>
+/// Prepares flow runs by resolving the project, definition, and run limits.
+/// 解析项目、流程定义和运行限制，为流程运行做好准备。
+/// </summary>
 public sealed class RunApplicationService
 {
     private const int MinimumExecutionLimit = 1;
@@ -29,6 +37,10 @@ public sealed class RunApplicationService
         _projectLibraries = projectLibraries;
     }
 
+    /// <summary>
+    /// Validates a run request and prepares the flow execution inputs.
+    /// 校验运行请求并准备流程执行参数。
+    /// </summary>
     public async Task<RunPreparationResult> PrepareAsync(Guid projectId, Guid flowId, RunFlowRequestDto request, FlowRunExecutionKind executionKind = FlowRunExecutionKind.Production, Guid? debugSessionId = null, IReadOnlyCollection<string>? breakpointNodeIds = null, FlowDefinitionDto? definitionOverride = null, CancellationToken cancellationToken = default, FlowVersionTrackDto definitionTrack = FlowVersionTrackDto.Development)
     {
         var project = await _projects.FindAsync(projectId, cancellationToken);
@@ -165,6 +177,10 @@ public sealed class RunApplicationService
     }
 }
 
+/// <summary>
+/// Captures the outcome of run preparation operations.
+/// 记录运行准备信息操作的结果。
+/// </summary>
 public sealed record RunPreparationResult(RunPreparation? Preparation, int StatusCode, string? ErrorTitle, object? ErrorBody = null, long? CurrentVersion = null)
 {
     public bool IsSuccess => Preparation is not null;

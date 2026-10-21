@@ -5,6 +5,10 @@ using SereinFlow.Application;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api;
+/// <summary>
+/// Captures the outcome of serein flow API authorization operations.
+/// 记录Serein流程APIAuthorization操作的结果。
+/// </summary>
 public sealed record SereinFlowApiAuthorizationResult(bool IsAllowed, int StatusCode = StatusCodes.Status200OK, string? Code = null, string? Message = null)
 {
     public static SereinFlowApiAuthorizationResult Allowed { get; } = new(true);

@@ -2,6 +2,10 @@ using Microsoft.Data.Sqlite;
 using SqlSugar;
 
 namespace SereinFlow.Infrastructure.Persistence;
+/// <summary>
+/// Configures sqlite database behavior.
+/// 配置SqliteDatabase行为。
+/// </summary>
 public sealed record SqliteDatabaseOptions
 {
     public SqliteDatabaseOptions(string databasePath, int busyTimeoutMilliseconds = 5000)

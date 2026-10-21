@@ -1,4 +1,8 @@
 namespace SereinFlow.Domain;
+/// <summary>
+/// Represents one canvas and its nodes and connections.
+/// 表示包含节点和连线的流程画布。
+/// </summary>
 public sealed class CanvasDefinition
 {
     private CanvasDefinition(string id, CanvasLifecycle lifecycle, IReadOnlyList<NodeDefinition> nodes, IReadOnlyList<ConnectionDefinition> connections)
@@ -9,9 +13,25 @@ public sealed class CanvasDefinition
         Connections = connections;
     }
 
+    /// <summary>
+    /// Identifies the canvas.
+    /// 画布标识。
+    /// </summary>
     public string Id { get; }
+    /// <summary>
+    /// Stores the canvas lifecycle stage.
+    /// 画布生命周期阶段。
+    /// </summary>
     public CanvasLifecycle Lifecycle { get; }
+    /// <summary>
+    /// Contains the nodes on this canvas.
+    /// 画布上的节点集合。
+    /// </summary>
     public IReadOnlyList<NodeDefinition> Nodes { get; }
+    /// <summary>
+    /// Contains the connections on this canvas.
+    /// 画布上的连线集合。
+    /// </summary>
     public IReadOnlyList<ConnectionDefinition> Connections { get; }
 
     public static CanvasDefinition Create(string id, CanvasLifecycle lifecycle, IEnumerable<NodeDefinition> nodes, IEnumerable<ConnectionDefinition> connections)

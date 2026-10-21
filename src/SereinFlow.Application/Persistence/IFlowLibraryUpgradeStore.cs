@@ -17,6 +17,10 @@ public interface IFlowLibraryUpgradeStore
     Task<FlowLibraryUpgradeCommitResult> CommitAsync(Guid projectId, Guid planId, FlowDefinitionDto upgradedDefinition, long expectedVersion, string targetArtifactId, LibraryUpgradePlanFlowResultDto? appliedFlow = null, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Captures the outcome of flow library upgrade commit operations.
+/// 记录流程库升级Commit操作的结果。
+/// </summary>
 public sealed record FlowLibraryUpgradeCommitResult(FlowDefinitionDto? Definition, long? CurrentVersion = null)
 {
     public bool IsCommitted => Definition is not null;

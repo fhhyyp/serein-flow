@@ -23,6 +23,10 @@ public sealed class DebugInvocationScheduler
 
     public int MaximumQueuedInvocations => _maximumQueuedInvocations;
 
+    /// <summary>
+    /// Queues a debug invocation when scheduler capacity allows it.
+    /// 在调度器容量允许时排入调试调用。
+    /// </summary>
     public bool TrySchedule(Func<Task> executeAsync, Func<Task> discardAsync, out int queuePosition)
     {
         ArgumentNullException.ThrowIfNull(executeAsync);
@@ -58,6 +62,10 @@ public sealed class DebugInvocationScheduler
         return true;
     }
 
+    /// <summary>
+    /// Stops accepting invocations and waits for queued work to finish.
+    /// 停止接收调用并等待队列中的工作结束。
+    /// </summary>
     public async Task StopAndDrainAsync()
     {
         WorkItem[] discarded;

@@ -6,6 +6,10 @@ using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
 
+/// <summary>
+/// Represents MCP principal data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCP主体数据。
+/// </summary>
 public sealed record McpPrincipal(string Id, Guid? ProjectId, IReadOnlySet<McpPermissionDto> Permissions, bool IsLocal = false, bool IsAdministrator = false)
 {
     public bool Has(McpPermissionDto permission)
@@ -47,6 +51,10 @@ public sealed class McpPrincipalAccessor : IMcpPrincipalAccessor
     public McpPrincipal? Current { get => _current.Value; set => _current.Value = value; }
 }
 
+/// <summary>
+/// Authenticates MCP callers and enforces their project permissions.
+/// 认证 MCP 调用方并执行项目权限检查。
+/// </summary>
 public sealed class McpSecurityService
 {
     private static readonly IReadOnlySet<McpPermissionDto> AllPermissions = CreateAllPermissionsInitialValue();

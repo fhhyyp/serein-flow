@@ -6,6 +6,10 @@ using SereinFlow.Contracts;
 using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Worker.Supervisor;
+/// <summary>
+/// Configures runner launch behavior.
+/// 配置RunnerLaunch行为。
+/// </summary>
 public sealed record RunnerLaunchOptions(string FileName, IReadOnlyList<string> Arguments, string? WorkingDirectory = null, TimeSpan? HandshakeTimeout = null, TimeSpan? HeartbeatInterval = null, TimeSpan? CancellationGracePeriod = null, string? AllowedScriptArtifactRoot = null, string? AllowedLibraryPackageRoot = null, Action<string>? DiagnosticLogger = null, TimeSpan? MessageDeliveryTimeout = null, string? AllowedWorkpieceRoot = null)
 {
     private static readonly TimeSpan DefaultHandshakeTimeout = TimeSpan.FromSeconds(5);
@@ -49,6 +53,10 @@ public sealed record RunnerLaunchOptions(string FileName, IReadOnlyList<string> 
     }
 }
 
+/// <summary>
+/// Starts worker processes and coordinates run, debug, and message operations.
+/// 启动 Worker 进程并协调运行、调试和消息操作。
+/// </summary>
 public sealed partial class WorkerSupervisor
 {
     private readonly RunnerLaunchOptions _launchOptions;
@@ -74,6 +82,10 @@ public sealed partial class WorkerSupervisor
         return runTask;
     }
 
+    /// <summary>
+    /// Starts a worker run and forwards its events to the caller.
+    /// 启动 Worker 运行并向调用方转发事件。
+    /// </summary>
     public async Task<WorkerRunResultDto> RunAsync(WorkerRunRequestDto request, Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent, Func<IReadOnlyList<WorkerEventEnvelopeDto>, CancellationToken, ValueTask>? publishBatch, CancellationToken cancellationToken = default)
     {
         if (request is null)

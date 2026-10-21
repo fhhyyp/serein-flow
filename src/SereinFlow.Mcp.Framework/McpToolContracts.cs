@@ -2,6 +2,10 @@ using System.Text.Json;
 
 namespace SereinFlow.Mcp.Framework;
 
+/// <summary>
+/// Represents MCP tool descriptor data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCPToolDescriptor数据。
+/// </summary>
 public sealed record McpToolDescriptor(string Name, string Description, JsonElement InputSchema);
 
 /// <summary>Host JSON configuration, snapshotted when the generated registry is loaded.</summary>

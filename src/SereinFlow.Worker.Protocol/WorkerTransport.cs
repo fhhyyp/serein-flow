@@ -23,11 +23,31 @@ public static class WorkerTransportErrorCodes
     public const string InvalidFrame = WorkerErrorCodes.TransportInvalidFrame;
 }
 
+/// <summary>
+/// Identifies why a worker transport was closed.
+/// 标识 Worker 传输关闭的原因。
+/// </summary>
 public enum WorkerTransportCloseReason
 {
+    /// <summary>
+    /// Indicates the none value.
+    /// 表示“无”这一取值。
+    /// </summary>
     None = 0,
+    /// <summary>
+    /// Indicates the local value.
+    /// 表示“本地”这一取值。
+    /// </summary>
     Local = 1,
+    /// <summary>
+    /// Indicates the remote eof value.
+    /// 表示“RemoteEof”这一取值。
+    /// </summary>
     RemoteEof = 2,
+    /// <summary>
+    /// Indicates the faulted value.
+    /// 表示“故障”这一取值。
+    /// </summary>
     Faulted = 3
 }
 

@@ -15,4 +15,8 @@ internal sealed class McpProjectQueryTools(AiReadModelService readModels, McpSec
     }
 }
 
+/// <summary>
+/// Carries request data for get MCP project operations.
+/// 承载获取MCP项目操作的请求数据。
+/// </summary>
 internal sealed record GetMcpProjectRequest([property: Required] Guid? ProjectId);

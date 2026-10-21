@@ -45,6 +45,10 @@ public interface IRunWorkpieceClient
     Task<FlowWorkpieceDownload> DownloadAsync(Guid runId, string workpieceId, bool asAttachment = true, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Captures the outcome of flow run operations.
+/// 记录流程运行操作的结果。
+/// </summary>
 public sealed record FlowRunResult(FlowRunDto Run, IReadOnlyList<FlowRunOutputDto> Outputs)
 {
     public bool IsSucceeded => Run.Status == FlowRunStatusDto.Succeeded;

@@ -4,27 +4,111 @@ using SereinFlow.Contracts;
 
 namespace SereinFlow.Mcp;
 
+/// <summary>
+/// Represents MCP AI guidance resource data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCPAI指南资源数据。
+/// </summary>
 public sealed record McpAiGuidanceResource(string Key, string Uri, string Name, string Description, string DefaultFilePath);
+/// <summary>
+/// Identifies a built-in MCP guidance resource.
+/// 标识内置 MCP 指南资源。
+/// </summary>
 public enum McpAiGuidanceId
 {
+    /// <summary>
+    /// Indicates the guide value.
+    /// 表示“Guide”这一取值。
+    /// </summary>
     Guide,
+    /// <summary>
+    /// Indicates the serein flow value.
+    /// 表示“Serein流程”这一取值。
+    /// </summary>
     SereinFlow,
+    /// <summary>
+    /// Indicates the serein lang value.
+    /// 表示“SereinLang”这一取值。
+    /// </summary>
     SereinLang,
+    /// <summary>
+    /// Indicates the library package value.
+    /// 表示“库Package”这一取值。
+    /// </summary>
     LibraryPackage,
+    /// <summary>
+    /// Indicates the serein flow projects value.
+    /// 表示“Serein流程Projects”这一取值。
+    /// </summary>
     SereinFlowProjects,
+    /// <summary>
+    /// Indicates the serein flow flows value.
+    /// 表示“Serein流程Flows”这一取值。
+    /// </summary>
     SereinFlowFlows,
+    /// <summary>
+    /// Indicates the serein flow ui ux value.
+    /// 表示“Serein流程UiUx”这一取值。
+    /// </summary>
     SereinFlowUiUx,
+    /// <summary>
+    /// Indicates the serein flow runtime value.
+    /// 表示“Serein流程Runtime”这一取值。
+    /// </summary>
     SereinFlowRuntime,
+    /// <summary>
+    /// Indicates the serein flow workpieces value.
+    /// 表示“Serein流程Workpieces”这一取值。
+    /// </summary>
     SereinFlowWorkpieces,
+    /// <summary>
+    /// Indicates the serein flow api keys value.
+    /// 表示“Serein流程Api密钥”这一取值。
+    /// </summary>
     SereinFlowApiKeys,
+    /// <summary>
+    /// Indicates the serein flow release value.
+    /// 表示“Serein流程Release”这一取值。
+    /// </summary>
     SereinFlowRelease,
+    /// <summary>
+    /// Indicates the serein lang syntax value.
+    /// 表示“SereinLangSyntax”这一取值。
+    /// </summary>
     SereinLangSyntax,
+    /// <summary>
+    /// Indicates the serein lang host value.
+    /// 表示“SereinLangHost”这一取值。
+    /// </summary>
     SereinLangHost,
+    /// <summary>
+    /// Indicates the serein lang grammar value.
+    /// 表示“SereinLangGrammar”这一取值。
+    /// </summary>
     SereinLangGrammar,
+    /// <summary>
+    /// Indicates the library build value.
+    /// 表示“库Build”这一取值。
+    /// </summary>
     LibraryBuild,
+    /// <summary>
+    /// Indicates the library zip value.
+    /// 表示“库Zip”这一取值。
+    /// </summary>
     LibraryZip,
+    /// <summary>
+    /// Indicates the library metadata value.
+    /// 表示“库Metadata”这一取值。
+    /// </summary>
     LibraryMetadata,
+    /// <summary>
+    /// Indicates the library import value.
+    /// 表示“库导入”这一取值。
+    /// </summary>
     LibraryImport,
+    /// <summary>
+    /// Indicates the library upgrade value.
+    /// 表示“库Upgrade”这一取值。
+    /// </summary>
     LibraryUpgrade
 }
 
@@ -116,6 +200,10 @@ public static class McpAiGuidance
     private sealed record GuidanceDefinition(McpAiGuidanceId Id, McpAiGuidanceResource Resource, bool IsModule);
 }
 
+/// <summary>
+/// Represents MCP AI guidance resource override data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCPAI指南资源Override数据。
+/// </summary>
 public sealed record McpAiGuidanceResourceOverride(string? Uri, string? FilePath);
 public sealed class McpAiGuidanceOptions
 {
@@ -441,8 +529,20 @@ public sealed class McpAiGuidanceProvider
         return typeof(McpAiGuidanceProvider).Assembly.GetManifestResourceStream(resource.EmbeddedResourceName) ?? throw Unavailable();
     }
 
+    /// <summary>
+    /// Represents guidance content data used by SereinFlow.
+    /// 表示 SereinFlow 使用的指南Content数据。
+    /// </summary>
     internal sealed record GuidanceContent(string Text, McpAiGuidanceSourceDto Source);
+    /// <summary>
+    /// Represents resolved guidance resource data used by SereinFlow.
+    /// 表示 SereinFlow 使用的Resolved指南资源数据。
+    /// </summary>
     internal sealed record ResolvedGuidanceResource(McpAiGuidanceResource Resource, string FilePath, string EmbeddedResourceName);
+    /// <summary>
+    /// Represents guidance snapshot data used by SereinFlow.
+    /// 表示 SereinFlow 使用的指南快照数据。
+    /// </summary>
     internal sealed record GuidanceSnapshot(Dictionary<McpAiGuidanceId, ResolvedGuidanceResource> ById, Dictionary<string, ResolvedGuidanceResource> ByUri, long MaxBytes);
     private static McpProtocolException Unavailable()
     {

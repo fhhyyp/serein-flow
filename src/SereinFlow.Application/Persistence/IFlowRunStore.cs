@@ -24,11 +24,27 @@ public interface IFlowRunStore
     bool Save(FlowRun run);
 }
 
+/// <summary>
+/// Configures flow run execution behavior.
+/// 配置流程运行执行行为。
+/// </summary>
 public sealed record FlowRunExecutionOptions(IReadOnlyDictionary<string, JsonElement>? ProjectInputs, int TimeoutSeconds, int MaxSteps, int MaxNodeVisits = 1_000);
+/// <summary>
+/// Represents pending flow run data used by SereinFlow.
+/// 表示 SereinFlow 使用的Pending流程运行数据。
+/// </summary>
 public sealed record PendingFlowRun(FlowRun Run, FlowDefinitionDto Definition, FlowRunExecutionOptions Options);
+/// <summary>
+/// Captures the outcome of flow run admission operations.
+/// 记录流程运行接纳操作的结果。
+/// </summary>
 public sealed record FlowRunAdmissionResult(FlowRun? Run, Guid? ActiveRunId = null)
 {
     public bool IsAdmitted => Run is not null;
 }
 
+/// <summary>
+/// Represents flow run query data used by SereinFlow.
+/// 表示 SereinFlow 使用的流程运行查询数据。
+/// </summary>
 public sealed record FlowRunQuery(IReadOnlyCollection<FlowRunStatus>? Statuses = null, Guid? ProjectId = null, int Take = 100);

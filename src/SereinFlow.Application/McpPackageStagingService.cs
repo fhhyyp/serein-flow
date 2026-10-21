@@ -1,4 +1,8 @@
 namespace SereinFlow.Application;
+/// <summary>
+/// Represents MCP staged package data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCPStaged包数据。
+/// </summary>
 public sealed record McpStagedPackage(string Path, long SizeBytes);
 /// <summary>
 /// Stores package bytes only in a generated, bounded temporary location while

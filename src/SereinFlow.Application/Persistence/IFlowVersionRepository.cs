@@ -12,6 +12,10 @@ public interface IFlowVersionRepository
     Task<bool> IsLibraryReferencedByProductionHistoryAsync(Guid projectId, string libraryId, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Captures the outcome of flow version mutation operations.
+/// 记录流程版本变更操作的结果。
+/// </summary>
 public sealed record FlowVersionMutationResult(FlowDefinitionDto? DevelopmentDefinition, FlowVersionSummaryDto? Version, long? CurrentHeadVersion = null)
 {
     public bool IsCommitted => Version is not null;

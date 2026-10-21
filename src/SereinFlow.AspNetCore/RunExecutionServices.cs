@@ -21,6 +21,10 @@ public static class RunCancellationSources
     public const string Worker = "worker";
 }
 
+/// <summary>
+/// Represents run work item data used by SereinFlow.
+/// 表示 SereinFlow 使用的运行WorkItem数据。
+/// </summary>
 public sealed record RunWorkItem(Guid RunId, Guid ProjectId, FlowDefinitionDto Definition, IReadOnlyDictionary<string, JsonElement>? ProjectInputs, DateTimeOffset QueuedAt, int TimeoutSeconds, int MaxSteps, int MaxNodeVisits = 1_000);
 public sealed class RunExecutionOptions
 {
@@ -83,12 +87,24 @@ public sealed class RunExecutionOptions
     }
 }
 
+/// <summary>
+/// Represents run execution snapshot data used by SereinFlow.
+/// 表示 SereinFlow 使用的运行执行快照数据。
+/// </summary>
 public sealed record RunExecutionSnapshot(int QueueCapacity, int QueuedCount, int ActiveRunCount, int ActiveListenerRunCount, int MaxConcurrentRuns, int MaxConcurrentListenerRuns, int MaxConcurrentRunsPerProject);
+/// <summary>
+/// Captures the outcome of run submission operations.
+/// 记录运行Submission操作的结果。
+/// </summary>
 public sealed record RunSubmissionResult(FlowRun? Run, int StatusCode, string? ErrorTitle = null, object? ErrorBody = null, long? CurrentVersion = null)
 {
     public bool IsAccepted => Run is not null;
 }
 
+/// <summary>
+/// Validates and submits flow run requests to the execution queue.
+/// 校验流程运行请求并提交到执行队列。
+/// </summary>
 public sealed class RunSubmissionService
 {
     private readonly RunApplicationService _runService;
@@ -101,12 +117,20 @@ public sealed class RunSubmissionService
         _runStore = runStore;
     }
 
+    /// <summary>
+    /// Submits a run request for a saved flow.
+    /// 提交已保存流程的运行请求。
+    /// </summary>
     public async Task<RunSubmissionResult> SubmitAsync(Guid projectId, Guid flowId, RunFlowRequestDto request, CancellationToken cancellationToken = default)
     {
         var submitCoreAsyncResult = await SubmitCoreAsync(projectId, flowId, request, definitionOverride: null, cancellationToken);
         return submitCoreAsyncResult;
     }
 
+    /// <summary>
+    /// Submits a run request using the supplied flow definition.
+    /// 使用给定的流程定义提交运行请求。
+    /// </summary>
     public async Task<RunSubmissionResult> SubmitDefinitionAsync(Guid projectId, FlowDefinitionDto definition, RunFlowRequestDto request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -114,6 +138,10 @@ public sealed class RunSubmissionService
         return submitCoreAsyncResult2;
     }
 
+    /// <summary>
+    /// Submits a run request for the published production version.
+    /// 提交已发布生产版本的运行请求。
+    /// </summary>
     public async Task<RunSubmissionResult> SubmitProductionAsync(Guid projectId, Guid flowId, RunFlowRequestDto request, CancellationToken cancellationToken = default)
     {
         var submitCoreAsyncResult3 = await SubmitCoreAsync(projectId, flowId, request, definitionOverride: null, cancellationToken: cancellationToken, definitionTrack: FlowVersionTrackDto.Production);
@@ -151,6 +179,10 @@ public sealed class RunSubmissionService
     }
 }
 
+/// <summary>
+/// Reserves execution capacity and coordinates queued and active runs.
+/// 预留执行容量并协调排队中和活动中的运行。
+/// </summary>
 public sealed class RunExecutionQueue
 {
     private readonly Channel<RunWorkItem> _queue;
@@ -194,6 +226,10 @@ public sealed class RunExecutionQueue
         }
     }
 
+    /// <summary>
+    /// Applies run queue settings and returns the effective settings.
+    /// 应用运行队列设置并返回生效配置。
+    /// </summary>
     public RunExecutionSettingsDto Configure(RunExecutionSettingsDto settings)
     {
         lock (_gate)
@@ -207,6 +243,10 @@ public sealed class RunExecutionQueue
         return toDtoResult;
     }
 
+    /// <summary>
+    /// Attempts to reserve a queue slot for a new run.
+    /// 尝试为新运行预留队列位置。
+    /// </summary>
     public RunQueueReservation? TryReserve()
     {
         lock (_gate)
@@ -222,6 +262,10 @@ public sealed class RunExecutionQueue
         }
     }
 
+    /// <summary>
+    /// Adds a run to the queue using a previously acquired reservation.
+    /// 使用已取得的预留将运行加入队列。
+    /// </summary>
     public bool TryEnqueueReserved(RunWorkItem item, RunQueueReservation reservation)
     {
         ArgumentNullException.ThrowIfNull(reservation);
@@ -268,6 +312,10 @@ public sealed class RunExecutionQueue
         }
     }
 
+    /// <summary>
+    /// Requests cancellation of a queued or active run.
+    /// 请求取消排队中或活动中的运行。
+    /// </summary>
     public bool Cancel(Guid runId)
     {
         var cancelResult = Cancel(runId, RunCancellationSources.Api);
@@ -336,6 +384,10 @@ public sealed class RunExecutionQueue
         SignalScheduler();
     }
 
+    /// <summary>
+    /// Attempts to acquire global and per-project execution capacity.
+    /// 尝试取得全局及项目级执行容量。
+    /// </summary>
     public bool TryAcquireExecutionSlots(RunWorkItem item, out RunExecutionLease? lease)
     {
         lease = null;
@@ -440,6 +492,10 @@ public sealed class RunExecutionQueue
         }
     }
 
+    /// <summary>
+    /// Waits for queued work or a scheduler state change.
+    /// 等待队列任务或调度状态发生变化。
+    /// </summary>
     public async Task<bool> WaitForSchedulerSignalAsync(TimeSpan? timeout, CancellationToken cancellationToken)
     {
         if (timeout is { } value && value > TimeSpan.Zero)
@@ -452,6 +508,10 @@ public sealed class RunExecutionQueue
         return true;
     }
 
+    /// <summary>
+    /// Stops new run submissions and cancels tracked runs.
+    /// 停止接收新运行并取消已跟踪的运行。
+    /// </summary>
     public void StopAcceptingAndCancelAll()
     {
         CancellationTokenSource[] sources;
@@ -724,6 +784,10 @@ public sealed class RunEventsHub : Hub
     }
 }
 
+/// <summary>
+/// Runs queued flows in the hosted application.
+/// 在宿主应用中执行队列里的流程。
+/// </summary>
 public sealed class RunExecutionHostedService : BackgroundService
 {
     private static readonly Action<ILogger, Guid, Exception?> WorkerRunFailedLog = CreateWorkerRunFailedLogInitialValue();
@@ -751,6 +815,10 @@ public sealed class RunExecutionHostedService : BackgroundService
         _workpieceRoot = storage.WorkpieceDirectory;
     }
 
+    /// <summary>
+    /// Processes queued runs and supervises their execution lifecycle.
+    /// 处理队列中的运行并监督其执行生命周期。
+    /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var pending = new List<RunWorkItem>();

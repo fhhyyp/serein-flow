@@ -4,6 +4,10 @@ using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
 
+/// <summary>
+/// Captures the outcome of library upgrade operation operations.
+/// 记录库升级操作操作的结果。
+/// </summary>
 public sealed record LibraryUpgradeOperationResult<T>(bool IsSuccess, int StatusCode, T? Value = default, string? Code = null, string? Message = null, long? CurrentVersion = null);
 /// <summary>
 /// Coordinates explicit, versioned library upgrades. This service creates a

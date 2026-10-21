@@ -91,28 +91,112 @@ public static class McpResourceUris
 /// </summary>
 public enum McpResourceId
 {
+    /// <summary>
+    /// Indicates the projects value.
+    /// 表示“Projects”这一取值。
+    /// </summary>
     Projects,
+    /// <summary>
+    /// Indicates the archived projects value.
+    /// 表示“已归档Projects”这一取值。
+    /// </summary>
     ArchivedProjects,
+    /// <summary>
+    /// Indicates the libraries value.
+    /// 表示“Libraries”这一取值。
+    /// </summary>
     Libraries,
+    /// <summary>
+    /// Indicates the archived libraries value.
+    /// 表示“已归档Libraries”这一取值。
+    /// </summary>
     ArchivedLibraries,
+    /// <summary>
+    /// Indicates the library families value.
+    /// 表示“库Families”这一取值。
+    /// </summary>
     LibraryFamilies,
+    /// <summary>
+    /// Indicates the project value.
+    /// 表示“项目”这一取值。
+    /// </summary>
     Project,
+    /// <summary>
+    /// Indicates the flow topology value.
+    /// 表示“流程Topology”这一取值。
+    /// </summary>
     FlowTopology,
+    /// <summary>
+    /// Indicates the flow versions value.
+    /// 表示“流程Versions”这一取值。
+    /// </summary>
     FlowVersions,
+    /// <summary>
+    /// Indicates the flow version value.
+    /// 表示“流程Version”这一取值。
+    /// </summary>
     FlowVersion,
+    /// <summary>
+    /// Indicates the preview value.
+    /// 表示“Preview”这一取值。
+    /// </summary>
     Preview,
+    /// <summary>
+    /// Indicates the library value.
+    /// 表示“库”这一取值。
+    /// </summary>
     Library,
+    /// <summary>
+    /// Indicates the library family value.
+    /// 表示“库Family”这一取值。
+    /// </summary>
     LibraryFamily,
+    /// <summary>
+    /// Indicates the project libraries value.
+    /// 表示“项目Libraries”这一取值。
+    /// </summary>
     ProjectLibraries,
+    /// <summary>
+    /// Indicates the library upgrade value.
+    /// 表示“库Upgrade”这一取值。
+    /// </summary>
     LibraryUpgrade,
+    /// <summary>
+    /// Indicates the runs value.
+    /// 表示“Runs”这一取值。
+    /// </summary>
     Runs,
+    /// <summary>
+    /// Indicates the debug sessions value.
+    /// 表示“调试Sessions”这一取值。
+    /// </summary>
     DebugSessions,
+    /// <summary>
+    /// Indicates the run value.
+    /// 表示“运行”这一取值。
+    /// </summary>
     Run,
+    /// <summary>
+    /// Indicates the run workpieces value.
+    /// 表示“运行Workpieces”这一取值。
+    /// </summary>
     RunWorkpieces,
+    /// <summary>
+    /// Indicates the run workpiece value.
+    /// 表示“运行Workpiece”这一取值。
+    /// </summary>
     RunWorkpiece,
+    /// <summary>
+    /// Indicates the debug session value.
+    /// 表示“调试Session”这一取值。
+    /// </summary>
     DebugSession
 }
 
+/// <summary>
+/// Represents MCP resource definition data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCP资源定义数据。
+/// </summary>
 public sealed record McpResourceDefinition(McpResourceId Id, string UriTemplate, string Name, string Description, bool IsTemplate, string MimeType = "application/json")
 {
     public IReadOnlyList<string> ParameterNames { get; } = ExtractParameterNames(UriTemplate);

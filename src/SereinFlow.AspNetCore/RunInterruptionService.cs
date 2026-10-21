@@ -5,15 +5,43 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Api;
+/// <summary>
+/// Describes the outcome of interrupting a run.
+/// 描述中断运行的结果。
+/// </summary>
 public enum RunInterruptionDisposition
 {
+    /// <summary>
+    /// Indicates the interrupted value.
+    /// 表示“已中断”这一取值。
+    /// </summary>
     Interrupted,
+    /// <summary>
+    /// Indicates the not found value.
+    /// 表示“NotFound”这一取值。
+    /// </summary>
     NotFound,
+    /// <summary>
+    /// Indicates the already terminal value.
+    /// 表示“AlreadyTerminal”这一取值。
+    /// </summary>
     AlreadyTerminal,
+    /// <summary>
+    /// Indicates the not running value.
+    /// 表示“Not运行中”这一取值。
+    /// </summary>
     NotRunning,
+    /// <summary>
+    /// Indicates the save failed value.
+    /// 表示“Save失败”这一取值。
+    /// </summary>
     SaveFailed
 }
 
+/// <summary>
+/// Captures the outcome of run interruption operations.
+/// 记录运行中断操作的结果。
+/// </summary>
 public sealed record RunInterruptionResult(RunInterruptionDisposition Disposition, FlowRun? Run = null)
 {
     public bool IsInterrupted => Disposition == RunInterruptionDisposition.Interrupted;

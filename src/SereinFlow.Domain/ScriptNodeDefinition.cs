@@ -2,7 +2,15 @@ using System.Security.Cryptography;
 using System.Text;
 
 namespace SereinFlow.Domain;
+/// <summary>
+/// Represents script value contract data used by SereinFlow.
+/// 表示 SereinFlow 使用的脚本值契约数据。
+/// </summary>
 public sealed record ScriptValueContract(string Name, string ValueKind, bool Required = false, string? Id = null, string? Description = null);
+/// <summary>
+/// Defines the script source and value contracts for a script node.
+/// 定义脚本节点的脚本源码和值契约。
+/// </summary>
 public sealed class ScriptNodeDefinition
 {
     // Changes to the compiler's global-variable contract must invalidate .ssc
@@ -20,12 +28,32 @@ public sealed class ScriptNodeDefinition
         Outputs = outputs;
     }
 
+    /// <summary>
+    /// Identifies the script node.
+    /// 脚本节点标识。
+    /// </summary>
     public string NodeId { get; }
+    /// <summary>
+    /// Stores the script source code.
+    /// 脚本源码。
+    /// </summary>
     public string Source { get; }
+    /// <summary>
+    /// Stores the script language version.
+    /// 脚本语言版本。
+    /// </summary>
     public string LanguageVersion { get; }
     public string SourceHash { get; }
     public string ArtifactFingerprint { get; }
+    /// <summary>
+    /// Defines the script input values.
+    /// 脚本输入值定义。
+    /// </summary>
     public IReadOnlyList<ScriptValueContract> Inputs { get; }
+    /// <summary>
+    /// Defines the script output values.
+    /// 脚本输出值定义。
+    /// </summary>
     public IReadOnlyList<ScriptValueContract> Outputs { get; }
 
     public static ScriptNodeDefinition Create(string nodeId, string source, string languageVersion, string? sourceHash = null, IEnumerable<ScriptValueContract>? inputs = null, IEnumerable<ScriptValueContract>? outputs = null)

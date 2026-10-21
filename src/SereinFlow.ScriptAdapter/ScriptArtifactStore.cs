@@ -8,7 +8,15 @@ using SereinFlow.Contracts;
 
 namespace SereinFlow.ScriptAdapter;
 
+/// <summary>
+/// Represents script artifact data used by SereinFlow.
+/// 表示 SereinFlow 使用的脚本制品数据。
+/// </summary>
 public sealed record ScriptArtifact(string ProjectId, string NodeId, string SourceHash, string ArtifactFingerprint, string LanguageVersion, string Path);
+/// <summary>
+/// Captures the outcome of script artifact build operations.
+/// 记录脚本制品Build操作的结果。
+/// </summary>
 public sealed record ScriptArtifactBuildResult(bool IsSuccess, IReadOnlyDictionary<string, ScriptArtifact> Artifacts, IReadOnlyList<ScriptExecutionDiagnostic> Diagnostics);
 
 /// <summary>

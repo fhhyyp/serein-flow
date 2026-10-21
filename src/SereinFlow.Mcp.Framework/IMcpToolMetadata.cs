@@ -9,8 +9,20 @@ public interface IMcpToolMetadata
     bool RequiresIdempotencyKey { get; }
 }
 
+/// <summary>
+/// Identifies whether an MCP tool reads data or changes state.
+/// 标识 MCP 工具用于读取数据还是变更状态。
+/// </summary>
 public enum McpToolExecutionKind
 {
+    /// <summary>
+    /// Indicates the read value.
+    /// 表示“读取”这一取值。
+    /// </summary>
     Read,
+    /// <summary>
+    /// Indicates the mutation value.
+    /// 表示“Mutation”这一取值。
+    /// </summary>
     Mutation,
 }

@@ -2,6 +2,10 @@ using System.Globalization;
 
 namespace SereinFlow.Mcp;
 
+/// <summary>
+/// Represents MCP resource match data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCP资源Match数据。
+/// </summary>
 public sealed record McpResourceMatch(McpResourceId Id, IReadOnlyDictionary<string, string> Parameters);
 /// <summary>
 /// Parses canonical MCP resource URIs into internal resource identities. It

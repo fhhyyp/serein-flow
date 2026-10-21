@@ -4,17 +4,53 @@ using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
 
+/// <summary>
+/// Describes the outcome of saving a flow definition.
+/// 描述保存流程定义的结果。
+/// </summary>
 public enum FlowDefinitionWriteStatus
 {
+    /// <summary>
+    /// Indicates the saved value.
+    /// 表示“已保存”这一取值。
+    /// </summary>
     Saved,
+    /// <summary>
+    /// Indicates the no change value.
+    /// 表示“NoChange”这一取值。
+    /// </summary>
     NoChange,
+    /// <summary>
+    /// Indicates the not found value.
+    /// 表示“NotFound”这一取值。
+    /// </summary>
     NotFound,
+    /// <summary>
+    /// Indicates the archived value.
+    /// 表示“已归档”这一取值。
+    /// </summary>
     Archived,
+    /// <summary>
+    /// Indicates the conflict value.
+    /// 表示“冲突”这一取值。
+    /// </summary>
     Conflict,
+    /// <summary>
+    /// Indicates the invalid value.
+    /// 表示“无效”这一取值。
+    /// </summary>
     Invalid,
 }
 
+/// <summary>
+/// Captures the outcome of flow definition preparation operations.
+/// 记录流程定义准备信息操作的结果。
+/// </summary>
 public sealed record FlowDefinitionPreparationResult(FlowDefinitionDto Current, FlowDefinitionDto Candidate, FlowValidationResultDto Validation);
+/// <summary>
+/// Captures the outcome of flow definition write operations.
+/// 记录流程定义写入操作的结果。
+/// </summary>
 public sealed record FlowDefinitionWriteResult(FlowDefinitionWriteStatus Status, FlowDefinitionPreparationResult? Preparation = null, FlowDefinitionDto? Saved = null, long? CurrentVersion = null)
 {
     public bool IsSaved => Status == FlowDefinitionWriteStatus.Saved && Saved is not null;
@@ -41,6 +77,10 @@ public sealed class FlowDefinitionWriteService
         _changePublisher = changePublisher;
     }
 
+    /// <summary>
+    /// Builds and validates a candidate flow definition without saving it.
+    /// 生成并校验候选流程定义，但不保存。
+    /// </summary>
     public async Task<FlowDefinitionPreparationResult?> PrepareAsync(Guid projectId, Guid flowId, FlowDefinitionDto candidate, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(candidate);
@@ -65,6 +105,10 @@ public sealed class FlowDefinitionWriteService
         return evaluatedValue1;
     }
 
+    /// <summary>
+    /// Validates and saves a flow definition against its expected version.
+    /// 依据预期版本校验并保存流程定义。
+    /// </summary>
     public async Task<FlowDefinitionWriteResult> WriteAsync(Guid projectId, Guid flowId, FlowDefinitionDto candidate, long expectedVersion, CancellationToken cancellationToken = default, string origin = "web")
     {
         if (candidate.Id != flowId || expectedVersion < 1)

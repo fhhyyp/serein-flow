@@ -572,4 +572,8 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
     }
 }
 
+/// <summary>
+/// Captures the outcome of worker message delivery operations.
+/// 记录Worker消息投递操作的结果。
+/// </summary>
 public sealed record WorkerMessageDeliveryResult(bool Accepted, bool Duplicate, string? Code, string Message, Guid MessageId, string Topic);

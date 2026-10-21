@@ -6,6 +6,10 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
+/// <summary>
+/// Stores and validates expiring MCP mutation previews before application.
+/// 在应用变更前保存并校验限时有效的 MCP 预览。
+/// </summary>
 public sealed class McpPreviewService
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();

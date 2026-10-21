@@ -47,6 +47,10 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         _workpieceRoot = storage.WorkpieceDirectory;
     }
 
+    /// <summary>
+    /// Creates a debug session and starts its worker run.
+    /// 创建调试会话并启动对应的 Worker 运行。
+    /// </summary>
     public async Task<FlowDebugSessionStartResult> CreateAsync(Guid projectId, Guid flowId, StartFlowDebugSessionRequestDto request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -169,6 +173,10 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         }
     }
 
+    /// <summary>
+    /// Finds a debug session by its identifier.
+    /// 按标识查找调试会话。
+    /// </summary>
     public async Task<FlowDebugSession?> FindAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -177,6 +185,10 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         return findAsyncResult;
     }
 
+    /// <summary>
+    /// Waits for the debug session state to advance beyond a revision.
+    /// 等待调试会话状态推进到指定修订号之后。
+    /// </summary>
     public async Task<FlowDebugStateWaitResult> WaitForChangeAsync(Guid sessionId, long afterRevision, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -185,6 +197,10 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         return waitAsyncResult;
     }
 
+    /// <summary>
+    /// Continues a paused debug session.
+    /// 继续执行已暂停的调试会话。
+    /// </summary>
     public Task<FlowDebugSessionCommandResult> ContinueAsync(Guid sessionId, long commandSequence, CancellationToken cancellationToken = default)
     {
         var sendCommandAsyncResult = SendCommandAsync(sessionId, commandSequence, static (handle, sequence, token) =>
@@ -195,6 +211,10 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         return sendCommandAsyncResult;
     }
 
+    /// <summary>
+    /// Advances a paused debug session by one step.
+    /// 将已暂停的调试会话推进一步。
+    /// </summary>
     public Task<FlowDebugSessionCommandResult> StepAsync(Guid sessionId, long commandSequence, CancellationToken cancellationToken = default)
     {
         var sendCommandAsyncResult12 = SendCommandAsync(sessionId, commandSequence, static (handle, sequence, token) =>
@@ -205,6 +225,10 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         return sendCommandAsyncResult12;
     }
 
+    /// <summary>
+    /// Stops a debug session.
+    /// 停止调试会话。
+    /// </summary>
     public Task<FlowDebugSessionCommandResult> StopAsync(Guid sessionId, long commandSequence, CancellationToken cancellationToken = default)
     {
         var sendCommandAsyncResult13 = SendCommandAsync(sessionId, commandSequence, static (handle, sequence, token) =>
@@ -215,6 +239,10 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         return sendCommandAsyncResult13;
     }
 
+    /// <summary>
+    /// Starts background maintenance for persisted debug sessions.
+    /// 启动持久化调试会话的后台维护。
+    /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -249,6 +277,10 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         }
     }
 
+    /// <summary>
+    /// Stops background debug session maintenance.
+    /// 停止调试会话后台维护。
+    /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         var active = _active.Values.ToArray();

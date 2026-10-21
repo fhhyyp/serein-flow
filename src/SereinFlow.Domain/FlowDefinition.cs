@@ -1,5 +1,9 @@
 namespace SereinFlow.Domain;
 
+/// <summary>
+/// Represents a versioned flow definition and its validation rules.
+/// 表示带版本的流程定义及其校验规则。
+/// </summary>
 public sealed class FlowDefinition
 {
     public const int CurrentSchemaVersion = 5;
@@ -14,14 +18,46 @@ public sealed class FlowDefinition
         RunPolicy = runPolicy;
     }
 
+    /// <summary>
+    /// Identifies the flow definition.
+    /// 流程定义标识。
+    /// </summary>
     public Guid Id { get; }
+    /// <summary>
+    /// Stores the flow schema version.
+    /// 流程结构版本。
+    /// </summary>
     public int SchemaVersion { get; }
+    /// <summary>
+    /// Tracks the development version.
+    /// 开发版本号。
+    /// </summary>
     public long Version { get; }
+    /// <summary>
+    /// Contains the canvases that make up the flow.
+    /// 组成流程的画布集合。
+    /// </summary>
     public IReadOnlyList<CanvasDefinition> Canvases { get; }
+    /// <summary>
+    /// Identifies the node where execution starts.
+    /// 执行起始节点标识。
+    /// </summary>
     public string EntryNodeId { get; }
+    /// <summary>
+    /// Stores the checksum of the flow definition.
+    /// 流程定义的校验和。
+    /// </summary>
     public string Checksum { get; }
+    /// <summary>
+    /// Defines the flow run concurrency policy.
+    /// 流程运行并发策略。
+    /// </summary>
     public FlowRunPolicy RunPolicy { get; }
 
+    /// <summary>
+    /// Creates a versioned flow definition from its canvases and entry node.
+    /// 根据画布和入口节点创建带版本的流程定义。
+    /// </summary>
     public static FlowDefinition Create(Guid id, long version, IEnumerable<CanvasDefinition> canvases, string entryNodeId, int schemaVersion = CurrentSchemaVersion, string checksum = "", FlowRunPolicy? runPolicy = null)
     {
         if (canvases is null)
@@ -52,6 +88,10 @@ public sealed class FlowDefinition
         return flowDefinition;
     }
 
+    /// <summary>
+    /// Validates the flow structure and returns any diagnostics.
+    /// 校验流程结构并返回发现的问题。
+    /// </summary>
     public IReadOnlyList<DomainDiagnostic> Validate()
     {
         var diagnostics = new List<DomainDiagnostic>();
@@ -258,6 +298,10 @@ public sealed class FlowDefinition
     }
 }
 
+/// <summary>
+/// Represents flow run policy data used by SereinFlow.
+/// 表示 SereinFlow 使用的流程运行策略数据。
+/// </summary>
 public sealed record FlowRunPolicy(FlowConcurrencyMode ConcurrencyMode)
 {
     public static FlowRunPolicy Parallel { get; } = new(FlowConcurrencyMode.Parallel);

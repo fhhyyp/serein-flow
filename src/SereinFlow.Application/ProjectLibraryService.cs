@@ -3,6 +3,10 @@ using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
 
+/// <summary>
+/// Captures the outcome of project library operation operations.
+/// 记录项目库操作操作的结果。
+/// </summary>
 public sealed record ProjectLibraryOperationResult(bool IsSuccess, int StatusCode, string? Code = null, string? Message = null, IReadOnlyList<ProjectLibraryReferenceDto>? References = null);
 /// <summary>
 /// Owns project-to-library ownership rules. Environment packages remain

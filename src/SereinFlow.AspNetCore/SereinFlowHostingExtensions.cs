@@ -32,6 +32,10 @@ public sealed class SereinFlowHostBuilder
     internal SereinFlowHttpMcpOptions McpOptions { get; } = new();
     internal IEndpointRouteBuilder? EndpointRouteBuilder { get; set; }
 
+    /// <summary>
+    /// Enables and configures the SereinFlow Web API.
+    /// 启用并配置 SereinFlow Web API。
+    /// </summary>
     public SereinFlowHostBuilder UseWebApi(Action<SereinFlowWebApiOptions>? configure = null)
     {
         if (WebApiEnabled)
@@ -44,6 +48,10 @@ public sealed class SereinFlowHostBuilder
         return this;
     }
 
+    /// <summary>
+    /// Enables and configures the SereinFlow HTTP MCP endpoint.
+    /// 启用并配置 SereinFlow HTTP MCP 端点。
+    /// </summary>
     public SereinFlowHostBuilder UseMcp(Action<SereinFlowHttpMcpOptions>? configure = null)
     {
         if (McpEnabled)
@@ -64,6 +72,10 @@ public sealed class SereinFlowHostBuilder
 
 public static class SereinFlowHostingExtensions
 {
+    /// <summary>
+    /// Registers SereinFlow services and host options.
+    /// 注册 SereinFlow 服务和宿主选项。
+    /// </summary>
     public static IServiceCollection AddSereinFlow(this IServiceCollection services, Action<SereinFlowHostBuilder> configure)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -169,6 +181,10 @@ public static class SereinFlowHostingExtensions
         return maxResult;
     }
 
+    /// <summary>
+    /// Adds configured SereinFlow middleware to the application.
+    /// 将配置好的 SereinFlow 中间件加入应用。
+    /// </summary>
     public static WebApplication UseSereinFlow(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -193,6 +209,10 @@ public static class SereinFlowHostingExtensions
         return app;
     }
 
+    /// <summary>
+    /// Maps SereinFlow API and real-time endpoints.
+    /// 映射 SereinFlow API 和实时通信端点。
+    /// </summary>
     public static WebApplication MapSereinFlow(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);

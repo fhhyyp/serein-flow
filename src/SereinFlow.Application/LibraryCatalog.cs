@@ -123,4 +123,8 @@ public sealed class LibraryUploadException : Exception
     public int StatusCode { get; }
 }
 
+/// <summary>
+/// Defines the API data contract for library package inspection.
+/// 定义库包检查的 API 数据契约。
+/// </summary>
 public sealed record LibraryPackageInspectionDto(LibraryDto Library, bool AlreadyExists, LibraryArtifactCompatibilityDto? Compatibility = null, LibraryPackageProjectImpactDto? ProjectImpact = null);

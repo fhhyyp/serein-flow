@@ -4,6 +4,10 @@ using SereinFlow.Library;
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Runtime;
+/// <summary>
+/// Stores per-run variables, execution counters, and cancellation state.
+/// 保存单次运行的变量、执行计数和取消状态。
+/// </summary>
 public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, object?> _values = new(StringComparer.Ordinal);
@@ -91,6 +95,10 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
     }
 
     internal void AttachPlan(ExecutionPlan plan) => Plan = plan;
+    /// <summary>
+    /// Attempts to start a node step and records its execution identity.
+    /// 尝试启动节点步骤并记录执行标识。
+    /// </summary>
     public bool TryBeginStep(string nodeId, out string? errorCode)
     {
         var tryBeginStepResult = TryBeginStep(nodeId, out _, out _, out errorCode);
@@ -204,6 +212,10 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Requests cancellation of the current flow run.
+    /// 请求取消当前流程运行。
+    /// </summary>
     public bool Cancel()
     {
         if (Interlocked.Exchange(ref _cancelled, 1) == 1)

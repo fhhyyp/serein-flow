@@ -35,6 +35,10 @@ public sealed class SereinFlowMcpServer
         _aiGuidanceProvider = aiGuidanceProvider;
     }
 
+    /// <summary>
+    /// Reads MCP messages and writes responses until the transport ends.
+    /// 读取 MCP 消息并写出响应，直到传输结束。
+    /// </summary>
     public async Task RunAsync(TextReader input, TextWriter output, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
@@ -178,6 +182,10 @@ public sealed class SereinFlowMcpServer
     private static McpProtocolException RequestTooLarge() =>
         new(McpProtocolErrorCodes.RequestTooLarge, "The MCP request exceeds the configured size limit.");
 
+    /// <summary>
+    /// Carries request data for parsed operations.
+    /// 承载Parsed操作的请求数据。
+    /// </summary>
     internal sealed record ParsedRequest(int ByteCount, JsonElement Root, McpProtocolException? Error = null)
     {
         internal string? Method => Root.ValueKind == JsonValueKind.Object

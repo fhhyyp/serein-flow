@@ -9,6 +9,10 @@ public interface IExecutionContext
     IReadOnlyDictionary<string, object?> Snapshot();
 }
 
+/// <summary>
+/// Carries request data for node execution operations.
+/// 承载节点执行操作的请求数据。
+/// </summary>
 public sealed record NodeExecutionRequest(NodeDefinition Node, IExecutionContext Context, IReadOnlyDictionary<string, object?> Inputs, NodeExecutionRuntime? Runtime = null, int Step = 0, Guid ExecutionId = default);
 /// <summary>
 /// Immutable metadata exposed to a node execution. It is intentionally smaller
@@ -75,6 +79,10 @@ public sealed class NodeExecutionRuntime
     }
 }
 
+/// <summary>
+/// Captures the outcome of node execution operations.
+/// 记录节点执行操作的结果。
+/// </summary>
 public sealed record NodeExecutionResult(bool IsSuccess, IReadOnlyDictionary<string, object?> Outputs, ExecutionBranch NextBranch = ExecutionBranch.Success, string? ErrorCode = null, string? ErrorMessage = null, IReadOnlyDictionary<string, object?>? Inputs = null, IReadOnlyDictionary<string, object?>? TransferOutputs = null)
 {
     public static NodeExecutionResult Success(IReadOnlyDictionary<string, object?>? outputs = null)
@@ -116,6 +124,10 @@ public interface IFlowCallExecutorConfiguration
     void Configure(Func<NodeExecutionRequest, CancellationToken, ValueTask<NodeExecutionResult>> execute);
 }
 
+/// <summary>
+/// Describes a runtime event.
+/// 描述Runtime事件。
+/// </summary>
 public sealed record RuntimeEvent(Guid RunId, long Sequence, DateTimeOffset Timestamp, string Type, string? NodeId, IReadOnlyDictionary<string, object?> Payload);
 public interface IRunEventPublisher
 {

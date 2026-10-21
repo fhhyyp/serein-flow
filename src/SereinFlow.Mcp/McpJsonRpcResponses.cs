@@ -14,6 +14,10 @@ internal sealed record McpJsonRpcSuccessResponse(
     public string JsonRpc => McpProtocolConstants.JsonRpcVersion;
 }
 
+/// <summary>
+/// Represents MCP json rpc error response data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCPJsonRpc错误响应数据。
+/// </summary>
 internal sealed record McpJsonRpcErrorResponse<TError>(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] JsonElement? Id,
     TError Error)
@@ -23,6 +27,10 @@ internal sealed record McpJsonRpcErrorResponse<TError>(
     public string JsonRpc => McpProtocolConstants.JsonRpcVersion;
 }
 
+/// <summary>
+/// Represents MCP json rpc error data used by SereinFlow.
+/// 表示 SereinFlow 使用的MCPJsonRpc错误数据。
+/// </summary>
 internal sealed record McpJsonRpcError(int Code, string Message,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] object? Data);
 

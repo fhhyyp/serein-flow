@@ -1,6 +1,10 @@
 using Microsoft.Extensions.Configuration;
 
 namespace SereinFlow.Infrastructure.Configuration;
+/// <summary>
+/// Configures serein flow storage behavior.
+/// 配置Serein流程Storage行为。
+/// </summary>
 public sealed record SereinFlowStorageOptions(string DataRoot, string DatabasePath, string LibraryDirectory, string ScriptArtifactRoot, string McpPackageStagingDirectory, string WorkpieceDirectory)
 {
     private const string DefaultWorkpieceDirectoryName = "workpieces";

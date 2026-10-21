@@ -38,6 +38,10 @@ internal sealed class WorkerEventDispatcher : IAsyncDisposable
 
     public Task Completion { get; }
 
+    /// <summary>
+    /// Queues a worker event for ordered dispatch.
+    /// 将 Worker 事件加入队列以便按序分发。
+    /// </summary>
     public ValueTask PublishAsync(WorkerEventEnvelopeDto item, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -51,6 +55,10 @@ internal sealed class WorkerEventDispatcher : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
+    /// <summary>
+    /// Completes event dispatch after queued events are processed.
+    /// 处理完排队事件后完成分发。
+    /// </summary>
     public async Task CompleteAsync()
     {
         _events.Writer.TryComplete();

@@ -10,4 +10,8 @@ public interface IFlowWorkpieceStore
     Task<Stream?> OpenReadAsync(Guid runId, string workpieceId, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Carries a persisted flow workpiece record.
+/// 承载持久化的流程工件记录。
+/// </summary>
 public sealed record FlowWorkpieceRecord(Guid RunId, string Id, string Kind, string Name, string ContentType, long Length, DateTimeOffset CreatedAt, string? NodeId = null, Guid? ExecutionId = null);
