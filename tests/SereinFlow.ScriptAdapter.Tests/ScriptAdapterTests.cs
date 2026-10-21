@@ -342,7 +342,7 @@ public sealed class ScriptAdapterTests
     }
 
     [Fact]
-    public void RebuildsArtifactsAndDoesNotKeepOldArtifactAfterFailure()
+    public void FailedFingerprintCannotSelectOldArtifactAndDoesNotDeleteOtherRunsVersion()
     {
         var getTempPathResult64 = Path.GetTempPath();
         var newGuidResult65 = Guid.NewGuid();
@@ -355,18 +355,19 @@ public sealed class ScriptAdapterTests
             var valid = CreateScriptDefinition("return 1", [], evaluatedValue59);
             var first = store.RebuildProject("project", [valid]);
             Assert.True(first.IsSuccess);
-            var getProjectPathResult = store.GetProjectPath("project");
-            var combineResult = Path.Combine(getProjectPathResult, NodeErrorCodes.Ssc);
-            var existsResult = File.Exists(combineResult);
-            Assert.True(existsResult);
+            var artifactPath = first.Artifacts[valid.NodeId].Path;
+            var operationResult1 = File.Exists(artifactPath);
+            Assert.True(operationResult1);
             IEnumerable<ScriptValueContract> evaluatedValue60 = [new("result", "number")];
             var invalid = CreateScriptDefinition("return (", [], evaluatedValue60);
             var second = store.RebuildProject("project", [invalid]);
             Assert.False(second.IsSuccess);
-            var getProjectPathResult61 = store.GetProjectPath("project");
-            var combineResult62 = Path.Combine(getProjectPathResult61, NodeErrorCodes.Ssc);
-            var existsResult63 = File.Exists(combineResult62);
-            Assert.False(existsResult63);
+            var operationResult2 = store.TryLoad("project", invalid, out _, out _);
+            Assert.False(operationResult2);
+            var operationResult3 = File.Exists(artifactPath);
+            Assert.True(operationResult3);
+            var operationResult4 = store.TryLoad("project", valid, out _, out _);
+            Assert.True(operationResult4);
         }
         finally
         {
@@ -481,7 +482,8 @@ public sealed class ScriptAdapterTests
         var objectSummary = Assert.IsType<Dictionary<string, object?>>(toAuditValueResult);
         Assert.Equal("ClrObject", objectSummary["$kind"]);
         Assert.Equal(typeof(SamplePayload).FullName, objectSummary["clrType"]);
-        var method = typeof(ScriptAdapterTests).GetMethod(nameof(StaticMethod), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var operationResult5 = nameof(StaticMethod);
+        var method = typeof(ScriptAdapterTests).GetMethod(operationResult5, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
         var clrMethod = new ClrMethodValue(method, null!);
         var convertResult99 = ScriptValueTypeConverter.Convert(clrMethod, typeof(System.Reflection.MethodInfo));
         Assert.Same(method, convertResult99);

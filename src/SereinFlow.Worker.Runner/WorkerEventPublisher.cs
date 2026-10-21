@@ -8,6 +8,8 @@ using SereinFlow.Worker.Protocol;
 namespace SereinFlow.Worker.Runner;
 internal sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runId) : IRunEventPublisher, IAsyncDisposable
 {
+    private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions();
+    internal const int MaximumAuditBytes = 128 * 1024;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly SortedDictionary<long, WorkerEventEnvelopeDto> _pending = [];
     // RunStarted is written by RunnerHost before this publisher is created,
@@ -31,12 +33,12 @@ internal sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runI
             DebugErrorCodes.TriggerFailed => WorkerEventType.DebugTriggerFailed,
             _ => WorkerEventType.Log
         };
-        var toAuditValueResult = ScriptValueConverter.ToAuditValue(runtimeEvent.Payload);
-        var createWebOptionsResult = SereinJsonSerialization.CreateWebOptions();
         // Runtime sessions can retain ScriptLang.Value instances so a following
         // DLL node can convert them against its declared type. The protocol
         // boundary must receive only a safe audit projection.
-        var payload = JsonSerializer.Serialize(toAuditValueResult, createWebOptionsResult);
+        var orderedPayload = runtimeEvent.Payload.OrderBy(static pair => pair.Key is "inputs" or "outputs" or "value" ? 1 : 0).ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal);
+        var operationResult1 = ScriptValueConverter.ToBoundedAuditValue(orderedPayload);
+        var payload = SerializeAudit(operationResult1);
         var envelope = new WorkerEventEnvelopeDto(WorkerProtocolConstants.Version, runId, runtimeEvent.Sequence, runtimeEvent.Timestamp, eventType, runtimeEvent.NodeId, payload);
         await PublishEnvelopeAsync(envelope, cancellationToken);
     }
@@ -45,10 +47,9 @@ internal sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runI
     {
         var payload = pause with
         {
-            Inputs = ScriptValueConverter.ToAuditValue(pause.Inputs)
+            Inputs = ScriptValueConverter.ToBoundedAuditValue(pause.Inputs)
         };
-        var createWebOptionsResult1 = SereinJsonSerialization.CreateWebOptions();
-        var serializeResult = JsonSerializer.Serialize(payload, createWebOptionsResult1);
+        var serializeResult = SerializeAudit(payload);
         var workerEventEnvelopeDto = new WorkerEventEnvelopeDto(WorkerProtocolConstants.Version, runId, sequence, DateTimeOffset.UtcNow, WorkerEventType.DebugPaused, pause.NodeId, serializeResult);
         var publishEnvelopeAsyncResult = PublishEnvelopeAsync(workerEventEnvelopeDto, cancellationToken);
         return publishEnvelopeAsyncResult;
@@ -59,6 +60,11 @@ internal sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runI
         await _gate.WaitAsync(cancellationToken);
         try
         {
+            if (_pending.Count >= 1024)
+            {
+                throw new WorkerProtocolException(WorkerErrorCodes.EventQueueFull, "The ordered event buffer is full. 有序事件缓冲已满。");
+            }
+
             _pending[envelope.Sequence] = envelope;
             while (_pending.Remove(_lastWrittenSequence + 1, out var next))
             {
@@ -72,6 +78,15 @@ internal sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runI
         {
             _gate.Release();
         }
+    }
+
+    private static string SerializeAudit(object? value)
+    {
+        using var stream = new ScriptValueConverter.AuditBuffer(MaximumAuditBytes);
+        JsonSerializer.Serialize(stream, value, JsonOptions);
+        var operationResult2 = stream.GetBuffer();
+        var operationResult1 = System.Text.Encoding.UTF8.GetString(operationResult2, 0, (int)stream.Length);
+        return operationResult1;
     }
 
     public ValueTask DisposeAsync()

@@ -138,13 +138,16 @@ public sealed class FlowRunner
             try
             {
                 inputs = _dataResolver.Resolve(node, plan, session);
-                var copyInputsResult = CopyInputs(inputs);
-                var nodeExecutionBoundary = new NodeExecutionBoundary(session.RunId, node.Id, node.Type, step, copyInputsResult, session.FrameDepth, session.InvocationId, executionId);
-                var gateDecision = await _executionGate.BeforeNodeAsync(nodeExecutionBoundary, cancellationToken);
-                if (gateDecision == ExecutionGateDecision.Cancel)
+                if (_executionGate is not NoopExecutionGate)
                 {
-                    session.Cancel();
-                    throw new OperationCanceledException("The debug execution was cancelled. 调试执行已取消。", session.CancellationToken);
+                    var operationResult3 = CopyInputs(inputs);
+                    var nodeExecutionBoundary = new NodeExecutionBoundary(session.RunId, node.Id, node.Type, step, operationResult3, session.FrameDepth, session.InvocationId, executionId);
+                    var gateDecision = await _executionGate.BeforeNodeAsync(nodeExecutionBoundary, cancellationToken);
+                    if (gateDecision == ExecutionGateDecision.Cancel)
+                    {
+                        session.Cancel();
+                        throw new OperationCanceledException("The debug execution was cancelled. 调试执行已取消。", session.CancellationToken);
+                    }
                 }
 
                 var executor = _executors.Get(node.Type);
@@ -155,7 +158,7 @@ public sealed class FlowRunner
             catch (FlowDataBindingException exception)
             {
                 inputs = exception.ResolvedInputs;
-                lastResult = NodeExecutionResult.Failure(exception.Code, exception.Message) with
+                lastResult = NodeExecutionResult.Failure(exception.Code, exception.Message)with
                 {
                     Inputs = CopyInputs(inputs)
                 };
@@ -166,7 +169,7 @@ public sealed class FlowRunner
             }
             catch (Exception exception)
             {
-                lastResult = NodeExecutionResult.Error(NodeErrorCodes.ExecutionFailed, $"Node '{node.Id}' execution failed. 节点“{node.Id}”执行失败。 {exception.Message}") with
+                lastResult = NodeExecutionResult.Error(NodeErrorCodes.ExecutionFailed, $"Node '{node.Id}' execution failed. 节点“{node.Id}”执行失败。 {exception.Message}")with
                 {
                     Inputs = CopyInputs(inputs)
                 };
@@ -504,15 +507,7 @@ public sealed class FlowRunner
 
     private NodeExecutionRequest CreateExecutionRequest(NodeDefinition node, ExecutionPlan plan, FlowExecutionSession session, IReadOnlyDictionary<string, object?> inputs, int step, Guid executionId)
     {
-        var canvasId = plan.Definition.Canvases.FirstOrDefault(canvas =>
-        {
-            var anyResult29 = canvas.Nodes.Any(candidate =>
-            {
-                var equalsResult = string.Equals(candidate.Id, node.Id, StringComparison.Ordinal);
-                return equalsResult;
-            });
-            return anyResult29;
-        })?.Id ?? string.Empty;
+        var canvasId = plan.GetCanvasId(node.Id);
         var projectId = session.Read("projectId") as string ?? string.Empty;
         var environment = new NodeExecutionEnvironment(session.RunId, projectId, plan.Definition.Id, canvasId, node.Id, session.FrameDepth, step, executionId);
         var nodeEventSink = new NodeEventSink(this, session, node.Id, executionId);

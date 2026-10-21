@@ -13,6 +13,28 @@ namespace SereinFlow.ArchitectureTests;
 public sealed class RunEventBroadcasterTests
 {
     [Fact]
+    public async Task SlowSubscriberIsCompletedAtBoundedCapacityWhileFastSubscriberContinues()
+    {
+        var broadcaster = new RunEventBroadcaster();
+        var runId = Guid.NewGuid();
+        var slow = broadcaster.Subscribe(runId);
+        using var cancellation = new CancellationTokenSource();
+        var fast = broadcaster.Subscribe(runId, cancellation.Token);
+        for (var sequence = 1; sequence <= RunEventBroadcaster.SubscriberCapacity + 2; sequence++)
+        {
+            var operationResult1 = new FlowRunEventDto(runId, sequence, DateTimeOffset.UtcNow, "log", null, "{}");
+            await broadcaster.PublishAsync(operationResult1);
+            var operationResult2 = (await fast.ReadAsync()).Sequence;
+            Assert.Equal(sequence, operationResult2);
+        }
+
+        var retained = 0;
+        await foreach (var item in slow.ReadAllAsync())
+            retained++;
+        Assert.Equal(RunEventBroadcaster.SubscriberCapacity, retained);
+    }
+
+    [Fact]
     public async Task PublishAsyncDeliversACopyToEachSseSubscriber()
     {
         var broadcaster = new RunEventBroadcaster();

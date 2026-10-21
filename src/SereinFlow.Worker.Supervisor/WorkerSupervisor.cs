@@ -68,7 +68,13 @@ public sealed partial class WorkerSupervisor
         _launchOptions = launchOptions;
     }
 
-    public async Task<WorkerRunResultDto> RunAsync(WorkerRunRequestDto request, Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent, CancellationToken cancellationToken = default)
+    public Task<WorkerRunResultDto> RunAsync(WorkerRunRequestDto request, Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent, CancellationToken cancellationToken = default)
+    {
+        var runTask = RunAsync(request, publishEvent, null, cancellationToken);
+        return runTask;
+    }
+
+    public async Task<WorkerRunResultDto> RunAsync(WorkerRunRequestDto request, Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent, Func<IReadOnlyList<WorkerEventEnvelopeDto>, CancellationToken, ValueTask>? publishBatch, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -158,7 +164,7 @@ public sealed partial class WorkerSupervisor
             _messageSessions[request.RunId] = messageSession;
             try
             {
-                var monitorRunAsyncResult = await MonitorRunAsync(process, transport, request, publishEvent, deadlineCancellation, cancellationToken, messageSession);
+                var monitorRunAsyncResult = await MonitorRunAsync(process, transport, request, publishEvent, deadlineCancellation, cancellationToken, messageSession, publishBatch);
                 return monitorRunAsyncResult;
             }
             finally
@@ -524,8 +530,15 @@ public sealed partial class WorkerSupervisor
         }
     }
 
-    private async Task<WorkerRunResultDto> MonitorRunAsync(Process process, IWorkerTransport transport, WorkerRunRequestDto request, Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent, CancellationTokenSource deadlineCancellation, CancellationToken callerCancellationToken, WorkerMessageSession? messageSession = null)
+    private async Task<WorkerRunResultDto> MonitorRunAsync(Process process, IWorkerTransport transport, WorkerRunRequestDto request, Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent, CancellationTokenSource deadlineCancellation, CancellationToken callerCancellationToken, WorkerMessageSession? messageSession = null, Func<IReadOnlyList<WorkerEventEnvelopeDto>, CancellationToken, ValueTask>? publishBatch = null)
     {
+        await using var dispatcher = new WorkerEventDispatcher(publishBatch ?? PublishBatchAsync);
+        async ValueTask PublishBatchAsync(IReadOnlyList<WorkerEventEnvelopeDto> batch, CancellationToken token)
+        {
+            foreach (var item in batch)
+                await publishEvent(item, token);
+        }
+
         using var heartbeatCancellation = new CancellationTokenSource();
         var receiveAsyncResult38 = transport.ReceiveAsync(CancellationToken.None);
         var readTask = receiveAsyncResult38.AsTask();
@@ -536,12 +549,23 @@ public sealed partial class WorkerSupervisor
         WorkerTransportException? heartbeatFailure = null;
         while (true)
         {
-            var completed = await Task.WhenAny(readTask, heartbeatTask, callerCancellationTask, deadlineTask);
+            if (dispatcher.Completion.IsFaulted)
+            {
+                await dispatcher.Completion;
+            }
+
+            var completed = await Task.WhenAny(readTask, heartbeatTask, callerCancellationTask, deadlineTask, dispatcher.Completion);
+            if (completed == dispatcher.Completion)
+            {
+                await dispatcher.Completion;
+            }
+
             if (completed == callerCancellationTask || completed == deadlineTask)
             {
                 var status = deadlineCancellation.IsCancellationRequested ? FlowRunStatusDto.TimedOut : FlowRunStatusDto.Cancelled;
                 var code = status == FlowRunStatusDto.TimedOut ? WorkerErrorCodes.TimedOut : WorkerErrorCodes.Cancelled;
-                var cancelAndReturnAsyncResult33 = await CancelAndReturnAsync(process, transport, request, publishEvent, status, code, readTask, lastSequence, messageSession);
+                var cancelAndReturnAsyncResult33 = await CancelAndReturnAsync(process, transport, request, dispatcher.PublishAsync, status, code, readTask, lastSequence, messageSession);
+                await dispatcher.CompleteAsync();
                 return cancelAndReturnAsyncResult33;
             }
 
@@ -550,15 +574,29 @@ public sealed partial class WorkerSupervisor
                 if (heartbeatFailure is not null)
                 {
                     RecordDiagnostic(request.RunId, "heartbeat", heartbeatFailure.Message, heartbeatFailure);
-                    return Failure(request.RunId, WorkerErrorCodes.Crashed, "The runner did not return a result after its input stream closed. Worker Runner 在输入流关闭后未返回结果。");
+                    await dispatcher.CompleteAsync();
+                    var operationResult1 = Failure(request.RunId, WorkerErrorCodes.Crashed, "The runner did not return a result after its input stream closed. Worker Runner 在输入流关闭后未返回结果。");
+                    return operationResult1;
                 }
 
                 var createResult34 = WorkerMessage.Create(WorkerProtocolConstants.HeartbeatKind, runId: request.RunId);
                 try
                 {
-                    await transport.SendAsync(createResult34, CancellationToken.None);
+                    using var sendCancellation = CancellationTokenSource.CreateLinkedTokenSource(callerCancellationToken, deadlineCancellation.Token);
+                    sendCancellation.CancelAfter(_launchOptions.EffectiveCancellationGracePeriod);
+                    await transport.SendAsync(createResult34, sendCancellation.Token);
                 }
-                catch (WorkerTransportException exception) when (exception.Code == WorkerTransportErrorCodes.SendFailed)
+                catch (OperationCanceledException)when (callerCancellationToken.IsCancellationRequested || deadlineCancellation.IsCancellationRequested)
+                {
+                    continue;
+                }
+                catch (OperationCanceledException)
+                {
+                    await dispatcher.CompleteAsync();
+                    var operationResult2 = Failure(request.RunId, WorkerErrorCodes.Crashed, "The Worker control stream stopped accepting messages. Worker 控制流停止接收消息。");
+                    return operationResult2;
+                }
+                catch (WorkerTransportException exception)when (exception.Code == WorkerTransportErrorCodes.SendFailed)
                 {
                     // The runner can close stdin after flushing its result while
                     // stdout still contains events. Drain that stream before
@@ -575,6 +613,7 @@ public sealed partial class WorkerSupervisor
             var message = await readTask;
             if (message is null)
             {
+                await dispatcher.CompleteAsync();
                 var failureResult35 = Failure(request.RunId, WorkerErrorCodes.Crashed, "The runner closed its protocol stream without a result. Worker Runner 在返回结果前关闭了协议流。");
                 return failureResult35;
             }
@@ -586,9 +625,10 @@ public sealed partial class WorkerSupervisor
                 continue;
             }
 
-            var completion = await HandleMessageAsync(message, request, publishEvent, lastSequence, CancellationToken.None);
+            var completion = await HandleMessageAsync(message, request, dispatcher.PublishAsync, lastSequence, CancellationToken.None);
             if (completion.Result is not null)
             {
+                await dispatcher.CompleteAsync();
                 return completion.Result;
             }
 
@@ -600,12 +640,14 @@ public sealed partial class WorkerSupervisor
 
     private async Task<WorkerRunResultDto> CancelAndReturnAsync(Process process, IWorkerTransport transport, WorkerRunRequestDto request, Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publishEvent, FlowRunStatusDto fallbackStatus, string fallbackCode, Task<WorkerMessage?>? existingReadTask = null, long lastSequence = 0, WorkerMessageSession? messageSession = null)
     {
+        var graceDeadline = DateTimeOffset.UtcNow + _launchOptions.EffectiveCancellationGracePeriod;
         try
         {
             var workerCancelRequestDto = new WorkerCancelRequestDto(WorkerProtocolConstants.Version, request.RunId, fallbackCode);
             var serializePayloadResult39 = WorkerProtocolCodec.SerializePayload(workerCancelRequestDto);
             var createResult40 = WorkerMessage.Create(WorkerProtocolConstants.CancelKind, serializePayloadResult39, request.RunId);
-            await transport.SendAsync(createResult40);
+            using var sendCancellation = new CancellationTokenSource(_launchOptions.EffectiveCancellationGracePeriod);
+            await transport.SendAsync(createResult40, sendCancellation.Token);
         }
         catch (Exception)
         {
@@ -614,7 +656,6 @@ public sealed partial class WorkerSupervisor
         }
 
         var readTask = existingReadTask ?? resolveAsTaskResult();
-        var graceDeadline = DateTimeOffset.UtcNow + _launchOptions.EffectiveCancellationGracePeriod;
         while (DateTimeOffset.UtcNow < graceDeadline)
         {
             var remaining = graceDeadline - DateTimeOffset.UtcNow;
@@ -889,7 +930,8 @@ public sealed partial class WorkerSupervisor
     {
         try
         {
-            return await task;
+            var operationResult3 = await task;
+            return operationResult3;
         }
         catch (Exception)
         {

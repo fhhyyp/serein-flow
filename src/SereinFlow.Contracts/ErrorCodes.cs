@@ -20,6 +20,8 @@ public static class RunErrorCodes
 
 public static class WorkerErrorCodes
 {
+    public const string EventQueueFull = "worker.event_queue_full";
+    public const string EventProcessingFailed = "worker.event_processing_failed";
     public const string NotActive = "worker.not_active";
     public const string Cancelled = "worker.cancelled";
     public const string TimedOut = "worker.timed_out";

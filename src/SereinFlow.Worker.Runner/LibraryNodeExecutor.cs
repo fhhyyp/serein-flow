@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Library;
 using SereinFlow.Domain;
@@ -15,6 +16,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
     private readonly NodeType _nodeType;
     private readonly WorkerLibraryRuntimeCache _cache;
     private readonly WorkerLibraryServiceRuntime _services;
+    private readonly ConcurrentDictionary<Type, (Type PrimitiveType, MethodInfo Transfer)> _converterMetadata = new();
     public LibraryNodeExecutor(NodeType nodeType, WorkerLibraryRuntimeCache cache, WorkerLibraryServiceRuntime services)
     {
         _nodeType = nodeType;
@@ -46,8 +48,8 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
         {
             var resolved = await _cache.ResolveMethodAsync(request.Node, cancellationToken);
             var method = resolved.Method;
-            var resultAttribute = method.GetCustomAttribute<NodeResultAttribute>(inherit: false);
-            if (_nodeType == NodeType.Flipflop && !IsTask(method.ReturnType))
+            var resultAttribute = resolved.ResultAttribute;
+            if (_nodeType == NodeType.Flipflop && !resolved.ReturnsTask)
             {
                 var errorResult = NodeExecutionResult.Error(LibraryErrorCodes.FlipflopReturnTypeInvalid, "Flipflop methods must return Task or Task<T>. Flipflop 方法必须返回 Task 或 Task<T>。");
                 return errorResult;
@@ -55,9 +57,9 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
 
             (invocationScope, target) = CreateInvocationTarget(resolved, method, resultAttribute);
             var flowContext = CreateFlowContext(request, cancellationToken);
-            var arguments = BuildArguments(request, method, flowContext, auditInputs);
+            var arguments = BuildArguments(request, resolved, flowContext, auditInputs);
             var invocationResult = method.Invoke(target, arguments);
-            var valueResult = await AwaitResultAsync(invocationResult, method.ReturnType, cancellationToken);
+            var valueResult = await AwaitResultAsync(invocationResult, resolved, cancellationToken);
             var createExecutionResultResult = CreateExecutionResult(flowContext, invocationScope, resultAttribute, valueResult, auditInputs);
             return createExecutionResultResult;
         }
@@ -231,15 +233,9 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
         return evaluatedValue13;
     }
 
-    private static bool IsTask(Type type)
+    private static async Task<object?> AwaitResultAsync(object? value, ResolvedLibraryMethod resolved, CancellationToken cancellationToken)
     {
-        var evaluatedValue14 = type == typeof(Task) || (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>));
-        return evaluatedValue14;
-    }
-
-    private static async Task<object?> AwaitResultAsync(object? value, Type returnType, CancellationToken cancellationToken)
-    {
-        if (!IsTask(returnType))
+        if (!resolved.ReturnsTask)
         {
             return value;
         }
@@ -251,11 +247,7 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
 
         await task.WaitAsync(cancellationToken);
         object? taskResult = null;
-        if (returnType.IsGenericType)
-        {
-            var resultProperty = returnType.GetProperty("Result");
-            taskResult = resultProperty?.GetValue(task);
-        }
+        taskResult = resolved.TaskResult?.GetValue(task);
 
         return taskResult;
     }
@@ -265,9 +257,20 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
         try
         {
             var converter = _services.CreateNodeResultConverter(services, converterType);
-            var contract = resolveSingleOrDefaultResult() ?? throw new LibraryResultConverterException(LibraryErrorCodes.ResultConverterInvalid, $"Result converter '{converterType.FullName ?? converterType.Name}' does not implement a closed converter contract. 节点结果转换器未实现闭合的转换器合同。");
-            var primitiveType = contract.GetGenericArguments()[0];
-            if (primitive is null && primitiveType.IsValueType && Nullable.GetUnderlyingType(primitiveType) is null)
+            var metadata = _converterMetadata.GetOrAdd(converterType, type =>
+            {
+                var contract = type.GetInterfaces().SingleOrDefault(static item =>
+                {
+                    var operationResult1 = item.IsGenericType && item.GetGenericTypeDefinition() == typeof(INodeResultConverter<, >);
+                    return operationResult1;
+                }) ?? throw new LibraryResultConverterException(LibraryErrorCodes.ResultConverterInvalid, $"Result converter '{type.FullName}' does not implement a closed converter contract. 节点结果转换器未实现闭合的转换器合同。");
+                var transfer = contract.GetMethod(nameof(INodeResultConverter<object, object>.Transfer)) ?? throw new LibraryResultConverterException(LibraryErrorCodes.ResultConverterInvalid, "The result converter has no Transfer method. 节点结果转换器缺少 Transfer 方法。");
+                var operationResult1 = contract.GetGenericArguments()[0];
+                var operationResult2 = (operationResult1, transfer);
+                return operationResult2;
+            });
+            var primitiveType = metadata.PrimitiveType;
+            if (primitive is null && primitiveType.IsValueType && Nullable.GetUnderlyingType(primitiveType)is null)
             {
                 throw new LibraryResultConverterException(LibraryErrorCodes.ResultConverterInputInvalid, $"The result converter '{converterType.FullName ?? converterType.Name}' cannot receive a null value of '{primitiveType.FullName}'. 节点结果转换器无法接收“{primitiveType.FullName}”的 null 值。");
             }
@@ -278,19 +281,8 @@ internal sealed partial class LibraryNodeExecutor : INodeExecutor, IGlobalFlipfl
                 throw new LibraryResultConverterException(LibraryErrorCodes.ResultConverterInputInvalid, evaluatedValue17);
             }
 
-            var transferMethod = contract.GetMethod(nameof(INodeResultConverter<object, object>.Transfer)) ?? throw new LibraryResultConverterException(LibraryErrorCodes.ResultConverterInvalid, $"Result converter '{converterType.FullName ?? converterType.Name}' has no Transfer method. 节点结果转换器缺少 Transfer 方法。");
-            var invokeResult = transferMethod.Invoke(converter, [primitive]);
+            var invokeResult = metadata.Transfer.Invoke(converter, [primitive]);
             return invokeResult;
-            Type? resolveSingleOrDefaultResult()
-            {
-                var singleOrDefaultResult = converterType.GetInterfaces()
-                    .SingleOrDefault(static item =>
-                    {
-                        var evaluatedValue16 = item.IsGenericType && item.GetGenericTypeDefinition() == typeof(INodeResultConverter<,>);
-                        return evaluatedValue16;
-                    });
-                return singleOrDefaultResult;
-            }
         }
         catch (LibraryServiceException)
         {

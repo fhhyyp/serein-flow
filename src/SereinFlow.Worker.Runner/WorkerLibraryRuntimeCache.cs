@@ -501,7 +501,21 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
     private sealed record LoadedLibrary(AssemblyLoadContext LoadContext, Assembly Assembly, WorkerNativeLibraryLoader NativeLibraryLoader);
 }
 
-internal sealed record ResolvedLibraryMethod(Type DeclaringType, MethodInfo Method);
+internal sealed record ResolvedLibraryMethod(Type DeclaringType, MethodInfo Method)
+{
+    public NodeResultAttribute? ResultAttribute { get; } = Method.GetCustomAttribute<NodeResultAttribute>(inherit: false);
+    public ResolvedLibraryParameter[] Parameters { get; } = Method.GetParameters().Select(static parameter =>
+    {
+        var operationResult1 = parameter.GetCustomAttribute<ParamArrayAttribute>()is not null;
+        var resolvedParameter = new ResolvedLibraryParameter(parameter, operationResult1);
+        return resolvedParameter;
+    }).ToArray();
+    public bool ReturnsTask { get; } = Method.ReturnType == typeof(Task)
+        || (Method.ReturnType.IsGenericType && Method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>));
+    public PropertyInfo? TaskResult { get; } = Method.ReturnType.IsGenericType ? Method.ReturnType.GetProperty("Result") : null;
+}
+
+internal sealed record ResolvedLibraryParameter(ParameterInfo Parameter, bool IsVariadic);
 internal sealed class LibraryRuntimeCacheException(string code, string message, Exception? innerException = null) : Exception(message, innerException)
 {
     public string Code { get; } = code;

@@ -6,11 +6,31 @@ namespace SereinFlow.Runtime;
 
 public sealed class ExecutionPlan
 {
+    private readonly Dictionary<(string NodeId, ExecutionBranch? Branch), IReadOnlyList<ConnectionDefinition>> _outgoing;
+    private readonly Dictionary<(string NodeId, string PortId), IReadOnlyList<ConnectionDefinition>> _incomingData;
+    private readonly HashSet<string> _incomingExecution;
+    private readonly Dictionary<string, string> _canvasByNode;
     internal ExecutionPlan(FlowDefinition definition, IReadOnlyDictionary<string, NodeDefinition> nodes, IReadOnlyList<ConnectionDefinition> connections)
     {
         Definition = definition;
         Nodes = nodes;
         Connections = connections;
+        _outgoing = connections.Where(static edge => edge.Kind == ConnectionKind.Execution).GroupBy(static edge => (edge.FromNodeId, edge.Branch)).ToDictionary(static group => group.Key, static group =>
+        {
+            var operationResult1 = Sort(group);
+            return operationResult1;
+        });
+        _incomingData = connections.Where(static edge => edge.Kind == ConnectionKind.Data).GroupBy(static edge => (edge.ToNodeId, edge.ToPortId)).ToDictionary(static group => group.Key, static group =>
+        {
+            var operationResult2 = Sort(group);
+            return operationResult2;
+        });
+        _incomingExecution = connections.Where(static edge => edge.Kind == ConnectionKind.Execution).Select(static edge => edge.ToNodeId).ToHashSet(StringComparer.Ordinal);
+        _canvasByNode = definition.Canvases.SelectMany(static canvas =>
+        {
+            var operationResult3 = canvas.Nodes.Select(node => (node.Id, CanvasId: canvas.Id));
+            return operationResult3;
+        }).ToDictionary(static item => item.Id, static item => item.CanvasId, StringComparer.Ordinal);
     }
 
     public FlowDefinition Definition { get; }
@@ -19,32 +39,32 @@ public sealed class ExecutionPlan
 
     public IReadOnlyList<ConnectionDefinition> GetOutgoing(string nodeId, ExecutionBranch branch)
     {
-        var toArrayResult = Connections
-            .Where(connection => connection.Kind == ConnectionKind.Execution && connection.FromNodeId == nodeId && connection.Branch == branch)
-            .OrderBy(connection => connection.Priority)
-            .ThenBy(connection => connection.Id, StringComparer.Ordinal)
-            .ToArray();
-        return toArrayResult;
+        var operationResult4 = _outgoing.GetValueOrDefault((nodeId, branch)) ?? Array.Empty<ConnectionDefinition>();
+        return operationResult4;
     }
 
     public IReadOnlyList<ConnectionDefinition> GetIncomingData(string nodeId, string portId)
     {
-        var toArrayResult4 = Connections
-            .Where(connection =>
-            {
-                var evaluatedValue = connection.Kind == ConnectionKind.Data && connection.ToNodeId == nodeId && (connection.ToPortId == portId || connection.ToPortId.Equals(portId, StringComparison.Ordinal));
-                return evaluatedValue;
-            })
-            .OrderBy(connection => connection.Priority)
-            .ThenBy(connection => connection.Id, StringComparer.Ordinal)
-            .ToArray();
-        return toArrayResult4;
+        var operationResult5 = _incomingData.GetValueOrDefault((nodeId, portId)) ?? Array.Empty<ConnectionDefinition>();
+        return operationResult5;
     }
 
     public bool HasIncomingExecution(string nodeId)
     {
-        var anyResult = Connections.Any(connection => connection.Kind == ConnectionKind.Execution && connection.ToNodeId == nodeId);
-        return anyResult;
+        var operationResult6 = _incomingExecution.Contains(nodeId);
+        return operationResult6;
+    }
+
+    internal string GetCanvasId(string nodeId)
+    {
+        string operationResult7 = _canvasByNode.GetValueOrDefault(nodeId) ?? string.Empty;
+        return operationResult7;
+    }
+    private static IReadOnlyList<ConnectionDefinition> Sort(IEnumerable<ConnectionDefinition> edges)
+    {
+        var operationResult1 = edges.OrderBy(static edge => edge.Priority).ThenBy(static edge => edge.Id, StringComparer.Ordinal).ToArray();
+        IReadOnlyList<ConnectionDefinition> operationResult8 = Array.AsReadOnly(operationResult1);
+        return operationResult8;
     }
 }
 
@@ -58,14 +78,9 @@ public sealed class ExecutionPlanBuilder
             throw new ArgumentNullException(nameof(definition), "The flow definition cannot be null. 流程定义不能为空。");
         }
 
-        var nodes = definition.Canvases
-            .SelectMany(canvas => canvas.Nodes)
-            .ToDictionary(node => node.Id, StringComparer.Ordinal);
-        var connections = definition.Canvases
-            .SelectMany(canvas => canvas.Connections)
-            .ToArray();
-        var diagnostics = definition.Validate()
-            .ToList();
+        var nodes = definition.Canvases.SelectMany(canvas => canvas.Nodes).ToDictionary(node => node.Id, StringComparer.Ordinal);
+        var connections = definition.Canvases.SelectMany(canvas => canvas.Connections).ToArray();
+        var diagnostics = definition.Validate().ToList();
         var hasGlobalFlipflop = nodes.Values.Any(node =>
         {
             var evaluatedValue5 = node.Type == NodeType.Flipflop && !connections.Any(connection => connection.Kind == ConnectionKind.Execution && connection.ToNodeId == node.Id);

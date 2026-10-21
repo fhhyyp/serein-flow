@@ -32,6 +32,31 @@ downgrade produces `worker.protocol_mismatch`.
 
 ## 3. Transport constraints and envelope
 
+The Supervisor consumes audit events separately from protocol reads. Its buffer
+holds at most 1,024 events and an estimated 16 MiB of payload/string memory,
+including the active batch. Batches contain up to 64 events with a 10 ms
+coalescing window. Batch processing and final draining each have a 30 second
+limit. Saturation returns `worker.event_queue_full`; processing failures or
+timeouts return `worker.event_processing_failed`. A successful result is not
+returned before preceding events finish processing. Custom sinks should honor
+cancellation; the Supervisor cannot forcibly terminate an external operation
+that ignores it. Production runs support the optional
+`IWorkerRunBatchEventSink`, while existing single-event sinks remain compatible.
+Control responses bypass the audit queue.
+
+Audit projection shares a budget across the complete graph: depth 16, 512
+values and 8,192 text characters, with a 128 KiB serialized payload limit.
+Projection limits produce `DepthLimit`, `ItemLimit`, `TextLimit` or `$truncated`
+markers; business objects passed between nodes are unchanged. Each SSE
+subscription buffers at most 256 events. A slow subscription is completed and
+can reconnect using `Last-Event-ID` to replay durable events.
+
+Script artifacts use project/node/fingerprint directories, filesystem build
+locks and staging-directory publication. Legacy flat caches are ignored.
+Versions coexist and runs reuse bytecode while retaining separate engines,
+globals and tasks. Old fingerprints are not deleted during execution; apply
+the operational retention policy when no runs are using the cache.
+
 Each transport message is one UTF-8 JSON object per line. Multi-line JSON, binary
 CLR objects, reflection objects, assembly paths, and unserialized exceptions are
 forbidden.

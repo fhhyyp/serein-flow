@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using SereinFlow.Domain;
 using SereinFlow.Runtime.Abstractions;
 using SereinFlow.ScriptModules;
@@ -15,6 +16,7 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
 {
     private readonly ScriptArtifactStore? _artifactStore;
     private readonly string _defaultProjectId;
+    private readonly ConcurrentDictionary<(string NodeId, string Fingerprint), Lazy<ByteCodeChunk>> _compiledChunks = new();
     public SereinScriptNodeExecutor(ScriptArtifactStore? artifactStore = null, string defaultProjectId = "default")
     {
         _artifactStore = artifactStore;
@@ -41,6 +43,11 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
         {
             ValidateInputs(definition, request.Inputs);
             cancellationToken.ThrowIfCancellationRequested();
+            if (request.Runtime?.IsCancellationRequested == true)
+            {
+                throw new OperationCanceledException("The script runtime was cancelled. 脚本运行时已取消。");
+            }
+
             var projectId = request.Context.Read("projectId") as string ?? _defaultProjectId;
             var engine = new ScriptEngine();
             var sereinFlowScriptModuleContext = new SereinFlowScriptModuleContext(request.Runtime, cancellationToken);
@@ -53,8 +60,27 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
             }
             else
             {
-                var selectResult = definition.Inputs.Select(input => input.Name);
-                chunk = engine.CompileSource(definition.Source, $"{definition.NodeId}.script", selectResult);
+                var cacheKey = (definition.NodeId, definition.ArtifactFingerprint);
+                var cached = _compiledChunks.GetOrAdd(cacheKey, _ =>
+                {
+                    var operationResult2 = new Lazy<ByteCodeChunk>(() =>
+                    {
+                        var operationResult2 = definition.Inputs.Select(static input => input.Name);
+                        var operationResult1 = engine.CompileSource(definition.Source, $"{definition.NodeId}.script", operationResult2);
+                        return operationResult1;
+                    });
+                    return operationResult2;
+                });
+                try
+                {
+                    chunk = cached.Value;
+                }
+                catch
+                {
+                    var operationResult3 = new KeyValuePair<(string NodeId, string Fingerprint), Lazy<ByteCodeChunk>>(cacheKey, cached);
+                    _compiledChunks.TryRemove(operationResult3);
+                    throw;
+                }
             }
 
             var task = engine.CreateTask(chunk, artifactPath);

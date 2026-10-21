@@ -1,5 +1,5 @@
-using System.Collections.Generic;
-using System.Text.Encodings.Web;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text.Json;
 using SereinFlow.Domain;
 using ScriptLang;
@@ -10,207 +10,216 @@ namespace SereinFlow.ScriptAdapter;
 
 public sealed record ScriptArtifact(string ProjectId, string NodeId, string SourceHash, string ArtifactFingerprint, string LanguageVersion, string Path);
 public sealed record ScriptArtifactBuildResult(bool IsSuccess, IReadOnlyDictionary<string, ScriptArtifact> Artifacts, IReadOnlyList<ScriptExecutionDiagnostic> Diagnostics);
+
 /// <summary>
-/// Owns disposable per-project .ssc artifacts. A failed rebuild never leaves
-/// an older artifact eligible for execution.
-/// 管理每个项目的临时 .ssc 构建缓存；重建失败时不会留下可执行的旧缓存。
+/// Content-addressed artifacts: only bytecode is shared, never engines, globals or tasks.
+/// 按指纹发布不可变制品；只缓存字节码，不共享引擎、全局变量或执行任务。
 /// </summary>
 public sealed class ScriptArtifactStore
 {
+    private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions();
     private readonly string _rootPath;
+    private readonly ConcurrentDictionary<string, Lazy<ByteCodeChunk>> _chunks = new(StringComparer.Ordinal);
+
     public ScriptArtifactStore(string rootPath)
     {
-        if (string.IsNullOrWhiteSpace(rootPath))
-        {
-            throw new ArgumentException("Artifact root cannot be empty. 缓存根目录不能为空。", nameof(rootPath));
-        }
-
+        ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
         _rootPath = Path.GetFullPath(rootPath);
         Directory.CreateDirectory(_rootPath);
     }
 
     public string GetProjectPath(string projectId)
     {
-        ValidateProjectId(projectId);
-        var combineResult = Path.Combine(_rootPath, projectId);
-        return combineResult;
+        ValidateSegment(projectId);
+        var operationResult1 = Path.Combine(_rootPath, projectId);
+        return operationResult1;
     }
 
     public ScriptArtifactBuildResult RebuildProject(string projectId, IEnumerable<ScriptNodeDefinition> definitions)
     {
-        ValidateProjectId(projectId);
-        if (definitions is null)
-        {
-            throw new ArgumentNullException(nameof(definitions), "Script definitions cannot be null. 脚本定义集合不能为空。");
-        }
-
+        ValidateSegment(projectId);
+        ArgumentNullException.ThrowIfNull(definitions);
         var nodes = definitions.ToArray();
-        var duplicate = nodes
-            .GroupBy(node => node.NodeId, StringComparer.Ordinal)
-            .FirstOrDefault(group =>
-            {
-                var evaluatedValue = group.Count() > 1;
-                return evaluatedValue;
-            });
-        if (duplicate is not null)
-        {
-            var dictionary = new Dictionary<string, ScriptArtifact>();
-            IReadOnlyList<ScriptExecutionDiagnostic> evaluatedValue1 = [new(ScriptErrorCodes.DuplicateNode, $"Script node '{duplicate.Key}' is defined more than once. 脚本节点“{duplicate.Key}”被重复定义。", NodeId: duplicate.Key)];
-            ScriptArtifactBuildResult evaluatedValue2 = new(false, dictionary, evaluatedValue1);
-            return evaluatedValue2;
-        }
-
-        var projectPath = GetProjectPath(projectId);
-        if (Directory.Exists(projectPath))
-        {
-            Directory.Delete(projectPath, recursive: true);
-        }
-
-        var evaluatedValue14 = $".staging-{projectId}-{Guid.NewGuid():N}";
-        var stagingPath = Path.Combine(_rootPath, evaluatedValue14);
-        Directory.CreateDirectory(stagingPath);
         var artifacts = new Dictionary<string, ScriptArtifact>(StringComparer.Ordinal);
-        var diagnostics = new List<ScriptExecutionDiagnostic>();
-        try
+        if (nodes.Select(static node => node.NodeId).Distinct(StringComparer.Ordinal).Count() != nodes.Length)
         {
-            foreach (var node in nodes)
+            ScriptExecutionDiagnostic[] operationResult1 = [new(ScriptErrorCodes.DuplicateNode, "Duplicate script node. 脚本节点重复。")];
+            ScriptArtifactBuildResult operationResult2 = new(false, artifacts, operationResult1);
+            return operationResult2;
+        }
+
+        foreach (var node in nodes)
+        {
+            try
             {
-                if (!IsSafeSegment(node.NodeId))
+                ValidateSegment(node.NodeId);
+            }
+            catch (ArgumentException exception)
+            {
+                ScriptExecutionDiagnostic[] operationResult3 = [new(ScriptErrorCodes.NodeIdInvalid, exception.Message, NodeId: node.NodeId)];
+                ScriptArtifactBuildResult operationResult2 = new(false, artifacts, operationResult3);
+                return operationResult2;
+            }
+
+            try
+            {
+                var path = GetArtifactPath(projectId, node);
+                if (!TryLoad(projectId, node, out _, out _))
                 {
-                    ScriptExecutionDiagnostic evaluatedValue3 = new(ScriptErrorCodes.NodeIdInvalid, $"Script node ID '{node.NodeId}' cannot be used as an artifact name. 脚本节点 ID“{node.NodeId}”不能用作缓存名称。", NodeId: node.NodeId);
-                    diagnostics.Add(evaluatedValue3);
-                    var dictionary4 = new Dictionary<string, ScriptArtifact>();
-                    ScriptArtifactBuildResult evaluatedValue5 = new(false, dictionary4, diagnostics);
-                    return evaluatedValue5;
+                    BuildArtifact(projectId, node, path);
                 }
 
-                var engine = new ScriptEngine();
-                var sourceName = $"{node.NodeId}.script";
-                var selectResult = node.Inputs.Select(input => input.Name);
-                var chunk = engine.CompileSource(node.Source, sourceName, selectResult);
-                var artifactPath = Path.Combine(stagingPath, $"{node.NodeId}.ssc");
-                ByteCodeChunk.Save(chunk, artifactPath);
-                artifacts[node.NodeId] = new ScriptArtifact(projectId, node.NodeId, node.SourceHash, node.ArtifactFingerprint, node.LanguageVersion, artifactPath);
+                artifacts[node.NodeId] = new(projectId, node.NodeId, node.SourceHash, node.ArtifactFingerprint, node.LanguageVersion, path);
             }
+            catch (Exception exception)
+            {
+                ScriptExecutionDiagnostic[] diagnostics = [new(ScriptErrorCodes.CompileFailed, $"Script artifact compilation failed. 脚本缓存编译失败。 {exception.Message}", NodeId: node.NodeId)];
+                ScriptArtifactBuildResult operationResult3 = new(false, artifacts, diagnostics);
+                return operationResult3;
+            }
+        }
 
-            var toArrayResult = artifacts.Values
-                .Select(ToManifest)
-                .ToArray();
-            var manifest = new ArtifactManifest(projectId, DateTimeOffset.UtcNow, toArrayResult);
-            var combineResult8 = Path.Combine(stagingPath, "manifest.json");
-            var serializeResult = JsonSerializer.Serialize(manifest, JsonOptions);
-            File.WriteAllText(combineResult8, serializeResult);
-            Directory.Move(stagingPath, projectPath);
-            var published = artifacts.ToDictionary(pair => pair.Key, pair =>
-            {
-                var evaluatedValue6 = pair.Value with
-                {
-                    Path = Path.Combine(projectPath, $"{pair.Key}.ssc")
-                };
-                return evaluatedValue6;
-            }, StringComparer.Ordinal);
-            ScriptArtifactBuildResult evaluatedValue9 = new(true, published, diagnostics);
-            return evaluatedValue9;
-        }
-        catch (Exception exception)
-        {
-            var evaluatedValue10 = nodes.FirstOrDefault()?.NodeId;
-            ScriptExecutionDiagnostic evaluatedValue11 = new(ScriptErrorCodes.CompileFailed, $"Script artifact compilation failed. 脚本缓存编译失败。 {exception.Message}", NodeId: evaluatedValue10);
-            diagnostics.Add(evaluatedValue11);
-            var dictionary12 = new Dictionary<string, ScriptArtifact>();
-            ScriptArtifactBuildResult evaluatedValue13 = new(false, dictionary12, diagnostics);
-            return evaluatedValue13;
-        }
-        finally
-        {
-            if (Directory.Exists(stagingPath))
-            {
-                Directory.Delete(stagingPath, recursive: true);
-            }
-        }
+        ScriptArtifactBuildResult operationResult4 = new(true, artifacts, []);
+        return operationResult4;
     }
 
     public bool TryLoad(string projectId, ScriptNodeDefinition definition, out ByteCodeChunk? chunk, out string? artifactPath)
     {
-        ValidateProjectId(projectId);
+        ValidateSegment(projectId);
         chunk = null;
         artifactPath = null;
-        if (!IsSafeSegment(definition.NodeId))
-        {
-            return false;
-        }
-
-        var getProjectPathResult15 = GetProjectPath(projectId);
-        var path = Path.Combine(getProjectPathResult15, $"{definition.NodeId}.ssc");
-        if (!File.Exists(path))
-        {
-            return false;
-        }
-
+        string path;
         try
         {
-            var getProjectPathResult = GetProjectPath(projectId);
-            var manifestPath = Path.Combine(getProjectPathResult, "manifest.json");
-            if (!File.Exists(manifestPath))
-            {
-                return false;
-            }
+            path = GetArtifactPath(projectId, definition);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
 
-            var readAllTextResult = File.ReadAllText(manifestPath);
-            var manifest = JsonSerializer.Deserialize<ArtifactManifest>(readAllTextResult, JsonOptions);
-            var entry = manifest?.Artifacts.FirstOrDefault(item =>
+        var cached = _chunks.GetOrAdd(path, _ =>
+        {
+            var operationResult6 = new Lazy<ByteCodeChunk>(() =>
             {
-                var equalsResult = string.Equals(item.NodeId, definition.NodeId, StringComparison.Ordinal);
-                return equalsResult;
-            });
-            if (entry is null || !string.Equals(entry.ArtifactFingerprint, definition.ArtifactFingerprint, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
+                var artifactDirectory = Path.GetDirectoryName(path)!;
+                var manifestPath = Path.Combine(artifactDirectory, "manifest.json");
+                var manifestJson = File.ReadAllText(manifestPath);
+                var manifest = JsonSerializer.Deserialize<ArtifactManifest>(manifestJson, JsonOptions);
+                if (manifest is null || manifest.ProjectId != projectId || manifest.NodeId != definition.NodeId || manifest.ArtifactFingerprint != definition.ArtifactFingerprint || manifest.SourceHash != definition.SourceHash || manifest.LanguageVersion != definition.LanguageVersion)
+                {
+                    throw new InvalidDataException("Script artifact manifest mismatch. 脚本制品清单与定义不匹配。");
+                }
 
-            chunk = ByteCodeChunk.Load(path);
+                var operationResult5 = ByteCodeChunk.Load(path);
+                return operationResult5;
+            }, LazyThreadSafetyMode.ExecutionAndPublication);
+            return operationResult6;
+        });
+        try
+        {
+            chunk = cached.Value;
             artifactPath = path;
             return true;
         }
         catch
         {
-            chunk = null;
-            artifactPath = null;
+            var operationResult6 = new KeyValuePair<string, Lazy<ByteCodeChunk>>(path, cached);
+            _chunks.TryRemove(operationResult6);
             return false;
         }
     }
 
-    private static ArtifactManifestEntry ToManifest(ScriptArtifact artifact)
+    private string GetArtifactPath(string projectId, ScriptNodeDefinition node)
     {
-        ScriptArtifactStore.ArtifactManifestEntry evaluatedValue16 = new(artifact.NodeId, artifact.SourceHash, artifact.ArtifactFingerprint, artifact.LanguageVersion);
-        return evaluatedValue16;
+        ValidateSegment(node.NodeId);
+        ValidateSegment(node.ArtifactFingerprint);
+        var projectPath = GetProjectPath(projectId);
+        var artifactPath = Path.Combine(projectPath, node.NodeId, node.ArtifactFingerprint, "node.ssc");
+        return artifactPath;
     }
 
-    private static void ValidateProjectId(string projectId)
+    private void BuildArtifact(string projectId, ScriptNodeDefinition node, string path)
     {
-        if (!IsSafeSegment(projectId))
+        var artifactDirectory = Path.GetDirectoryName(path)!;
+        var nodeDirectory = Path.GetDirectoryName(artifactDirectory)!;
+        Directory.CreateDirectory(nodeDirectory);
+        var operationResult12 = Path.Combine(nodeDirectory, node.ArtifactFingerprint + ".lock");
+        // Deduplicate compilation across Worker processes as well as threads.
+        using var buildLock = AcquireBuildLock(operationResult12);
+        if (TryLoad(projectId, node, out _, out _))
         {
-            throw new ArgumentException("Project ID must be a simple directory name. 项目 ID 必须是简单目录名称。", nameof(projectId));
+            return;
+        }
+
+        var operationResult13 = ".staging-" + Guid.NewGuid().ToString("N");
+        var staging = Path.Combine(nodeDirectory, operationResult13);
+        Directory.CreateDirectory(staging);
+        try
+        {
+            var engine = new ScriptEngine();
+            var operationResult8 = node.Inputs.Select(static input => input.Name);
+            var chunk = engine.CompileSource(node.Source, $"{node.NodeId}.script", operationResult8);
+            var operationResult9 = Path.Combine(staging, "node.ssc");
+            ByteCodeChunk.Save(chunk, operationResult9);
+            var manifest = new ArtifactManifest(projectId, node.NodeId, node.SourceHash, node.ArtifactFingerprint, node.LanguageVersion);
+            var operationResult10 = Path.Combine(staging, "manifest.json");
+            var operationResult11 = JsonSerializer.Serialize(manifest, JsonOptions);
+            File.WriteAllText(operationResult10, operationResult11);
+            // Only an unreadable/corrupt fingerprint reaches this repair path.
+            if (Directory.Exists(artifactDirectory))
+            {
+                DeleteOwnedDirectory(artifactDirectory);
+            }
+
+            Directory.Move(staging, artifactDirectory);
+        }
+        finally
+        {
+            if (Directory.Exists(staging))
+            {
+                DeleteOwnedDirectory(staging);
+            }
         }
     }
 
-    private static bool IsSafeSegment(string value)
+    private static FileStream AcquireBuildLock(string path)
     {
-        var evaluatedValue17 = !string.IsNullOrWhiteSpace(value) && value is not "." and not ".." && value == Path.GetFileName(value) && !value.Contains(Path.DirectorySeparatorChar) && !value.Contains(Path.AltDirectorySeparatorChar) && resolveIndexOfAnyResult() < 0;
-        return evaluatedValue17;
-        int resolveIndexOfAnyResult()
+        var watch = Stopwatch.StartNew();
+        while (true)
         {
-            var getInvalidFileNameCharsResult = Path.GetInvalidFileNameChars();
-            var indexOfAnyResult = value.IndexOfAny(getInvalidFileNameCharsResult);
-            return indexOfAnyResult;
+            try
+            {
+                var operationResult8 = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+                return operationResult8;
+            }
+            catch (IOException)when (watch.Elapsed < TimeSpan.FromSeconds(30))
+            {
+                Thread.Sleep(25);
+            }
         }
     }
 
-    private sealed record ArtifactManifest(string ProjectId, DateTimeOffset BuiltAt, IReadOnlyList<ArtifactManifestEntry> Artifacts);
-    private sealed record ArtifactManifestEntry(string NodeId, string SourceHash, string ArtifactFingerprint, string LanguageVersion);
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    private void DeleteOwnedDirectory(string path)
     {
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        WriteIndented = true
-    };
+        var fullPath = Path.GetFullPath(path);
+        var operationResult14 = Path.TrimEndingDirectorySeparator(_rootPath) + Path.DirectorySeparatorChar;
+        if (!fullPath.StartsWith(operationResult14, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new IOException("Script artifact path is outside its root. 脚本制品路径超出根目录。");
+        }
+
+        Directory.Delete(fullPath, recursive: true);
+    }
+
+    private static void ValidateSegment(string value)
+    {
+        var invalidCharacters = Path.GetInvalidFileNameChars();
+        if (string.IsNullOrWhiteSpace(value) || value is "." or ".." || value != Path.GetFileName(value) || value.Contains(Path.DirectorySeparatorChar) || value.Contains(Path.AltDirectorySeparatorChar) || value.IndexOfAny(invalidCharacters) >= 0)
+        {
+            throw new ArgumentException("Artifact identifiers must be simple directory names. 制品标识必须为简单目录名称。", nameof(value));
+        }
+    }
+
+    private sealed record ArtifactManifest(string ProjectId, string NodeId, string SourceHash, string ArtifactFingerprint, string LanguageVersion);
 }

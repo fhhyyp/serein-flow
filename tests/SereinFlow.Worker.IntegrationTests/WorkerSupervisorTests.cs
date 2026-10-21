@@ -14,6 +14,81 @@ public sealed class WorkerSupervisorTests
 {
     private const string TestLibraryArtifactId = "test-library-artifact";
     [Fact]
+    public async Task LongFlowUsesOrderedBatchesAndDrainsEveryEventBeforeReturning()
+    {
+        var flowId = Guid.NewGuid();
+        var nodes = Enumerable.Range(0, 300).Select(index =>
+        {
+            var operationResult1 = new NodeDto($"node-{index}", NodeTypeDto.Action, "Action", 0, 0, [], [], null);
+            return operationResult1;
+        }).ToArray();
+        var edges = Enumerable.Range(1, nodes.Length - 1).Select(index =>
+        {
+            var operationResult2 = new ConnectionDto($"edge-{index}", nodes[index - 1].Id, "success", nodes[index].Id, "execute", ConnectionKindDto.Execution, ExecutionBranchDto.Success, null, 0);
+            return operationResult2;
+        }).ToArray();
+        CanvasDto[] canvases = [new CanvasDto("main", CanvasLifecycleDto.Main, nodes, edges)];
+        var definition = new FlowDefinitionDto(flowId, 5, 1, canvases, nodes[0].Id, "test");
+        var operationResult3 = Guid.NewGuid();
+        var operationResult4 = JsonSerializer.Serialize(definition);
+        var operationResult5 = DateTimeOffset.UtcNow.AddSeconds(20);
+        var request = new WorkerRunRequestDto(WorkerProtocol.Version, operationResult3, flowId, 1, operationResult4, operationResult5);
+        var received = new List<long>();
+        var batchSizes = new List<int>();
+        var result = await CreateSupervisor().RunAsync(request, (_, _) =>
+        {
+            throw new InvalidOperationException("The batch sink must be used.");
+        }, publishBatch: async (batch, token) =>
+        {
+            await Task.Delay(5, token);
+            batchSizes.Add(batch.Count);
+            var operationResult1 = batch.Select(item => item.Sequence);
+            received.AddRange(operationResult1);
+        });
+        Assert.Equal(FlowRunStatusDto.Succeeded, result.Status);
+        var operationResult6 = Enumerable.Range(1, 601).Select(index => (long)index);
+        Assert.Equal(operationResult6, received);
+        Assert.Contains(batchSizes, count => count > 1);
+    }
+
+    [Fact]
+    public async Task SlowEventSinkDoesNotBlockDebugVariableResponseAndCompletionDrainsEvents()
+    {
+        var supervisor = CreateSupervisor();
+        var operationResult9 = DateTimeOffset.UtcNow.AddSeconds(15);
+        var request = CreateTwoNodeDebugRequest(operationResult9);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var events = new List<WorkerEventEnvelopeDto>();
+        await using var debug = await supervisor.StartDebugAsync(request, async (item, token) =>
+        {
+            entered.TrySetResult();
+            await release.Task.WaitAsync(token);
+            events.Add(item);
+        });
+        try
+        {
+            var operationResult7 = TimeSpan.FromSeconds(10);
+            await entered.Task.WaitAsync(operationResult7);
+            var operationResult8 = new WorkerVariableRequestDto(WorkerProtocol.Version, request.RunId, "list");
+            var response = await supervisor.AccessVariablesAsync(operationResult8);
+            Assert.Equal(200, response.StatusCode);
+            Assert.Empty(events);
+            await debug.StopAsync(1);
+            Assert.False(debug.Completion.IsCompleted);
+        }
+        finally
+        {
+            release.TrySetResult();
+        }
+
+        var operationResult10 = TimeSpan.FromSeconds(10);
+        var result = await debug.Completion.WaitAsync(operationResult10);
+        Assert.Equal(FlowRunStatusDto.Cancelled, result.Status);
+        Assert.NotEmpty(events);
+    }
+
+    [Fact]
     public async Task SupervisorRunsDisposableRunnerAndForwardsOrderedEvents()
     {
         var events = new List<WorkerEventEnvelopeDto>();

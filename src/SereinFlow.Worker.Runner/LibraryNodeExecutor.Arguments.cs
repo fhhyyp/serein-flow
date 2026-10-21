@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Collections.Concurrent;
 using SereinFlow.Contracts;
 using SereinFlow.Library;
 using SereinFlow.Domain;
@@ -9,14 +10,30 @@ namespace SereinFlow.Worker.Runner;
 
 internal sealed partial class LibraryNodeExecutor
 {
-    private static object?[] BuildArguments(NodeExecutionRequest request, MethodInfo method, LibraryFlowContext flowContext, Dictionary<string, object?> auditInputs)
+    private readonly ConcurrentDictionary<NodeDefinition, NodeParameterDefinition?[]> _argumentBindings = new(ReferenceEqualityComparer.Instance);
+
+    private object? [] BuildArguments(NodeExecutionRequest request, ResolvedLibraryMethod method, LibraryFlowContext flowContext, Dictionary<string, object?> auditInputs)
     {
-        var parameters = method.GetParameters();
-        var arguments = new object?[parameters.Length];
-        var ordinaryParameterIndex = 0;
+        var parameters = method.Parameters;
+        var definitions = _argumentBindings.GetOrAdd(request.Node, _ =>
+        {
+            var bindings = new NodeParameterDefinition? [parameters.Length];
+            var ordinaryIndex = 0;
+            for (var index = 0; index < parameters.Length; index++)
+            {
+                var parameter = parameters[index].Parameter;
+                if (!WorkerLibraryRuntimeCache.IsFlowContextParameter(parameter))
+                {
+                    bindings[index] = FindParameterDefinition(request, parameter.Name ?? $"param{index + 1}", ordinaryIndex++);
+                }
+            }
+
+            return bindings;
+        });
+        var arguments = new object? [parameters.Length];
         for (var index = 0; index < parameters.Length; index++)
         {
-            var parameter = parameters[index];
+            var parameter = parameters[index].Parameter;
             if (WorkerLibraryRuntimeCache.IsFlowContextParameter(parameter))
             {
                 arguments[index] = flowContext;
@@ -24,9 +41,8 @@ internal sealed partial class LibraryNodeExecutor
             }
 
             var name = parameter.Name ?? $"param{index + 1}";
-            var definition = FindParameterDefinition(request, name, ordinaryParameterIndex);
-            arguments[index] = BuildArgument(request, parameter, definition, name, auditInputs);
-            ordinaryParameterIndex++;
+            var definition = definitions[index];
+            arguments[index] = BuildArgument(request, parameter, parameters[index].IsVariadic, definition, name, auditInputs);
         }
 
         return arguments;
@@ -42,9 +58,9 @@ internal sealed partial class LibraryNodeExecutor
         return evaluatedValue1;
     }
 
-    private static object? BuildArgument(NodeExecutionRequest request, ParameterInfo parameter, NodeParameterDefinition? definition, string name, Dictionary<string, object?> auditInputs)
+    private static object? BuildArgument(NodeExecutionRequest request, ParameterInfo parameter, bool isVariadic, NodeParameterDefinition? definition, string name, Dictionary<string, object?> auditInputs)
     {
-        if (parameter.GetCustomAttribute<ParamArrayAttribute>() is not null)
+        if (isVariadic)
         {
             try
             {

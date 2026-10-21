@@ -13,7 +13,7 @@ namespace SereinFlow.ScriptAdapter;
 /// audit projection is deliberately separate from in-process script values.
 /// 在 JSON/CLR 边界与 ScriptLang 值之间转换。审计投影与进程内脚本值刻意分离。
 /// </summary>
-public static class ScriptValueConverter
+public static partial class ScriptValueConverter
 {
     public static Value ToScriptValue(object? value)
     {

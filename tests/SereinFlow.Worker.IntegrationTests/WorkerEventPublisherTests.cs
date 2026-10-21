@@ -12,6 +12,47 @@ namespace SereinFlow.Worker.IntegrationTests;
 
 public sealed class WorkerEventPublisherTests
 {
+    [Fact]
+    public async Task LargeAuditGraphIsBoundedWithoutChangingBusinessValuesOrExecutionMetadata()
+    {
+        var large = new string ('中', 1_000_000);
+        var outputs = new Dictionary<string, object?>
+        {
+            ["result"] = large
+        };
+        var executionId = Guid.NewGuid();
+        var payload = new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["branch"] = "Success",
+            ["outputs"] = outputs,
+            ["inputs"] = new Dictionary<string, object?>
+            {
+                ["rows"] = Enumerable.Range(0, 100_000)
+            },
+            ["executionId"] = executionId,
+            ["frameDepth"] = 0
+        };
+        await using var output = new MemoryStream();
+        var operationResult1 = new MemoryStream();
+        await using var transport = new StdioWorkerTransport(operationResult1, output, leaveOpen: true);
+        await using var publisher = new WorkerEventPublisher(transport, Guid.Empty);
+        var operationResult2 = new RuntimeEvent(Guid.Empty, 2, DateTimeOffset.UtcNow, NodeErrorCodes.Completed, "node", payload);
+        await publisher.PublishAsync(operationResult2, CancellationToken.None);
+        var operationResult3 = ReadMessages(output);
+        var message = Assert.Single(operationResult3);
+        var envelope = WorkerProtocolCodec.DeserializePayload<WorkerEventEnvelopeDto>(message);
+        var operationResult4 = Encoding.UTF8.GetByteCount(envelope.PayloadJson) <= WorkerEventPublisher.MaximumAuditBytes;
+        Assert.True(operationResult4);
+        using var document = JsonDocument.Parse(envelope.PayloadJson);
+        var operationResult5 = document.RootElement.GetProperty("success").GetBoolean();
+        Assert.True(operationResult5);
+        var operationResult6 = document.RootElement.GetProperty("executionId").GetGuid();
+        Assert.Equal(executionId, operationResult6);
+        Assert.Contains("Limit", envelope.PayloadJson, StringComparison.Ordinal);
+        Assert.Same(large, outputs["result"]);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

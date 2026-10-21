@@ -601,6 +601,7 @@ public sealed class RunExecutionQueue
 
 public sealed class RunEventBroadcaster
 {
+    public const int SubscriberCapacity = 256;
     private readonly ConcurrentDictionary<Guid, ConcurrentDictionary<Guid, Channel<FlowRunEventDto>>> _channels = new();
     private readonly ConcurrentDictionary<Guid, DateTimeOffset> _completedRuns = new();
     private static readonly TimeSpan CompletedRunRetention = TimeSpan.FromMinutes(10);
@@ -608,7 +609,12 @@ public sealed class RunEventBroadcaster
     {
         CleanupCompletedRuns();
         var subscriptionId = Guid.NewGuid();
-        var channel = Channel.CreateUnbounded<FlowRunEventDto>();
+        var operationResult1 = new BoundedChannelOptions(SubscriberCapacity)
+        {
+            FullMode = BoundedChannelFullMode.Wait,
+            AllowSynchronousContinuations = false
+        };
+        var channel = Channel.CreateBounded<FlowRunEventDto>(operationResult1);
         if (_completedRuns.ContainsKey(runId))
         {
             channel.Writer.TryComplete();
@@ -645,9 +651,14 @@ public sealed class RunEventBroadcaster
         CleanupCompletedRuns();
         if (_channels.TryGetValue(item.RunId, out var subscribers))
         {
-            foreach (var channel in subscribers.Values)
+            foreach (var subscriber in subscribers)
             {
-                channel.Writer.TryWrite(item);
+                if (!subscriber.Value.Writer.TryWrite(item))
+                {
+                    // End the slow stream at its last delivered sequence. SSE
+                    // reconnects using Last-Event-ID and replays durable events.
+                    RemoveSubscription(item.RunId, subscriber.Key);
+                }
             }
         }
 
@@ -985,11 +996,7 @@ public sealed class RunExecutionHostedService : BackgroundService
             var toStringResult = item.ProjectId.ToString("D");
             var getLibraryIdsResult = ProjectLibraryService.GetLibraryIds(item.Definition);
             var request = new WorkerRunRequestDto(WorkerProtocol.Version, item.RunId, item.Definition.Id, item.Definition.Version, serializeResult, run.Deadline!.Value, toStringResult, item.ProjectInputs, item.MaxSteps, _scriptRoot, _libraryRoot, item.MaxNodeVisits, getLibraryIdsResult, WorkpieceRootPath: _workpieceRoot);
-            var delegateWorkerRunEventSink = new DelegateWorkerRunEventSink((workerEvent, token) =>
-            {
-                var handleEventAsyncResult = HandleEventAsync(workerEvent, runStore, eventStore, outputStore, token);
-                return handleEventAsyncResult;
-            });
+            var delegateWorkerRunEventSink = new DelegateWorkerRunBatchEventSink(HandleEventBatchAsync);
             var result = await _workerClient.RunAsync(request, delegateWorkerRunEventSink, runToken);
             if (result.Status == FlowRunStatusDto.Cancelled)
             {
@@ -1063,9 +1070,20 @@ public sealed class RunExecutionHostedService : BackgroundService
         await PublishTerminalAsync(run, workerRunResultDto29, eventStore, CancellationToken.None);
     }
 
-    private async ValueTask HandleEventAsync(WorkerEventEnvelopeDto workerEvent, IFlowRunStore runStore, IFlowRunEventStore eventStore, IFlowRunOutputStore outputStore, CancellationToken cancellationToken)
+    private async ValueTask HandleEventBatchAsync(IReadOnlyList<WorkerEventEnvelopeDto> events, CancellationToken cancellationToken)
     {
-        if (workerEvent.ProtocolVersion != WorkerProtocol.Version || workerEvent.RunId == Guid.Empty || await runStore.FindAsync(workerEvent.RunId, cancellationToken) is null)
+        if (events.Count == 0)
+        {
+            return;
+        }
+
+        // Each batch owns its scope, including when a timed-out sink is still unwinding.
+        using var scope = _scopeFactory.CreateScope();
+        var runStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
+        var eventStore = scope.ServiceProvider.GetRequiredService<IFlowRunEventStore>();
+        var outputStore = scope.ServiceProvider.GetRequiredService<IFlowRunOutputStore>();
+        var runId = events[0].RunId;
+        if (runId == Guid.Empty || await runStore.FindAsync(runId, cancellationToken)is null)
         {
             return;
         }
@@ -1073,38 +1091,54 @@ public sealed class RunExecutionHostedService : BackgroundService
         // WorkerSupervisor already enforces monotonic sequences. Keep the
         // store boundary defensive so a custom client cannot duplicate events.
         // WorkerSupervisor 已校验序列；在持久化边界再次防御，避免自定义客户端写入重复事件。
-        var lastSequence = await eventStore.GetLastSequenceAsync(workerEvent.RunId, cancellationToken);
-        if (workerEvent.Sequence <= lastSequence)
+        var lastSequence = await eventStore.GetLastSequenceAsync(runId, cancellationToken);
+        var items = new List<FlowRunEvent>(events.Count);
+        var outputs = new List<FlowRunOutput>();
+        foreach (var workerEvent in events.OrderBy(static item => item.Sequence))
         {
-            return;
+            if (workerEvent.ProtocolVersion != WorkerProtocol.Version || workerEvent.RunId != runId || workerEvent.Sequence <= lastSequence)
+            {
+                continue;
+            }
+
+            var type = workerEvent.EventType switch
+            {
+                WorkerEventType.RunStarted => RunErrorCodes.Started,
+                WorkerEventType.NodeStarted => NodeErrorCodes.Started,
+                WorkerEventType.NodeCompleted => NodeErrorCodes.Completed,
+                WorkerEventType.NodeFailed => NodeErrorCodes.Failed,
+                WorkerEventType.NodeErrored => NodeErrorCodes.Error,
+                WorkerEventType.RunCompleted => RunErrorCodes.Completed,
+                WorkerEventType.RunCancelled => RunErrorCodes.Cancelled,
+                WorkerEventType.DebugPaused => DebugErrorCodes.Paused,
+                WorkerEventType.DebugTriggerReceived => DebugErrorCodes.TriggerReceived,
+                WorkerEventType.DebugTriggerQueued => DebugErrorCodes.TriggerQueued,
+                WorkerEventType.DebugTriggerAdmitted => DebugErrorCodes.TriggerAdmitted,
+                WorkerEventType.DebugTriggerRejected => DebugErrorCodes.TriggerRejected,
+                WorkerEventType.DebugTriggerCompleted => DebugErrorCodes.TriggerCompleted,
+                WorkerEventType.DebugTriggerFailed => DebugErrorCodes.TriggerFailed,
+                _ => "log"
+            };
+            var item = new FlowRunEvent(workerEvent.RunId, workerEvent.Sequence, workerEvent.Timestamp, type, workerEvent.NodeId, workerEvent.PayloadJson);
+            items.Add(item);
+            lastSequence = workerEvent.Sequence;
+            var output = CreateNodeOutput(workerEvent);
+            if (output is not null)
+            {
+                outputs.Add(output);
+            }
         }
 
-        var type = workerEvent.EventType switch
+        await eventStore.AppendAsync(items, cancellationToken);
+        await outputStore.AppendAsync(outputs, cancellationToken);
+        foreach (var item in items)
         {
-            WorkerEventType.RunStarted => RunErrorCodes.Started,
-            WorkerEventType.NodeStarted => NodeErrorCodes.Started,
-            WorkerEventType.NodeCompleted => NodeErrorCodes.Completed,
-            WorkerEventType.NodeFailed => NodeErrorCodes.Failed,
-            WorkerEventType.NodeErrored => NodeErrorCodes.Error,
-            WorkerEventType.RunCompleted => RunErrorCodes.Completed,
-            WorkerEventType.RunCancelled => RunErrorCodes.Cancelled,
-            WorkerEventType.DebugPaused => DebugErrorCodes.Paused,
-            WorkerEventType.DebugTriggerReceived => DebugErrorCodes.TriggerReceived,
-            WorkerEventType.DebugTriggerQueued => DebugErrorCodes.TriggerQueued,
-            WorkerEventType.DebugTriggerAdmitted => DebugErrorCodes.TriggerAdmitted,
-            WorkerEventType.DebugTriggerRejected => DebugErrorCodes.TriggerRejected,
-            WorkerEventType.DebugTriggerCompleted => DebugErrorCodes.TriggerCompleted,
-            WorkerEventType.DebugTriggerFailed => DebugErrorCodes.TriggerFailed,
-            _ => "log"
-        };
-        var item = new FlowRunEvent(workerEvent.RunId, workerEvent.Sequence, workerEvent.Timestamp, type, workerEvent.NodeId, workerEvent.PayloadJson);
-        await eventStore.AppendAsync([item], cancellationToken);
-        var output = CreateNodeOutput(workerEvent);
-        if (output is not null)
-        {
-            await outputStore.AppendAsync([output], cancellationToken);
+            await PublishLiveEventAsync(item, cancellationToken);
         }
+    }
 
+    private async Task PublishLiveEventAsync(FlowRunEvent item, CancellationToken cancellationToken)
+    {
         var dto = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);
         try
         {
@@ -1121,7 +1155,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         try
         {
             var groupResult = _hub.Clients.Group($"run:{item.RunId:D}");
-            await groupResult.SendAsync("runEvent", dto, CancellationToken.None);
+            await groupResult.SendAsync("runEvent", dto, cancellationToken);
         }
         catch (Exception exception)
         {

@@ -48,7 +48,7 @@ public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient, IWorkerMe
         {
             var publishAsyncResult = eventSink.PublishAsync(workerEvent, token);
             return publishAsyncResult;
-        }, cancellationToken);
+        }, eventSink is IWorkerRunBatchEventSink batchSink ? batchSink.PublishBatchAsync : null, cancellationToken);
         return runAsyncResult;
     }
 

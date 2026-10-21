@@ -8,10 +8,12 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
 {
     private readonly IRepository<FlowRunEventRecord> _events;
     private readonly IUnitOfWork _unitOfWork;
-    public SqlSugarFlowRunEventStore(IRepository<FlowRunEventRecord> events, IUnitOfWork unitOfWork)
+    private readonly IFlowRunEventQueries _queries;
+    public SqlSugarFlowRunEventStore(IRepository<FlowRunEventRecord> events, IUnitOfWork unitOfWork, IFlowRunEventQueries queries)
     {
         _events = events;
         _unitOfWork = unitOfWork;
+        _queries = queries;
     }
 
     public SqlSugarFlowRunEventStore(SqliteDatabase database)
@@ -20,6 +22,7 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
         var unitOfWork = new SqlSugarUnitOfWork(database.Client);
         _events = events;
         _unitOfWork = unitOfWork;
+        _queries = new SqlSugarFlowRunEventQueries(database.Client);
     }
 
     public async Task AppendAsync(IReadOnlyList<FlowRunEvent> events, CancellationToken cancellationToken = default)
@@ -100,14 +103,11 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
         return toArrayResult;
     }
 
-    public async Task<long> GetLastSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
+    public Task<long> GetLastSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
     {
-        var key = runId.ToString("D");
-        var rows = await _events.ListAsync(row => row.RunId == key, cancellationToken);
-        long evaluatedValue3 = rows.Count == 0 ? 0 : rows.Max(static row => row.Sequence);
-        return evaluatedValue3;
+        Task<long> operationResult1 = _queries.GetLastSequenceAsync(runId, cancellationToken);
+        return operationResult1;
     }
-
     public void Append(IReadOnlyList<FlowRunEvent> events)
     {
         if (events is null)

@@ -58,6 +58,26 @@ public interface IWorkerRunEventSink
     ValueTask PublishAsync(WorkerEventEnvelopeDto workerEvent, CancellationToken cancellationToken = default);
 }
 
+/// <summary>Optional ordered batch sink; single-event clients remain compatible.</summary>
+public interface IWorkerRunBatchEventSink : IWorkerRunEventSink
+{
+    ValueTask PublishBatchAsync(IReadOnlyList<WorkerEventEnvelopeDto> events, CancellationToken cancellationToken = default);
+}
+
+public sealed class DelegateWorkerRunBatchEventSink(Func<IReadOnlyList<WorkerEventEnvelopeDto>, CancellationToken, ValueTask> publish) : IWorkerRunBatchEventSink
+{
+    public ValueTask PublishBatchAsync(IReadOnlyList<WorkerEventEnvelopeDto> events, CancellationToken cancellationToken = default)
+    {
+        ValueTask operationResult1 = publish(events, cancellationToken);
+        return operationResult1;
+    }
+    public ValueTask PublishAsync(WorkerEventEnvelopeDto workerEvent, CancellationToken cancellationToken = default)
+    {
+        ValueTask operationResult2 = publish([workerEvent], cancellationToken);
+        return operationResult2;
+    }
+}
+
 public sealed class DelegateWorkerRunEventSink(Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> publish) : IWorkerRunEventSink
 {
     private readonly Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> _publish = publish ?? throw new ArgumentNullException(nameof(publish), "The worker event publisher cannot be null. Worker 事件发布器不能为空。");

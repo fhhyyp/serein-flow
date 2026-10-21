@@ -59,6 +59,7 @@ public static class SereinFlowInfrastructureRegistration
         });
         services.AddScoped(typeof(IRepository<>), typeof(SqlSugarRepository<>));
         services.AddScoped<IUnitOfWork, SqlSugarUnitOfWork>();
+        services.AddScoped<IFlowRunEventQueries, SqlSugarFlowRunEventQueries>();
         // These adapters retain a SqliteDatabase compatibility constructor for
         // infrastructure tests.  Register the repository-backed constructor
         // explicitly so ASP.NET Core does not see two equally applicable
@@ -96,7 +97,8 @@ public static class SereinFlowInfrastructureRegistration
         {
             var getRequiredServiceResult14 = serviceProvider.GetRequiredService<IRepository<FlowRunEventRecord>>();
             var getRequiredServiceResult15 = serviceProvider.GetRequiredService<IUnitOfWork>();
-            var sqlSugarFlowRunEventStore = new SqlSugarFlowRunEventStore(getRequiredServiceResult14, getRequiredServiceResult15);
+            var operationResult1 = serviceProvider.GetRequiredService<IFlowRunEventQueries>();
+            var sqlSugarFlowRunEventStore = new SqlSugarFlowRunEventStore(getRequiredServiceResult14, getRequiredServiceResult15, operationResult1);
             return sqlSugarFlowRunEventStore;
         });
         services.AddScoped<IFlowRunOutputStore>(serviceProvider =>

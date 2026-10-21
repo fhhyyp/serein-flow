@@ -7,6 +7,48 @@ namespace SereinFlow.Runtime.Tests;
 public sealed class ExecutionPlanTests
 {
     [Fact]
+    public void IndexedEdgesKeepPriorityAndOrdinalTieOrderWithoutExposingMutableArrays()
+    {
+        var first = NodeDefinition.Create("first", NodeType.Action, "First");
+        var second = NodeDefinition.Create("second", NodeType.Action, "Second");
+        var edges = new[]
+        {
+            ConnectionDefinition.Execution("first", "out", "second", "in", ExecutionBranch.Success, id: "z"),
+            ConnectionDefinition.Execution("first", "other", "second", "in", ExecutionBranch.Success, id: "A"),
+            ConnectionDefinition.Data("first", "data-out", "second", "input", DataSource.PreviousNode, id: "z-data"),
+            ConnectionDefinition.Data("first", "data-out", "second", "input", DataSource.PreviousNode, id: "A-data")
+        };
+        var canvas = CanvasDefinition.Create("main", CanvasLifecycle.Main, [first, second], edges);
+        var flowId = Guid.NewGuid();
+        var operationResult1 = FlowDefinition.Create(flowId, 1, [canvas], "first");
+        var operationResult2 = new Dictionary<string, NodeDefinition>
+        {
+            [first.Id] = first,
+            [second.Id] = second
+        };
+        // Exercise the plan indexes directly; graph validation separately rejects duplicate target bindings.
+        var plan = new ExecutionPlan(operationResult1, operationResult2, edges);
+        var operationResult3 = plan.GetOutgoing("first", ExecutionBranch.Success).Select(edge => edge.Id);
+        Assert.Equal(["A", "z"], operationResult3);
+        var operationResult4 = plan.GetIncomingData("second", "input").Select(edge => edge.Id);
+        Assert.Equal(["A-data", "z-data"], operationResult4);
+        var operationResult5 = plan.GetIncomingData("second", "INPUT");
+        Assert.Empty(operationResult5);
+        var operationResult6 = plan.GetOutgoing("first", ExecutionBranch.Error);
+        Assert.Empty(operationResult6);
+        var operationResult7 = plan.HasIncomingExecution("second");
+        Assert.True(operationResult7);
+        var operationResult8 = plan.HasIncomingExecution("first");
+        Assert.False(operationResult8);
+        var operationResult9 = plan.GetCanvasId("second");
+        Assert.Equal("main", operationResult9);
+        Assert.Throws<NotSupportedException>(() =>
+        {
+            ((IList<ConnectionDefinition>)plan.GetOutgoing("first", ExecutionBranch.Success)).Clear();
+        });
+    }
+
+    [Fact]
     public void BuilderRejectsInvalidFlowBeforeExecution()
     {
         var node = NodeDefinition.Create("node", NodeType.Action, "Node");
