@@ -2,15 +2,18 @@ using System;
 using System.Text.Json;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
+using SqlSugar;
 
 namespace SereinFlow.Infrastructure.Persistence;
 
 public sealed class SqlSugarMcpApiKeyStore : IMcpApiKeyStore
 {
     private readonly IRepository<McpApiKeyRecord> _records;
-    public SqlSugarMcpApiKeyStore(IRepository<McpApiKeyRecord> records)
+    private readonly ISqlSugarClient _database;
+    public SqlSugarMcpApiKeyStore(IRepository<McpApiKeyRecord> records, ISqlSugarClient database)
     {
         _records = records;
+        _database = database;
     }
 
     public async Task<IReadOnlyList<McpApiKeyEntry>> ListAsync(CancellationToken cancellationToken = default)
@@ -45,6 +48,16 @@ public sealed class SqlSugarMcpApiKeyStore : IMcpApiKeyStore
         var mapResult2 = Map(entry);
         var updateAsyncResult = _records.UpdateAsync(mapResult2, cancellationToken);
         return updateAsyncResult;
+    }
+
+    public async Task<bool> UpdateLastUsedAsync(string id, DateTimeOffset lastUsedAt, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var timestamp = lastUsedAt.ToString("O");
+        var update = _database.Updateable<McpApiKeyRecord>()
+            .SetColumns(record => new McpApiKeyRecord { LastUsedAt = timestamp })
+            .Where(record => record.Id == id);
+        return await update.ExecuteCommandAsync(cancellationToken) > 0;
     }
 
     private static McpApiKeyEntry Map(McpApiKeyRecord record)

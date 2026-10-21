@@ -725,7 +725,14 @@
           "SereinFlow.Application": "[1.0.0, )",
           "SereinFlow.Contracts": "[1.0.0, )",
           "SereinFlow.Infrastructure": "[1.0.0, )",
+          "SereinFlow.Mcp.Framework": "[1.0.0, )",
           "SereinFlow.ScriptAdapter": "[1.0.0, )"
+        }
+      },
+      "sereinflow.mcp.framework": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection": "[10.0.11, )"
         }
       },
       "sereinflow.runtime": {

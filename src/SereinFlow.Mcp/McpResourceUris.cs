@@ -54,27 +54,23 @@ public static class McpResourceUris
     public static string FlowTopology(Guid projectId, Guid flowId) => $"{Projects}/{projectId:D}/flows/{flowId:D}/topology";
     public static string FlowVersions(Guid projectId, Guid flowId, string track)
     {
-        var evaluatedValue = $"{Projects}/{projectId:D}/flows/{flowId:D}/versions/{Uri.EscapeDataString(track)}";
-        return evaluatedValue;
+        return $"{Projects}/{projectId:D}/flows/{flowId:D}/versions/{Uri.EscapeDataString(track)}";
     }
 
     public static string FlowVersion(Guid projectId, Guid flowId, string track, long version)
     {
-        var evaluatedValue1 = $"{Projects}/{projectId:D}/flows/{flowId:D}/versions/{Uri.EscapeDataString(track)}/{version}";
-        return evaluatedValue1;
+        return $"{Projects}/{projectId:D}/flows/{flowId:D}/versions/{Uri.EscapeDataString(track)}/{version}";
     }
 
     public static string Preview(Guid previewId) => $"{Scheme}://mcp-previews/{previewId:D}";
     public static string Library(string libraryId)
     {
-        var evaluatedValue2 = $"{Libraries}/{Uri.EscapeDataString(libraryId)}";
-        return evaluatedValue2;
+        return $"{Libraries}/{Uri.EscapeDataString(libraryId)}";
     }
 
     public static string LibraryFamily(string familyId)
     {
-        var evaluatedValue3 = $"{LibraryFamilies}/{Uri.EscapeDataString(familyId)}";
-        return evaluatedValue3;
+        return $"{LibraryFamilies}/{Uri.EscapeDataString(familyId)}";
     }
 
     public static string ProjectLibraries(Guid projectId) => $"{Projects}/{projectId:D}/libraries";
@@ -83,8 +79,7 @@ public static class McpResourceUris
     public static string RunWorkpieces(Guid runId) => $"{Runs}/{runId:D}/workpieces";
     public static string RunWorkpiece(Guid runId, string workpieceId)
     {
-        var evaluatedValue4 = $"{Runs}/{runId:D}/workpieces/{Uri.EscapeDataString(workpieceId)}";
-        return evaluatedValue4;
+        return $"{Runs}/{runId:D}/workpieces/{Uri.EscapeDataString(workpieceId)}";
     }
 
     public static string DebugSession(Guid sessionId) => $"{DebugSessions}/{sessionId:D}";
@@ -150,59 +145,53 @@ public sealed record McpResourceDefinition(McpResourceId Id, string UriTemplate,
 
 public static class McpResourceCatalog
 {
-    public static IReadOnlyList<McpResourceDefinition> Definitions { get; } = [new(McpResourceId.Project, McpResourceUris.ProjectTemplate, "project", "One SereinFlow project", true), new(McpResourceId.FlowTopology, McpResourceUris.FlowTopologyTemplate, "flow topology", "A development flow topology", true), new(McpResourceId.FlowVersions, McpResourceUris.FlowVersionsTemplate, "flow versions", "Flow version history for one track", true), new(McpResourceId.FlowVersion, McpResourceUris.FlowVersionTemplate, "flow version", "One immutable flow version", true), new(McpResourceId.Preview, McpResourceUris.PreviewTemplate, "MCP preview", "One pending or completed MCP mutation preview", true), new(McpResourceId.Library, McpResourceUris.LibraryTemplate, "library", "One SereinFlow library contract", true), new(McpResourceId.LibraryFamily, McpResourceUris.LibraryFamilyTemplate, "library family", "One SereinFlow library family and its artifacts", true), new(McpResourceId.ProjectLibraries, McpResourceUris.ProjectLibrariesTemplate, "project libraries", "Library artifacts referenced by one project", true), new(McpResourceId.LibraryUpgrade, McpResourceUris.LibraryUpgradeTemplate, "library upgrade", "One persisted project library upgrade plan", true), new(McpResourceId.Run, McpResourceUris.RunTemplate, "run inspection", "A bounded run timeline, node output and debug inspection", true), new(McpResourceId.RunWorkpieces, McpResourceUris.RunWorkpiecesTemplate, "run workpieces", "Metadata for image and file workpieces uploaded by a run", true), new(McpResourceId.RunWorkpiece, McpResourceUris.RunWorkpieceTemplate, "run workpiece", "One image or file workpiece uploaded by a run", true), new(McpResourceId.DebugSession, McpResourceUris.DebugSessionTemplate, "debug session", "A structured debug session state", true)];
-    public static IReadOnlyList<McpResourceDefinition> DirectResources { get; } = [new(McpResourceId.Projects, McpResourceUris.Projects, "projects", "Non-archived SereinFlow project summaries", false), new(McpResourceId.ArchivedProjects, McpResourceUris.ArchivedProjects, "archived-projects", "Archived SereinFlow project summaries", false), new(McpResourceId.Libraries, McpResourceUris.Libraries, "libraries", "Available SereinFlow library artifacts", false), new(McpResourceId.ArchivedLibraries, McpResourceUris.ArchivedLibraries, "archived-libraries", "Archived SereinFlow library artifacts", false), new(McpResourceId.LibraryFamilies, McpResourceUris.LibraryFamilies, "library-families", "SereinFlow library families and immutable artifact versions", false), new(McpResourceId.Runs, McpResourceUris.Runs, "runs", "Bounded SereinFlow run summaries", false), new(McpResourceId.DebugSessions, McpResourceUris.DebugSessions, "debug-sessions", "Bounded active debug session summaries", false)];
-    public static IReadOnlyList<McpResourceTemplateDescriptor> Templates { get; } = CreateTemplatesInitialValue();
-    private static Dictionary<McpResourceId, McpResourceDefinition> ById { get; } = CreateByIdInitialValue();
+    private static readonly IReadOnlyList<McpResourceDefinition> AllDefinitions =
+    [
+        new(McpResourceId.Project, McpResourceUris.ProjectTemplate, "project", "One SereinFlow project", true),
+        new(McpResourceId.FlowTopology, McpResourceUris.FlowTopologyTemplate, "flow topology", "A development flow topology", true),
+        new(McpResourceId.FlowVersions, McpResourceUris.FlowVersionsTemplate, "flow versions", "Flow version history for one track", true),
+        new(McpResourceId.FlowVersion, McpResourceUris.FlowVersionTemplate, "flow version", "One immutable flow version", true),
+        new(McpResourceId.Preview, McpResourceUris.PreviewTemplate, "MCP preview", "One pending or completed MCP mutation preview", true),
+        new(McpResourceId.Library, McpResourceUris.LibraryTemplate, "library", "One SereinFlow library contract", true),
+        new(McpResourceId.LibraryFamily, McpResourceUris.LibraryFamilyTemplate, "library family", "One SereinFlow library family and its artifacts", true),
+        new(McpResourceId.ProjectLibraries, McpResourceUris.ProjectLibrariesTemplate, "project libraries", "Library artifacts referenced by one project", true),
+        new(McpResourceId.LibraryUpgrade, McpResourceUris.LibraryUpgradeTemplate, "library upgrade", "One persisted project library upgrade plan", true),
+        new(McpResourceId.Run, McpResourceUris.RunTemplate, "run inspection", "A bounded run timeline, node output and debug inspection", true),
+        new(McpResourceId.RunWorkpieces, McpResourceUris.RunWorkpiecesTemplate, "run workpieces", "Metadata for image and file workpieces uploaded by a run", true),
+        new(McpResourceId.RunWorkpiece, McpResourceUris.RunWorkpieceTemplate, "run workpiece", "One image or file workpiece uploaded by a run", true),
+        new(McpResourceId.DebugSession, McpResourceUris.DebugSessionTemplate, "debug session", "A structured debug session state", true),
+        new(McpResourceId.Projects, McpResourceUris.Projects, "projects", "Non-archived SereinFlow project summaries", false),
+        new(McpResourceId.ArchivedProjects, McpResourceUris.ArchivedProjects, "archived-projects", "Archived SereinFlow project summaries", false),
+        new(McpResourceId.Libraries, McpResourceUris.Libraries, "libraries", "Available SereinFlow library artifacts", false),
+        new(McpResourceId.ArchivedLibraries, McpResourceUris.ArchivedLibraries, "archived-libraries", "Archived SereinFlow library artifacts", false),
+        new(McpResourceId.LibraryFamilies, McpResourceUris.LibraryFamilies, "library-families", "SereinFlow library families and immutable artifact versions", false),
+        new(McpResourceId.Runs, McpResourceUris.Runs, "runs", "Bounded SereinFlow run summaries", false),
+        new(McpResourceId.DebugSessions, McpResourceUris.DebugSessions, "debug-sessions", "Bounded active debug session summaries", false)
+    ];
+    public static IReadOnlyList<McpResourceDefinition> Definitions { get; } = AllDefinitions
+        .Where(static definition => definition.IsTemplate)
+        .ToArray();
+    public static IReadOnlyList<McpResourceDefinition> DirectResources { get; } = AllDefinitions
+        .Where(static definition => !definition.IsTemplate)
+        .ToArray();
+    public static IReadOnlyList<McpResourceTemplateDescriptor> Templates { get; } = Definitions
+        .Select(static definition => new McpResourceTemplateDescriptor(definition.UriTemplate, definition.Name, definition.Description, definition.MimeType))
+        .ToArray();
+    private static readonly Dictionary<McpResourceId, McpResourceDefinition> ById =
+        AllDefinitions.ToDictionary(static definition => definition.Id);
 
     static McpResourceCatalog()
     {
-        var all = Definitions
-            .Concat(DirectResources)
-            .ToArray();
-        if (resolveCountResult() != all.Length)
+        if (AllDefinitions.Select(static definition => definition.UriTemplate).Distinct(StringComparer.Ordinal).Count() != AllDefinitions.Count)
         {
             throw new InvalidOperationException("MCP resource URI templates must be unique.");
         }
 
-        if (Definitions.Any(static definition => !definition.IsTemplate || definition.ParameterNames.Count == 0) || DirectResources.Any(static definition => definition.IsTemplate || definition.ParameterNames.Count != 0))
+        if (AllDefinitions.Any(static definition => definition.IsTemplate != (definition.ParameterNames.Count > 0)))
         {
             throw new InvalidOperationException("MCP resource direct/template metadata is inconsistent.");
         }
-
-        int resolveCountResult()
-        {
-            var countResult = all
-                .Select(static definition => definition.UriTemplate)
-                .Distinct(StringComparer.Ordinal)
-                .Count();
-            return countResult;
-        }
     }
 
-    public static bool TryGet(McpResourceId id, out McpResourceDefinition? definition)
-    {
-        var tryGetValueResult = ById.TryGetValue(id, out definition);
-        return tryGetValueResult;
-    }
-
-    private static IReadOnlyList<McpResourceTemplateDescriptor> CreateTemplatesInitialValue()
-    {
-        IReadOnlyList<McpResourceTemplateDescriptor> templatesInitialValue = Definitions
-            .Select(static definition =>
-            {
-                var mcpResourceTemplateDescriptor = new McpResourceTemplateDescriptor(definition.UriTemplate, definition.Name, definition.Description, definition.MimeType);
-                return mcpResourceTemplateDescriptor;
-            })
-            .ToArray();
-        return templatesInitialValue;
-    }
-
-    private static Dictionary<McpResourceId, McpResourceDefinition> CreateByIdInitialValue()
-    {
-        Dictionary<McpResourceId, McpResourceDefinition> byIdInitialValue = Definitions
-            .Concat(DirectResources)
-            .ToDictionary(static definition => definition.Id);
-        return byIdInitialValue;
-    }
+    public static bool TryGet(McpResourceId id, out McpResourceDefinition? definition) => ById.TryGetValue(id, out definition);
 }

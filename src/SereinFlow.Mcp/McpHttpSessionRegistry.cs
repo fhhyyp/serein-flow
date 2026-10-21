@@ -6,21 +6,20 @@ public sealed class McpHttpSessionRegistry
     private readonly ConcurrentDictionary<string, string> _sessions = new(StringComparer.Ordinal);
     public string Create(string principalId)
     {
-        var newGuidResult = Guid.NewGuid();
-        var sessionId = newGuidResult.ToString("N");
+        var sessionId = Guid.NewGuid().ToString("N");
         _sessions[sessionId] = principalId;
         return sessionId;
     }
 
     public bool Validate(string sessionId, string principalId)
     {
-        var evaluatedValue = !string.IsNullOrWhiteSpace(sessionId) && _sessions.TryGetValue(sessionId, out var owner) && string.Equals(owner, principalId, StringComparison.Ordinal);
-        return evaluatedValue;
+        return !string.IsNullOrWhiteSpace(sessionId)
+            && _sessions.TryGetValue(sessionId, out var owner)
+            && string.Equals(owner, principalId, StringComparison.Ordinal);
     }
 
     public bool Remove(string sessionId, string principalId)
     {
-        var evaluatedValue1 = Validate(sessionId, principalId) && _sessions.TryRemove(sessionId, out _);
-        return evaluatedValue1;
+        return Validate(sessionId, principalId) && _sessions.TryRemove(sessionId, out _);
     }
 }

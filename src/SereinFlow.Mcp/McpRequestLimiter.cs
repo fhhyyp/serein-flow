@@ -28,11 +28,7 @@ public sealed class McpRequestLimiter : IDisposable
             return false;
         }
 
-        var window = _windows.GetOrAdd(principalId, static _ =>
-        {
-            var rateWindow = new RateWindow();
-            return rateWindow;
-        });
+        var window = _windows.GetOrAdd(principalId, static _ => new RateWindow());
         var now = DateTimeOffset.UtcNow;
         var accepted = false;
         lock (window.Gate)

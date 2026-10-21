@@ -1,84 +1,76 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Text;
-using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
-using SereinFlow.Domain;
-using static SereinFlow.Mcp.McpToolSupport;
+using SereinFlow.Mcp.Integration;
+using System.Text.Json;
+using static SereinFlow.Mcp.Tools.McpToolSupport;
 
-namespace SereinFlow.Mcp;
+namespace SereinFlow.Mcp.Tools;
 /// <summary>
 /// Flow patch, publish, rollback and version comparison MCP tools.
 /// </summary>
 internal static class McpFlowToolHandlers
 {
-    internal static Task<object> PreviewPatchAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_preview_flow_patch", McpPermissionDto.FlowWrite, ExecutionKind = McpToolExecutionKind.Mutation, HasAuditTrack = true, AuditTrack = FlowVersionTrackDto.Development)]
+    internal static Task<object> PreviewPatchAsync(SereinFlowMcpToolContext context, NormalizedFlowPatchRequest arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult = context.RequirePrincipal();
         var previewFlowPatchAsyncResult = PreviewFlowPatchAsync(context.Scope, requirePrincipalResult, arguments, cancellationToken);
         return previewFlowPatchAsyncResult;
     }
 
-    internal static Task<object> ApplyPatchAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_apply_flow_patch", McpPermissionDto.FlowWrite, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true, HasAuditTrack = true, AuditTrack = FlowVersionTrackDto.Development)]
+    internal static Task<object> ApplyPatchAsync(SereinFlowMcpToolContext context, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult1 = context.RequirePrincipal();
         var applyFlowPatchAsyncResult = ApplyFlowPatchAsync(context.Scope, requirePrincipalResult1, arguments, cancellationToken);
         return applyFlowPatchAsyncResult;
     }
 
-    internal static Task<object> CompareVersionsAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_compare_flow_versions", McpPermissionDto.ProjectRead)]
+    internal static Task<object> CompareVersionsAsync(SereinFlowMcpToolContext context, McpCompareFlowVersionsRequest arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult2 = context.RequirePrincipal();
         var compareFlowVersionsAsyncResult = CompareFlowVersionsAsync(context.Scope, requirePrincipalResult2, arguments, cancellationToken);
         return compareFlowVersionsAsyncResult;
     }
 
-    internal static Task<object> PreviewPublishAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_preview_publish_flow", McpPermissionDto.FlowPublish, ExecutionKind = McpToolExecutionKind.Mutation, HasAuditTrack = true, AuditTrack = FlowVersionTrackDto.Development)]
+    internal static Task<object> PreviewPublishAsync(SereinFlowMcpToolContext context, PublishFlowPreviewRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult3 = context.RequirePrincipal();
         var previewPublishAsyncResult = PreviewPublishAsync(context.Scope, requirePrincipalResult3, arguments, cancellationToken);
         return previewPublishAsyncResult;
     }
 
-    internal static Task<object> ApplyPublishAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_apply_publish_flow", McpPermissionDto.FlowPublish, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true, HasAuditTrack = true, AuditTrack = FlowVersionTrackDto.Development)]
+    internal static Task<object> ApplyPublishAsync(SereinFlowMcpToolContext context, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult4 = context.RequirePrincipal();
         var applyPublishAsyncResult = ApplyPublishAsync(context.Scope, requirePrincipalResult4, arguments, cancellationToken);
         return applyPublishAsyncResult;
     }
 
-    internal static Task<object> PreviewRollbackAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_preview_rollback_flow", McpPermissionDto.FlowRollback, ExecutionKind = McpToolExecutionKind.Mutation)]
+    internal static Task<object> PreviewRollbackAsync(SereinFlowMcpToolContext context, RollbackFlowPreviewRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult5 = context.RequirePrincipal();
         var previewRollbackAsyncResult = PreviewRollbackAsync(context.Scope, requirePrincipalResult5, arguments, cancellationToken);
         return previewRollbackAsyncResult;
     }
 
-    internal static Task<object> ApplyRollbackAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_apply_rollback_flow", McpPermissionDto.FlowRollback, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    internal static Task<object> ApplyRollbackAsync(SereinFlowMcpToolContext context, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult6 = context.RequirePrincipal();
         var applyRollbackAsyncResult = ApplyRollbackAsync(context.Scope, requirePrincipalResult6, arguments, cancellationToken);
         return applyRollbackAsyncResult;
     }
 
-    private static async Task<object> PreviewFlowPatchAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> PreviewFlowPatchAsync(IServiceScope scope, McpPrincipal principal, NormalizedFlowPatchRequest arguments, CancellationToken cancellationToken)
     {
-        NormalizedFlowPatchRequest normalized;
-        try
-        {
-            var getRequiredServiceResult = scope.ServiceProvider.GetRequiredService<FlowPatchContractNormalizer>();
-            normalized = getRequiredServiceResult.Normalize(arguments);
-        }
-        catch (FlowPatchContractException exception)
-        {
-            throw InvalidFlowPatchContract(exception);
-        }
-
+        var normalized = arguments;
         var request = normalized.Request;
         if (request.ProjectId == Guid.Empty || request.FlowId == Guid.Empty || request.ExpectedDevelopmentVersion < 1)
         {
@@ -142,9 +134,9 @@ internal static class McpFlowToolHandlers
         }
     }
 
-    private static async Task<object> ApplyFlowPatchAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> ApplyFlowPatchAsync(IServiceScope scope, McpPrincipal principal, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<McpMutationApplyRequestDto>(arguments);
+        var request = arguments;
         RequireConfirmation(request);
         var requestPayload = Serialize(request);
         var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
@@ -220,14 +212,14 @@ internal static class McpFlowToolHandlers
         }
     }
 
-    private static async Task<object> CompareFlowVersionsAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> CompareFlowVersionsAsync(IServiceScope scope, McpPrincipal principal, McpCompareFlowVersionsRequest arguments, CancellationToken cancellationToken)
     {
-        var projectId = GetGuid(arguments, "projectId");
-        var flowId = GetGuid(arguments, "flowId");
-        var getRequiredStringResult = GetRequiredString(arguments, "track");
-        var track = ParseTrack(getRequiredStringResult);
-        var fromVersion = GetLong(arguments, "fromVersion");
-        var toVersion = GetLong(arguments, "toVersion");
+        var projectId = arguments.ProjectId;
+        var flowId = arguments.FlowId;
+        var getRequiredStringResult = arguments.Track;
+        var track = getRequiredStringResult;
+        var fromVersion = arguments.FromVersion;
+        var toVersion = arguments.ToVersion;
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         security.Require(principal, McpPermissionDto.ProjectRead, projectId);
         var service = scope.ServiceProvider.GetRequiredService<AiReadModelService>();
@@ -253,9 +245,9 @@ internal static class McpFlowToolHandlers
         return flowVersionComparisonDto;
     }
 
-    private static async Task<object> PreviewPublishAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> PreviewPublishAsync(IServiceScope scope, McpPrincipal principal, PublishFlowPreviewRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<PublishFlowPreviewRequestDto>(arguments);
+        var request = arguments;
         var getRequiredServiceResult18 = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         await RequireActiveProjectAsync(scope, getRequiredServiceResult18, principal, request.ProjectId, McpPermissionDto.FlowPublish, cancellationToken);
         var flow = await resolveFindAsyncResult() ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found.");
@@ -302,9 +294,9 @@ internal static class McpFlowToolHandlers
         }
     }
 
-    private static async Task<object> ApplyPublishAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> ApplyPublishAsync(IServiceScope scope, McpPrincipal principal, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<McpMutationApplyRequestDto>(arguments);
+        var request = arguments;
         RequireConfirmation(request);
         var requestPayload = Serialize(request);
         var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
@@ -317,6 +309,11 @@ internal static class McpFlowToolHandlers
 
         var preview = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
         var entry = await preview.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
+        if (!string.Equals(entry.Operation, "flow.publish", StringComparison.Ordinal))
+        {
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a flow publication.");
+        }
+
         var stored = McpPreviewService.Deserialize<StoredPublishPreview>(entry);
         var getRequiredServiceResult24 = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         await RequireActiveProjectAsync(scope, getRequiredServiceResult24, principal, stored.Request.ProjectId, McpPermissionDto.FlowPublish, cancellationToken);
@@ -369,9 +366,9 @@ internal static class McpFlowToolHandlers
         }
     }
 
-    private static async Task<object> PreviewRollbackAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> PreviewRollbackAsync(IServiceScope scope, McpPrincipal principal, RollbackFlowPreviewRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<RollbackFlowPreviewRequestDto>(arguments);
+        var request = arguments;
         if (request.SourceVersion < 1 || request.ExpectedHeadVersion < 1 || !Enum.IsDefined(request.Track))
         {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The rollback request is invalid.");
@@ -425,9 +422,9 @@ internal static class McpFlowToolHandlers
         };
     }
 
-    private static async Task<object> ApplyRollbackAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> ApplyRollbackAsync(IServiceScope scope, McpPrincipal principal, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<McpMutationApplyRequestDto>(arguments);
+        var request = arguments;
         RequireConfirmation(request);
         var requestPayload = Serialize(request);
         var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
@@ -440,6 +437,11 @@ internal static class McpFlowToolHandlers
 
         var preview = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
         var entry = await preview.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
+        if (!string.Equals(entry.Operation, "flow.rollback", StringComparison.Ordinal))
+        {
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a flow rollback.");
+        }
+
         var stored = McpPreviewService.Deserialize<StoredRollbackPreview>(entry);
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         await RequireActiveProjectAsync(scope, security, principal, stored.Request.ProjectId, McpPermissionDto.FlowRollback, cancellationToken);

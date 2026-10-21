@@ -1042,6 +1042,69 @@ public sealed class McpBackendIntegrationTests
     }
 
     [Fact]
+    public async Task ApiKeyUsageUpdatesPreserveAuthorizationAndRevocationFields()
+    {
+        using var host = CreateHost();
+        using var scope = host.Services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<IMcpApiKeyStore>();
+        var project = Project.Create("MCP key usage tracking");
+        await scope.ServiceProvider.GetRequiredService<IProjectRepository>().AddAsync(project);
+        var created = McpSecurityService.CreateKeyWithEntry(new CreateMcpApiKeyRequestDto(
+            project.Id, "tracked-key", [McpPermissionDto.ProjectRead]));
+        await store.AddAsync(created.Entry);
+        var revoked = created.Entry with { RevokedAt = DateTimeOffset.UtcNow };
+        await store.UpdateAsync(revoked);
+        var lastUsedAt = DateTimeOffset.UtcNow;
+
+        Assert.True(await store.UpdateLastUsedAsync(created.Entry.Id, lastUsedAt));
+
+        var persisted = await store.FindAsync(created.Entry.Id);
+        Assert.NotNull(persisted);
+        var expectedJson = JsonSerializer.Serialize(revoked with { LastUsedAt = lastUsedAt }, JsonOptions);
+        var persistedJson = JsonSerializer.Serialize(persisted, JsonOptions);
+        Assert.Equal(expectedJson, persistedJson);
+    }
+
+    [Theory]
+    [InlineData("sereinflow_apply_publish_flow")]
+    [InlineData("sereinflow_apply_rollback_flow")]
+    public async Task ReleaseToolsRejectPatchPreviewsBeforeChangingFlowState(string toolName)
+    {
+        using var host = CreateHost();
+        var principal = new McpPrincipal("release-admin", null, new HashSet<McpPermissionDto>(), IsAdministrator: true);
+        host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = principal;
+        using var scope = host.Services.CreateScope();
+        var project = Project.Create("MCP preview isolation");
+        await scope.ServiceProvider.GetRequiredService<IProjectRepository>().AddAsync(project);
+        var flow = CreateFlow();
+        var flows = scope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>();
+        await flows.AddAsync(project.Id, flow);
+        var previews = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
+        var preview = await previews.CreateAsync("flow.patch", principal, project.Id, flow.Id, flow.Version, new
+        {
+            request = new { projectId = project.Id, flowId = flow.Id, expectedDevelopmentVersion = flow.Version },
+            validation = new FlowValidationResultDto(true, []),
+            diff = new FlowDiffService().Compare(flow, flow)
+        });
+        var arguments = JsonSerializer.SerializeToElement(new
+        {
+            previewId = preview.Id, previewFingerprint = preview.PreviewFingerprint,
+            confirmation = "APPLY", idempotencyKey = "wrong-operation-apply"
+        });
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var error = await Assert.ThrowsAsync<McpProtocolException>(() =>
+            backend.CallToolAsync(toolName, arguments, CancellationToken.None));
+
+        Assert.Equal(McpProtocolErrorCodes.InvalidParams, error.Code);
+        var versions = scope.ServiceProvider.GetRequiredService<IFlowVersionRepository>();
+        Assert.Null(await versions.FindProductionVersionAsync(project.Id, flow.Id));
+        Assert.Equal(flow.Version, (await flows.FindAsync(project.Id, flow.Id))!.Version);
+        var persistedPreview = await scope.ServiceProvider.GetRequiredService<IMcpPreviewStore>().FindAsync(preview.Id);
+        Assert.Equal(McpMutationPreviewStatusDto.Pending, persistedPreview!.Status);
+    }
+
+    [Fact]
     public async Task PublishPreviewApplyAndReplayUseTheSameProductionGuard()
     {
         using var host = CreateHost();

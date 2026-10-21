@@ -10,7 +10,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
-namespace SereinFlow.Mcp;
+namespace SereinFlow.Mcp.Tools;
 /// <summary>
 /// Shared parsing, protocol conversion and mutation helpers used by MCP tool
 /// handlers. This module deliberately owns no tool routing or resource URI
@@ -23,68 +23,6 @@ internal static class McpToolSupport
         var mcpPermissionJsonConverter = new McpPermissionJsonConverter();
         options.Converters.Insert(0, mcpPermissionJsonConverter);
     });
-    internal static McpPermissionDto[] ReadPermissions(JsonElement arguments)
-    {
-        if (!arguments.TryGetProperty("permissions", out var value) || value.ValueKind != JsonValueKind.Array)
-        {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'permissions' must be an array.");
-        }
-
-        var permissions = new List<McpPermissionDto>();
-        foreach (var item in value.EnumerateArray())
-        {
-            if (item.ValueKind != JsonValueKind.String)
-            {
-                throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'permissions' contains an invalid permission.");
-            }
-
-            var permissionName = item.GetString();
-            if (!McpPermissionNames.TryParse(permissionName, out var permission))
-            {
-                throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'permissions' contains an invalid permission.");
-            }
-
-            permissions.Add(permission);
-        }
-
-        var toArrayResult = permissions
-            .Distinct()
-            .ToArray();
-        return toArrayResult;
-    }
-
-    internal static DateTimeOffset? ReadOptionalDate(JsonElement arguments, string name)
-    {
-        var value = GetOptionalString(arguments, name);
-        DateTimeOffset? evaluatedValue = string.IsNullOrWhiteSpace(value) ? null : DateTimeOffset.TryParse(value, out var parsed) ? parsed : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be an ISO date.");
-        return evaluatedValue;
-    }
-
-    internal static T Deserialize<T>(JsonElement arguments)
-    {
-        try
-        {
-            var evaluatedValue1 = arguments.Deserialize<T>(ContractJsonOptions) ?? throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP arguments cannot be null.");
-            return evaluatedValue1;
-        }
-        catch (JsonException exception)
-        {
-            throw InvalidArguments(exception);
-        }
-        catch (NotSupportedException)
-        {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP arguments contain an unsupported contract value.", new { code = McpErrorCodes.InvalidArguments });
-        }
-    }
-
-    internal static McpProtocolException InvalidArguments(JsonException exception)
-    {
-        var path = string.IsNullOrWhiteSpace(exception.Path) ? null : exception.Path;
-        var location = path is null ? string.Empty : $" at '{path}'";
-        var mcpProtocolException = new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP arguments are invalid{location}.", new { code = McpErrorCodes.InvalidArguments, path });
-        return mcpProtocolException;
-    }
-
     internal static McpProtocolException InvalidPatchValue(JsonException exception)
     {
         var path = string.IsNullOrWhiteSpace(exception.Path) ? null : exception.Path;
@@ -103,19 +41,6 @@ internal static class McpToolSupport
     {
         McpProtocolException evaluatedValue4 = new(McpProtocolErrorCodes.InvalidParams, "The library node template request is invalid.", new { code = exception.Code, diagnosticId = exception.DiagnosticId, fieldPath = exception.FieldPath, expected = exception.Expected, remediation = exception.Remediation, statusCode = exception.StatusCode });
         return evaluatedValue4;
-    }
-
-    internal static Guid? TryGetGuid(JsonElement arguments, string name)
-    {
-        var value = GetOptionalString(arguments, name);
-        Guid? evaluatedValue5 = string.IsNullOrWhiteSpace(value) ? null : Guid.TryParse(value, out var parsed) ? parsed : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be a GUID.");
-        return evaluatedValue5;
-    }
-
-    internal static long GetLong(JsonElement arguments, string name)
-    {
-        var evaluatedValue6 = GetOptionalLong(arguments, name) ?? throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' is required.");
-        return evaluatedValue6;
     }
 
     internal static FlowVersionTrackDto ParseTrack(string value)
@@ -174,7 +99,7 @@ internal static class McpToolSupport
         throw new McpProtocolException(McpProtocolErrorCodes.InternalError, "The mutation was committed but its MCP preview state could not be recorded.", new { code = McpErrorCodes.PreviewStatePersistFailed });
     }
 
-    internal static async Task<SereinFlow.Domain.Project> RequireActiveProjectAsync(IServiceScope scope, McpSecurityService security, McpPrincipal principal, Guid projectId, McpPermissionDto permission, CancellationToken cancellationToken)
+    internal static async Task<Project> RequireActiveProjectAsync(IServiceScope scope, McpSecurityService security, McpPrincipal principal, Guid projectId, McpPermissionDto permission, CancellationToken cancellationToken)
     {
         security.Require(principal, permission, projectId);
         var project = await resolveFindAsyncResult() ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The project was not found.");
@@ -242,103 +167,7 @@ internal static class McpToolSupport
         var schema = new McpJsonSchema { Type = "boolean" };
         return schema;
     }
-    internal static AiReadModelOptions ReadOptions(JsonElement arguments)
-    {
-        var evaluatedValue14 = GetOptionalInt(arguments, "maxItems") ?? 200;
-        var evaluatedValue15 = GetOptionalInt(arguments, "maxJsonBytes") ?? 64 * 1024;
-        var evaluatedValue16 = GetOptionalBool(arguments, "includeFlowLiteralValues") ?? false;
-        var evaluatedValue17 = GetOptionalBool(arguments, "includeScriptSource") ?? false;
-        AiReadModelOptions evaluatedValue18 = new(evaluatedValue14, evaluatedValue15, evaluatedValue16, evaluatedValue17);
-        return evaluatedValue18;
-    }
+    internal static AiReadModelOptions ReadOptions(McpReadOptionsRequest arguments) => new(
+        arguments.MaxItems, arguments.MaxJsonBytes, arguments.IncludeFlowLiteralValues, arguments.IncludeScriptSource);
 
-    internal static FlowVersionTrackDto ReadTrack(JsonElement arguments)
-    {
-        var value = GetOptionalString(arguments, "track");
-        FlowVersionTrackDto evaluatedValue19 = string.IsNullOrWhiteSpace(value) ? FlowVersionTrackDto.Development : Enum.TryParse<FlowVersionTrackDto>(value, true, out var track) && Enum.IsDefined(track) ? track : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow version track must be development or production.");
-        return evaluatedValue19;
-    }
-
-    internal static FlowVersionTrackDto? ReadOptionalTrack(JsonElement arguments)
-    {
-        var value = GetOptionalString(arguments, "track");
-        FlowVersionTrackDto? evaluatedValue20 = string.IsNullOrWhiteSpace(value) ? null : Enum.TryParse<FlowVersionTrackDto>(value, true, out var track) && Enum.IsDefined(track) ? track : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow version track must be development or production.");
-        return evaluatedValue20;
-    }
-
-    internal static Guid GetGuid(JsonElement arguments, string name)
-    {
-        var value = GetRequiredString(arguments, name);
-        Guid evaluatedValue21 = Guid.TryParse(value, out var parsed) ? parsed : throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be a GUID.");
-        return evaluatedValue21;
-    }
-
-    internal static string GetRequiredString(JsonElement arguments, string name)
-    {
-        var value = GetOptionalString(arguments, name);
-        string evaluatedValue22 = string.IsNullOrWhiteSpace(value) ? throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' is required.") : value.Trim();
-        return evaluatedValue22;
-    }
-
-    internal static string? GetOptionalString(JsonElement arguments, string name)
-    {
-        if (arguments.ValueKind != JsonValueKind.Object || !arguments.TryGetProperty(name, out var value))
-        {
-            return null;
-        }
-
-        if (value.ValueKind != JsonValueKind.String)
-        {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be a string.");
-        }
-
-        var getStringResult = value.GetString();
-        return getStringResult;
-    }
-
-    internal static int? GetOptionalInt(JsonElement arguments, string name)
-    {
-        if (arguments.ValueKind != JsonValueKind.Object || !arguments.TryGetProperty(name, out var value))
-        {
-            return null;
-        }
-
-        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var parsed))
-        {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be an integer.");
-        }
-
-        return parsed;
-    }
-
-    internal static long? GetOptionalLong(JsonElement arguments, string name)
-    {
-        if (arguments.ValueKind != JsonValueKind.Object || !arguments.TryGetProperty(name, out var value))
-        {
-            return null;
-        }
-
-        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt64(out var parsed))
-        {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be an integer.");
-        }
-
-        return parsed;
-    }
-
-    internal static bool? GetOptionalBool(JsonElement arguments, string name)
-    {
-        if (arguments.ValueKind != JsonValueKind.Object || !arguments.TryGetProperty(name, out var value))
-        {
-            return null;
-        }
-
-        if (value.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
-        {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' must be a boolean.");
-        }
-
-        var getBooleanResult = value.GetBoolean();
-        return getBooleanResult;
-    }
 }

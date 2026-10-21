@@ -30,8 +30,8 @@ public sealed class McpDebugToolTests
         var tryGetResult = catalog.TryGet("sereinflow_start_debug_session", out var start);
         Assert.True(tryGetResult);
         Assert.NotNull(start);
-        Assert.True(start!.RequiresIdempotencyKey);
-        Assert.Equal(McpToolExecutionKind.Mutation, start.ExecutionKind);
+        Assert.True(start!.Metadata.RequiresIdempotencyKey);
+        Assert.Equal(McpToolExecutionKind.Mutation, start.Metadata.ExecutionKind);
         var getPropertyResult = start.Descriptor.InputSchema.GetProperty("required");
         var enumerateArrayResult = getPropertyResult.EnumerateArray();
         var selectResult2 = enumerateArrayResult.Select(static item =>
@@ -172,6 +172,45 @@ public sealed class McpDebugToolTests
             return callToolAsyncResult25;
         });
         Assert.Equal(McpProtocolErrorCodes.Conflict, conflict.Code);
+    }
+
+    [Fact]
+    public async Task DebugStartAuthorizesTheBoundProjectForCaseVariantsAndDuplicateNames()
+    {
+        var allowedProjectId = Guid.NewGuid();
+        var deniedProjectId = Guid.NewGuid();
+        var flowId = Guid.NewGuid();
+        var fake = new TestDebugSessionService(deniedProjectId, flowId);
+        using var host = CreateHost(services => services.AddSingleton<IFlowDebugSessionService>(fake));
+        host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal(
+            "project-debug-controller", allowedProjectId, new HashSet<McpPermissionDto> { McpPermissionDto.DebugControl });
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+
+        var caseVariant = JsonSerializer.SerializeToElement(new
+        {
+            ProjectId = deniedProjectId, flowId, idempotencyKey = "case-variant-start"
+        });
+        var denied = await Assert.ThrowsAsync<McpProtocolException>(() =>
+            backend.CallToolAsync("sereinflow_start_debug_session", caseVariant, CancellationToken.None));
+        Assert.Equal(McpProtocolErrorCodes.PermissionDenied, denied.Code);
+
+        var duplicateNames = JsonSerializer.SerializeToElement(new Dictionary<string, object>
+        {
+            ["projectId"] = allowedProjectId,
+            ["ProjectId"] = deniedProjectId,
+            ["flowId"] = flowId,
+            ["idempotencyKey"] = "duplicate-name-start"
+        });
+        denied = await Assert.ThrowsAsync<McpProtocolException>(() =>
+            backend.CallToolAsync("sereinflow_start_debug_session", duplicateNames, CancellationToken.None));
+        Assert.Equal(McpProtocolErrorCodes.PermissionDenied, denied.Code);
+        Assert.Equal(0, fake.CreateCalls);
+
+        host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal(
+            "target-project-debug-controller", deniedProjectId, new HashSet<McpPermissionDto> { McpPermissionDto.DebugControl });
+        var accepted = await backend.CallToolAsync("sereinflow_start_debug_session", caseVariant, CancellationToken.None);
+        Assert.Equal(fake.Session.Id, Deserialize<McpDebugSessionStartedDto>(accepted.Value).SessionId);
+        Assert.Equal(1, fake.CreateCalls);
     }
 
     [Fact]

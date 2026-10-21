@@ -167,7 +167,8 @@ public static class SereinFlowInfrastructureRegistration
         services.AddScoped<IMcpApiKeyStore>(serviceProvider =>
         {
             var getRequiredServiceResult39 = serviceProvider.GetRequiredService<IRepository<McpApiKeyRecord>>();
-            var sqlSugarMcpApiKeyStore = new SqlSugarMcpApiKeyStore(getRequiredServiceResult39);
+            var database = serviceProvider.GetRequiredService<ISqlSugarClient>();
+            var sqlSugarMcpApiKeyStore = new SqlSugarMcpApiKeyStore(getRequiredServiceResult39, database);
             return sqlSugarMcpApiKeyStore;
         });
         services.AddScoped<IMcpPreviewStore>(serviceProvider =>

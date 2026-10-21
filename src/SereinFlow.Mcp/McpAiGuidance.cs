@@ -56,54 +56,74 @@ public static class McpAiGuidance
     public const string LibraryMetadataResourceUri = LibraryPackageSkillsRoot + "/metadata";
     public const string LibraryImportResourceUri = LibraryPackageSkillsRoot + "/import";
     public const string LibraryUpgradeResourceUri = LibraryPackageSkillsRoot + "/upgrade";
-    public static IReadOnlyList<McpAiGuidanceResource> ModuleResources { get; } = [new("sereinflow.projects", SereinFlowProjectsResourceUri, "sereinflow-projects", "Project discovery and read-only project inspection", "mcp/sereinflow-projects-skill.md"), new("sereinflow.flows", SereinFlowFlowsResourceUri, "sereinflow-flows", "Flow editing and patch contract rules", "mcp/sereinflow-flows-skill.md"), new("sereinflow.ui-ux", SereinFlowUiUxResourceUri, "sereinflow-ui-ux", "Flow canvas layout and visual organization guidance", "mcp/sereinflow-ui-ux-skill.md"), new("sereinflow.runtime", SereinFlowRuntimeResourceUri, "sereinflow-runtime", "Run, debug and post-change verification rules", "mcp/sereinflow-runtime-skill.md"), new("sereinflow.workpieces", SereinFlowWorkpiecesResourceUri, "sereinflow-workpieces", "Run workpiece inspection, image preview and file download rules", "mcp/sereinflow-workpieces-skill.md"), new("sereinflow.api-keys", SereinFlowApiKeysResourceUri, "sereinflow-api-keys", "MCP API key lifecycle and secret handling rules", "mcp/sereinflow-api-keys-skill.md"), new("sereinflow.release", SereinFlowReleaseResourceUri, "sereinflow-release", "Publishing and rollback rules", "mcp/sereinflow-release-skill.md"), new("sereinlang.syntax", SereinLangSyntaxResourceUri, "sereinlang-syntax", "SereinLang lexical and expression rules", "mcp/sereinlang-syntax-skill.md"), new("sereinlang.host", SereinLangHostResourceUri, "sereinlang-host", "SereinLang imports and host interoperation", "mcp/sereinlang-host-skill.md"), new("sereinlang.grammar", SereinLangGrammarResourceUri, "sereinlang-grammar", "SereinLang formal grammar reference", "mcp/sereinlang-grammar-skill.md"), new(LibraryErrorCodes.Build, LibraryBuildResourceUri, "library-build", "Local C# library build and publish boundary", "mcp/sereinflow-library-build-skill.md"), new(LibraryErrorCodes.Zip, LibraryZipResourceUri, "library-zip", "SereinFlow library ZIP contract", "mcp/sereinflow-library-zip-skill.md"), new(LibraryErrorCodes.Metadata, LibraryMetadataResourceUri, "library-metadata", "SereinFlow library metadata contract", "mcp/sereinflow-library-metadata-skill.md"), new(LibraryErrorCodes.Import, LibraryImportResourceUri, "library-import", "Library package preview, import and attachment", "mcp/sereinflow-library-import-skill.md"), new("library.upgrade", LibraryUpgradeResourceUri, "library-upgrade", "Library families and project upgrade workflow", "mcp/sereinflow-library-upgrade-skill.md")];
-    public static IReadOnlyList<McpAiGuidanceResource> AllResources { get; } = [new("ai.guide", ResourceUri, ResourceName, "Compact capability index for SereinFlow AI guidance", "mcp/sereinflow-ai-guide.md"), new("sereinflow", SereinFlowResourceUri, "sereinflow", "SereinFlow capability index", "mcp/sereinflow-skill.md"), new("sereinlang", SereinLangResourceUri, "sereinlang", "SereinLang capability index", "mcp/sereinlang-skill.md"), new("sereinflow-library-package", LibraryPackageResourceUri, "sereinflow-library-package", "Library package capability index", "mcp/sereinflow-library-package-skill.md"), .. ModuleResources];
-    private static Dictionary<string, McpAiGuidanceResource> ResourcesByUri { get; } = AllResources.ToDictionary(static resource => resource.Uri, StringComparer.Ordinal);
-    private static Dictionary<McpAiGuidanceId, string> UrisById { get; } = new Dictionary<McpAiGuidanceId, string>
-    {
-        [McpAiGuidanceId.Guide] = ResourceUri,
-        [McpAiGuidanceId.SereinFlow] = SereinFlowResourceUri,
-        [McpAiGuidanceId.SereinLang] = SereinLangResourceUri,
-        [McpAiGuidanceId.LibraryPackage] = LibraryPackageResourceUri,
-        [McpAiGuidanceId.SereinFlowProjects] = SereinFlowProjectsResourceUri,
-        [McpAiGuidanceId.SereinFlowFlows] = SereinFlowFlowsResourceUri,
-        [McpAiGuidanceId.SereinFlowUiUx] = SereinFlowUiUxResourceUri,
-        [McpAiGuidanceId.SereinFlowRuntime] = SereinFlowRuntimeResourceUri,
-        [McpAiGuidanceId.SereinFlowWorkpieces] = SereinFlowWorkpiecesResourceUri,
-        [McpAiGuidanceId.SereinFlowApiKeys] = SereinFlowApiKeysResourceUri,
-        [McpAiGuidanceId.SereinFlowRelease] = SereinFlowReleaseResourceUri,
-        [McpAiGuidanceId.SereinLangSyntax] = SereinLangSyntaxResourceUri,
-        [McpAiGuidanceId.SereinLangHost] = SereinLangHostResourceUri,
-        [McpAiGuidanceId.SereinLangGrammar] = SereinLangGrammarResourceUri,
-        [McpAiGuidanceId.LibraryBuild] = LibraryBuildResourceUri,
-        [McpAiGuidanceId.LibraryZip] = LibraryZipResourceUri,
-        [McpAiGuidanceId.LibraryMetadata] = LibraryMetadataResourceUri,
-        [McpAiGuidanceId.LibraryImport] = LibraryImportResourceUri,
-        [McpAiGuidanceId.LibraryUpgrade] = LibraryUpgradeResourceUri
-    };
+    private static readonly IReadOnlyList<GuidanceDefinition> Definitions =
+    [
+        new(McpAiGuidanceId.Guide,
+            new("ai.guide", ResourceUri, ResourceName, "Compact capability index for SereinFlow AI guidance", "mcp/sereinflow-ai-guide.md"), false),
+        new(McpAiGuidanceId.SereinFlow,
+            new("sereinflow", SereinFlowResourceUri, "sereinflow", "SereinFlow capability index", "mcp/sereinflow-skill.md"), false),
+        new(McpAiGuidanceId.SereinLang,
+            new("sereinlang", SereinLangResourceUri, "sereinlang", "SereinLang capability index", "mcp/sereinlang-skill.md"), false),
+        new(McpAiGuidanceId.LibraryPackage,
+            new("sereinflow-library-package", LibraryPackageResourceUri, "sereinflow-library-package", "Library package capability index", "mcp/sereinflow-library-package-skill.md"), false),
+        new(McpAiGuidanceId.SereinFlowProjects,
+            new("sereinflow.projects", SereinFlowProjectsResourceUri, "sereinflow-projects", "Project discovery and read-only project inspection", "mcp/sereinflow-projects-skill.md"), true),
+        new(McpAiGuidanceId.SereinFlowFlows,
+            new("sereinflow.flows", SereinFlowFlowsResourceUri, "sereinflow-flows", "Flow editing and patch contract rules", "mcp/sereinflow-flows-skill.md"), true),
+        new(McpAiGuidanceId.SereinFlowUiUx,
+            new("sereinflow.ui-ux", SereinFlowUiUxResourceUri, "sereinflow-ui-ux", "Flow canvas layout and visual organization guidance", "mcp/sereinflow-ui-ux-skill.md"), true),
+        new(McpAiGuidanceId.SereinFlowRuntime,
+            new("sereinflow.runtime", SereinFlowRuntimeResourceUri, "sereinflow-runtime", "Run, debug and post-change verification rules", "mcp/sereinflow-runtime-skill.md"), true),
+        new(McpAiGuidanceId.SereinFlowWorkpieces,
+            new("sereinflow.workpieces", SereinFlowWorkpiecesResourceUri, "sereinflow-workpieces", "Run workpiece inspection, image preview and file download rules", "mcp/sereinflow-workpieces-skill.md"), true),
+        new(McpAiGuidanceId.SereinFlowApiKeys,
+            new("sereinflow.api-keys", SereinFlowApiKeysResourceUri, "sereinflow-api-keys", "MCP API key lifecycle and secret handling rules", "mcp/sereinflow-api-keys-skill.md"), true),
+        new(McpAiGuidanceId.SereinFlowRelease,
+            new("sereinflow.release", SereinFlowReleaseResourceUri, "sereinflow-release", "Publishing and rollback rules", "mcp/sereinflow-release-skill.md"), true),
+        new(McpAiGuidanceId.SereinLangSyntax,
+            new("sereinlang.syntax", SereinLangSyntaxResourceUri, "sereinlang-syntax", "SereinLang lexical and expression rules", "mcp/sereinlang-syntax-skill.md"), true),
+        new(McpAiGuidanceId.SereinLangHost,
+            new("sereinlang.host", SereinLangHostResourceUri, "sereinlang-host", "SereinLang imports and host interoperation", "mcp/sereinlang-host-skill.md"), true),
+        new(McpAiGuidanceId.SereinLangGrammar,
+            new("sereinlang.grammar", SereinLangGrammarResourceUri, "sereinlang-grammar", "SereinLang formal grammar reference", "mcp/sereinlang-grammar-skill.md"), true),
+        new(McpAiGuidanceId.LibraryBuild,
+            new(LibraryErrorCodes.Build, LibraryBuildResourceUri, "library-build", "Local C# library build and publish boundary", "mcp/sereinflow-library-build-skill.md"), true),
+        new(McpAiGuidanceId.LibraryZip,
+            new(LibraryErrorCodes.Zip, LibraryZipResourceUri, "library-zip", "SereinFlow library ZIP contract", "mcp/sereinflow-library-zip-skill.md"), true),
+        new(McpAiGuidanceId.LibraryMetadata,
+            new(LibraryErrorCodes.Metadata, LibraryMetadataResourceUri, "library-metadata", "SereinFlow library metadata contract", "mcp/sereinflow-library-metadata-skill.md"), true),
+        new(McpAiGuidanceId.LibraryImport,
+            new(LibraryErrorCodes.Import, LibraryImportResourceUri, "library-import", "Library package preview, import and attachment", "mcp/sereinflow-library-import-skill.md"), true),
+        new(McpAiGuidanceId.LibraryUpgrade,
+            new("library.upgrade", LibraryUpgradeResourceUri, "library-upgrade", "Library families and project upgrade workflow", "mcp/sereinflow-library-upgrade-skill.md"), true)
+    ];
+    public static IReadOnlyList<McpAiGuidanceResource> ModuleResources { get; } = Definitions
+        .Where(static definition => definition.IsModule)
+        .Select(static definition => definition.Resource)
+        .ToArray();
+    public static IReadOnlyList<McpAiGuidanceResource> AllResources { get; } = Definitions
+        .Select(static definition => definition.Resource)
+        .ToArray();
+    private static readonly Dictionary<McpAiGuidanceId, McpAiGuidanceResource> ResourcesById =
+        Definitions.ToDictionary(static definition => definition.Id, static definition => definition.Resource);
+    private static readonly Dictionary<string, McpAiGuidanceResource> ResourcesByUri =
+        AllResources.ToDictionary(static resource => resource.Uri, StringComparer.Ordinal);
 
-    public static string GetUri(McpAiGuidanceId id) => UrisById[id];
-    public static McpAiGuidanceResource GetResource(McpAiGuidanceId id)
-    {
-        var evaluatedValue = ResourcesByUri[GetUri(id)];
-        return evaluatedValue;
-    }
+    public static string GetUri(McpAiGuidanceId id) => GetResource(id).Uri;
+    public static McpAiGuidanceResource GetResource(McpAiGuidanceId id) => ResourcesById[id];
+    public static bool IsGuidanceUri(string uri) => ResourcesByUri.ContainsKey(uri);
 
-    public static bool IsGuidanceUri(string uri)
-    {
-        var containsKeyResult = ResourcesByUri.ContainsKey(uri);
-        return containsKeyResult;
-    }
+    private sealed record GuidanceDefinition(McpAiGuidanceId Id, McpAiGuidanceResource Resource, bool IsModule);
 }
 
 public sealed record McpAiGuidanceResourceOverride(string? Uri, string? FilePath);
 public sealed class McpAiGuidanceOptions
 {
     public const string SectionName = "SereinFlow:Mcp:AiGuidance";
-    public string FilePath { get; init; } = "mcp/sereinflow-ai-guide.md";
-    public string SereinFlowFilePath { get; init; } = "mcp/sereinflow-skill.md";
-    public string SereinLangFilePath { get; init; } = "mcp/sereinlang-skill.md";
-    public string LibraryPackageFilePath { get; init; } = "mcp/sereinflow-library-package-skill.md";
+    public string FilePath { get; init; } = McpAiGuidance.GetResource(McpAiGuidanceId.Guide).DefaultFilePath;
+    public string SereinFlowFilePath { get; init; } = McpAiGuidance.GetResource(McpAiGuidanceId.SereinFlow).DefaultFilePath;
+    public string SereinLangFilePath { get; init; } = McpAiGuidance.GetResource(McpAiGuidanceId.SereinLang).DefaultFilePath;
+    public string LibraryPackageFilePath { get; init; } = McpAiGuidance.GetResource(McpAiGuidanceId.LibraryPackage).DefaultFilePath;
     public IReadOnlyDictionary<string, string> ModuleFilePaths { get; init; } = McpAiGuidance.ModuleResources.ToDictionary(static resource => resource.Key, static resource => resource.DefaultFilePath, StringComparer.Ordinal);
     public IReadOnlyDictionary<string, McpAiGuidanceResourceOverride> ResourceOverrides { get; init; } = new Dictionary<string, McpAiGuidanceResourceOverride>(StringComparer.Ordinal);
     public long MaxBytes { get; init; } = 512 * 1024;
@@ -111,19 +131,15 @@ public sealed class McpAiGuidanceOptions
     public static McpAiGuidanceOptions FromConfiguration(IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
-        var filePath = configuration[$"{SectionName}:FilePath"] ?? configuration["SereinFlow:Mcp:AiGuidanceFile"] ?? configuration["SereinFlow:Mcp:SkillFile"] ?? "mcp/sereinflow-ai-guide.md";
-        var sereinFlowFilePath = configuration[$"{SectionName}:SereinFlowFilePath"] ?? "mcp/sereinflow-skill.md";
-        var sereinLangFilePath = configuration[$"{SectionName}:SereinLangFilePath"] ?? "mcp/sereinlang-skill.md";
-        var libraryPackageFilePath = configuration[$"{SectionName}:LibraryPackageFilePath"] ?? "mcp/sereinflow-library-package-skill.md";
+        var filePath = configuration[$"{SectionName}:FilePath"] ?? configuration["SereinFlow:Mcp:AiGuidanceFile"] ?? configuration["SereinFlow:Mcp:SkillFile"] ?? McpAiGuidance.GetResource(McpAiGuidanceId.Guide).DefaultFilePath;
+        var sereinFlowFilePath = configuration[$"{SectionName}:SereinFlowFilePath"] ?? McpAiGuidance.GetResource(McpAiGuidanceId.SereinFlow).DefaultFilePath;
+        var sereinLangFilePath = configuration[$"{SectionName}:SereinLangFilePath"] ?? McpAiGuidance.GetResource(McpAiGuidanceId.SereinLang).DefaultFilePath;
+        var libraryPackageFilePath = configuration[$"{SectionName}:LibraryPackageFilePath"] ?? McpAiGuidance.GetResource(McpAiGuidanceId.LibraryPackage).DefaultFilePath;
         var moduleFilePaths = McpAiGuidance.ModuleResources.ToDictionary(static resource => resource.Key, static resource => resource.DefaultFilePath, StringComparer.Ordinal);
-        var getSectionResult = configuration.GetSection($"{SectionName}:Modules");
-        foreach (var child in getSectionResult.GetChildren())
+        foreach (var child in configuration.GetSection($"{SectionName}:Modules").GetChildren())
         {
             var resource = McpAiGuidance.ModuleResources.FirstOrDefault(resource =>
-            {
-                var equalsResult = string.Equals(resource.Key, child.Key, StringComparison.Ordinal);
-                return equalsResult;
-            });
+                string.Equals(resource.Key, child.Key, StringComparison.Ordinal));
             if (resource is null)
             {
                 throw new InvalidOperationException($"{SectionName}:Modules contains unsupported resource key '{child.Key}'.");
@@ -133,14 +149,10 @@ public sealed class McpAiGuidanceOptions
         }
 
         var resourceOverrides = new Dictionary<string, McpAiGuidanceResourceOverride>(StringComparer.Ordinal);
-        var getSectionResult2 = configuration.GetSection($"{SectionName}:Resources");
-        foreach (var child in getSectionResult2.GetChildren())
+        foreach (var child in configuration.GetSection($"{SectionName}:Resources").GetChildren())
         {
             if (!McpAiGuidance.AllResources.Any(resource =>
-            {
-                var equalsResult1 = string.Equals(resource.Key, child.Key, StringComparison.Ordinal);
-                return equalsResult1;
-            }))
+                string.Equals(resource.Key, child.Key, StringComparison.Ordinal)))
             {
                 throw new InvalidOperationException($"{SectionName}:Resources contains unsupported resource key '{child.Key}'.");
             }
@@ -175,35 +187,24 @@ public sealed class McpAiGuidanceOptions
             ValidateRelativeFilePath(moduleFilePath);
         }
 
-        var mcpAiGuidanceOptions = new McpAiGuidanceOptions
+        return new McpAiGuidanceOptions
         {
             FilePath = filePath.Trim(),
             SereinFlowFilePath = sereinFlowFilePath.Trim(),
             SereinLangFilePath = sereinLangFilePath.Trim(),
             LibraryPackageFilePath = libraryPackageFilePath.Trim(),
-            ModuleFilePaths = moduleFilePaths.ToDictionary(static pair => pair.Key, static pair =>
-            {
-                var trimResult = pair.Value.Trim();
-                return trimResult;
-            }, StringComparer.Ordinal),
+            ModuleFilePaths = moduleFilePaths.ToDictionary(static pair => pair.Key, static pair => pair.Value.Trim(), StringComparer.Ordinal),
             ResourceOverrides = resourceOverrides,
             MaxBytes = maxBytes
         };
-        return mcpAiGuidanceOptions;
     }
 
     internal static void ValidateRelativeFilePath(string filePath)
     {
-        if (string.IsNullOrWhiteSpace(filePath) || Path.IsPathRooted(filePath) || filePath is "." or ".." || resolveAnyResult())
+        if (string.IsNullOrWhiteSpace(filePath) || Path.IsPathRooted(filePath) || filePath is "." or ".."
+            || filePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries).Any(static segment => segment is "." or ".."))
         {
             throw new InvalidOperationException($"{SectionName}:FilePath must be a non-empty relative path without '.' or '..' segments.");
-        }
-
-        bool resolveAnyResult()
-        {
-            var anyResult = filePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries)
-                .Any(static segment => segment is "." or "..");
-            return anyResult;
         }
     }
 
@@ -226,20 +227,13 @@ public sealed class McpAiGuidanceProvider
     private readonly Func<McpAiGuidanceOptions> _optionsAccessor;
     private readonly string _root;
     private readonly string _rootPrefix;
-    public McpAiGuidanceProvider(McpAiGuidanceOptions options, string contentRootPath) : this(() =>
-    {
-        var evaluatedValue3 = options ?? throw new ArgumentNullException(nameof(options));
-        return evaluatedValue3;
-    }, contentRootPath)
+    public McpAiGuidanceProvider(McpAiGuidanceOptions options, string contentRootPath)
+        : this(() => options ?? throw new ArgumentNullException(nameof(options)), contentRootPath)
     {
     }
 
-    public McpAiGuidanceProvider(IConfiguration configuration, string contentRootPath) : this(() =>
-    {
-        var evaluatedValue4 = configuration ?? throw new ArgumentNullException(nameof(configuration));
-        var fromConfigurationResult = McpAiGuidanceOptions.FromConfiguration(evaluatedValue4);
-        return fromConfigurationResult;
-    }, contentRootPath)
+    public McpAiGuidanceProvider(IConfiguration configuration, string contentRootPath)
+        : this(() => McpAiGuidanceOptions.FromConfiguration(configuration ?? throw new ArgumentNullException(nameof(configuration))), contentRootPath)
     {
     }
 
@@ -255,41 +249,30 @@ public sealed class McpAiGuidanceProvider
     public IReadOnlyList<McpResourceDescriptor> GetResourceDescriptors()
     {
         var snapshot = CreateSnapshot();
-        var toArrayResult = Enum.GetValues<McpAiGuidanceId>()
-            .Select(id => snapshot.ById[id])
-            .Select(static resource =>
-            {
-                var mcpResourceDescriptor = new McpResourceDescriptor(resource.Resource.Uri, resource.Resource.Name, resource.Resource.Description, McpAiGuidance.MimeType);
-                return mcpResourceDescriptor;
-            })
+        return snapshot.ById.Values.Select(static resource =>
+            new McpResourceDescriptor(resource.Resource.Uri, resource.Resource.Name, resource.Resource.Description, McpAiGuidance.MimeType))
             .ToArray();
-        return toArrayResult;
     }
 
     public string GetUri(McpAiGuidanceId id)
     {
-        var evaluatedValue6 = CreateSnapshot().ById[id].Resource.Uri;
-        return evaluatedValue6;
+        return CreateSnapshot().ById[id].Resource.Uri;
     }
 
     public bool IsGuidanceUri(string uri)
     {
-        var evaluatedValue7 = CreateSnapshot().ByUri;
-        var containsKeyResult8 = evaluatedValue7.ContainsKey(uri);
-        return containsKeyResult8;
+        return CreateSnapshot().ByUri.ContainsKey(uri);
     }
 
     public async Task<McpResourceReadResult> ReadAsync(CancellationToken cancellationToken)
     {
-        var readAsyncResult = await ReadAsync(McpAiGuidanceId.Guide, cancellationToken);
-        return readAsyncResult;
+        return await ReadAsync(McpAiGuidanceId.Guide, cancellationToken);
     }
 
     public async Task<McpResourceReadResult> ReadAsync(McpAiGuidanceId id, CancellationToken cancellationToken)
     {
         var snapshot = CreateSnapshot();
-        var readAsyncResult9 = await ReadAsync(snapshot.ById[id], snapshot.MaxBytes, cancellationToken);
-        return readAsyncResult9;
+        return await ReadAsync(snapshot.ById[id], snapshot.MaxBytes, cancellationToken);
     }
 
     public async Task<McpResourceReadResult> ReadAsync(string uri, CancellationToken cancellationToken)
@@ -301,8 +284,22 @@ public sealed class McpAiGuidanceProvider
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow AI guidance URI is not supported.", new { code = McpErrorCodes.AiGuidanceUriUnsupported });
         }
 
-        var readAsyncResult10 = await ReadAsync(resource, snapshot.MaxBytes, cancellationToken);
-        return readAsyncResult10;
+        return await ReadAsync(resource, snapshot.MaxBytes, cancellationToken);
+    }
+
+    internal async Task<McpResourceReadResult?> TryReadAsync(string uri, CancellationToken cancellationToken)
+    {
+        var snapshot = CreateSnapshot();
+        return snapshot.ByUri.TryGetValue(uri, out var resource)
+            ? await ReadAsync(resource, snapshot.MaxBytes, cancellationToken)
+            : null;
+    }
+
+    internal async Task<IReadOnlyList<McpResourceReadResult>> ReadManyAsync(
+        IReadOnlyList<McpAiGuidanceId> ids, CancellationToken cancellationToken)
+    {
+        var snapshot = CreateSnapshot();
+        return await Task.WhenAll(ids.Select(id => ReadAsync(snapshot.ById[id], snapshot.MaxBytes, cancellationToken)));
     }
 
     internal string ContentRootPath => _root;
@@ -325,8 +322,7 @@ public sealed class McpAiGuidanceProvider
 
             McpAiGuidanceOptions.ValidateResourceUri(uri);
             McpAiGuidanceOptions.ValidateRelativeFilePath(relativePath);
-            var combineResult = Path.Combine(_root, relativePath);
-            var path = Path.GetFullPath(combineResult);
+            var path = Path.GetFullPath(Path.Combine(_root, relativePath));
             if (!path.StartsWith(_rootPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException($"{McpAiGuidanceOptions.SectionName}:FilePath must remain inside the server content root.");
@@ -335,10 +331,7 @@ public sealed class McpAiGuidanceProvider
             var embeddedName = $"SereinFlow.Mcp.Guidance.{Path.GetFileName(resource.DefaultFilePath)}";
             var resolved = new ResolvedGuidanceResource(resource with { Uri = uri }, path, embeddedName);
             if (McpResourceCatalog.DirectResources.Any(direct =>
-            {
-                var equalsResult11 = string.Equals(direct.UriTemplate, uri, StringComparison.Ordinal);
-                return equalsResult11;
-            }))
+                string.Equals(direct.UriTemplate, uri, StringComparison.Ordinal)))
             {
                 throw new InvalidOperationException($"{McpAiGuidanceOptions.SectionName}:Resources URI '{uri}' conflicts with a direct MCP resource.");
             }
@@ -352,13 +345,12 @@ public sealed class McpAiGuidanceProvider
         }
 
         var maxBytes = options.MaxBytes > 0 ? options.MaxBytes : throw new ArgumentOutOfRangeException(nameof(options), "The AI guidance size limit must be positive.");
-        var guidanceSnapshot = new GuidanceSnapshot(byId, byUri, maxBytes);
-        return guidanceSnapshot;
+        return new GuidanceSnapshot(byId, byUri, maxBytes);
     }
 
     private static string GetConfiguredFilePath(McpAiGuidanceId id, McpAiGuidanceResource resource, McpAiGuidanceOptions options)
     {
-        string evaluatedValue12 = id switch
+        return id switch
         {
             McpAiGuidanceId.Guide => options.FilePath,
             McpAiGuidanceId.SereinFlow => options.SereinFlowFilePath,
@@ -366,14 +358,12 @@ public sealed class McpAiGuidanceProvider
             McpAiGuidanceId.LibraryPackage => options.LibraryPackageFilePath,
             _ => options.ModuleFilePaths.TryGetValue(resource.Key, out var configuredPath) ? configuredPath : resource.DefaultFilePath
         };
-        return evaluatedValue12;
     }
 
     private static async Task<McpResourceReadResult> ReadAsync(ResolvedGuidanceResource resource, long maxBytes, CancellationToken cancellationToken)
     {
         var content = await ReadContentAsync(resource, maxBytes, embeddedOnly: false, cancellationToken);
-        var mcpResourceReadResult = new McpResourceReadResult(resource.Resource.Uri, content.Text, McpAiGuidance.MimeType);
-        return mcpResourceReadResult;
+        return new McpResourceReadResult(resource.Resource.Uri, content.Text, McpAiGuidance.MimeType);
     }
 
     internal static async Task<GuidanceContent> ReadContentAsync(ResolvedGuidanceResource resource, long maxBytes, bool embeddedOnly, CancellationToken cancellationToken)
@@ -422,8 +412,7 @@ public sealed class McpAiGuidanceProvider
             throw Unavailable();
         }
 
-        var guidanceContent = new GuidanceContent(content, source);
-        return guidanceContent;
+        return new GuidanceContent(content, source);
     }
 
     private static Stream OpenResourceStream(ResolvedGuidanceResource resource, out McpAiGuidanceSourceDto source)
@@ -438,21 +427,18 @@ public sealed class McpAiGuidanceProvider
                 Share = FileShare.ReadWrite | FileShare.Delete,
                 Options = FileOptions.Asynchronous | FileOptions.SequentialScan
             };
-            var fileStream = new FileStream(resource.FilePath, fileStreamOptions);
-            return fileStream;
+            return new FileStream(resource.FilePath, fileStreamOptions);
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
             source = McpAiGuidanceSourceDto.Embedded;
-            var openEmbeddedResourceStreamResult = OpenEmbeddedResourceStream(resource);
-            return openEmbeddedResourceStreamResult;
+            return OpenEmbeddedResourceStream(resource);
         }
     }
 
     private static Stream OpenEmbeddedResourceStream(ResolvedGuidanceResource resource)
     {
-        var evaluatedValue13 = typeof(McpAiGuidanceProvider).Assembly.GetManifestResourceStream(resource.EmbeddedResourceName) ?? throw Unavailable();
-        return evaluatedValue13;
+        return typeof(McpAiGuidanceProvider).Assembly.GetManifestResourceStream(resource.EmbeddedResourceName) ?? throw Unavailable();
     }
 
     internal sealed record GuidanceContent(string Text, McpAiGuidanceSourceDto Source);
@@ -460,7 +446,6 @@ public sealed class McpAiGuidanceProvider
     internal sealed record GuidanceSnapshot(Dictionary<McpAiGuidanceId, ResolvedGuidanceResource> ById, Dictionary<string, ResolvedGuidanceResource> ByUri, long MaxBytes);
     private static McpProtocolException Unavailable()
     {
-        McpProtocolException evaluatedValue14 = new(McpProtocolErrorCodes.ResourceNotFound, "The SereinFlow AI guidance is not available.", new { code = McpErrorCodes.AiGuidanceUnavailable });
-        return evaluatedValue14;
+        return new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The SereinFlow AI guidance is not available.", new { code = McpErrorCodes.AiGuidanceUnavailable });
     }
 }

@@ -1,74 +1,72 @@
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Text;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
-using SereinFlow.Domain;
-using static SereinFlow.Mcp.McpToolSupport;
+using SereinFlow.Mcp.Integration;
+using static SereinFlow.Mcp.Tools.McpToolSupport;
 
-namespace SereinFlow.Mcp;
+namespace SereinFlow.Mcp.Tools;
 /// <summary>
 /// Admin-only API key MCP tools. The executor still owns authorization,
 /// idempotency serialization and audit; this class only owns tool behavior.
 /// </summary>
-internal static class McpApiKeyToolHandlers
+internal sealed class McpApiKeyToolHandlers(McpSecurityService security, IMcpApiKeyStore store,
+    IProjectRepository projects, McpIdempotencyService idempotency)
 {
-    internal static Task<object> ListAsync(McpToolContext context, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_list_mcp_api_keys", McpPermissionDto.McpKeysManage)]
+    internal Task<object> ListAsync(SereinFlowMcpCaller context, CancellationToken cancellationToken)
     {
         var requirePrincipalResult = context.RequirePrincipal();
-        var listApiKeysAsyncResult = ListApiKeysAsync(context.Scope, requirePrincipalResult, cancellationToken);
+        var listApiKeysAsyncResult = ListApiKeysAsync(requirePrincipalResult, cancellationToken);
         return listApiKeysAsyncResult;
     }
 
-    internal static Task<object> CreateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_create_mcp_api_key", McpPermissionDto.McpKeysManage, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    internal Task<object> CreateAsync(SereinFlowMcpCaller context, McpCreateApiKeyRequest arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult1 = context.RequirePrincipal();
-        var createApiKeyAsyncResult = CreateApiKeyAsync(context.Scope, requirePrincipalResult1, arguments, cancellationToken);
+        var createApiKeyAsyncResult = CreateApiKeyAsync(requirePrincipalResult1, arguments, cancellationToken);
         return createApiKeyAsyncResult;
     }
 
-    internal static Task<object> RevokeAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_revoke_mcp_api_key", McpPermissionDto.McpKeysManage, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    internal Task<object> RevokeAsync(SereinFlowMcpCaller context, RevokeMcpApiKeyRequest request, CancellationToken cancellationToken)
     {
         var requirePrincipalResult2 = context.RequirePrincipal();
-        var revokeApiKeyAsyncResult = RevokeApiKeyAsync(context.Scope, requirePrincipalResult2, arguments, cancellationToken);
+        var revokeApiKeyAsyncResult = RevokeApiKeyAsync(requirePrincipalResult2, request, cancellationToken);
         return revokeApiKeyAsyncResult;
     }
 
-    internal static Task<object> RotateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_rotate_mcp_api_key", McpPermissionDto.McpKeysManage, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    internal Task<object> RotateAsync(SereinFlowMcpCaller context, McpRotateApiKeyRequest arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult3 = context.RequirePrincipal();
-        var rotateApiKeyAsyncResult = RotateApiKeyAsync(context.Scope, requirePrincipalResult3, arguments, cancellationToken);
+        var rotateApiKeyAsyncResult = RotateApiKeyAsync(requirePrincipalResult3, arguments, cancellationToken);
         return rotateApiKeyAsyncResult;
     }
 
-    private static async Task<object> ListApiKeysAsync(IServiceScope scope, McpPrincipal principal, CancellationToken cancellationToken)
+    private async Task<object> ListApiKeysAsync(McpPrincipal principal, CancellationToken cancellationToken)
     {
-        var getRequiredServiceResult = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
-        getRequiredServiceResult.RequireAdministrator(principal);
-        var getRequiredServiceResult4 = scope.ServiceProvider.GetRequiredService<IMcpApiKeyStore>();
-        var evaluatedValue = (await getRequiredServiceResult4.ListAsync(cancellationToken));
+        security.RequireAdministrator(principal);
+        var evaluatedValue = (await store.ListAsync(cancellationToken));
         var selectResult = evaluatedValue.Select(McpSecurityService.ToDto);
         var toArrayResult = selectResult.ToArray();
         return toArrayResult;
     }
 
-    private static async Task<object> CreateApiKeyAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private async Task<object> CreateApiKeyAsync(McpPrincipal principal, McpCreateApiKeyRequest arguments, CancellationToken cancellationToken)
     {
-        var getRequiredServiceResult6 = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
-        getRequiredServiceResult6.RequireAdministrator(principal);
-        var tryGetGuidResult = TryGetGuid(arguments, "projectId");
-        var getRequiredStringResult = GetRequiredString(arguments, "name");
-        var readPermissionsResult = ReadPermissions(arguments);
-        var readOptionalDateResult = ReadOptionalDate(arguments, "expiresAt");
-        var evaluatedValue7 = GetOptionalBool(arguments, "isAdministrator") ?? false;
+        security.RequireAdministrator(principal);
+        var tryGetGuidResult = arguments.ProjectId;
+        var getRequiredStringResult = arguments.Name;
+        var readPermissionsResult = arguments.Permissions.Distinct().ToArray();
+        var readOptionalDateResult = arguments.ExpiresAt;
+        var evaluatedValue7 = arguments.IsAdministrator;
         var request = new CreateMcpApiKeyRequestDto(tryGetGuidResult, getRequiredStringResult, readPermissionsResult, readOptionalDateResult, evaluatedValue7);
         if (request.ProjectId is not null)
         {
-            var getRequiredServiceResult5 = scope.ServiceProvider.GetRequiredService<IProjectRepository>();
-            var project = await getRequiredServiceResult5.FindAsync(request.ProjectId.Value, cancellationToken);
+            var project = await projects.FindAsync(request.ProjectId.Value, cancellationToken);
             if (project is null)
             {
                 throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The API key project was not found.");
@@ -80,9 +78,8 @@ internal static class McpApiKeyToolHandlers
             }
         }
 
-        var idempotencyKey = GetRequiredString(arguments, "idempotencyKey");
+        var idempotencyKey = arguments.IdempotencyKey;
         var requestPayload = Serialize(new { request, idempotencyKey });
-        var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
         var replay = await idempotency.FindAsync(principal.Id, "mcp.key.create", idempotencyKey, requestPayload, cancellationToken);
         if (replay is not null)
         {
@@ -96,20 +93,17 @@ internal static class McpApiKeyToolHandlers
         }
 
         var created = McpSecurityService.CreateKeyWithEntry(request);
-        var getRequiredServiceResult8 = scope.ServiceProvider.GetRequiredService<IMcpApiKeyStore>();
-        await getRequiredServiceResult8.AddAsync(created.Entry, cancellationToken);
+        await store.AddAsync(created.Entry, cancellationToken);
         await idempotency.SaveAsync(principal.Id, "mcp.key.create", idempotencyKey, created.Dto.Key, requestPayload, cancellationToken);
         return created.Dto;
     }
 
-    private static async Task<object> RevokeApiKeyAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private async Task<object> RevokeApiKeyAsync(McpPrincipal principal, RevokeMcpApiKeyRequest request, CancellationToken cancellationToken)
     {
-        var getRequiredServiceResult9 = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
-        getRequiredServiceResult9.RequireAdministrator(principal);
-        var keyId = GetRequiredString(arguments, "keyId");
-        var idempotencyKey = GetRequiredString(arguments, "idempotencyKey");
+        security.RequireAdministrator(principal);
+        var keyId = request.KeyId.Trim();
+        var idempotencyKey = request.IdempotencyKey.Trim();
         var requestPayload = Serialize(new { keyId, idempotencyKey });
-        var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
         var replay = await idempotency.FindAsync(principal.Id, "mcp.key.revoke", idempotencyKey, requestPayload, cancellationToken);
         if (replay is not null)
         {
@@ -117,7 +111,6 @@ internal static class McpApiKeyToolHandlers
             return deserializeStoredResponseResult;
         }
 
-        var store = scope.ServiceProvider.GetRequiredService<IMcpApiKeyStore>();
         var entry = await store.FindAsync(keyId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The MCP API key was not found.");
         var revoked = entry with
         {
@@ -129,14 +122,12 @@ internal static class McpApiKeyToolHandlers
         return response;
     }
 
-    private static async Task<object> RotateApiKeyAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private async Task<object> RotateApiKeyAsync(McpPrincipal principal, McpRotateApiKeyRequest arguments, CancellationToken cancellationToken)
     {
-        var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         security.RequireAdministrator(principal);
-        var keyId = GetRequiredString(arguments, "keyId");
-        var idempotencyKey = GetRequiredString(arguments, "idempotencyKey");
+        var keyId = arguments.KeyId;
+        var idempotencyKey = arguments.IdempotencyKey;
         var requestPayload = Serialize(new { keyId, idempotencyKey });
-        var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
         var replay = await idempotency.FindAsync(principal.Id, "mcp.key.rotate", idempotencyKey, requestPayload, cancellationToken);
         if (replay is not null)
         {
@@ -148,7 +139,6 @@ internal static class McpApiKeyToolHandlers
             };
         }
 
-        var store = scope.ServiceProvider.GetRequiredService<IMcpApiKeyStore>();
         var existing = await store.FindAsync(keyId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The MCP API key was not found.");
         if (existing.RevokedAt is not null)
         {
@@ -163,3 +153,7 @@ internal static class McpApiKeyToolHandlers
         return response;
     }
 }
+
+internal sealed record RevokeMcpApiKeyRequest(
+    [property: Required] string KeyId,
+    [property: Required] string IdempotencyKey);

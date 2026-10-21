@@ -1,16 +1,8 @@
-using System.Collections.Generic;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Text;
-using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
-using SereinFlow.Application;
-using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
-using SereinFlow.Domain;
-using static SereinFlow.Mcp.McpToolSupport;
+using System.Text.Json;
+using static SereinFlow.Mcp.Tools.McpToolSupport;
 
-namespace SereinFlow.Mcp;
+namespace SereinFlow.Mcp.Tools;
 
 internal static class McpToolSchemas
 {

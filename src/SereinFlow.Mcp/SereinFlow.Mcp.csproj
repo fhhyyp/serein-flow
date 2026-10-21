@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
+    <DefineConstants>$(DefineConstants);SEREINFLOW_MCP_HOST</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SereinFlow.Mcp.Generator\SereinFlow.Mcp.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\SereinFlow.Mcp.Framework\SereinFlow.Mcp.Framework.csproj" />
     <ProjectReference Include="..\SereinFlow.Application\SereinFlow.Application.csproj" />
     <ProjectReference Include="..\SereinFlow.Contracts\SereinFlow.Contracts.csproj" />
     <ProjectReference Include="..\SereinFlow.Infrastructure\SereinFlow.Infrastructure.csproj" />

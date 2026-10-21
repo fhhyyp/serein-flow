@@ -1,29 +1,27 @@
-using System.Collections.Generic;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Text;
-using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
-using static SereinFlow.Mcp.McpToolSupport;
+using SereinFlow.Mcp.Integration;
+using static SereinFlow.Mcp.Tools.McpToolSupport;
 
-namespace SereinFlow.Mcp;
+namespace SereinFlow.Mcp.Tools;
 /// <summary>
 /// Project lifecycle MCP tools, including their preview payload projection.
 /// </summary>
 internal static class McpProjectToolHandlers
 {
-    internal static Task<object> PreviewCreateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_preview_create_project", McpPermissionDto.ProjectWrite, ExecutionKind = McpToolExecutionKind.Mutation)]
+    internal static Task<object> PreviewCreateAsync(SereinFlowMcpToolContext context, CreateProjectMcpRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult = context.RequirePrincipal();
         var previewCreateProjectAsyncResult = PreviewCreateProjectAsync(context.Scope, requirePrincipalResult, arguments, cancellationToken);
         return previewCreateProjectAsyncResult;
     }
 
-    internal static Task<object> ApplyCreateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_apply_create_project", McpPermissionDto.ProjectWrite, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    internal static Task<object> ApplyCreateAsync(SereinFlowMcpToolContext context, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult1 = context.RequirePrincipal();
         var applyCreateProjectAsyncResult = ApplyCreateProjectAsync(context.Scope, requirePrincipalResult1, arguments, cancellationToken);
@@ -39,11 +37,11 @@ internal static class McpProjectToolHandlers
         return toProjectCreatePreviewResult;
     }
 
-    private static async Task<object> PreviewCreateProjectAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> PreviewCreateProjectAsync(IServiceScope scope, McpPrincipal principal, CreateProjectMcpRequestDto arguments, CancellationToken cancellationToken)
     {
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         security.RequireAdministrator(principal);
-        var request = Deserialize<CreateProjectMcpRequestDto>(arguments);
+        var request = arguments;
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'name' is required.");
@@ -70,9 +68,9 @@ internal static class McpProjectToolHandlers
         return toProjectCreatePreviewResult3;
     }
 
-    private static async Task<object> ApplyCreateProjectAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> ApplyCreateProjectAsync(IServiceScope scope, McpPrincipal principal, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<McpMutationApplyRequestDto>(arguments);
+        var request = arguments;
         RequireConfirmation(request);
         var requestPayload = Serialize(request);
         var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
@@ -155,7 +153,7 @@ internal static class McpProjectToolHandlers
         return evaluatedValue9;
     }
 
-    private static string ToProjectStatusValue(SereinFlow.Domain.ProjectStatus status)
+    private static string ToProjectStatusValue(ProjectStatus status)
     {
         string evaluatedValue10 = status switch
         {

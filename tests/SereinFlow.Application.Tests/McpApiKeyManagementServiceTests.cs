@@ -88,6 +88,14 @@ public sealed class McpApiKeyManagementServiceTests
             var fromResultResult7 = Task.FromResult(true);
             return fromResultResult7;
         }
+
+        public Task<bool> UpdateLastUsedAsync(string id, DateTimeOffset lastUsedAt, CancellationToken cancellationToken = default)
+        {
+            var index = _entries.FindIndex(entry => entry.Id == id);
+            if (index < 0) return Task.FromResult(false);
+            _entries[index] = _entries[index] with { LastUsedAt = lastUsedAt };
+            return Task.FromResult(true);
+        }
     }
 
     private sealed class EmptyProjectRepository : IProjectRepository

@@ -22,6 +22,32 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
     }
 
     [Fact]
+    public async Task NonObjectMcpRequestsUseTheProtocolErrorResponse()
+    {
+        using var client = _factory.CreateClient();
+        using var initializeRequest = CreateMcpRequest("initialize", 10);
+        initializeRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ApiFactory.BootstrapKey);
+        using var initialize = await client.SendAsync(initializeRequest);
+        Assert.Equal(HttpStatusCode.OK, initialize.StatusCode);
+        var sessionId = Assert.Single(initialize.Headers.GetValues("Mcp-Session-Id"));
+
+        foreach (var body in new[] { "[]", "null", "42", "true", "\"text\"" })
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/mcp");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ApiFactory.BootstrapKey);
+            request.Headers.Add("Mcp-Session-Id", sessionId);
+            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+            using var response = await client.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal(-32600, document.RootElement.GetProperty("error").GetProperty("code").GetInt32());
+            Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("id").ValueKind);
+        }
+    }
+
+    [Fact]
     public async Task WebHostServesApiAndAuthenticatedMcpWithTheDedicatedCorsPolicy()
     {
         using var client = _factory.CreateClient();

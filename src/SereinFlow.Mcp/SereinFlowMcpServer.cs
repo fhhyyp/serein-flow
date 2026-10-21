@@ -52,7 +52,13 @@ public sealed class SereinFlowMcpServer
                 continue;
             }
 
-            await HandleMessageAsync(line, output, cancellationToken);
+            var response = await HandleRequestAsync(line, cancellationToken);
+            if (response is not null)
+            {
+                await output.WriteLineAsync(response);
+                await output.FlushAsync(cancellationToken);
+            }
+
             if (_shutdownRequested)
             {
                 break;
@@ -62,70 +68,67 @@ public sealed class SereinFlowMcpServer
 
     /// <summary>
     /// Processes one JSON-RPC message and returns the newline-free response.
-    /// Notifications return null. HTTP uses this method so both transports
-    /// share the same dispatcher and error model.
-    /// 处理单条 JSON-RPC 消息并返回不带换行的响应；通知返回 null。HTTP 使用此方法，
-    /// 使两种传输共用同一个分发器和错误模型。
+    /// Notifications return null. HTTP reuses its parsed request through the
+    /// same dispatcher and error model.
+    /// 处理单条 JSON-RPC 消息并返回不带换行的响应；通知返回 null。HTTP 复用已解析的请求，
+    /// 与 stdio 共用同一个分发器和错误模型。
     /// </summary>
     public async Task<string?> HandleRequestAsync(string message, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(message);
-        var output = new StringWriter();
-        await HandleMessageAsync(message, output, cancellationToken);
-        var toStringResult = output.ToString();
-        var response = toStringResult.TrimEnd('\r', '\n');
-        return response.Length == 0 ? null : response;
-    }
-
-    private async Task HandleMessageAsync(string line, TextWriter output, CancellationToken cancellationToken)
-    {
-        if (Encoding.UTF8.GetByteCount(line) > GetMaxRequestBytes())
+        var byteCount = Encoding.UTF8.GetByteCount(message);
+        // Bound stdio input before allocating a JSON tree. HTTP already bounds body reads.
+        if (byteCount > GetMaxRequestBytes())
         {
-            var mcpProtocolException = new McpProtocolException(McpProtocolErrorCodes.RequestTooLarge, "The MCP request exceeds the configured size limit.");
-            await WriteResponseAsync(output, null, null, mcpProtocolException, cancellationToken);
-            return;
+            return SerializeResponse(null, null, RequestTooLarge());
         }
 
-        JsonElement id = default;
-        var hasId = false;
-        JsonElement root;
+        return await HandleParsedRequestAsync(ParseRequest(message, byteCount), cancellationToken);
+    }
+
+    internal static ParsedRequest ParseRequest(string message, int? byteCount = null)
+    {
+        var size = byteCount ?? Encoding.UTF8.GetByteCount(message);
         try
         {
-            using var document = JsonDocument.Parse(line);
-            root = document.RootElement.Clone();
-            if (root.ValueKind != JsonValueKind.Object)
+            using var document = JsonDocument.Parse(message);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
             {
-                throw new McpProtocolException(McpProtocolErrorCodes.InvalidRequest, "The MCP message must be a JSON object.");
+                return new ParsedRequest(size, default,
+                    new McpProtocolException(McpProtocolErrorCodes.InvalidRequest, "The MCP message must be a JSON object."));
             }
 
-            hasId = root.TryGetProperty("id", out id);
+            return new ParsedRequest(size, document.RootElement.Clone());
         }
         catch (JsonException exception)
         {
-            var mcpProtocolException1 = new McpProtocolException(McpProtocolErrorCodes.ParseError, "The MCP message contains invalid JSON.", exception.Message);
-            await WriteResponseAsync(output, null, null, mcpProtocolException1, cancellationToken);
-            return;
+            return new ParsedRequest(size, default,
+                new McpProtocolException(McpProtocolErrorCodes.ParseError, "The MCP message contains invalid JSON.", exception.Message));
         }
-        catch (McpProtocolException exception)
+    }
+
+    internal async Task<string?> HandleParsedRequestAsync(ParsedRequest request, CancellationToken cancellationToken)
+    {
+        if (request.ByteCount > GetMaxRequestBytes())
         {
-            await WriteResponseAsync(output, null, null, exception, cancellationToken);
-            return;
+            return SerializeResponse(null, null, RequestTooLarge());
         }
 
-        if (!root.TryGetProperty("method", out var methodValue) || methodValue.ValueKind != JsonValueKind.String)
+        if (request.Error is not null)
         {
-            if (hasId)
-            {
-                var mcpProtocolException2 = new McpProtocolException(McpProtocolErrorCodes.InvalidRequest, "The MCP request method is missing.");
-                await WriteResponseAsync(output, id, null, mcpProtocolException2, cancellationToken);
-            }
-
-            return;
+            return SerializeResponse(null, null, request.Error);
         }
 
-        var method = methodValue.GetString()!;
-        var newGuidResult = Guid.NewGuid();
-        var diagnosticId = newGuidResult.ToString("N");
+        var hasId = request.Root.TryGetProperty("id", out var id);
+        var method = request.Method;
+        if (method is null)
+        {
+            return hasId
+                ? SerializeResponse(id, null, new McpProtocolException(McpProtocolErrorCodes.InvalidRequest, "The MCP request method is missing."))
+                : null;
+        }
+
+        var diagnosticId = Guid.NewGuid().ToString("N");
         var previousContext = _requestContextAccessor?.Current;
         if (previousContext is not null)
         {
@@ -137,44 +140,31 @@ public sealed class SereinFlowMcpServer
 
         try
         {
-            var result = await DispatchAsync(method, root, cancellationToken);
-            if (hasId)
-            {
-                await WriteResponseAsync(output, id, result, null, cancellationToken);
-            }
+            var result = await DispatchAsync(method, request.Root, cancellationToken);
+            return hasId ? SerializeResponse(id, result, null) : null;
         }
         catch (McpProtocolException exception)
         {
-            if (hasId)
-            {
-                await WriteResponseAsync(output, id, null, exception, cancellationToken);
-            }
+            return hasId ? SerializeResponse(id, null, exception) : null;
         }
         catch (McpSecurityException exception)
         {
-            if (hasId)
-            {
-                var fromHttpStatusResult = McpProtocolErrorCodes.FromHttpStatus(exception.StatusCode);
-                var mcpProtocolException3 = new McpProtocolException(fromHttpStatusResult, exception.Message, new { code = exception.Code });
-                await WriteResponseAsync(output, id, null, mcpProtocolException3, cancellationToken);
-            }
+            var error = new McpProtocolException(McpProtocolErrorCodes.FromHttpStatus(exception.StatusCode),
+                exception.Message, new { code = exception.Code });
+            return hasId ? SerializeResponse(id, null, error) : null;
         }
-        catch (OperationCanceledException)when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
         catch (Exception exception)
         {
-            var evaluatedValue = $"MCP request '{method}' failed internally; diagnosticId={diagnosticId} ({exception.GetType().Name}).";
-            // Exception messages can contain user-controlled script or literal
-            // data. Keep diagnostics useful without writing that data to logs.
+            // Exception messages can contain user-controlled script or literal data.
             // 异常消息可能包含用户脚本或字面量，只记录类型，避免敏感数据进入日志。
-            await _diagnostics.WriteLineAsync(evaluatedValue);
-            if (hasId)
-            {
-                var mcpProtocolException4 = new McpProtocolException(McpProtocolErrorCodes.InternalError, "The MCP request failed internally.", new { code = McpErrorCodes.InternalError, diagnosticId });
-                await WriteResponseAsync(output, id, null, mcpProtocolException4, cancellationToken);
-            }
+            await _diagnostics.WriteLineAsync($"MCP request '{method}' failed internally; diagnosticId={diagnosticId} ({exception.GetType().Name}).");
+            var error = new McpProtocolException(McpProtocolErrorCodes.InternalError, "The MCP request failed internally.",
+                new { code = McpErrorCodes.InternalError, diagnosticId });
+            return hasId ? SerializeResponse(id, null, error) : null;
         }
         finally
         {
@@ -185,16 +175,28 @@ public sealed class SereinFlowMcpServer
         }
     }
 
+    private static McpProtocolException RequestTooLarge() =>
+        new(McpProtocolErrorCodes.RequestTooLarge, "The MCP request exceeds the configured size limit.");
+
+    internal sealed record ParsedRequest(int ByteCount, JsonElement Root, McpProtocolException? Error = null)
+    {
+        internal string? Method => Root.ValueKind == JsonValueKind.Object
+            && Root.TryGetProperty("method", out var method) && method.ValueKind == JsonValueKind.String
+                ? method.GetString()
+                : null;
+    }
+
     private long GetMaxRequestBytes()
     {
-        long evaluatedValue5 = _fileUploadSettings is null ? _maxRequestBytes : FileUploadLimits.GetMcpRequestBodyLimit(_fileUploadSettings.MaxLibraryUploadBytes, _maxRequestBytes);
-        return evaluatedValue5;
+        return _fileUploadSettings is null
+            ? _maxRequestBytes
+            : FileUploadLimits.GetMcpRequestBodyLimit(_fileUploadSettings.MaxLibraryUploadBytes, _maxRequestBytes);
     }
 
     private async Task<object?> DispatchAsync(string method, JsonElement request, CancellationToken cancellationToken)
     {
         var parameters = request.TryGetProperty("params", out var value) ? value : JsonSerializer.SerializeToElement(new { });
-        object? evaluatedValue6 = method switch
+        return method switch
         {
             "initialize" => CreateInitializeResult(),
             "notifications/initialized" => null,
@@ -221,8 +223,8 @@ public sealed class SereinFlowMcpServer
             "prompts/get" => await GetPromptAsync(parameters, cancellationToken),
             "tools/call" => await CallToolAsync(parameters, cancellationToken),
             "shutdown" => RequestShutdown(),
-            _ => throw new McpProtocolException(McpProtocolErrorCodes.MethodNotFound, $"MCP method '{method}' is not supported.")};
-        return evaluatedValue6;
+            _ => throw new McpProtocolException(McpProtocolErrorCodes.MethodNotFound, $"MCP method '{method}' is not supported.")
+        };
     }
 
     private object? RequestShutdown()
@@ -254,8 +256,7 @@ public sealed class SereinFlowMcpServer
     {
         var name = GetRequiredString(parameters, "name");
         var arguments = parameters.TryGetProperty("arguments", out var value) ? value : JsonSerializer.SerializeToElement(new { });
-        var getPromptAsyncResult = await _backend.GetPromptAsync(name, arguments, cancellationToken);
-        return getPromptAsyncResult;
+        return await _backend.GetPromptAsync(name, arguments, cancellationToken);
     }
 
     private async Task<object> CallToolAsync(JsonElement parameters, CancellationToken cancellationToken)
@@ -281,10 +282,11 @@ public sealed class SereinFlowMcpServer
 
     private object CreateInitializeResult()
     {
-        var guideUri = _aiGuidanceProvider?.GetUri(McpAiGuidanceId.Guide) ?? McpAiGuidance.ResourceUri;
-        var sereinFlowUri = _aiGuidanceProvider?.GetUri(McpAiGuidanceId.SereinFlow) ?? McpAiGuidance.SereinFlowResourceUri;
-        var sereinLangUri = _aiGuidanceProvider?.GetUri(McpAiGuidanceId.SereinLang) ?? McpAiGuidance.SereinLangResourceUri;
-        var libraryPackageUri = _aiGuidanceProvider?.GetUri(McpAiGuidanceId.LibraryPackage) ?? McpAiGuidance.LibraryPackageResourceUri;
+        var guidance = _aiGuidanceProvider?.CreateSnapshot();
+        var guideUri = guidance?.ById[McpAiGuidanceId.Guide].Resource.Uri ?? McpAiGuidance.ResourceUri;
+        var sereinFlowUri = guidance?.ById[McpAiGuidanceId.SereinFlow].Resource.Uri ?? McpAiGuidance.SereinFlowResourceUri;
+        var sereinLangUri = guidance?.ById[McpAiGuidanceId.SereinLang].Resource.Uri ?? McpAiGuidance.SereinLangResourceUri;
+        var libraryPackageUri = guidance?.ById[McpAiGuidanceId.LibraryPackage].Resource.Uri ?? McpAiGuidance.LibraryPackageResourceUri;
         return new
         {
             protocolVersion = McpProtocolConstants.ProtocolVersion,
@@ -314,34 +316,25 @@ public sealed class SereinFlowMcpServer
 
     private static string GetRequiredString(JsonElement parameters, string name)
     {
-        if (parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String || resolveIsNullOrWhiteSpaceResult())
+        if (parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString()))
         {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' is required.");
         }
 
-        var evaluatedValue7 = value.GetString()!;
-        var trimResult = evaluatedValue7.Trim();
-        return trimResult;
-        bool resolveIsNullOrWhiteSpaceResult()
-        {
-            var getStringResult = value.GetString();
-            var isNullOrWhiteSpaceResult = string.IsNullOrWhiteSpace(getStringResult);
-            return isNullOrWhiteSpaceResult;
-        }
+        return value.GetString()!.Trim();
     }
 
     private static string? GetRequestId(JsonElement id)
     {
-        string? evaluatedValue8 = id.ValueKind switch
+        return id.ValueKind switch
         {
             JsonValueKind.String => id.GetString(),
             JsonValueKind.Number => id.GetRawText(),
             _ => null,
         };
-        return evaluatedValue8;
     }
 
-    private async Task WriteResponseAsync(TextWriter output, JsonElement? id, object? result, McpProtocolException? error, CancellationToken cancellationToken)
+    private string SerializeResponse(JsonElement? id, object? result, McpProtocolException? error)
     {
         string serialized;
         if (error is null)
@@ -363,7 +356,6 @@ public sealed class SereinFlowMcpServer
             serialized = JsonSerializer.Serialize(response, JsonOptions);
         }
 
-        await output.WriteLineAsync(serialized);
-        await output.FlushAsync(cancellationToken);
+        return serialized;
     }
 }

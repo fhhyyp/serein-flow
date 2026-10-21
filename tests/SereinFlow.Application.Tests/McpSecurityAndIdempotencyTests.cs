@@ -58,6 +58,29 @@ public sealed class McpSecurityAndIdempotencyTests
     }
 
     [Fact]
+    public async Task AuthenticationTelemetryPreservesRevocationAfterTheKeySnapshotWasRead()
+    {
+        var created = McpSecurityService.CreateKeyWithEntry(new CreateMcpApiKeyRequestDto(
+            Guid.NewGuid(), "concurrently-revoked", [McpPermissionDto.ProjectRead]));
+        var store = new InMemoryApiKeyStore(created.Entry);
+        var revokedAt = DateTimeOffset.UtcNow;
+        store.AfterSnapshotRead = () =>
+        {
+            store.AfterSnapshotRead = null;
+            return store.UpdateAsync(created.Entry with { RevokedAt = revokedAt });
+        };
+        var security = new McpSecurityService(store);
+
+        await security.AuthenticateAsync(created.Dto.Secret);
+
+        var persisted = await store.FindAsync(created.Entry.Id);
+        Assert.NotNull(persisted);
+        Assert.Equal(revokedAt, persisted.RevokedAt);
+        Assert.NotNull(persisted.LastUsedAt);
+        Assert.Null(await security.AuthenticateAsync(created.Dto.Secret));
+    }
+
+    [Fact]
     public async Task ExpiredAndRevokedKeysCannotAuthenticate()
     {
         var newGuidResult5 = Guid.NewGuid();
@@ -171,11 +194,12 @@ public sealed class McpSecurityAndIdempotencyTests
     private sealed class InMemoryApiKeyStore(params McpApiKeyEntry[] entries) : IMcpApiKeyStore
     {
         private readonly List<McpApiKeyEntry> _entries = entries.ToList();
-        public Task<IReadOnlyList<McpApiKeyEntry>> ListAsync(CancellationToken cancellationToken = default)
+        public Func<Task>? AfterSnapshotRead { get; set; }
+        public async Task<IReadOnlyList<McpApiKeyEntry>> ListAsync(CancellationToken cancellationToken = default)
         {
-            var toArrayResult = _entries.ToArray();
-            var fromResultResult = Task.FromResult<IReadOnlyList<McpApiKeyEntry>>(toArrayResult);
-            return fromResultResult;
+            var snapshot = _entries.ToArray();
+            if (AfterSnapshotRead is { } callback) await callback();
+            return snapshot;
         }
 
         public Task<McpApiKeyEntry?> FindAsync(string id, CancellationToken cancellationToken = default)
@@ -203,6 +227,14 @@ public sealed class McpSecurityAndIdempotencyTests
             _entries[index] = entry;
             var fromResultResult26 = Task.FromResult(true);
             return fromResultResult26;
+        }
+
+        public Task<bool> UpdateLastUsedAsync(string id, DateTimeOffset lastUsedAt, CancellationToken cancellationToken = default)
+        {
+            var index = _entries.FindIndex(entry => entry.Id == id);
+            if (index < 0) return Task.FromResult(false);
+            _entries[index] = _entries[index] with { LastUsedAt = lastUsedAt };
+            return Task.FromResult(true);
         }
     }
 

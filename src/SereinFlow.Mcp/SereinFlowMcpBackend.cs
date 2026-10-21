@@ -9,7 +9,6 @@ namespace SereinFlow.Mcp;
 /// </summary>
 public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
 {
-    private static readonly IReadOnlyList<McpResourceTemplateDescriptor> ResourceTemplates = McpResourceCatalog.Templates;
     private readonly McpResourceReader _resourceReader;
     private readonly McpAiGuidanceProvider _aiGuidanceProvider;
     private readonly McpToolCatalog _toolCatalog;
@@ -24,57 +23,46 @@ public sealed class SereinFlowMcpBackend : ISereinFlowMcpBackend
 
     public Task<IReadOnlyList<McpResourceDescriptor>> ListResourcesAsync(CancellationToken cancellationToken)
     {
-        var createResourcesResult = CreateResources();
-        var fromResultResult = Task.FromResult<IReadOnlyList<McpResourceDescriptor>>(createResourcesResult);
-        return fromResultResult;
+        return Task.FromResult<IReadOnlyList<McpResourceDescriptor>>(CreateResources());
     }
 
     public Task<IReadOnlyList<McpResourceTemplateDescriptor>> ListResourceTemplatesAsync(CancellationToken cancellationToken)
     {
-        var fromResultResult1 = Task.FromResult(ResourceTemplates);
-        return fromResultResult1;
+        return Task.FromResult(McpResourceCatalog.Templates);
     }
 
     public Task<IReadOnlyList<McpPromptDescriptor>> ListPromptsAsync(CancellationToken cancellationToken)
     {
-        var fromResultResult2 = Task.FromResult(McpPromptCatalog.Descriptors);
-        return fromResultResult2;
+        return Task.FromResult(McpPromptCatalog.Descriptors);
     }
 
     public Task<McpPromptResult> GetPromptAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
     {
-        var getAsyncResult = McpPromptCatalog.GetAsync(name, arguments, _aiGuidanceProvider, cancellationToken);
-        return getAsyncResult;
+        return McpPromptCatalog.GetAsync(name, arguments, _aiGuidanceProvider, cancellationToken);
     }
 
     public Task<IReadOnlyList<McpToolDescriptor>> ListToolsAsync(CancellationToken cancellationToken)
     {
-        var fromResultResult3 = Task.FromResult(_toolCatalog.Descriptors);
-        return fromResultResult3;
+        return Task.FromResult(_toolCatalog.Descriptors);
     }
 
     public Task<McpResourceReadResult> ReadResourceAsync(string uri, CancellationToken cancellationToken)
     {
-        var readAsyncResult = _resourceReader.ReadAsync(uri, cancellationToken);
-        return readAsyncResult;
+        return _resourceReader.ReadAsync(uri, cancellationToken);
     }
 
-    public Task<McpToolCallResult> CallToolAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
+    public async Task<McpToolCallResult> CallToolAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
     {
-        var executeAsyncResult = _toolExecutor.ExecuteAsync(_toolCatalog, name, arguments, cancellationToken);
-        return executeAsyncResult;
+        var value = await _toolExecutor.ExecuteAsync(_toolCatalog, name, arguments, cancellationToken);
+        return new McpToolCallResult(value);
     }
 
     private List<McpResourceDescriptor> CreateResources()
     {
         var resources = _aiGuidanceProvider.GetResourceDescriptors()
             .ToList();
-        var selectResult = McpResourceCatalog.DirectResources.Select(static resource =>
-        {
-            var mcpResourceDescriptor = new McpResourceDescriptor(resource.UriTemplate, resource.Name, resource.Description, resource.MimeType);
-            return mcpResourceDescriptor;
-        });
-        resources.AddRange(selectResult);
+        resources.AddRange(McpResourceCatalog.DirectResources.Select(static resource =>
+            new McpResourceDescriptor(resource.UriTemplate, resource.Name, resource.Description, resource.MimeType)));
         return resources;
     }
 }

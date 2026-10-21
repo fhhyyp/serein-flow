@@ -52,7 +52,6 @@ public sealed record McpPromptDescriptor(string Name, string? Description, IRead
 public sealed record McpPromptContent(string Type, string Text);
 public sealed record McpPromptMessage(string Role, McpPromptContent Content);
 public sealed record McpPromptResult(string? Description, IReadOnlyList<McpPromptMessage> Messages);
-public sealed record McpToolDescriptor(string Name, string Description, JsonElement InputSchema);
 public sealed record McpResourceReadResult(string Uri, object Value, string MimeType = "application/json");
 public sealed record McpToolCallResult(object? Value, bool IsError = false);
 public interface ISereinFlowMcpBackend

@@ -1,14 +1,14 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace SereinFlow.Mcp;
+namespace SereinFlow.Mcp.Framework;
 
 /// <summary>
 /// Explicit schema vocabulary for hand-authored MCP contracts. An empty instance
 /// represents {}, while null keywords are absent and false/empty values are retained.
 /// MCP 手工合同使用的 Schema 模型；保留空 Schema、false 和空集合的含义。
 /// </summary>
-internal sealed record McpJsonSchema
+public sealed record McpJsonSchema
 {
     [JsonPropertyName("type")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -46,7 +46,7 @@ internal sealed record McpJsonSchema
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<McpJsonSchema>? OneOf { get; init; }
 
-    internal static McpJsonSchema Object(
+    public static McpJsonSchema Object(
         IReadOnlyDictionary<string, McpJsonSchema>? properties = null,
         string[]? required = null,
         bool additionalProperties = false)

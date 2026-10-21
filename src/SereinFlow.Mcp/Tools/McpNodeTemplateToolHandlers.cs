@@ -1,15 +1,16 @@
-using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
-using static SereinFlow.Mcp.McpToolSupport;
+using SereinFlow.Mcp.Integration;
+using static SereinFlow.Mcp.Tools.McpToolSupport;
 
-namespace SereinFlow.Mcp;
+namespace SereinFlow.Mcp.Tools;
 internal static class McpNodeTemplateToolHandlers
 {
-    internal static async Task<object> CreateBuiltinNodeTemplateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_create_builtin_node_template", McpPermissionDto.ProjectRead)]
+    internal static async Task<object> CreateBuiltinNodeTemplateAsync(SereinFlowMcpToolContext context, BuiltinNodeTemplateRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<BuiltinNodeTemplateRequestDto>(arguments);
+        var request = arguments;
         if (request.ProjectId == Guid.Empty)
         {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The built-in node template request is invalid.");

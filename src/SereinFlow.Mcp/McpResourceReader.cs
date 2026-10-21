@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
+using SereinFlow.Mcp.Integration;
+using SereinFlow.Mcp.Tools;
 
 namespace SereinFlow.Mcp;
 /// <summary>
@@ -23,10 +25,10 @@ public sealed class McpResourceReader
 
     public async Task<McpResourceReadResult> ReadAsync(string uri, CancellationToken cancellationToken)
     {
-        if (_aiGuidanceProvider.IsGuidanceUri(uri))
+        var guidance = await _aiGuidanceProvider.TryReadAsync(uri, cancellationToken);
+        if (guidance is not null)
         {
-            var readAsyncResult = await _aiGuidanceProvider.ReadAsync(uri, cancellationToken);
-            return readAsyncResult;
+            return guidance;
         }
 
         if (!McpResourceUriParser.TryParse(uri, out var match) || match is null)
@@ -35,119 +37,40 @@ public sealed class McpResourceReader
         }
 
         using var scope = _scopeFactory.CreateScope();
-        var getRequiredServiceResult = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
-        var context = new McpToolContext(scope, getRequiredServiceResult, _principalAccessor.Current);
+        var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
+        var context = new SereinFlowMcpToolContext(scope, security, _principalAccessor.Current);
         var parameters = match.Parameters;
         object? value = match.Id switch
         {
             McpResourceId.Projects => await McpReadModelToolHandlers.ReadProjectsResourceAsync(context, cancellationToken),
             McpResourceId.ArchivedProjects => await McpReadModelToolHandlers.ReadArchivedProjectsResourceAsync(context, cancellationToken),
-            McpResourceId.Project => await resolveReadProjectResourceAsyncResult(),
-            McpResourceId.FlowTopology => await resolveReadTopologyResourceAsyncResult(),
+            McpResourceId.Project => await McpReadModelToolHandlers.ReadProjectResourceAsync(context, GetGuid("projectId"), cancellationToken),
+            McpResourceId.FlowTopology => await McpReadModelToolHandlers.ReadTopologyResourceAsync(context, GetGuid("projectId"), GetGuid("flowId"), cancellationToken),
             McpResourceId.Libraries => await McpReadModelToolHandlers.ReadLibrariesResourceAsync(context, cancellationToken),
             McpResourceId.ArchivedLibraries => await McpReadModelToolHandlers.ReadArchivedLibrariesResourceAsync(context, cancellationToken),
             McpResourceId.Library => await McpReadModelToolHandlers.ReadLibraryResourceAsync(context, parameters["libraryId"], cancellationToken),
             McpResourceId.LibraryFamilies => await McpReadModelToolHandlers.ReadLibraryFamiliesResourceAsync(context, cancellationToken),
             McpResourceId.LibraryFamily => await McpReadModelToolHandlers.ReadLibraryFamilyResourceAsync(context, parameters["familyId"], cancellationToken),
-            McpResourceId.ProjectLibraries => await resolveReadProjectLibrariesResourceAsyncResult(),
-            McpResourceId.LibraryUpgrade => await resolveReadLibraryUpgradeResourceAsyncResult(),
+            McpResourceId.ProjectLibraries => await McpReadModelToolHandlers.ReadProjectLibrariesResourceAsync(context, GetGuid("projectId"), cancellationToken),
+            McpResourceId.LibraryUpgrade => await McpReadModelToolHandlers.ReadLibraryUpgradeResourceAsync(context, GetGuid("projectId"), GetGuid("upgradeId"), cancellationToken),
             McpResourceId.Runs => await McpDebugToolHandlers.ReadRunsResourceAsync(context, cancellationToken),
-            McpResourceId.Run => await resolveReadRunResourceAsyncResult(),
-            McpResourceId.RunWorkpieces => await resolveReadRunWorkpiecesResourceAsyncResult(),
-            McpResourceId.RunWorkpiece => await resolveReadRunWorkpieceResourceAsyncResult(),
+            McpResourceId.Run => await McpReadModelToolHandlers.ReadRunResourceAsync(context, GetGuid("runId"), cancellationToken),
+            McpResourceId.RunWorkpieces => await McpReadModelToolHandlers.ReadRunWorkpiecesResourceAsync(context, GetGuid("runId"), cancellationToken),
+            McpResourceId.RunWorkpiece => await McpReadModelToolHandlers.ReadRunWorkpieceResourceAsync(context, GetGuid("runId"), parameters["workpieceId"], cancellationToken),
             McpResourceId.DebugSessions => await McpDebugToolHandlers.ReadDebugSessionsResourceAsync(context, cancellationToken),
-            McpResourceId.DebugSession => await resolveReadDebugResourceAsyncResult(),
-            McpResourceId.FlowVersions => await resolveReadVersionsResourceAsyncResult(),
-            McpResourceId.FlowVersion => await resolveReadVersionResourceAsyncResult(),
-            McpResourceId.Preview => await resolveReadPreviewResourceAsyncResult(),
-            _ => throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow resource URI is not supported.")};
+            McpResourceId.DebugSession => await McpReadModelToolHandlers.ReadDebugResourceAsync(context, GetGuid("sessionId"), cancellationToken),
+            McpResourceId.FlowVersions => await McpReadModelToolHandlers.ReadVersionsResourceAsync(context, GetGuid("projectId"), GetGuid("flowId"), parameters["track"], cancellationToken),
+            McpResourceId.FlowVersion => await McpReadModelToolHandlers.ReadVersionResourceAsync(context, GetGuid("projectId"), GetGuid("flowId"), parameters["track"], long.Parse(parameters["version"], CultureInfo.InvariantCulture), cancellationToken),
+            McpResourceId.Preview => await McpReadModelToolHandlers.ReadPreviewResourceAsync(context, GetGuid("previewId"), cancellationToken),
+            _ => throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow resource URI is not supported.")
+        };
         if (value is null)
         {
             throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The requested SereinFlow resource was not found.");
         }
 
-        var mcpResourceReadResult = new McpResourceReadResult(uri, value);
-        return mcpResourceReadResult;
-        Task<object?> resolveReadProjectResourceAsyncResult()
-        {
-            var parseResult = Guid.Parse(parameters["projectId"]);
-            var readProjectResourceAsyncResult = McpReadModelToolHandlers.ReadProjectResourceAsync(context, parseResult, cancellationToken);
-            return readProjectResourceAsyncResult;
-        }
+        return new McpResourceReadResult(uri, value);
 
-        Task<object?> resolveReadTopologyResourceAsyncResult()
-        {
-            var parseResult1 = Guid.Parse(parameters["projectId"]);
-            var parseResult2 = Guid.Parse(parameters["flowId"]);
-            var readTopologyResourceAsyncResult = McpReadModelToolHandlers.ReadTopologyResourceAsync(context, parseResult1, parseResult2, cancellationToken);
-            return readTopologyResourceAsyncResult;
-        }
-
-        Task<object> resolveReadProjectLibrariesResourceAsyncResult()
-        {
-            var parseResult3 = Guid.Parse(parameters["projectId"]);
-            var readProjectLibrariesResourceAsyncResult = McpReadModelToolHandlers.ReadProjectLibrariesResourceAsync(context, parseResult3, cancellationToken);
-            return readProjectLibrariesResourceAsyncResult;
-        }
-
-        Task<object> resolveReadLibraryUpgradeResourceAsyncResult()
-        {
-            var parseResult4 = Guid.Parse(parameters["projectId"]);
-            var parseResult5 = Guid.Parse(parameters["upgradeId"]);
-            var readLibraryUpgradeResourceAsyncResult = McpReadModelToolHandlers.ReadLibraryUpgradeResourceAsync(context, parseResult4, parseResult5, cancellationToken);
-            return readLibraryUpgradeResourceAsyncResult;
-        }
-
-        Task<object?> resolveReadRunResourceAsyncResult()
-        {
-            var parseResult6 = Guid.Parse(parameters["runId"]);
-            var readRunResourceAsyncResult = McpReadModelToolHandlers.ReadRunResourceAsync(context, parseResult6, cancellationToken);
-            return readRunResourceAsyncResult;
-        }
-
-        Task<object?> resolveReadRunWorkpiecesResourceAsyncResult()
-        {
-            var parseResult7 = Guid.Parse(parameters["runId"]);
-            var readRunWorkpiecesResourceAsyncResult = McpReadModelToolHandlers.ReadRunWorkpiecesResourceAsync(context, parseResult7, cancellationToken);
-            return readRunWorkpiecesResourceAsyncResult;
-        }
-
-        Task<object?> resolveReadRunWorkpieceResourceAsyncResult()
-        {
-            var parseResult8 = Guid.Parse(parameters["runId"]);
-            var readRunWorkpieceResourceAsyncResult = McpReadModelToolHandlers.ReadRunWorkpieceResourceAsync(context, parseResult8, parameters["workpieceId"], cancellationToken);
-            return readRunWorkpieceResourceAsyncResult;
-        }
-
-        Task<object?> resolveReadDebugResourceAsyncResult()
-        {
-            var parseResult9 = Guid.Parse(parameters["sessionId"]);
-            var readDebugResourceAsyncResult = McpReadModelToolHandlers.ReadDebugResourceAsync(context, parseResult9, cancellationToken);
-            return readDebugResourceAsyncResult;
-        }
-
-        Task<object> resolveReadVersionsResourceAsyncResult()
-        {
-            var parseResult10 = Guid.Parse(parameters["projectId"]);
-            var parseResult11 = Guid.Parse(parameters["flowId"]);
-            var readVersionsResourceAsyncResult = McpReadModelToolHandlers.ReadVersionsResourceAsync(context, parseResult10, parseResult11, parameters["track"], cancellationToken);
-            return readVersionsResourceAsyncResult;
-        }
-
-        Task<object?> resolveReadVersionResourceAsyncResult()
-        {
-            var parseResult12 = Guid.Parse(parameters["projectId"]);
-            var parseResult13 = Guid.Parse(parameters["flowId"]);
-            var parseResult14 = long.Parse(parameters["version"], CultureInfo.InvariantCulture);
-            var readVersionResourceAsyncResult = McpReadModelToolHandlers.ReadVersionResourceAsync(context, parseResult12, parseResult13, parameters["track"], parseResult14, cancellationToken);
-            return readVersionResourceAsyncResult;
-        }
-
-        Task<object> resolveReadPreviewResourceAsyncResult()
-        {
-            var parseResult15 = Guid.Parse(parameters["previewId"]);
-            var readPreviewResourceAsyncResult = McpReadModelToolHandlers.ReadPreviewResourceAsync(context, parseResult15, cancellationToken);
-            return readPreviewResourceAsyncResult;
-        }
+        Guid GetGuid(string name) => Guid.Parse(parameters[name]);
     }
 }

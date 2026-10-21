@@ -1,15 +1,9 @@
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Text;
-using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
-using SereinFlow.Domain;
-using static SereinFlow.Mcp.McpToolSupport;
+using static SereinFlow.Mcp.Tools.McpToolSupport;
 
-namespace SereinFlow.Mcp;
+namespace SereinFlow.Mcp.Tools;
 internal static class McpToolAuthorization
 {
     internal static void RequireSensitiveRead(McpSecurityService security, McpPrincipal? principal, Guid projectId, AiReadModelOptions? options)
@@ -53,7 +47,7 @@ internal static class McpToolAuthorization
         security.Require(principal, permission, entry.ProjectId);
     }
 
-    internal static AiReadModelOptions ReadAuthorizedOptions(JsonElement arguments, McpSecurityService security, McpPrincipal? principal, Guid projectId)
+    internal static AiReadModelOptions ReadAuthorizedOptions(McpReadOptionsRequest arguments, McpSecurityService security, McpPrincipal? principal, Guid projectId)
     {
         var options = ReadOptions(arguments);
         RequireSensitiveRead(security, principal, projectId, options);

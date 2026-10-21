@@ -91,7 +91,7 @@ public sealed class McpSecurityService
                 // an otherwise valid authentication into a denial.
                 // 最近使用时间属于遥测，但必须在作用域释放前完成；仓储失败不能
                 // 把本来有效的认证变成拒绝。
-                await _keys.UpdateAsync(entry with { LastUsedAt = DateTimeOffset.UtcNow }, CancellationToken.None);
+                await _keys.UpdateLastUsedAsync(entry.Id, DateTimeOffset.UtcNow, CancellationToken.None);
             }
             catch
             {

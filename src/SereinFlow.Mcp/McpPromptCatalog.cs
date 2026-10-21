@@ -1,49 +1,56 @@
-using System.Collections.Generic;
 using System.Text.Json;
 
 namespace SereinFlow.Mcp;
 internal static class McpPromptCatalog
 {
     private const int MaxRequestLength = 4_000;
-    public static IReadOnlyList<McpPromptDescriptor> Descriptors { get; } = CreateDescriptorsInitialValue();
+    private static readonly IReadOnlyList<PromptDefinition> Definitions =
+    [
+        new("sereinflow.inspect", "Inspect project discovery and project-level read state.",
+            "SereinFlow project inspection", "Optional project discovery or inspection request.", false,
+            [McpAiGuidanceId.SereinFlowProjects]),
+        new("sereinflow.edit-flow", "Prepare and apply a validated flow edit using one task-level authorization and the preview gate.",
+            "SereinFlow flow edit preview", "The requested flow change.", true,
+            [McpAiGuidanceId.SereinFlowFlows, McpAiGuidanceId.SereinFlowUiUx]),
+        new("sereinflow.debug-run", "Inspect a run or debug session with bounded, current state diagnostics.",
+            "SereinFlow run and debug inspection", "The runtime or debugging question.", true,
+            [McpAiGuidanceId.SereinFlowRuntime, McpAiGuidanceId.SereinFlowWorkpieces]),
+        new("sereinflow.publish-flow", "Review production impact and prepare a publish or rollback preview.",
+            "SereinFlow publish or rollback preview", "The requested release or rollback operation.", true,
+            [McpAiGuidanceId.SereinFlowRelease]),
+        new("sereinflow.package-library", "Prepare source code as a SereinFlow library package using SereinFlow.Library from NuGet.org.",
+            "SereinFlow source-to-package library workflow", "The source-to-package library request; excludes import or attachment.", true,
+            [McpAiGuidanceId.LibraryBuild, McpAiGuidanceId.LibraryZip, McpAiGuidanceId.LibraryMetadata]),
+        new("sereinflow.upgrade-library", "Inspect a project library family and prepare a compatible per-flow library upgrade through the preview gate.",
+            "SereinFlow project library upgrade workflow", "The requested project library upgrade.", true,
+            [McpAiGuidanceId.LibraryUpgrade]),
+        new("sereinlang.compile", "Compile a standalone SereinLang lexical or expression syntax draft and inspect its structured diagnostics.",
+            "SereinLang standalone syntax compilation workflow", "The SereinLang syntax compilation request; excludes imports and host APIs.", true,
+            [McpAiGuidanceId.SereinLangSyntax])
+    ];
+    private static readonly Dictionary<string, PromptDefinition> ByName =
+        Definitions.ToDictionary(static definition => definition.Name, StringComparer.Ordinal);
+    public static IReadOnlyList<McpPromptDescriptor> Descriptors { get; } = Definitions
+        .Select(static definition => new McpPromptDescriptor(definition.Name, definition.Description,
+            [new("request", definition.RequestDescription, definition.RequestRequired)]))
+        .ToArray();
 
     public static async Task<McpPromptResult> GetAsync(string name, JsonElement arguments, McpAiGuidanceProvider guidanceProvider, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(guidanceProvider);
-        var request = GetRequest(arguments, name);
-        IReadOnlyList<McpAiGuidanceId> guidanceIds = name switch
+        // Keep argument validation ahead of the unsupported-name error for compatibility.
+        var definition = name is not null && ByName.TryGetValue(name, out var registered) ? registered : null;
+        var requestRequired = definition?.RequestRequired ?? true;
+        var request = GetRequest(arguments, requestRequired);
+        if (definition is null)
         {
-            "sereinflow.inspect" => [McpAiGuidanceId.SereinFlowProjects],
-            "sereinflow.edit-flow" => [McpAiGuidanceId.SereinFlowFlows, McpAiGuidanceId.SereinFlowUiUx],
-            "sereinflow.debug-run" => [McpAiGuidanceId.SereinFlowRuntime, McpAiGuidanceId.SereinFlowWorkpieces],
-            "sereinflow.publish-flow" => [McpAiGuidanceId.SereinFlowRelease],
-            "sereinflow.package-library" => [McpAiGuidanceId.LibraryBuild, McpAiGuidanceId.LibraryZip, McpAiGuidanceId.LibraryMetadata],
-            "sereinflow.upgrade-library" => [McpAiGuidanceId.LibraryUpgrade],
-            "sereinlang.compile" => [McpAiGuidanceId.SereinLangSyntax],
-            _ => throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"The SereinFlow prompt '{name}' is not supported.")};
-        var selectResult = guidanceIds.Select(id =>
-        {
-            var readAsyncResult = guidanceProvider.ReadAsync(id, cancellationToken);
-            return readAsyncResult;
-        });
-        var guidance = await Task.WhenAll(selectResult);
-        var selectResult1 = guidance.Select(resource =>
-        {
-            var evaluatedValue = resource.Value as string ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The SereinFlow AI guidance is not available.");
-            return evaluatedValue;
-        });
-        var guidanceText = string.Join("\n\n", selectResult1);
-        var description = name switch
-        {
-            "sereinflow.inspect" => "SereinFlow project inspection",
-            "sereinflow.edit-flow" => "SereinFlow flow edit preview",
-            "sereinflow.debug-run" => "SereinFlow run and debug inspection",
-            "sereinflow.publish-flow" => "SereinFlow publish or rollback preview",
-            "sereinflow.package-library" => "SereinFlow source-to-package library workflow",
-            "sereinflow.upgrade-library" => "SereinFlow project library upgrade workflow",
-            "sereinlang.compile" => "SereinLang standalone syntax compilation workflow",
-            _ => throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"The SereinFlow prompt '{name}' is not supported.")};
-        var resultResult = Result(description, $"""
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"The SereinFlow prompt '{name}' is not supported.");
+        }
+
+        var guidance = await guidanceProvider.ReadManyAsync(definition.GuidanceIds, cancellationToken);
+        var guidanceText = string.Join("\n\n", guidance.Select(static resource =>
+            resource.Value as string ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The SereinFlow AI guidance is not available.")));
+        return Result(definition.ResultDescription, $"""
             SereinFlow workflow: {name}
             User request: {request}
 
@@ -56,24 +63,15 @@ internal static class McpPromptCatalog
             {guidanceText}
             --- end server-provided guidance ---
             """);
-        return resultResult;
     }
 
     private static McpPromptResult Result(string description, string text)
     {
-        IReadOnlyList<McpPromptMessage> evaluatedValue2 = [resolveMcpPromptMessage()];
-        McpPromptResult evaluatedValue3 = new(description, evaluatedValue2);
-        return evaluatedValue3;
-        McpPromptMessage resolveMcpPromptMessage()
-        {
-            var trimResult = text.Trim();
-            var mcpPromptContent = new McpPromptContent("text", trimResult);
-            var mcpPromptMessage = new McpPromptMessage("user", mcpPromptContent);
-            return mcpPromptMessage;
-        }
+        return new McpPromptResult(description,
+            [new McpPromptMessage("user", new McpPromptContent("text", text.Trim()))]);
     }
 
-    private static string GetRequest(JsonElement arguments, string promptName)
+    private static string GetRequest(JsonElement arguments, bool requestRequired)
     {
         if (arguments.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
         {
@@ -87,7 +85,7 @@ internal static class McpPromptCatalog
 
         if (!arguments.TryGetProperty("request", out var request) || request.ValueKind == JsonValueKind.Null || request.ValueKind == JsonValueKind.Undefined)
         {
-            if (string.Equals(promptName, "sereinflow.inspect", StringComparison.Ordinal))
+            if (!requestRequired)
             {
                 return "No additional request was supplied.";
             }
@@ -95,78 +93,25 @@ internal static class McpPromptCatalog
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt argument 'request' is required.");
         }
 
-        if (request.ValueKind != JsonValueKind.String || resolveIsNullOrWhiteSpaceResult())
+        if (request.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(request.GetString()))
         {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt argument 'request' must be a non-empty string.");
         }
 
-        var evaluatedValue4 = request.GetString()!;
-        var value = evaluatedValue4.Trim();
+        var value = request.GetString()!.Trim();
         if (value.Length > MaxRequestLength)
         {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt argument 'request' exceeds the configured length limit.");
         }
 
         return value;
-        bool resolveIsNullOrWhiteSpaceResult()
-        {
-            var getStringResult = request.GetString();
-            var isNullOrWhiteSpaceResult = string.IsNullOrWhiteSpace(getStringResult);
-            return isNullOrWhiteSpaceResult;
-        }
     }
 
-    private static IReadOnlyList<McpPromptDescriptor> CreateDescriptorsInitialValue()
-    {
-        IReadOnlyList<McpPromptDescriptor> descriptorsInitialValue = [resolveevaluatedValue(), resolveevaluatedValue6(), resolveevaluatedValue9(), resolveevaluatedValue12(), resolveevaluatedValue15(), resolveevaluatedValue18(), resolveevaluatedValue21()];
-        return descriptorsInitialValue;
-        McpPromptDescriptor resolveevaluatedValue()
-        {
-            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue1 = [new("request", "Optional project discovery or inspection request.")];
-            McpPromptDescriptor evaluatedValue5 = new("sereinflow.inspect", "Inspect project discovery and project-level read state.", evaluatedValue1);
-            return evaluatedValue5;
-        }
-
-        McpPromptDescriptor resolveevaluatedValue6()
-        {
-            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue7 = [new("request", "The requested flow change.", Required: true)];
-            McpPromptDescriptor evaluatedValue8 = new("sereinflow.edit-flow", "Prepare and apply a validated flow edit using one task-level authorization and the preview gate.", evaluatedValue7);
-            return evaluatedValue8;
-        }
-
-        McpPromptDescriptor resolveevaluatedValue9()
-        {
-            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue10 = [new("request", "The runtime or debugging question.", Required: true)];
-            McpPromptDescriptor evaluatedValue11 = new("sereinflow.debug-run", "Inspect a run or debug session with bounded, current state diagnostics.", evaluatedValue10);
-            return evaluatedValue11;
-        }
-
-        McpPromptDescriptor resolveevaluatedValue12()
-        {
-            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue13 = [new("request", "The requested release or rollback operation.", Required: true)];
-            McpPromptDescriptor evaluatedValue14 = new("sereinflow.publish-flow", "Review production impact and prepare a publish or rollback preview.", evaluatedValue13);
-            return evaluatedValue14;
-        }
-
-        McpPromptDescriptor resolveevaluatedValue15()
-        {
-            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue16 = [new("request", "The source-to-package library request; excludes import or attachment.", Required: true)];
-            McpPromptDescriptor evaluatedValue17 = new("sereinflow.package-library", "Prepare source code as a SereinFlow library package using SereinFlow.Library from NuGet.org.", evaluatedValue16);
-            return evaluatedValue17;
-        }
-
-        McpPromptDescriptor resolveevaluatedValue18()
-        {
-            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue19 = [new("request", "The requested project library upgrade.", Required: true)];
-            McpPromptDescriptor evaluatedValue20 = new("sereinflow.upgrade-library", "Inspect a project library family and prepare a compatible per-flow library upgrade through the preview gate.", evaluatedValue19);
-            return evaluatedValue20;
-        }
-
-        McpPromptDescriptor resolveevaluatedValue21()
-        {
-            IReadOnlyList<McpPromptArgumentDescriptor> evaluatedValue22 = [new("request", "The SereinLang syntax compilation request; excludes imports and host APIs.", Required: true)];
-            McpPromptDescriptor evaluatedValue23 = new("sereinlang.compile", "Compile a standalone SereinLang lexical or expression syntax draft and inspect its structured diagnostics.", evaluatedValue22);
-            return evaluatedValue23;
-        }
-    }
+    private sealed record PromptDefinition(
+        string Name,
+        string Description,
+        string ResultDescription,
+        string RequestDescription,
+        bool RequestRequired,
+        IReadOnlyList<McpAiGuidanceId> GuidanceIds);
 }

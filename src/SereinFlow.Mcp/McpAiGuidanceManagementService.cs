@@ -10,23 +10,16 @@ public sealed class McpAiGuidanceManagementService(McpAiGuidanceProvider provide
     private readonly SemaphoreSlim _mutationLock = new(1, 1);
     public IReadOnlyList<McpAiGuidanceResourceDto> List()
     {
-        var evaluatedValue1 = provider.CreateSnapshot().ById.Values;
-        var selectResult = evaluatedValue1.Select(resource =>
-        {
-            McpAiGuidanceSourceDto evaluatedValue = File.Exists(resource.FilePath) ? McpAiGuidanceSourceDto.Disk : McpAiGuidanceSourceDto.Embedded;
-            var toResourceDtoResult = ToResourceDto(resource, evaluatedValue);
-            return toResourceDtoResult;
-        });
-        var toArrayResult = selectResult.ToArray();
-        return toArrayResult;
+        return provider.CreateSnapshot().ById.Values.Select(resource =>
+            ToResourceDto(resource, File.Exists(resource.FilePath) ? McpAiGuidanceSourceDto.Disk : McpAiGuidanceSourceDto.Embedded))
+            .ToArray();
     }
 
     public async Task<McpAiGuidanceContentDto> ReadAsync(string key, CancellationToken cancellationToken = default)
     {
         var snapshot = provider.CreateSnapshot();
-        var resolveResult = Resolve(snapshot, key);
-        var readAsyncResult = await ReadAsync(resolveResult, snapshot.MaxBytes, cancellationToken);
-        return readAsyncResult;
+        var resource = Resolve(snapshot, key);
+        return await ReadAsync(resource, snapshot.MaxBytes, cancellationToken);
     }
 
     public async Task<McpAiGuidanceContentDto> SaveAsync(string key, SaveMcpAiGuidanceRequestDto request, CancellationToken cancellationToken = default)
@@ -39,29 +32,26 @@ public sealed class McpAiGuidanceManagementService(McpAiGuidanceProvider provide
             var snapshot = provider.CreateSnapshot();
             var resource = Resolve(snapshot, key);
             ValidateContent(request.Content, snapshot.MaxBytes);
-            var readAsyncResult2 = await ReadAsync(resource, snapshot.MaxBytes, cancellationToken);
-            RequireRevision(request.ExpectedRevision, readAsyncResult2);
+            var current = await ReadAsync(resource, snapshot.MaxBytes, cancellationToken);
+            RequireRevision(request.ExpectedRevision, current);
             EnsureWritablePath(resource.FilePath);
             var directory = Path.GetDirectoryName(resource.FilePath)!;
             Directory.CreateDirectory(directory);
             EnsureWritablePath(resource.FilePath);
-            var evaluatedValue3 = $".{Path.GetFileName(resource.FilePath)}.{Guid.NewGuid():N}.tmp";
-            temporaryPath = Path.Combine(directory, evaluatedValue3);
-            var uTF8Encoding = new UTF8Encoding(false);
-            await File.WriteAllTextAsync(temporaryPath, request.Content, uTF8Encoding, cancellationToken);
+            temporaryPath = Path.Combine(directory, $".{Path.GetFileName(resource.FilePath)}.{Guid.NewGuid():N}.tmp");
+            await File.WriteAllTextAsync(temporaryPath, request.Content, new UTF8Encoding(false), cancellationToken);
             // Configuration and external file edits may change while the temporary file is written.
             var latest = provider.CreateSnapshot();
-            var resolveResult4 = Resolve(latest, key);
-            var readAsyncResult5 = await ReadAsync(resolveResult4, latest.MaxBytes, cancellationToken);
-            RequireRevision(request.ExpectedRevision, readAsyncResult5);
+            var latestResource = Resolve(latest, key);
+            var latestContent = await ReadAsync(latestResource, latest.MaxBytes, cancellationToken);
+            RequireRevision(request.ExpectedRevision, latestContent);
             ValidateContent(request.Content, latest.MaxBytes);
             EnsureWritablePath(resource.FilePath);
             cancellationToken.ThrowIfCancellationRequested();
             File.Move(temporaryPath, resource.FilePath, overwrite: true);
             temporaryPath = null;
             var guidanceContent = new GuidanceContent(request.Content, McpAiGuidanceSourceDto.Disk);
-            var toContentDtoResult = ToContentDto(resource, guidanceContent, latest.MaxBytes);
-            return toContentDtoResult;
+            return ToContentDto(resource, guidanceContent, latest.MaxBytes);
         }
         catch (UnauthorizedAccessException)
         {
@@ -99,13 +89,13 @@ public sealed class McpAiGuidanceManagementService(McpAiGuidanceProvider provide
         {
             var snapshot = provider.CreateSnapshot();
             var resource = Resolve(snapshot, key);
-            var readAsyncResult6 = await ReadAsync(resource, snapshot.MaxBytes, cancellationToken);
-            RequireRevision(request.ExpectedRevision, readAsyncResult6);
+            var current = await ReadAsync(resource, snapshot.MaxBytes, cancellationToken);
+            RequireRevision(request.ExpectedRevision, current);
             var content = await ReadContentAsync(resource, snapshot.MaxBytes, embeddedOnly: true, cancellationToken);
             var latest = provider.CreateSnapshot();
-            var resolveResult7 = Resolve(latest, key);
-            var readAsyncResult8 = await ReadAsync(resolveResult7, latest.MaxBytes, cancellationToken);
-            RequireRevision(request.ExpectedRevision, readAsyncResult8);
+            var latestResource = Resolve(latest, key);
+            var latestContent = await ReadAsync(latestResource, latest.MaxBytes, cancellationToken);
+            RequireRevision(request.ExpectedRevision, latestContent);
             ValidateContent(content.Text, latest.MaxBytes);
             EnsureWritablePath(resource.FilePath);
             cancellationToken.ThrowIfCancellationRequested();
@@ -114,8 +104,7 @@ public sealed class McpAiGuidanceManagementService(McpAiGuidanceProvider provide
                 File.Delete(resource.FilePath);
             }
 
-            var toContentDtoResult9 = ToContentDto(resource, content, latest.MaxBytes);
-            return toContentDtoResult9;
+            return ToContentDto(resource, content, latest.MaxBytes);
         }
         catch (UnauthorizedAccessException)
         {
@@ -133,36 +122,27 @@ public sealed class McpAiGuidanceManagementService(McpAiGuidanceProvider provide
 
     private static ResolvedGuidanceResource Resolve(GuidanceSnapshot snapshot, string key)
     {
-        var evaluatedValue10 = snapshot.ById.Values.FirstOrDefault(resource =>
-        {
-            var equalsResult = string.Equals(resource.Resource.Key, key, StringComparison.Ordinal);
-            return equalsResult;
-        }) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The MCP skill is not registered.", new { code = McpErrorCodes.AiGuidanceKeyUnsupported });
-        return evaluatedValue10;
+        return snapshot.ById.Values.FirstOrDefault(resource =>
+            string.Equals(resource.Resource.Key, key, StringComparison.Ordinal)) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The MCP skill is not registered.", new { code = McpErrorCodes.AiGuidanceKeyUnsupported });
     }
 
     private static async Task<McpAiGuidanceContentDto> ReadAsync(ResolvedGuidanceResource resource, long maxBytes, CancellationToken cancellationToken)
     {
-        var readContentAsyncResult = await ReadContentAsync(resource, maxBytes, embeddedOnly: false, cancellationToken);
-        var toContentDtoResult11 = ToContentDto(resource, readContentAsyncResult, maxBytes);
-        return toContentDtoResult11;
+        var content = await ReadContentAsync(resource, maxBytes, embeddedOnly: false, cancellationToken);
+        return ToContentDto(resource, content, maxBytes);
     }
 
     private static McpAiGuidanceResourceDto ToResourceDto(ResolvedGuidanceResource resource, McpAiGuidanceSourceDto source)
     {
-        McpAiGuidanceResourceDto evaluatedValue12 = new(resource.Resource.Key, resource.Resource.Uri, resource.Resource.Name, resource.Resource.Description, source);
-        return evaluatedValue12;
+        return new McpAiGuidanceResourceDto(resource.Resource.Key, resource.Resource.Uri, resource.Resource.Name, resource.Resource.Description, source);
     }
 
     private static McpAiGuidanceContentDto ToContentDto(ResolvedGuidanceResource resource, GuidanceContent content, long maxBytes)
     {
         var identity = $"{resource.Resource.Key}\0{resource.Resource.Uri}\0{resource.FilePath}\0{content.Source}\0{content.Text}";
-        var getBytesResult = Encoding.UTF8.GetBytes(identity);
-        var hashDataResult = SHA256.HashData(getBytesResult);
-        var revision = Convert.ToHexStringLower(hashDataResult);
-        var toResourceDtoResult13 = ToResourceDto(resource, content.Source);
-        McpAiGuidanceContentDto evaluatedValue14 = new(toResourceDtoResult13, content.Text, revision, maxBytes);
-        return evaluatedValue14;
+        var revision = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
+        var descriptor = ToResourceDto(resource, content.Source);
+        return new McpAiGuidanceContentDto(descriptor, content.Text, revision, maxBytes);
     }
 
     private static void RequireRevision(string expectedRevision, McpAiGuidanceContentDto current)
@@ -219,14 +199,12 @@ public sealed class McpAiGuidanceManagementService(McpAiGuidanceProvider provide
 
     private static McpProtocolException AccessDenied()
     {
-        McpProtocolException evaluatedValue15 = new(McpProtocolErrorCodes.PermissionDenied, "The MCP skill override cannot be modified.", new { code = McpErrorCodes.AiGuidanceAccessDenied });
-        return evaluatedValue15;
+        return new McpProtocolException(McpProtocolErrorCodes.PermissionDenied, "The MCP skill override cannot be modified.", new { code = McpErrorCodes.AiGuidanceAccessDenied });
     }
 
     private static McpProtocolException SaveFailed()
     {
-        McpProtocolException evaluatedValue16 = new(McpProtocolErrorCodes.TransientFailure, "The MCP skill override could not be saved. Check the server directory and retry.", new { code = McpErrorCodes.AiGuidanceSaveFailed });
-        return evaluatedValue16;
+        return new McpProtocolException(McpProtocolErrorCodes.TransientFailure, "The MCP skill override could not be saved. Check the server directory and retry.", new { code = McpErrorCodes.AiGuidanceSaveFailed });
     }
 
     public void Dispose()

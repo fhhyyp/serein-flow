@@ -1,26 +1,22 @@
-using System;
-using System.Threading.Tasks;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Text;
-using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
-using static SereinFlow.Mcp.McpPreviewPayloadReaders;
-using static SereinFlow.Mcp.McpToolAuthorization;
-using static SereinFlow.Mcp.McpToolSupport;
+using SereinFlow.Mcp.Integration;
+using static SereinFlow.Mcp.Tools.McpToolAuthorization;
+using static SereinFlow.Mcp.Tools.McpToolSupport;
+using static SereinFlow.Mcp.Tools.McpPreviewPayloadReaders;
 
-namespace SereinFlow.Mcp;
+namespace SereinFlow.Mcp.Tools;
 /// <summary>
 /// Bounded read-model tools and the read projections shared by MCP resources.
 /// </summary>
 internal static class McpReadModelToolHandlers
 {
-    internal static Task<object> ListProjectsAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_list_projects", McpPermissionDto.ProjectRead)]
+    internal static Task<object> ListProjectsAsync(SereinFlowMcpToolContext context, McpReadOptionsRequest arguments, CancellationToken cancellationToken)
     {
         var readModelsResult = ReadModels(context);
         var readOptionsResult = ReadOptions(arguments);
@@ -28,7 +24,8 @@ internal static class McpReadModelToolHandlers
         return readProjectsAsyncResult;
     }
 
-    internal static Task<object> ListArchivedProjectsAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_list_archived_projects", McpPermissionDto.ProjectRead)]
+    internal static Task<object> ListArchivedProjectsAsync(SereinFlowMcpToolContext context, McpReadOptionsRequest arguments, CancellationToken cancellationToken)
     {
         var readModelsResult1 = ReadModels(context);
         var readOptionsResult2 = ReadOptions(arguments);
@@ -36,36 +33,31 @@ internal static class McpReadModelToolHandlers
         return readProjectsAsyncResult3;
     }
 
-    internal static Task<object?> GetProjectAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_get_flow_topology", McpPermissionDto.ProjectRead)]
+    internal static Task<object?> GetFlowTopologyAsync(SereinFlowMcpToolContext context, McpFlowTopologyRequest arguments, CancellationToken cancellationToken)
     {
-        var readModelsResult4 = ReadModels(context);
-        var getGuidResult = GetGuid(arguments, "projectId");
-        var readProjectAsyncResult = ReadProjectAsync(readModelsResult4, context.Security, context.Principal, getGuidResult, cancellationToken);
-        return readProjectAsyncResult;
-    }
-
-    internal static Task<object?> GetFlowTopologyAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
-    {
-        var projectId = GetGuid(arguments, "projectId");
+        var projectId = arguments.ProjectId;
         var readModelsResult5 = ReadModels(context);
-        var getGuidResult6 = GetGuid(arguments, "flowId");
-        var readTrackResult = ReadTrack(arguments);
-        var getOptionalLongResult = GetOptionalLong(arguments, "version");
+        var getGuidResult6 = arguments.FlowId;
+        var readTrackResult = arguments.Track;
+        var getOptionalLongResult = arguments.Version;
         var readAuthorizedOptionsResult = ReadAuthorizedOptions(arguments, context.Security, context.Principal, projectId);
         var readFlowTopologyAsyncResult = ReadFlowTopologyAsync(readModelsResult5, context.Security, context.Principal, projectId, getGuidResult6, readTrackResult, getOptionalLongResult, readAuthorizedOptionsResult, cancellationToken);
         return readFlowTopologyAsyncResult;
     }
 
-    internal static Task<object> ListLibrariesAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_list_libraries", McpPermissionDto.LibraryRead)]
+    internal static Task<object> ListLibrariesAsync(SereinFlowMcpToolContext context, McpListLibrariesRequest arguments, CancellationToken cancellationToken)
     {
         var readModelsResult7 = ReadModels(context);
-        McpReadModelToolHandlers.LibraryListScope evaluatedValue = GetOptionalBool(arguments, "includeArchived") == true ? LibraryListScope.All : LibraryListScope.Active;
+        McpReadModelToolHandlers.LibraryListScope evaluatedValue = arguments.IncludeArchived == true ? LibraryListScope.All : LibraryListScope.Active;
         var readOptionsResult8 = ReadOptions(arguments);
         var readLibrariesAsyncResult = ReadLibrariesAsync(context.Scope, readModelsResult7, context.Security, context.Principal, cancellationToken, evaluatedValue, readOptionsResult8);
         return readLibrariesAsyncResult;
     }
 
-    internal static Task<object> ListArchivedLibrariesAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_list_archived_libraries", McpPermissionDto.LibraryRead)]
+    internal static Task<object> ListArchivedLibrariesAsync(SereinFlowMcpToolContext context, McpReadOptionsRequest arguments, CancellationToken cancellationToken)
     {
         var readModelsResult9 = ReadModels(context);
         var readOptionsResult10 = ReadOptions(arguments);
@@ -73,59 +65,66 @@ internal static class McpReadModelToolHandlers
         return readLibrariesAsyncResult11;
     }
 
-    internal static Task<object?> GetLibraryAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_get_library", McpPermissionDto.LibraryRead)]
+    internal static Task<object?> GetLibraryAsync(SereinFlowMcpToolContext context, McpLibraryQueryRequest arguments, CancellationToken cancellationToken)
     {
         var readModelsResult12 = ReadModels(context);
-        var getRequiredStringResult = GetRequiredString(arguments, "libraryId");
+        var getRequiredStringResult = arguments.LibraryId;
         var readLibraryAsyncResult = ReadLibraryAsync(context.Scope, readModelsResult12, context.Security, context.Principal, getRequiredStringResult, cancellationToken);
         return readLibraryAsyncResult;
     }
 
-    internal static Task<object> ListLibraryFamiliesAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_list_library_families", McpPermissionDto.LibraryRead)]
+    internal static Task<object> ListLibraryFamiliesAsync(SereinFlowMcpToolContext context, McpListLibraryFamiliesRequest arguments, CancellationToken cancellationToken)
     {
-        var evaluatedValue13 = GetOptionalBool(arguments, "includeArchivedArtifacts") ?? true;
+        var evaluatedValue13 = arguments.IncludeArchivedArtifacts;
         var readOptionsResult14 = ReadOptions(arguments);
         var readLibraryFamiliesAsyncResult = ReadLibraryFamiliesAsync(context.Scope, context.Security, context.Principal, evaluatedValue13, readOptionsResult14, cancellationToken);
         return readLibraryFamiliesAsyncResult;
     }
 
-    internal static Task<object?> GetLibraryFamilyAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_get_library_family", McpPermissionDto.LibraryRead)]
+    internal static Task<object?> GetLibraryFamilyAsync(SereinFlowMcpToolContext context, McpLibraryFamilyQueryRequest arguments, CancellationToken cancellationToken)
     {
-        var getRequiredStringResult15 = GetRequiredString(arguments, "familyId");
+        var getRequiredStringResult15 = arguments.FamilyId;
         var readLibraryFamilyAsyncResult = ReadLibraryFamilyAsync(context.Scope, context.Security, context.Principal, getRequiredStringResult15, cancellationToken);
         return readLibraryFamilyAsyncResult;
     }
 
-    internal static Task<object> GetProjectLibrariesAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_get_project_libraries", McpPermissionDto.LibraryRead)]
+    internal static Task<object> GetProjectLibrariesAsync(SereinFlowMcpToolContext context, McpProjectLibrariesRequest arguments, CancellationToken cancellationToken)
     {
-        var getGuidResult16 = GetGuid(arguments, "projectId");
+        var getGuidResult16 = arguments.ProjectId;
         var readOptionsResult17 = ReadOptions(arguments);
         var readProjectLibrariesAsyncResult = ReadProjectLibrariesAsync(context.Scope, context.Security, context.Principal, getGuidResult16, readOptionsResult17, cancellationToken);
         return readProjectLibrariesAsyncResult;
     }
 
-    internal static Task<object> GetLibraryUpgradeAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_get_library_upgrade", McpPermissionDto.LibraryRead)]
+    internal static Task<object> GetLibraryUpgradeAsync(SereinFlowMcpToolContext context, McpLibraryUpgradeQueryRequest arguments, CancellationToken cancellationToken)
     {
-        var getGuidResult18 = GetGuid(arguments, "projectId");
-        var getGuidResult19 = GetGuid(arguments, "upgradeId");
+        var getGuidResult18 = arguments.ProjectId;
+        var getGuidResult19 = arguments.UpgradeId;
         var readLibraryUpgradeAsyncResult = ReadLibraryUpgradeAsync(context.Scope, context.Security, context.Principal, getGuidResult18, getGuidResult19, cancellationToken);
         return readLibraryUpgradeAsyncResult;
     }
 
-    internal static Task<object?> GetRunInspectionAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_get_run_inspection", McpPermissionDto.RunRead)]
+    internal static Task<object?> GetRunInspectionAsync(SereinFlowMcpToolContext context, McpRunInspectionRequest arguments, CancellationToken cancellationToken)
     {
         var readModelsResult20 = ReadModels(context);
-        var getGuidResult21 = GetGuid(arguments, "runId");
-        var readOptionalTrackResult = ReadOptionalTrack(arguments);
+        var getGuidResult21 = arguments.RunId;
+        var readOptionalTrackResult = arguments.Track;
         var readOptionsResult22 = ReadOptions(arguments);
-        var evaluatedValue23 = GetOptionalLong(arguments, "afterEventSequence") ?? 0;
+        var evaluatedValue23 = arguments.AfterEventSequence;
         var readRunAsyncResult = ReadRunAsync(context.Scope, readModelsResult20, context.Security, context.Principal, getGuidResult21, cancellationToken, readOptionalTrackResult, readOptionsResult22, evaluatedValue23);
         return readRunAsyncResult;
     }
 
-    internal static async Task<object?> ListRunWorkpiecesAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_list_run_workpieces", McpPermissionDto.DebugRead, McpPermissionDto.RunRead)]
+    internal static async Task<object?> ListRunWorkpiecesAsync(SereinFlowMcpToolContext context, McpRunQueryRequest arguments, CancellationToken cancellationToken)
     {
-        var runId = GetGuid(arguments, "runId");
+        var runId = arguments.RunId;
         var getRequiredServiceResult = context.Services.GetRequiredService<IFlowRunStore>();
         var run = await getRequiredServiceResult.FindAsync(runId, cancellationToken);
         if (run is null)
@@ -141,10 +140,11 @@ internal static class McpReadModelToolHandlers
         return toArrayResult;
     }
 
-    internal static async Task<object?> GetRunWorkpieceAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_get_run_workpiece", McpPermissionDto.DebugRead, McpPermissionDto.RunRead)]
+    internal static async Task<object?> GetRunWorkpieceAsync(SereinFlowMcpToolContext context, McpRunWorkpieceQueryRequest arguments, CancellationToken cancellationToken)
     {
-        var runId = GetGuid(arguments, "runId");
-        var workpieceId = GetRequiredString(arguments, "workpieceId");
+        var runId = arguments.RunId;
+        var workpieceId = arguments.WorkpieceId;
         var getRequiredServiceResult25 = context.Services.GetRequiredService<IFlowRunStore>();
         var run = await getRequiredServiceResult25.FindAsync(runId, cancellationToken);
         if (run is null)
@@ -159,153 +159,154 @@ internal static class McpReadModelToolHandlers
         return evaluatedValue27;
     }
 
-    internal static Task<object?> GetDebugStateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_get_debug_state", McpPermissionDto.DebugRead, McpPermissionDto.RunRead)]
+    internal static Task<object?> GetDebugStateAsync(SereinFlowMcpToolContext context, McpDebugStateRequest arguments, CancellationToken cancellationToken)
     {
         var readModelsResult28 = ReadModels(context);
-        var getGuidResult29 = GetGuid(arguments, "sessionId");
+        var getGuidResult29 = arguments.SessionId;
         var readDebugAsyncResult = ReadDebugAsync(context.Scope, readModelsResult28, context.Security, context.Principal, getGuidResult29, cancellationToken);
         return readDebugAsyncResult;
     }
 
-    internal static Task<AiDebugStateWaitResultDto?> WaitForDebugStateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_wait_debug_state", McpPermissionDto.DebugRead, McpPermissionDto.RunRead)]
+    internal static Task<AiDebugStateWaitResultDto?> WaitForDebugStateAsync(SereinFlowMcpToolContext context, McpDebugStateWaitRequest arguments, CancellationToken cancellationToken)
     {
         var readModelsResult30 = ReadModels(context);
         var waitForDebugStateAsyncResult = WaitForDebugStateAsync(context.Scope, readModelsResult30, context.Security, context.Principal, arguments, cancellationToken);
         return waitForDebugStateAsyncResult;
     }
 
-    internal static Task<object?> GetFlowEditModelAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_get_flow_edit_model", McpPermissionDto.ProjectRead)]
+    internal static Task<object?> GetFlowEditModelAsync(SereinFlowMcpToolContext context, McpFlowEditRequest arguments, CancellationToken cancellationToken)
     {
-        var projectId = GetGuid(arguments, "projectId");
+        var projectId = arguments.ProjectId;
         var readModelsResult31 = ReadModels(context);
-        var getGuidResult32 = GetGuid(arguments, "flowId");
+        var getGuidResult32 = arguments.FlowId;
         var readAuthorizedOptionsResult33 = ReadAuthorizedOptions(arguments, context.Security, context.Principal, projectId);
         var readFlowEditModelAsyncResult = ReadFlowEditModelAsync(context.Scope, readModelsResult31, context.Security, context.Principal, projectId, getGuidResult32, readAuthorizedOptionsResult33, cancellationToken);
         return readFlowEditModelAsyncResult;
     }
 
-    internal static Task<object> ReadProjectsResourceAsync(McpToolContext context, CancellationToken cancellationToken)
+    internal static Task<object> ReadProjectsResourceAsync(SereinFlowMcpToolContext context, CancellationToken cancellationToken)
     {
         var readModelsResult34 = ReadModels(context);
         var readProjectsAsyncResult35 = ReadProjectsAsync(context.Scope, readModelsResult34, context.Security, context.Principal, archivedOnly: false, cancellationToken);
         return readProjectsAsyncResult35;
     }
 
-    internal static Task<object> ReadArchivedProjectsResourceAsync(McpToolContext context, CancellationToken cancellationToken)
+    internal static Task<object> ReadArchivedProjectsResourceAsync(SereinFlowMcpToolContext context, CancellationToken cancellationToken)
     {
         var readModelsResult36 = ReadModels(context);
         var readProjectsAsyncResult37 = ReadProjectsAsync(context.Scope, readModelsResult36, context.Security, context.Principal, archivedOnly: true, cancellationToken);
         return readProjectsAsyncResult37;
     }
 
-    internal static Task<object?> ReadProjectResourceAsync(McpToolContext context, Guid projectId, CancellationToken cancellationToken)
+    internal static Task<object?> ReadProjectResourceAsync(SereinFlowMcpToolContext context, Guid projectId, CancellationToken cancellationToken)
     {
         var readModelsResult38 = ReadModels(context);
         var readProjectAsyncResult39 = ReadProjectAsync(readModelsResult38, context.Security, context.Principal, projectId, cancellationToken);
         return readProjectAsyncResult39;
     }
 
-    internal static Task<object?> ReadTopologyResourceAsync(McpToolContext context, Guid projectId, Guid flowId, CancellationToken cancellationToken)
+    internal static Task<object?> ReadTopologyResourceAsync(SereinFlowMcpToolContext context, Guid projectId, Guid flowId, CancellationToken cancellationToken)
     {
         var readModelsResult40 = ReadModels(context);
         var readFlowTopologyAsyncResult41 = ReadFlowTopologyAsync(readModelsResult40, context.Security, context.Principal, projectId, flowId, FlowVersionTrackDto.Development, null, null, cancellationToken);
         return readFlowTopologyAsyncResult41;
     }
 
-    internal static Task<object> ReadLibrariesResourceAsync(McpToolContext context, CancellationToken cancellationToken)
+    internal static Task<object> ReadLibrariesResourceAsync(SereinFlowMcpToolContext context, CancellationToken cancellationToken)
     {
         var readModelsResult42 = ReadModels(context);
         var readLibrariesAsyncResult43 = ReadLibrariesAsync(context.Scope, readModelsResult42, context.Security, context.Principal, cancellationToken, LibraryListScope.Active);
         return readLibrariesAsyncResult43;
     }
 
-    internal static Task<object> ReadArchivedLibrariesResourceAsync(McpToolContext context, CancellationToken cancellationToken)
+    internal static Task<object> ReadArchivedLibrariesResourceAsync(SereinFlowMcpToolContext context, CancellationToken cancellationToken)
     {
         var readModelsResult44 = ReadModels(context);
         var readLibrariesAsyncResult45 = ReadLibrariesAsync(context.Scope, readModelsResult44, context.Security, context.Principal, cancellationToken, LibraryListScope.Archived);
         return readLibrariesAsyncResult45;
     }
 
-    internal static Task<object?> ReadLibraryResourceAsync(McpToolContext context, string libraryId, CancellationToken cancellationToken)
+    internal static Task<object?> ReadLibraryResourceAsync(SereinFlowMcpToolContext context, string libraryId, CancellationToken cancellationToken)
     {
         var readModelsResult46 = ReadModels(context);
         var readLibraryAsyncResult47 = ReadLibraryAsync(context.Scope, readModelsResult46, context.Security, context.Principal, libraryId, cancellationToken);
         return readLibraryAsyncResult47;
     }
 
-    internal static Task<object> ReadLibraryFamiliesResourceAsync(McpToolContext context, CancellationToken cancellationToken)
+    internal static Task<object> ReadLibraryFamiliesResourceAsync(SereinFlowMcpToolContext context, CancellationToken cancellationToken)
     {
         AiReadModelOptions evaluatedValue48 = new();
         var readLibraryFamiliesAsyncResult49 = ReadLibraryFamiliesAsync(context.Scope, context.Security, context.Principal, includeArchivedArtifacts: true, evaluatedValue48, cancellationToken);
         return readLibraryFamiliesAsyncResult49;
     }
 
-    internal static Task<object?> ReadLibraryFamilyResourceAsync(McpToolContext context, string familyId, CancellationToken cancellationToken)
+    internal static Task<object?> ReadLibraryFamilyResourceAsync(SereinFlowMcpToolContext context, string familyId, CancellationToken cancellationToken)
     {
         var readLibraryFamilyAsyncResult50 = ReadLibraryFamilyAsync(context.Scope, context.Security, context.Principal, familyId, cancellationToken);
         return readLibraryFamilyAsyncResult50;
     }
 
-    internal static Task<object> ReadProjectLibrariesResourceAsync(McpToolContext context, Guid projectId, CancellationToken cancellationToken)
+    internal static Task<object> ReadProjectLibrariesResourceAsync(SereinFlowMcpToolContext context, Guid projectId, CancellationToken cancellationToken)
     {
         AiReadModelOptions evaluatedValue51 = new();
         var readProjectLibrariesAsyncResult52 = ReadProjectLibrariesAsync(context.Scope, context.Security, context.Principal, projectId, evaluatedValue51, cancellationToken);
         return readProjectLibrariesAsyncResult52;
     }
 
-    internal static Task<object> ReadLibraryUpgradeResourceAsync(McpToolContext context, Guid projectId, Guid upgradeId, CancellationToken cancellationToken)
+    internal static Task<object> ReadLibraryUpgradeResourceAsync(SereinFlowMcpToolContext context, Guid projectId, Guid upgradeId, CancellationToken cancellationToken)
     {
         var readLibraryUpgradeAsyncResult53 = ReadLibraryUpgradeAsync(context.Scope, context.Security, context.Principal, projectId, upgradeId, cancellationToken);
         return readLibraryUpgradeAsyncResult53;
     }
 
-    internal static Task<object?> ReadRunResourceAsync(McpToolContext context, Guid runId, CancellationToken cancellationToken)
+    internal static Task<object?> ReadRunResourceAsync(SereinFlowMcpToolContext context, Guid runId, CancellationToken cancellationToken)
     {
         var readModelsResult54 = ReadModels(context);
         var readRunAsyncResult55 = ReadRunAsync(context.Scope, readModelsResult54, context.Security, context.Principal, runId, cancellationToken);
         return readRunAsyncResult55;
     }
 
-    internal static Task<object?> ReadRunWorkpiecesResourceAsync(McpToolContext context, Guid runId, CancellationToken cancellationToken)
+    internal static Task<object?> ReadRunWorkpiecesResourceAsync(SereinFlowMcpToolContext context, Guid runId, CancellationToken cancellationToken)
     {
-        var serializeToElementResult = JsonSerializer.SerializeToElement(new { runId });
-        var listRunWorkpiecesAsyncResult = ListRunWorkpiecesAsync(context, serializeToElementResult, cancellationToken);
+        var listRunWorkpiecesAsyncResult = ListRunWorkpiecesAsync(context, new McpRunQueryRequest { RunId = runId }, cancellationToken);
         return listRunWorkpiecesAsyncResult;
     }
 
-    internal static Task<object?> ReadRunWorkpieceResourceAsync(McpToolContext context, Guid runId, string workpieceId, CancellationToken cancellationToken)
+    internal static Task<object?> ReadRunWorkpieceResourceAsync(SereinFlowMcpToolContext context, Guid runId, string workpieceId, CancellationToken cancellationToken)
     {
-        var serializeToElementResult56 = JsonSerializer.SerializeToElement(new { runId, workpieceId });
-        var getRunWorkpieceAsyncResult = GetRunWorkpieceAsync(context, serializeToElementResult56, cancellationToken);
+        var getRunWorkpieceAsyncResult = GetRunWorkpieceAsync(context, new McpRunWorkpieceQueryRequest { RunId = runId, WorkpieceId = workpieceId.Trim() }, cancellationToken);
         return getRunWorkpieceAsyncResult;
     }
 
-    internal static Task<object?> ReadDebugResourceAsync(McpToolContext context, Guid sessionId, CancellationToken cancellationToken)
+    internal static Task<object?> ReadDebugResourceAsync(SereinFlowMcpToolContext context, Guid sessionId, CancellationToken cancellationToken)
     {
         var readModelsResult57 = ReadModels(context);
         var readDebugAsyncResult58 = ReadDebugAsync(context.Scope, readModelsResult57, context.Security, context.Principal, sessionId, cancellationToken);
         return readDebugAsyncResult58;
     }
 
-    internal static Task<object> ReadVersionsResourceAsync(McpToolContext context, Guid projectId, Guid flowId, string track, CancellationToken cancellationToken)
+    internal static Task<object> ReadVersionsResourceAsync(SereinFlowMcpToolContext context, Guid projectId, Guid flowId, string track, CancellationToken cancellationToken)
     {
         var readVersionsAsyncResult = ReadVersionsAsync(context.Security, context.Principal, projectId, flowId, track, context.Scope, cancellationToken);
         return readVersionsAsyncResult;
     }
 
-    internal static Task<object?> ReadVersionResourceAsync(McpToolContext context, Guid projectId, Guid flowId, string track, long version, CancellationToken cancellationToken)
+    internal static Task<object?> ReadVersionResourceAsync(SereinFlowMcpToolContext context, Guid projectId, Guid flowId, string track, long version, CancellationToken cancellationToken)
     {
         var readVersionAsyncResult = ReadVersionAsync(context.Security, context.Principal, projectId, flowId, track, version, context.Scope, cancellationToken);
         return readVersionAsyncResult;
     }
 
-    internal static Task<object> ReadPreviewResourceAsync(McpToolContext context, Guid previewId, CancellationToken cancellationToken)
+    internal static Task<object> ReadPreviewResourceAsync(SereinFlowMcpToolContext context, Guid previewId, CancellationToken cancellationToken)
     {
         var readPreviewAsyncResult = ReadPreviewAsync(context.Scope, context.Security, context.Principal, previewId, cancellationToken);
         return readPreviewAsyncResult;
     }
 
-    private static AiReadModelService ReadModels(McpToolContext context)
+    private static AiReadModelService ReadModels(SereinFlowMcpToolContext context)
     {
         var getRequiredServiceResult59 = context.Services.GetRequiredService<AiReadModelService>();
         return getRequiredServiceResult59;
@@ -318,11 +319,11 @@ internal static class McpReadModelToolHandlers
         return evaluatedValue60;
     }
 
-    private static async Task<AiDebugStateWaitResultDto?> WaitForDebugStateAsync(IServiceScope scope, AiReadModelService service, McpSecurityService security, McpPrincipal? principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<AiDebugStateWaitResultDto?> WaitForDebugStateAsync(IServiceScope scope, AiReadModelService service, McpSecurityService security, McpPrincipal? principal, McpDebugStateWaitRequest arguments, CancellationToken cancellationToken)
     {
         security.RequireAny(principal, null, McpPermissionDto.DebugRead, McpPermissionDto.RunRead);
-        var afterRevision = GetOptionalLong(arguments, "afterRevision") ?? throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'afterRevision' is required.");
-        var timeoutSeconds = GetOptionalInt(arguments, "timeoutSeconds") ?? 15;
+        var afterRevision = arguments.AfterRevision;
+        var timeoutSeconds = arguments.TimeoutSeconds;
         if (afterRevision < 0)
         {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'afterRevision' cannot be negative.");
@@ -333,7 +334,7 @@ internal static class McpReadModelToolHandlers
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'timeoutSeconds' must be between 0 and 60.");
         }
 
-        var getGuidResult61 = GetGuid(arguments, "sessionId");
+        var getGuidResult61 = arguments.SessionId;
         var fromSecondsResult = TimeSpan.FromSeconds(timeoutSeconds);
         var result = await service.WaitForDebugStateChangeAsync(getGuidResult61, afterRevision, fromSecondsResult, cancellationToken);
         if (result is not null)

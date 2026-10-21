@@ -1,5 +1,5 @@
 using System.Text.Json;
-using SereinFlow.Mcp;
+using SereinFlow.Mcp.Tools;
 
 namespace SereinFlow.Mcp.Tests;
 

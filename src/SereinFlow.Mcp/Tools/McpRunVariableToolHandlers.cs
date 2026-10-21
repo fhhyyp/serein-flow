@@ -1,39 +1,38 @@
-using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
-using static SereinFlow.Mcp.McpToolSupport;
+using SereinFlow.Mcp.Integration;
+using static SereinFlow.Mcp.Tools.McpToolSupport;
 
-namespace SereinFlow.Mcp;
+namespace SereinFlow.Mcp.Tools;
 internal static class McpRunVariableToolHandlers
 {
-    internal static async Task<object> GetAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_get_run_variables", McpPermissionDto.RunRead)]
+    internal static async Task<object> GetAsync(SereinFlowMcpToolContext context, McpGetRunVariablesRequest arguments, CancellationToken cancellationToken)
     {
-        var runId = GetGuid(arguments, "runId");
+        var runId = arguments.RunId;
         await AuthorizeRunAsync(context, runId, McpPermissionDto.RunRead, cancellationToken);
-        var name = GetOptionalString(arguments, "name");
+        var name = arguments.Name;
         var getRequiredServiceResult = context.Services.GetRequiredService<IRunVariableService>();
-        var evaluatedValue = GetOptionalInt(arguments, "offset") ?? 0;
-        var evaluatedValue1 = GetOptionalInt(arguments, "take") ?? 100;
+        var evaluatedValue = arguments.Offset;
+        var evaluatedValue1 = arguments.Take;
         WorkerVariableRequestDto evaluatedValue2 = new(WorkerProtocol.Version, runId, name is null ? "list" : "get", name, Offset: evaluatedValue, Take: evaluatedValue1);
         var response = await getRequiredServiceResult.AccessAsync(evaluatedValue2, cancellationToken);
         EnsureSuccess(response);
         return (object? )response.Snapshot ?? response.Variable!;
     }
 
-    internal static async Task<object> SetAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_set_run_variable", McpPermissionDto.RunVariableWrite, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    internal static async Task<object> SetAsync(SereinFlowMcpToolContext context, McpSetRunVariableRequest arguments, CancellationToken cancellationToken)
     {
-        var runId = GetGuid(arguments, "runId");
+        var runId = arguments.RunId;
         await AuthorizeRunAsync(context, runId, McpPermissionDto.RunVariableWrite, cancellationToken);
-        var name = GetOptionalString(arguments, "name") ?? throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "Variable name is required.");
-        var valueType = GetRequiredString(arguments, "valueType");
-        if (!arguments.TryGetProperty("value", out var value))
-        {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "An explicit JSON value is required.", new { code = VariableErrorCodes.ValueInvalid });
-        }
+        var name = arguments.Name;
+        var valueType = arguments.ValueType;
+        var value = arguments.Value;
 
-        var key = GetRequiredString(arguments, "idempotencyKey");
+        var key = arguments.IdempotencyKey;
         var payload = Serialize(new { runId, name, valueType, value, idempotencyKey = key });
         var principal = context.RequirePrincipal();
         var idempotency = context.Services.GetRequiredService<McpIdempotencyService>();
@@ -46,7 +45,7 @@ internal static class McpRunVariableToolHandlers
         }
 
         var getRequiredServiceResult3 = context.Services.GetRequiredService<IRunVariableService>();
-        var cloneResult = value.Clone();
+        var cloneResult = value;
         WorkerVariableRequestDto evaluatedValue4 = new(WorkerProtocol.Version, runId, "set", name, cloneResult, valueType);
         var response = await getRequiredServiceResult3.AccessAsync(evaluatedValue4, cancellationToken);
         EnsureSuccess(response);
@@ -55,7 +54,7 @@ internal static class McpRunVariableToolHandlers
         return result;
     }
 
-    private static async Task AuthorizeRunAsync(McpToolContext context, Guid runId, McpPermissionDto permission, CancellationToken cancellationToken)
+    private static async Task AuthorizeRunAsync(SereinFlowMcpToolContext context, Guid runId, McpPermissionDto permission, CancellationToken cancellationToken)
     {
         var getRequiredServiceResult5 = context.Services.GetRequiredService<IFlowRunStore>();
         var run = await getRequiredServiceResult5.FindAsync(runId, cancellationToken);

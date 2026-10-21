@@ -1,98 +1,103 @@
-using System.Threading.Tasks;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Text;
-using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
-using SereinFlow.Domain;
-using static SereinFlow.Mcp.McpToolSupport;
+using SereinFlow.Mcp.Integration;
+using static SereinFlow.Mcp.Tools.McpToolSupport;
 
-namespace SereinFlow.Mcp;
+namespace SereinFlow.Mcp.Tools;
 /// <summary>
 /// Library contracts, package staging and project attachment MCP tools.
 /// Attachment remains an explicit preview/apply workflow.
 /// </summary>
 internal static class McpLibraryToolHandlers
 {
-    internal static Task<object> CreateNodeTemplateAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_create_library_node_template", McpPermissionDto.ProjectRead)]
+    internal static Task<object> CreateNodeTemplateAsync(SereinFlowMcpToolContext context, LibraryNodeTemplateRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult = context.RequirePrincipal();
         var createLibraryNodeTemplateAsyncResult = CreateLibraryNodeTemplateAsync(context.Scope, requirePrincipalResult, arguments, cancellationToken);
         return createLibraryNodeTemplateAsyncResult;
     }
 
-    internal static Task<object> CompileScriptAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_compile_sereinlang", McpPermissionDto.ScriptCompile)]
+    internal static Task<object> CompileScriptAsync(SereinFlowMcpToolContext context, ScriptCompileRequestDto arguments, CancellationToken cancellationToken)
     {
         var compileScriptAsyncResult = CompileScriptAsync(context.Scope, arguments, cancellationToken);
         return compileScriptAsyncResult;
     }
 
-    internal static Task<object> PreviewPackageAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_preview_library_package", McpPermissionDto.LibraryImport, ExecutionKind = McpToolExecutionKind.Mutation)]
+    internal static Task<object> PreviewPackageAsync(SereinFlowMcpToolContext context, McpLibraryPackagePreviewRequest arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult1 = context.RequirePrincipal();
         var previewLibraryPackageAsyncResult = PreviewLibraryPackageAsync(context.Scope, requirePrincipalResult1, arguments, cancellationToken);
         return previewLibraryPackageAsyncResult;
     }
 
-    internal static Task<object> ApplyPackageAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_apply_library_package", McpPermissionDto.LibraryImport, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    internal static Task<object> ApplyPackageAsync(SereinFlowMcpToolContext context, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult2 = context.RequirePrincipal();
         var applyLibraryPackageAsyncResult = ApplyLibraryPackageAsync(context.Scope, requirePrincipalResult2, arguments, cancellationToken);
         return applyLibraryPackageAsyncResult;
     }
 
-    internal static Task<object> PreviewProjectAttachAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_preview_project_library_attach", McpPermissionDto.LibraryManage, ExecutionKind = McpToolExecutionKind.Mutation)]
+    internal static Task<object> PreviewProjectAttachAsync(SereinFlowMcpToolContext context, ProjectLibraryAttachRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult3 = context.RequirePrincipal();
         var previewProjectLibraryAttachAsyncResult = PreviewProjectLibraryAttachAsync(context.Scope, requirePrincipalResult3, arguments, cancellationToken);
         return previewProjectLibraryAttachAsyncResult;
     }
 
-    internal static Task<object> ApplyProjectAttachAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_apply_project_library_attach", McpPermissionDto.LibraryManage, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    internal static Task<object> ApplyProjectAttachAsync(SereinFlowMcpToolContext context, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult4 = context.RequirePrincipal();
         var applyProjectLibraryAttachAsyncResult = ApplyProjectLibraryAttachAsync(context.Scope, requirePrincipalResult4, arguments, cancellationToken);
         return applyProjectLibraryAttachAsyncResult;
     }
 
-    internal static Task<object> PreviewLibraryFamilyAssignmentAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_preview_library_family_assignment", McpPermissionDto.LibraryManage, ExecutionKind = McpToolExecutionKind.Mutation)]
+    internal static Task<object> PreviewLibraryFamilyAssignmentAsync(SereinFlowMcpToolContext context, LibraryFamilyAssignmentMcpRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult5 = context.RequirePrincipal();
         var previewLibraryFamilyAssignmentAsyncResult = PreviewLibraryFamilyAssignmentAsync(context.Scope, requirePrincipalResult5, arguments, cancellationToken);
         return previewLibraryFamilyAssignmentAsyncResult;
     }
 
-    internal static Task<object> ApplyLibraryFamilyAssignmentAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_apply_library_family_assignment", McpPermissionDto.LibraryManage, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    internal static Task<object> ApplyLibraryFamilyAssignmentAsync(SereinFlowMcpToolContext context, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult6 = context.RequirePrincipal();
         var applyLibraryFamilyAssignmentAsyncResult = ApplyLibraryFamilyAssignmentAsync(context.Scope, requirePrincipalResult6, arguments, cancellationToken);
         return applyLibraryFamilyAssignmentAsyncResult;
     }
 
-    internal static Task<object> PreviewLibraryUpgradeAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_preview_library_upgrade", McpPermissionDto.FlowWrite, ExecutionKind = McpToolExecutionKind.Mutation)]
+    internal static Task<object> PreviewLibraryUpgradeAsync(SereinFlowMcpToolContext context, McpLibraryUpgradePreviewRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult7 = context.RequirePrincipal();
         var previewLibraryUpgradeAsyncResult = PreviewLibraryUpgradeAsync(context.Scope, requirePrincipalResult7, arguments, cancellationToken);
         return previewLibraryUpgradeAsyncResult;
     }
 
-    internal static Task<object> ApplyLibraryUpgradeAsync(McpToolContext context, JsonElement arguments, CancellationToken cancellationToken)
+    [SereinFlowMcpTool("sereinflow_apply_library_upgrade", McpPermissionDto.FlowWrite, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    internal static Task<object> ApplyLibraryUpgradeAsync(SereinFlowMcpToolContext context, McpLibraryUpgradeApplyRequestDto arguments, CancellationToken cancellationToken)
     {
         var requirePrincipalResult8 = context.RequirePrincipal();
         var applyLibraryUpgradeAsyncResult = ApplyLibraryUpgradeAsync(context.Scope, requirePrincipalResult8, arguments, cancellationToken);
         return applyLibraryUpgradeAsyncResult;
     }
 
-    private static async Task<object> PreviewLibraryFamilyAssignmentAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> PreviewLibraryFamilyAssignmentAsync(IServiceScope scope, McpPrincipal principal, LibraryFamilyAssignmentMcpRequestDto arguments, CancellationToken cancellationToken)
     {
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         security.RequireAdministrator(principal);
         security.Require(principal, McpPermissionDto.LibraryManage);
-        var deserializeResult = Deserialize<LibraryFamilyAssignmentMcpRequestDto>(arguments);
+        var deserializeResult = arguments;
         var validated = await ValidateLibraryFamilyAssignmentAsync(scope, deserializeResult, cancellationToken);
         var stored = new StoredLibraryFamilyAssignmentPreview(validated.Request, validated.Diagnostics, validated.CurrentFamily, validated.TargetFamily);
         var getRequiredServiceResult = scope.ServiceProvider.GetRequiredService<McpPreviewService>();
@@ -101,9 +106,9 @@ internal static class McpLibraryToolHandlers
         return libraryFamilyAssignmentMcpPreviewDto;
     }
 
-    private static async Task<object> ApplyLibraryFamilyAssignmentAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> ApplyLibraryFamilyAssignmentAsync(IServiceScope scope, McpPrincipal principal, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<McpMutationApplyRequestDto>(arguments);
+        var request = arguments;
         RequireConfirmation(request);
         var requestPayload = Serialize(request);
         var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
@@ -153,9 +158,9 @@ internal static class McpLibraryToolHandlers
         return result;
     }
 
-    private static async Task<object> PreviewLibraryUpgradeAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> PreviewLibraryUpgradeAsync(IServiceScope scope, McpPrincipal principal, McpLibraryUpgradePreviewRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<McpLibraryUpgradePreviewRequestDto>(arguments);
+        var request = arguments;
         request = request with
         {
             SourceArtifactId = request.SourceArtifactId?.Trim() ?? string.Empty,
@@ -181,9 +186,9 @@ internal static class McpLibraryToolHandlers
         return mcpLibraryUpgradePreviewDto;
     }
 
-    private static async Task<object> ApplyLibraryUpgradeAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> ApplyLibraryUpgradeAsync(IServiceScope scope, McpPrincipal principal, McpLibraryUpgradeApplyRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<McpLibraryUpgradeApplyRequestDto>(arguments);
+        var request = arguments;
         var applyEnvelope = new McpMutationApplyRequestDto(request.PreviewId, request.PreviewFingerprint, request.Confirmation, request.IdempotencyKey);
         RequireConfirmation(applyEnvelope);
         if (request.Flows is null || request.Flows.Count == 0)
@@ -318,9 +323,9 @@ internal static class McpLibraryToolHandlers
     }
 
     private sealed record LibraryFamilyAssignmentValidation(LibraryFamilyAssignmentMcpRequestDto Request, IReadOnlyList<ValidationDiagnosticDto> Diagnostics, LibraryFamilyDto? CurrentFamily, LibraryFamilyDto? TargetFamily);
-    private static async Task<object> CreateLibraryNodeTemplateAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> CreateLibraryNodeTemplateAsync(IServiceScope scope, McpPrincipal principal, LibraryNodeTemplateRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<LibraryNodeTemplateRequestDto>(arguments);
+        var request = arguments;
         if (request.ProjectId == Guid.Empty)
         {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The library node template request is invalid.");
@@ -340,23 +345,23 @@ internal static class McpLibraryToolHandlers
         }
     }
 
-    private static async Task<object> CompileScriptAsync(IServiceScope scope, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> CompileScriptAsync(IServiceScope scope, ScriptCompileRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<ScriptCompileRequestDto>(arguments);
+        var request = arguments;
         if (string.IsNullOrWhiteSpace(request.Source))
         {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinLang source is required.");
         }
 
-        var getRequiredServiceResult21 = scope.ServiceProvider.GetRequiredService<SereinFlow.ScriptAdapter.ISereinLangCompiler>();
+        var getRequiredServiceResult21 = scope.ServiceProvider.GetRequiredService<ScriptAdapter.ISereinLangCompiler>();
         var compileAsyncResult = await getRequiredServiceResult21.CompileAsync(request, cancellationToken);
         return compileAsyncResult;
     }
 
-    private static async Task<object> PreviewLibraryPackageAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> PreviewLibraryPackageAsync(IServiceScope scope, McpPrincipal principal, McpLibraryPackagePreviewRequest arguments, CancellationToken cancellationToken)
     {
-        var fileName = GetRequiredString(arguments, "fileName");
-        var packageBase64 = GetRequiredString(arguments, "packageBase64");
+        var fileName = arguments.FileName;
+        var packageBase64 = arguments.PackageBase64;
         var fileUploadSettings = scope.ServiceProvider.GetRequiredService<IFileUploadSettings>();
         if (packageBase64.Length > FileUploadLimits.GetBase64EncodedLimit(fileUploadSettings.MaxLibraryUploadBytes))
         {
@@ -373,9 +378,9 @@ internal static class McpLibraryToolHandlers
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The library package must be valid base64.", exception.Message);
         }
 
-        var projectId = TryGetGuid(arguments, "projectId");
-        var familyId = GetOptionalString(arguments, "familyId");
-        var baselineArtifactId = GetOptionalString(arguments, "baselineArtifactId");
+        var projectId = arguments.ProjectId;
+        var familyId = arguments.FamilyId;
+        var baselineArtifactId = arguments.BaselineArtifactId;
         if (!string.IsNullOrWhiteSpace(familyId) && !string.IsNullOrWhiteSpace(baselineArtifactId))
         {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "Specify either familyId or baselineArtifactId, not both.");
@@ -443,9 +448,9 @@ internal static class McpLibraryToolHandlers
         }
     }
 
-    private static async Task<object> ApplyLibraryPackageAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> ApplyLibraryPackageAsync(IServiceScope scope, McpPrincipal principal, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<McpMutationApplyRequestDto>(arguments);
+        var request = arguments;
         RequireConfirmation(request);
         var requestPayload = Serialize(request);
         var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();
@@ -566,9 +571,9 @@ internal static class McpLibraryToolHandlers
         }
     }
 
-    private static async Task<object> PreviewProjectLibraryAttachAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> PreviewProjectLibraryAttachAsync(IServiceScope scope, McpPrincipal principal, ProjectLibraryAttachRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<ProjectLibraryAttachRequestDto>(arguments);
+        var request = arguments;
         var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
         security.Require(principal, McpPermissionDto.LibraryManage, request.ProjectId);
         var libraryId = request.LibraryId?.Trim() ?? string.Empty;
@@ -585,9 +590,9 @@ internal static class McpLibraryToolHandlers
         return projectLibraryAttachPreviewDto;
     }
 
-    private static async Task<object> ApplyProjectLibraryAttachAsync(IServiceScope scope, McpPrincipal principal, JsonElement arguments, CancellationToken cancellationToken)
+    private static async Task<object> ApplyProjectLibraryAttachAsync(IServiceScope scope, McpPrincipal principal, McpMutationApplyRequestDto arguments, CancellationToken cancellationToken)
     {
-        var request = Deserialize<McpMutationApplyRequestDto>(arguments);
+        var request = arguments;
         RequireConfirmation(request);
         var requestPayload = Serialize(request);
         var idempotency = scope.ServiceProvider.GetRequiredService<McpIdempotencyService>();

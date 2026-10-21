@@ -36,8 +36,7 @@ public static class McpResourceUriParser
             };
             if (directId is not null)
             {
-                var setResult = Set(directId.Value, out match);
-                return setResult;
+                return Set(directId.Value, out match);
             }
         }
 
@@ -55,53 +54,36 @@ public static class McpResourceUriParser
 
             if (segments.Length == 1)
             {
-                var evaluatedValue = ("projectId", projectId.ToString("D"));
-                var setResult1 = Set(McpResourceId.Project, evaluatedValue, out match);
-                return setResult1;
+                return Set(McpResourceId.Project, out match, ("projectId", projectId.ToString("D")));
             }
 
             if (segments.Length == 2 && Equals(segments[1], McpResourceSegments.Libraries))
             {
-                var evaluatedValue2 = ("projectId", projectId.ToString("D"));
-                var setResult3 = Set(McpResourceId.ProjectLibraries, evaluatedValue2, out match);
-                return setResult3;
+                return Set(McpResourceId.ProjectLibraries, out match, ("projectId", projectId.ToString("D")));
             }
 
             if (segments.Length == 3 && Equals(segments[1], McpResourceSegments.LibraryUpgrades) && Guid.TryParse(segments[2], out var upgradeId))
             {
-                var evaluatedValue4 = ("projectId", projectId.ToString("D"));
-                var evaluatedValue5 = ("upgradeId", upgradeId.ToString("D"));
-                var setResult6 = Set(McpResourceId.LibraryUpgrade, evaluatedValue4, evaluatedValue5, out match);
-                return setResult6;
+                return Set(McpResourceId.LibraryUpgrade, out match, ("projectId", projectId.ToString("D")), ("upgradeId", upgradeId.ToString("D")));
             }
 
             if (segments.Length >= 4 && Equals(segments[1], McpResourceSegments.Flows) && Guid.TryParse(segments[2], out var flowId))
             {
                 if (segments.Length == 4 && Equals(segments[3], McpResourceSegments.Topology))
                 {
-                    var evaluatedValue7 = ("projectId", projectId.ToString("D"));
-                    var evaluatedValue8 = ("flowId", flowId.ToString("D"));
-                    var setResult9 = Set(McpResourceId.FlowTopology, evaluatedValue7, evaluatedValue8, out match);
-                    return setResult9;
+                    return Set(McpResourceId.FlowTopology, out match, ("projectId", projectId.ToString("D")), ("flowId", flowId.ToString("D")));
                 }
 
                 if (segments.Length >= 5 && Equals(segments[3], McpResourceSegments.Versions))
                 {
                     if (segments.Length == 5)
                     {
-                        var evaluatedValue10 = ("projectId", projectId.ToString("D"));
-                        var evaluatedValue11 = ("flowId", flowId.ToString("D"));
-                        var setResult12 = Set(McpResourceId.FlowVersions, evaluatedValue10, evaluatedValue11, ("track", segments[4]), out match);
-                        return setResult12;
+                        return Set(McpResourceId.FlowVersions, out match, ("projectId", projectId.ToString("D")), ("flowId", flowId.ToString("D")), ("track", segments[4]));
                     }
 
                     if (segments.Length == 6 && long.TryParse(segments[5], out var version))
                     {
-                        var evaluatedValue13 = ("projectId", projectId.ToString("D"));
-                        var evaluatedValue14 = ("flowId", flowId.ToString("D"));
-                        var evaluatedValue15 = ("version", version.ToString(CultureInfo.InvariantCulture));
-                        var setResult16 = Set(McpResourceId.FlowVersion, evaluatedValue13, evaluatedValue14, ("track", segments[4]), evaluatedValue15, out match);
-                        return setResult16;
+                        return Set(McpResourceId.FlowVersion, out match, ("projectId", projectId.ToString("D")), ("flowId", flowId.ToString("D")), ("track", segments[4]), ("version", version.ToString(CultureInfo.InvariantCulture)));
                     }
                 }
             }
@@ -110,98 +92,54 @@ public static class McpResourceUriParser
         {
             if (segments.Length == 1)
             {
-                var setResult17 = Set(McpResourceId.Library, ("libraryId", segments[0]), out match);
-                return setResult17;
+                return Set(McpResourceId.Library, out match, ("libraryId", segments[0]));
             }
         }
         else if (collection == McpResourceSegments.LibraryFamilies)
         {
             if (segments.Length == 1)
             {
-                var setResult18 = Set(McpResourceId.LibraryFamily, ("familyId", segments[0]), out match);
-                return setResult18;
+                return Set(McpResourceId.LibraryFamily, out match, ("familyId", segments[0]));
             }
         }
         else if (collection == McpResourceSegments.McpPreviews && segments.Length == 1 && Guid.TryParse(segments[0], out var previewId))
         {
-            var evaluatedValue27 = ("previewId", previewId.ToString("D"));
-            var setResult28 = Set(McpResourceId.Preview, evaluatedValue27, out match);
-            return setResult28;
+            return Set(McpResourceId.Preview, out match, ("previewId", previewId.ToString("D")));
         }
         else if (collection == McpResourceSegments.Runs)
         {
             if (segments.Length == 1 && Guid.TryParse(segments[0], out var runId))
             {
-                var evaluatedValue19 = ("runId", runId.ToString("D"));
-                var setResult20 = Set(McpResourceId.Run, evaluatedValue19, out match);
-                return setResult20;
+                return Set(McpResourceId.Run, out match, ("runId", runId.ToString("D")));
             }
 
             if (segments.Length == 2 && Guid.TryParse(segments[0], out runId) && Equals(segments[1], McpResourceSegments.Workpieces))
             {
-                var evaluatedValue21 = ("runId", runId.ToString("D"));
-                var setResult22 = Set(McpResourceId.RunWorkpieces, evaluatedValue21, out match);
-                return setResult22;
+                return Set(McpResourceId.RunWorkpieces, out match, ("runId", runId.ToString("D")));
             }
 
             if (segments.Length == 3 && Guid.TryParse(segments[0], out runId) && Equals(segments[1], McpResourceSegments.Workpieces))
             {
-                var evaluatedValue23 = ("runId", runId.ToString("D"));
-                var setResult24 = Set(McpResourceId.RunWorkpiece, evaluatedValue23, ("workpieceId", segments[2]), out match);
-                return setResult24;
+                return Set(McpResourceId.RunWorkpiece, out match, ("runId", runId.ToString("D")), ("workpieceId", segments[2]));
             }
         }
         else if (collection == McpResourceSegments.DebugSessions && segments.Length == 1 && Guid.TryParse(segments[0], out var sessionId))
         {
-            var evaluatedValue25 = ("sessionId", sessionId.ToString("D"));
-            var setResult26 = Set(McpResourceId.DebugSession, evaluatedValue25, out match);
-            return setResult26;
+            return Set(McpResourceId.DebugSession, out match, ("sessionId", sessionId.ToString("D")));
         }
 
         return false;
     }
 
-    private static bool Set(McpResourceId id, out McpResourceMatch? match)
+    private static bool Set(McpResourceId id, out McpResourceMatch? match, params (string Key, string Value)[] values)
     {
-        var emptyResult = Array.Empty<(string, string)>();
-        var setResult29 = Set(id, emptyResult, out match);
-        return setResult29;
-    }
-
-    private static bool Set(McpResourceId id, (string Key, string Value) first, out McpResourceMatch? match)
-    {
-        var setResult30 = Set(id, new[] { first }, out match);
-        return setResult30;
-    }
-
-    private static bool Set(McpResourceId id, (string Key, string Value) first, (string Key, string Value) second, out McpResourceMatch? match)
-    {
-        var setResult31 = Set(id, new[] { first, second }, out match);
-        return setResult31;
-    }
-
-    private static bool Set(McpResourceId id, (string Key, string Value) first, (string Key, string Value) second, (string Key, string Value) third, out McpResourceMatch? match)
-    {
-        var setResult32 = Set(id, new[] { first, second, third }, out match);
-        return setResult32;
-    }
-
-    private static bool Set(McpResourceId id, (string Key, string Value) first, (string Key, string Value) second, (string Key, string Value) third, (string Key, string Value) fourth, out McpResourceMatch? match)
-    {
-        var setResult33 = Set(id, new[] { first, second, third, fourth }, out match);
-        return setResult33;
-    }
-
-    private static bool Set(McpResourceId id, IEnumerable<(string Key, string Value)> values, out McpResourceMatch? match)
-    {
-        var toDictionaryResult = values.ToDictionary(static item => item.Key, static item => item.Value, StringComparer.Ordinal);
-        match = new McpResourceMatch(id, toDictionaryResult);
+        var parameters = values.ToDictionary(static item => item.Key, static item => item.Value, StringComparer.Ordinal);
+        match = new McpResourceMatch(id, parameters);
         return true;
     }
 
     private static bool Equals(string value, string expected)
     {
-        var equalsResult = string.Equals(value, expected, StringComparison.OrdinalIgnoreCase);
-        return equalsResult;
+        return string.Equals(value, expected, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -288,6 +288,9 @@
       "sereinflow.library": {
         "type": "Project"
       },
+      "sereinflow.mcp.framework": {
+        "type": "Project"
+      },
       "sereinflow.runtime": {
         "type": "Project",
         "dependencies": {

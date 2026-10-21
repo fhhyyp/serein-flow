@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SereinFlow.Mcp.Generator\SereinFlow.Mcp.Generator.csproj" OutputItemType="Reference" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="..\..\src\SereinFlow.Mcp.Framework\SereinFlow.Mcp.Framework.csproj" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>
