@@ -1,3 +1,4 @@
+using Serein.Generator.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,7 +27,7 @@ internal static class McpValidationCacheExtension
     {
         var name = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         if (byType.TryGetValue(name, out var existing)) return existing;
-        var cache = new McpValidationCache(name, "ValidateRequest" + byType.Count);
+        var cache = new McpValidationCache(name, SymbolNames.StableIdentifier("ValidateRequest", name));
         byType.Add(name, cache);
         registry.Validations.Add(cache);
         type.BuildPropertyBindingCache(cache);

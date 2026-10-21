@@ -114,6 +114,9 @@
         "dependencies": {
           "System.Runtime.CompilerServices.Unsafe": "6.1.0"
         }
+      },
+      "serein.generator.framework": {
+        "type": "Project"
       }
     }
   }

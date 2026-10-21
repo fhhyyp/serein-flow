@@ -21,3 +21,10 @@ property-based references.
 When updating this snapshot, copy only the two projects above, preserve their
 sibling directory relationship, record the new upstream commit here, and run
 the full SereinFlow restore, build, and test commands.
+
+Local integration change: `ScriptLang.Generator` now uses the sibling
+`../Serein.Generator.Framework` project for common generator infrastructure.
+Its domain generator handles partial declarations and stable output names;
+see `ScriptLang.Generator/README.md` for supported declarations and diagnostics.
+When copying this integration to another checkout, include the framework project
+or consume a packaged generator, whose analyzer directory includes the framework DLL.

@@ -1,8 +1,8 @@
+using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Text;
-using System.Text;
+using Serein.Generator.Framework;
 using SereinFlow.Mcp.Generator.Extensions;
 using SereinFlow.Mcp.Generator.Models;
 
@@ -14,26 +14,29 @@ public sealed partial class McpToolGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        context.RegisterPostInitializationOutput(ctx => ctx.AddSource("McpToolkits.g.cs", SourceText.From(_attributeText, Encoding.UTF8)));
-        context.RegisterPostInitializationOutput(ctx => ctx.AddSource("SereinFlowMcpToolkits.g.cs", SourceText.From(_sereinFlowAttributeText, Encoding.UTF8)));
+        context.RegisterInitializationSource("McpToolkits.g.cs", _attributeText);
+        context.RegisterInitializationSource("SereinFlowMcpToolkits.g.cs", _sereinFlowAttributeText);
 
+        // Semantic matching preserves custom attributes derived from McpToolAttribute.
         var toolCaches = context.SyntaxProvider.CreateSyntaxProvider(Predicate, Transform)
             .Where(static cache => cache is not null)
-            .Select(static (cache, _) => cache!);
+            .Select(static (cache, _) => cache!).WithTrackingName("McpTools");
         var assemblyName = context.CompilationProvider.Select(static (compilation, _) => compilation.AssemblyName ?? "McpHost");
         var registryCaches = toolCaches.Collect().Combine(assemblyName)
-            .Select(static (input, _) => new McpToolRegistryCache(input.Right, input.Left).BuildValidationCache());
-        context.RegisterSourceOutput(registryCaches, GeneratorCode);
-        var hosts = context.SyntaxProvider.CreateSyntaxProvider(
-            static (node, _) => node is ClassDeclarationSyntax declaration && declaration.AttributeLists.Count > 0,
-            static (syntax, cancellationToken) => (syntax.SemanticModel.GetDeclaredSymbol((ClassDeclarationSyntax)syntax.Node, cancellationToken) as INamedTypeSymbol)?
-                .BuildHostCache((ClassDeclarationSyntax)syntax.Node, syntax.SemanticModel.Compilation.AssemblyName ?? "McpHost"))
-            .Where(static cache => cache is not null).Select(static (cache, _) => cache!);
-        context.RegisterSourceOutput(hosts, static (output, cache) =>
-        {
-            var code = cache.GenerateCode(output);
-            if (code is not null) output.AddSource(cache.HintName, SourceText.From(code, Encoding.UTF8));
-        });
+            .Select(static (input, token) => GenerationResult.Create("MCP registry", output =>
+                output.AddSource("McpToolRegistry.g.cs", input.Left.GenerateRegistry(input.Right, output)), token));
+        context.RegisterGeneratedOutput(registryCaches, "McpRegistryOutput");
+        var hosts = context.SyntaxProvider.ForAttributeWithMetadataName("SereinFlow.Mcp.Framework.McpHostAttribute",
+            static (node, _) => node is ClassDeclarationSyntax,
+            static (syntax, token) => GenerationResult.Create(syntax.TargetSymbol.Name, output =>
+            {
+                var cache = ((INamedTypeSymbol)syntax.TargetSymbol).BuildHostCache((ClassDeclarationSyntax)syntax.TargetNode,
+                    syntax.SemanticModel.Compilation.AssemblyName ?? "McpHost");
+                if (cache is null) return;
+                var code = cache.GenerateCode(output);
+                if (code is not null) output.AddSource(cache.HintName, code);
+            }, token));
+        context.RegisterGeneratedOutput(hosts, "McpHostOutput");
     }
 
     private static bool Predicate(SyntaxNode node, CancellationToken cancellationToken)
@@ -42,17 +45,26 @@ public sealed partial class McpToolGenerator : IIncrementalGenerator
             && node is MethodDeclarationSyntax method && method.AttributeLists.Count > 0;
     }
 
-    private static McpToolCache? Transform(GeneratorSyntaxContext context, CancellationToken cancellationToken)
+    private static McpToolAnalysis? Transform(GeneratorSyntaxContext context, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var method = context.SemanticModel.GetDeclaredSymbol((MethodDeclarationSyntax)context.Node, cancellationToken) as IMethodSymbol;
-        return method?.BuildCache();
-    }
-
-    private static void GeneratorCode(SourceProductionContext context, McpToolRegistryCache cache)
-    {
-        context.CancellationToken.ThrowIfCancellationRequested();
-        var generatedCode = cache.GenerateCode(context);
-        context.AddSource("McpToolRegistry.g.cs", SourceText.From(generatedCode, Encoding.UTF8));
+        if (method is null || AttributeReader.Find(method, "SereinFlow.Mcp.Framework.McpToolAttribute", includeDerived: true) is null) return null;
+        var location = SourceLocation.From(method.Locations.FirstOrDefault());
+        var name = string.Empty;
+        var entry = string.Empty;
+        EquatableArray<GeneratedSource> support = default;
+        var result = GenerationResult.Create(method.ToDisplayString(), output =>
+        {
+            var cache = method.BuildCache()!;
+            name = cache.Name;
+            foreach (var diagnostic in cache.Diagnostics) output.ReportDiagnostic(diagnostic);
+            if (cache.Diagnostics.Count != 0) return;
+            var registry = new McpToolRegistryCache("", System.Collections.Immutable.ImmutableArray.Create(cache));
+            registry.BuildValidationCache();
+            entry = registry.GenerateEntry(cache, output);
+            support = new EquatableArray<GeneratedSource>(registry.GenerateSupport(output));
+        }, cancellationToken);
+        return new McpToolAnalysis(name, location, entry, support, result);
     }
 }

@@ -1,3 +1,4 @@
+using Serein.Generator.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,11 +24,11 @@ internal static class McpPropertyBindingCacheExtension
         var names = new HashSet<string>(StringComparer.Ordinal);
         for (var current = type as INamedTypeSymbol; current is not null; current = current.BaseType)
         {
-            foreach (var property in current.GetMembers().OfType<IPropertySymbol>())
+            foreach (var property in current.GetMembers().OfType<IPropertySymbol>().OrderBy(property => property.Name, StringComparer.Ordinal))
             {
                 if (property.IsStatic || property.IsIndexer || property.SetMethod?.DeclaredAccessibility != Accessibility.Public || !names.Add(property.Name)) continue;
                 var attribute = property.GetAttributes().FirstOrDefault(item => item.AttributeClass?.ToDisplayString() == "SereinFlow.Mcp.Framework.McpParameterAttribute");
-                var parameter = attribute is null ? "new global::SereinFlow.Mcp.Framework.McpParameterOptions()" : McpToolCacheExtension.RenderAttribute(attribute, "global::SereinFlow.Mcp.Framework.McpParameterOptions");
+                var parameter = attribute is null ? "new global::SereinFlow.Mcp.Framework.McpParameterOptions()" : CSharpLiteral.RenderAttribute(attribute, "global::SereinFlow.Mcp.Framework.McpParameterOptions");
                 var jsonName = property.GetAttributes().FirstOrDefault(item => item.AttributeClass?.ToDisplayString() == "System.Text.Json.Serialization.JsonPropertyNameAttribute")?.ConstructorArguments.FirstOrDefault().Value as string;
                 var literal = SymbolDisplay.FormatLiteral(property.Name, true);
                 var nullable = property.Type is INamedTypeSymbol named && named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;

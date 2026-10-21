@@ -1,3 +1,4 @@
+using Serein.Generator.Framework;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -14,7 +15,7 @@ internal static class McpHostCacheExtension
         if (attribute is null) return null;
         var cache = new McpHostCache
         {
-            Namespace = type.ContainingNamespace.IsGlobalNamespace ? string.Empty : type.ContainingNamespace.ToDisplayString(),
+            Namespace = SymbolNames.Namespace(type),
             ClassName = type.Name,
             Accessibility = type.DeclaredAccessibility == Accessibility.Public ? "public" : "internal",
             RegistrationMethodName = attribute.ConstructorArguments.FirstOrDefault().Value as string ?? "AddMcpTools",

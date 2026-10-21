@@ -159,15 +159,16 @@ Schema 采用序列化合同；DataAnnotations 是运行时校验规则，不保
 
 ## 生成器组织方式
 
-`SereinFlow.Mcp.Generator` 将 ScriptLang.Generator 的通用 Models、Extensions 和 GeneratorConfig
-完整迁入自身命名空间，不通过 `Compile Include` 或 `Link` 引用上游源码。
-入口 `McpToolGenerator` 只负责 Predicate、Transform、缓存模型和输出注册。
+`SereinFlow.Mcp.Generator` 和 `ScriptLang.Generator` 共用
+`src/ThirdParty/Serein.Generator.Framework`，公共代码不再各自复制。
+入口 `McpToolGenerator` 负责候选发现、语义转换、不可变分析结果和输出注册。
 `McpToolkits/Output.cs` 保存初始化输出模板，采用与 ScriptLang.Generator 相同的初始化注入方式。
 `McpToolCacheExtension` 构建工具模型，`McpValidationCacheExtension` 构建请求属性图；
-`McpToolRegistryExtension` 和 `McpValidationExtension` 通过 `GeneratorCache<T>` 的链式扩展生成代码。
+`McpToolRegistryExtension` 和 `McpValidationExtension` 通过框架 `CodeBuilder<T>` 的链式扩展生成代码。
 `McpPropertyBindingCacheExtension` 构建属性绑定模型，`McpPropertyBindingExtension` 生成参数读取代码。
 `McpHostCacheExtension` 构建宿主模型，`McpHostExtension` 输出注册入口和配置钩子。
-生成器不会改动原有 ScriptLang.Generator。
+工具与请求分析在语义转换内完成，随后输出不含符号的可比较片段；汇总阶段按类型去重请求支持代码。
+框架 DLL 随生成器的 Analyzer 引用和 NuGet 包交付，业务运行时无需引用。
 
 当前改造消除了工具发现、DI 激活、工具分发和嵌套属性遍历中的显式反射。
 普通 DTO 绑定与 Schema 仍使用 System.Text.Json 的合同元数据，生成式属性绑定直接读取 JSON 字段，
@@ -180,3 +181,4 @@ DataAnnotations 仍使用其自身的校验实现；
 `McpToolDiscoveryTests` 检查新工具开发入口、参数校验、DI 作用域和异常行为。
 `SereinFlow.Mcp.Framework.Tests` 的运行时只引用框架项目，验证其可脱离 SereinFlow 业务独立运行。
 `SereinFlow.Mcp.Generator.Tests` 使用 Roslyn 验证生成代码可编译及编译期诊断。
+`eng/verify-generator-packages.ps1` 验证两个生成器同时通过项目引用和 NuGet 消费，并执行生成入口。

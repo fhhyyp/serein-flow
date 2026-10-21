@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <!-- netstandard class libraries otherwise omit package assemblies from output.
+         Generator packages need their generation-time framework beside the DLL. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <!-- Imported by generator projects, not their runtime consumers. A ProjectReference
+       used as an Analyzer must return its generation-time dependency as well. -->
+  <Target Name="SereinGeneratorDependencyPaths" BeforeTargets="GetTargetPathWithTargetPlatformMoniker" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <TargetPathWithTargetPlatformMoniker Include="@(ReferenceCopyLocalPaths)"
+          Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'Serein.Generator.Framework' and '%(ReferenceCopyLocalPaths.Extension)' == '.dll'"
+          IncludeRuntimeDependency="false" />
+    </ItemGroup>
+  </Target>
+  <ItemGroup>
+    <None Include="$(OutputPath)Serein.Generator.Framework.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+  </ItemGroup>
+</Project>

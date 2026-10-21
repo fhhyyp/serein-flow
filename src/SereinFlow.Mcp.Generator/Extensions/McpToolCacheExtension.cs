@@ -1,8 +1,7 @@
+using Serein.Generator.Framework;
 using System;
-using System.Globalization;
 using System.Linq;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using SereinFlow.Mcp.Generator.Models;
 
 namespace SereinFlow.Mcp.Generator.Extensions;
@@ -19,7 +18,7 @@ internal static class McpToolCacheExtension
 
     internal static McpToolCache? BuildCache(this IMethodSymbol method)
     {
-        var attribute = method.GetAttributes().FirstOrDefault(item => Inherits(item.AttributeClass, ToolAttribute));
+        var attribute = method.GetAttributes().FirstOrDefault(item => AttributeReader.IsOrDerivesFrom(item.AttributeClass, ToolAttribute));
         if (attribute is null) return null;
         var cache = new McpToolCache
         {
@@ -49,7 +48,7 @@ internal static class McpToolCacheExtension
         cache.IsStatic = method.IsStatic;
         cache.RequestTypeName = request is null ? null : TypeName(request.Type);
         cache.RequestType = request?.Type;
-        cache.MetadataExpression = RenderAttribute(attribute);
+        cache.MetadataExpression = CSharpLiteral.RenderAttribute(attribute);
         cache.InvocationArguments = string.Join(", ", method.Parameters.Select(parameter =>
             IsCancellation(parameter.Type) ? "cancellationToken"
             : IsContext(parameter) ? $"context.GetValue<{TypeName(parameter.Type)}>()" : "request"));
@@ -92,32 +91,8 @@ internal static class McpToolCacheExtension
     private static bool IsAccessible(ISymbol symbol) => symbol.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal;
     private static bool IsCancellation(ITypeSymbol type) => TypeName(type) == "global::System.Threading.CancellationToken";
     private static bool IsContext(IParameterSymbol parameter) => IsCancellation(parameter.Type)
-        || parameter.GetAttributes().Any(attribute => Inherits(attribute.AttributeClass, ContextAttribute))
-        || parameter.Type.GetAttributes().Any(attribute => Inherits(attribute.AttributeClass, ContextAttribute));
-    private static bool Inherits(INamedTypeSymbol? type, string name)
-    {
-        for (; type is not null; type = type.BaseType) if (type.ToDisplayString() == name) return true;
-        return false;
-    }
-    private static string TypeName(ITypeSymbol type) => type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-    private static string Escape(string name) => "@" + name;
-    internal static string RenderAttribute(AttributeData attribute, string? typeName = null)
-    {
-        var arguments = string.Join(", ", attribute.ConstructorArguments.Select(RenderConstant));
-        var assignments = string.Join(", ", attribute.NamedArguments.Select(item => Escape(item.Key) + " = " + RenderConstant(item.Value)));
-        return $"new {typeName ?? TypeName(attribute.AttributeClass!)}({arguments})" + (assignments.Length == 0 ? "" : " { " + assignments + " }");
-    }
-    private static string RenderConstant(TypedConstant constant)
-    {
-        if (constant.IsNull) return "null";
-        if (constant.Kind == TypedConstantKind.Array)
-            return $"new {TypeName(((IArrayTypeSymbol)constant.Type!).ElementType)}[] {{ {string.Join(", ", constant.Values.Select(RenderConstant))} }}";
-        if (constant.Kind == TypedConstantKind.Type) return $"typeof({TypeName((ITypeSymbol)constant.Value!)})";
-        if (constant.Kind == TypedConstantKind.Enum) return $"({TypeName(constant.Type!)}){Convert.ToString(constant.Value, CultureInfo.InvariantCulture)}";
-        if (constant.Value is string text) return SymbolDisplay.FormatLiteral(text, true);
-        if (constant.Value is char character) return SymbolDisplay.FormatLiteral(character, true);
-        if (constant.Value is bool flag) return flag ? "true" : "false";
-        return Convert.ToString(constant.Value, CultureInfo.InvariantCulture)!;
-    }
-
+        || parameter.GetAttributes().Any(attribute => AttributeReader.IsOrDerivesFrom(attribute.AttributeClass, ContextAttribute))
+        || parameter.Type.GetAttributes().Any(attribute => AttributeReader.IsOrDerivesFrom(attribute.AttributeClass, ContextAttribute));
+    private static string TypeName(ITypeSymbol type) => SymbolNames.TypeName(type);
+    private static string Escape(string name) => SymbolNames.Escape(name);
 }
