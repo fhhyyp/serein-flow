@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -26,6 +28,7 @@ public sealed class SereinFlowHttpMcpOptions
 
 public sealed class SereinFlowHostBuilder
 {
+    public IServiceCollection Services { get; internal set; } = null!;
     internal bool WebApiEnabled { get; private set; }
     internal bool McpEnabled { get; private set; }
     internal SereinFlowWebApiOptions WebApiOptions { get; } = new();
@@ -85,7 +88,10 @@ public static class SereinFlowHostingExtensions
             throw new InvalidOperationException("AddSereinFlow can only be called once per host. 每个宿主只能调用一次 AddSereinFlow。");
         }
 
-        var options = new SereinFlowHostBuilder();
+        var options = new SereinFlowHostBuilder
+        {
+            Services = services
+        };
         configure(options);
         if (!options.WebApiEnabled && !options.McpEnabled)
         {
@@ -95,7 +101,11 @@ public static class SereinFlowHostingExtensions
         services.AddSingleton(options);
         services.AddSereinFlowStorage();
         services.AddSereinFlowApplication();
-        services.AddSignalR();
+        services.AddSignalR(options =>
+        {
+            options.AddFilter<SereinFlowHubSecurity>();
+        });
+        services.AddAuthorization();
         services.AddCors();
         services.AddHostedService<SereinFlowInitializationService>();
         if (options.WebApiEnabled)
@@ -126,9 +136,10 @@ public static class SereinFlowHostingExtensions
                             var allowedOriginsSection = configuration.GetSection("SereinFlow:Api:Cors:AllowedOrigins");
                             origins = allowedOriginsSection.Get<string[]>() ?? [];
                         }
+
                         if (origins.Length > 0)
                         {
-                            policy.WithOrigins(origins);
+                            policy.WithOrigins(origins).AllowCredentials();
                         }
                         else
                         {
@@ -206,6 +217,19 @@ public static class SereinFlowHostingExtensions
             }
         }
 
+        var security = app.Services.GetService<SereinFlowHttpSecurityOptions>();
+        if (security is null || string.IsNullOrEmpty(security.Mode))
+        {
+            throw new InvalidOperationException("Select UseHostSecurity() or UseApiKeySecurity().");
+        }
+
+        var registrations = app.Services.GetRequiredService<IServiceProviderIsService>();
+        if (!registrations.IsService(typeof(ISereinFlowAuthorizationService)) || !registrations.IsService(typeof(ISereinFlowProjectScopeProvider)))
+        {
+            throw new InvalidOperationException("SereinFlow HTTP security requires an authorization service and an ISereinFlowProjectScopeProvider.");
+        }
+
+        app.UseMiddleware<SereinFlowIdentityMiddleware>();
         app.UseCors();
         return app;
     }
@@ -228,11 +252,19 @@ public static class SereinFlowHostingExtensions
         options.EndpointRouteBuilder = app;
         if (options.WebApiEnabled)
         {
+            var security = app.Services.GetRequiredService<SereinFlowHttpSecurityOptions>();
+            var policy = new AuthorizationPolicyBuilder();
+            if (security.AuthenticationScheme is { } scheme)
+            {
+                policy.AddAuthenticationSchemes(scheme);
+            }
+
+            var authenticated = policy.RequireAuthenticatedUser().Build();
             app.MapControllers();
             var mapHubResult = app.MapHub<RunEventsHub>("/hubs/runs");
-            mapHubResult.RequireCors("sereinflow-webapi");
+            mapHubResult.RequireCors("sereinflow-webapi").RequireAuthorization(authenticated);
             var mapHubResult5 = app.MapHub<WorkspaceEventsHub>("/hubs/workspace");
-            mapHubResult5.RequireCors("sereinflow-webapi");
+            mapHubResult5.RequireCors("sereinflow-webapi").RequireAuthorization(authenticated);
         }
 
         if (options.McpEnabled)

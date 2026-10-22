@@ -6,14 +6,14 @@ using static SereinFlow.Mcp.Support.McpToolAuthorization;
 
 namespace SereinFlow.Mcp.Queries;
 
-internal sealed class McpDebugQueries(AiReadModelService service, McpSecurityService security)
+internal sealed class McpDebugQueries(AiReadModelService service, SereinFlowAccess security)
 {
     internal async Task<AiDebugStateWaitResultDto?> WaitForDebugStateAsync(
-        McpPrincipal? principal,
+        SereinFlowActor? principal,
         McpDebugStateWaitRequest arguments,
         CancellationToken cancellationToken)
     {
-        security.RequireAny(principal, null, McpPermissionDto.DebugRead, McpPermissionDto.RunRead);
+        await security.RequireAnyAsync(principal, null, SereinFlowPermission.DebugRead, SereinFlowPermission.RunRead);
         var afterRevision = arguments.AfterRevision;
         var timeoutSeconds = arguments.TimeoutSeconds;
         if (afterRevision < 0)
@@ -31,19 +31,19 @@ internal sealed class McpDebugQueries(AiReadModelService service, McpSecuritySer
         var result = await service.WaitForDebugStateChangeAsync(sessionId, afterRevision, fromSeconds, cancellationToken);
         if (result is not null)
         {
-            security.RequireAny(principal, result.State.ProjectId, McpPermissionDto.DebugRead, McpPermissionDto.RunRead);
+            await security.RequireAnyAsync(principal, result.State.ProjectId, SereinFlowPermission.DebugRead, SereinFlowPermission.RunRead);
         }
 
         return result;
     }
 
-    internal async Task<AiDebugStateDto?> ReadDebugAsync(McpPrincipal? principal, Guid sessionId, CancellationToken cancellationToken)
+    internal async Task<AiDebugStateDto?> ReadDebugAsync(SereinFlowActor? principal, Guid sessionId, CancellationToken cancellationToken)
     {
-        security.RequireAny(principal, null, McpPermissionDto.DebugRead, McpPermissionDto.RunRead);
+        await security.RequireAnyAsync(principal, null, SereinFlowPermission.DebugRead, SereinFlowPermission.RunRead);
         var state = await service.GetDebugStateAsync(sessionId, cancellationToken);
         if (state is not null)
         {
-            security.RequireAny(principal, state.ProjectId, McpPermissionDto.DebugRead, McpPermissionDto.RunRead);
+            await security.RequireAnyAsync(principal, state.ProjectId, SereinFlowPermission.DebugRead, SereinFlowPermission.RunRead);
         }
 
         return state;
@@ -56,9 +56,10 @@ internal sealed class McpDebugQueries(AiReadModelService service, McpSecuritySer
     {
         var principal = context.RequirePrincipal();
         var requestedProjectId = arguments.ProjectId;
-        var projectId = IsProjectScoped(principal) ? principal.ProjectId : requestedProjectId;
-        security.RequireAny(principal, projectId, McpPermissionDto.DebugRead, McpPermissionDto.RunRead);
+        var projectId = requestedProjectId;
+        var scope = await security.GetReadScopeAsync(principal, cancellationToken);
+        await security.RequireAnyAsync(principal, projectId, SereinFlowPermission.DebugRead, SereinFlowPermission.RunRead);
         var options = ReadOptions(arguments);
-        return await service.ListActiveDebugSessionsAsync(projectId, options, cancellationToken);
+        return await service.ListActiveDebugSessionsAsync(projectId, options, cancellationToken, scope);
     }
 }

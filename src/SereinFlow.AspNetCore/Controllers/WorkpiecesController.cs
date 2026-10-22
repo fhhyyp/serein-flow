@@ -3,7 +3,6 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.Controllers;
-
 [Route("api/runs/{runId:guid}/workpieces")]
 public sealed class WorkpiecesController : ApiControllerBase
 {
@@ -23,7 +22,7 @@ public sealed class WorkpiecesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> List([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
-        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, projectId: null, cancellationToken);
+        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, projectId: null, cancellationToken);
         var preFailure = ToAuthorizationFailure(preAuthorization);
         if (preFailure is not null)
         {
@@ -37,7 +36,7 @@ public sealed class WorkpiecesController : ApiControllerBase
             return apiProblemResult;
         }
 
-        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, run.ProjectId, cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
         var failure = ToAuthorizationFailure(authorization);
         if (failure is not null)
         {
@@ -45,9 +44,7 @@ public sealed class WorkpiecesController : ApiControllerBase
         }
 
         var items = await _workpieces.ListAsync(runId, cancellationToken);
-        var toArrayResult = items
-            .Select(ToDto)
-            .ToArray();
+        var toArrayResult = items.Select(ToDto).ToArray();
         var okResult = Ok(toArrayResult);
         return okResult;
     }
@@ -58,7 +55,7 @@ public sealed class WorkpiecesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Get([FromRoute] Guid runId, [FromRoute] string workpieceId, [FromQuery] bool download, CancellationToken cancellationToken)
     {
-        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, projectId: null, cancellationToken);
+        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, projectId: null, cancellationToken);
         var preFailure = ToAuthorizationFailure(preAuthorization);
         if (preFailure is not null)
         {
@@ -72,7 +69,7 @@ public sealed class WorkpiecesController : ApiControllerBase
             return apiProblemResult1;
         }
 
-        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, run.ProjectId, cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
         var failure = ToAuthorizationFailure(authorization);
         if (failure is not null)
         {

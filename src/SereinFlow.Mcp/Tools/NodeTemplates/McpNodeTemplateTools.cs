@@ -11,7 +11,7 @@ internal sealed class McpNodeTemplateTools(
     LibraryNodeTemplateService _libraryNodeTemplateService,
     McpResourceAuthorization _mcpResourceAuthorization)
 {
-    [SereinFlowMcpTool("sereinflow_create_library_node_template", McpPermissionDto.ProjectRead)]
+    [SereinFlowMcpTool("sereinflow_create_library_node_template", SereinFlowPermission.ProjectRead)]
     internal async Task<LibraryNodeTemplateDto> CreateNodeTemplateAsync(
         SereinFlowMcpCaller context,
         LibraryNodeTemplateRequestDto arguments,
@@ -24,7 +24,7 @@ internal sealed class McpNodeTemplateTools(
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The library node template request is invalid. 类库节点模板请求无效。");
         }
 
-        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, McpPermissionDto.ProjectRead, cancellationToken);
+        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, SereinFlowPermission.ProjectRead, cancellationToken);
         try
         {
             return await _libraryNodeTemplateService.CreateAsync(request, cancellationToken);
@@ -35,7 +35,7 @@ internal sealed class McpNodeTemplateTools(
         }
     }
 
-    [SereinFlowMcpTool("sereinflow_create_builtin_node_template", McpPermissionDto.ProjectRead)]
+    [SereinFlowMcpTool("sereinflow_create_builtin_node_template", SereinFlowPermission.ProjectRead)]
     internal async Task<BuiltinNodeTemplateDto> CreateBuiltinNodeTemplateAsync(
         SereinFlowMcpCaller context,
         BuiltinNodeTemplateRequestDto arguments,
@@ -48,7 +48,7 @@ internal sealed class McpNodeTemplateTools(
         }
 
         var principal = context.RequirePrincipal();
-        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, McpPermissionDto.ProjectRead, cancellationToken);
+        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, SereinFlowPermission.ProjectRead, cancellationToken);
         try
         {
             return _builtinNodeTemplateService.Create(request);

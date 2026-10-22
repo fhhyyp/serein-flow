@@ -1,7 +1,6 @@
-using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using SereinFlow.Application;
+using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api;
@@ -15,49 +14,64 @@ public sealed record SereinFlowApiAuthorizationResult(bool IsAllowed, int Status
 }
 
 /// <summary>
-/// Reuses the MCP API-key verifier for the client-facing REST execution
-/// surface without coupling the SDK or REST controllers to MCP transport.
-/// 为面向客户端的 REST 执行接口复用 MCP API 密钥校验器，使 SDK 和 REST 控制器不依赖 MCP 传输。
+/// Applies the shared resource authorization contract to REST execution requests.
+/// 使用统一的资源授权契约检查 REST 执行请求。
 /// </summary>
 public sealed class SereinFlowApiAuthorizationService
 {
-    private readonly IConfiguration _configuration;
-    private readonly McpSecurityService _security;
-    public SereinFlowApiAuthorizationService(IConfiguration configuration, McpSecurityService security)
+    private readonly SereinFlowAccess _security;
+    public SereinFlowApiAuthorizationService(SereinFlowAccess security)
     {
-        _configuration = configuration;
         _security = security;
     }
 
-    public async Task<SereinFlowApiAuthorizationResult> AuthorizeAsync(HttpContext context, McpPermissionDto permission, Guid? projectId, CancellationToken cancellationToken = default)
+    public async Task<SereinFlowApiAuthorizationResult> AuthorizeAsync(HttpContext context, SereinFlowPermission permission, Guid? projectId, CancellationToken cancellationToken = default)
     {
-        if (!_configuration.GetValue("SereinFlow:Api:RequireAuthentication", true))
-        {
-            return SereinFlowApiAuthorizationResult.Allowed;
-        }
-
-        var authorization = context.Request.Headers.Authorization.FirstOrDefault();
-        if (!AuthenticationHeaderValue.TryParse(authorization, out var header) || !string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(header.Parameter))
-        {
-            context.Response.Headers["WWW-Authenticate"] = "Bearer";
-            var unauthorizedResult = Unauthorized();
-            return unauthorizedResult;
-        }
-
-        var principal = await _security.AuthenticateAsync(header.Parameter, cancellationToken);
+        var principal = SereinFlow.AspNetCore.SereinFlowHttpActor.Get(context);
         if (principal is null)
         {
-            context.Response.Headers["WWW-Authenticate"] = "Bearer";
-            var unauthorizedResult1 = Unauthorized();
-            return unauthorizedResult1;
+            context.Response.Headers.WWWAuthenticate = "Bearer";
+            {
+                var result1 = Unauthorized();
+                return result1;
+            }
         }
 
         try
         {
-            _security.Require(principal, permission, projectId);
+            var routeRun = context.Request.RouteValues["runId"]?.ToString();
+            if (projectId is null && Guid.TryParse(routeRun, out var requestedRun))
+            {
+                var runs = context.RequestServices.GetRequiredService<IFlowRunStore>();
+                var run = await runs.FindAsync(requestedRun, cancellationToken);
+                if (run is null)
+                {
+                    var missing = new SereinFlowApiAuthorizationResult(false, 404, RunErrorCodes.NotFound, "Run not found. 未找到运行实例。");
+                    return missing;
+                }
+                projectId = run.ProjectId;
+            }
+            var resource = projectId is { } id ? SereinFlowResource.Project(id) : SereinFlowResource.Workspace;
+            // Controllers resolve the stored resource before passing its project ownership here.
+            if (projectId is { } owner)
+            {
+                var runValue = context.Request.RouteValues["runId"]?.ToString();
+                var flowValue = context.Request.RouteValues["flowId"]?.ToString();
+                if (Guid.TryParse(runValue, out var runId))
+                {
+                    resource = SereinFlowResource.Run(runId, owner);
+                }
+                else if (Guid.TryParse(flowValue, out var flowId))
+                {
+                    resource = SereinFlowResource.Flow(flowId, owner);
+                }
+            }
+
+            var operation = SereinFlowOperationNames.ToName(permission);
+            await _security.RequireResourceAsync(principal, operation, resource, cancellationToken);
             return SereinFlowApiAuthorizationResult.Allowed;
         }
-        catch (McpSecurityException exception)
+        catch (SereinFlowAccessException exception)
         {
             var sereinFlowApiAuthorizationResult = new SereinFlowApiAuthorizationResult(false, exception.StatusCode, exception.Code, exception.Message);
             return sereinFlowApiAuthorizationResult;

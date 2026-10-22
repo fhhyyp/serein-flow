@@ -8,7 +8,8 @@ import { isArchivedProjectStatus } from '../../flow/projectStatus';
 import { locale, t } from '../../i18n';
 import LibraryFamilyDialog from '../library/LibraryFamilyDialog.vue';
 import LibraryUploadDialog from '../library/LibraryUploadDialog.vue';
-import McpKeySettings from './McpKeySettings.vue';
+import ApiKeySettings from './ApiKeySettings.vue';
+import { securityCapabilities } from '../../api/securityApi';
 import RunSnapshotViewer from './RunSnapshotViewer.vue';
 import RunWorkpiecePanel from './RunWorkpiecePanel.vue';
 type ConsoleView = 'overview' | 'projects' | 'queue' | 'settings' | 'interfaces' | 'libraries' | 'archives';
@@ -33,7 +34,7 @@ const runs = ref<FlowRunDto[]>([]);
 const interfaces = ref<FlowInterfaceDto[]>([]);
 const isLoading = ref(true);
 const isSettingsSaving = ref(false);
-const mcpKeySettings = ref<InstanceType<typeof McpKeySettings>>();
+const mcpKeySettings = ref<InstanceType<typeof ApiKeySettings>>();
 const isInterfaceSaving = ref(false);
 const loadErrorKey = ref('');
 const noticeKey = ref('');
@@ -1848,7 +1849,8 @@ const readRunSnapshotViewerLive = computed(() => (snapshotRun.value!.status === 
             </button>
           </div>
         </form>
-        <McpKeySettings
+        <ApiKeySettings
+          v-if="securityCapabilities?.apiKeyManagement"
           ref="mcpKeySettings"
           :project-workspaces="activeWorkspaces"
          />

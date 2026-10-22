@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -32,7 +33,11 @@ public sealed class ClientApiAuthorizationIntegrationTests : IClassFixture<Clien
         var sereinFlowClientOptions = new SereinFlowClientOptions
         {
             BaseAddress = new Uri("http://localhost/"),
-            ApiKey = ApiFactory.BootstrapKey,
+            BearerTokenProvider = _ =>
+            {
+                var value1 = ValueTask.FromResult<string?>(ApiFactory.BootstrapKey);
+                return value1;
+            },
         };
         using var sdk = new SereinFlowClient(client, sereinFlowClientOptions);
         var exception = await Assert.ThrowsAsync<SereinFlowClientException>(() =>
@@ -58,8 +63,7 @@ public sealed class ClientApiAuthorizationIntegrationTests : IClassFixture<Clien
                 var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _storage.Path,
-                    ["SereinFlow:Mcp:BootstrapAdminKey"] = BootstrapKey,
-                    ["SereinFlow:Api:RequireAuthentication"] = "true",
+                    ["SereinFlow:Security:ApiKeys:BootstrapAdminKey"] = BootstrapKey,
                 };
                 configuration.AddInMemoryCollection(dictionary);
             });

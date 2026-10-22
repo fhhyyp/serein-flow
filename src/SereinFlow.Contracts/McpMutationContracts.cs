@@ -2,12 +2,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace SereinFlow.Contracts;
-[JsonConverter(typeof(McpPermissionJsonConverter))]
+[JsonConverter(typeof(SereinFlowPermissionJsonConverter))]
 /// <summary>
-/// Defines permissions that can be granted to an MCP API key.
-/// 定义可授予 MCP API 密钥的权限。
+/// Defines transport-independent SereinFlow operations.
+/// 定义与传输方式无关的 SereinFlow 操作。
 /// </summary>
-public enum McpPermissionDto
+public enum SereinFlowPermission
 {
     /// <summary>
     /// Indicates the project read value.
@@ -70,10 +70,10 @@ public enum McpPermissionDto
     /// </summary>
     LibraryManage,
     /// <summary>
-    /// Indicates the mcp keys manage value.
-    /// 表示“MCP密钥管理”这一取值。
+    /// Indicates the security management operation.
+    /// 表示安全管理操作。
     /// </summary>
-    McpKeysManage,
+    SecurityManage,
     /// <summary>
     /// Indicates the sensitive read value.
     /// 表示“敏感数据读取”这一取值。
@@ -94,44 +94,43 @@ public enum McpPermissionDto
     /// 表示“运行变量写入”这一取值。
     /// </summary>
     RunVariableWrite,
+    WorkspaceManage,
 }
 
 /// <summary>
-/// Stable wire names for MCP permissions. The dotted names are part of the
-/// public authorization contract; enum and camelCase spellings remain accepted
-/// when reading persisted keys created by earlier builds.
-/// MCP 权限的稳定传输名称。点号名称属于公开授权契约；读取旧版本持久化
-/// Key 时仍兼容枚举名称和 camelCase 名称。
+/// Stable dotted operation names used by the public authorization contract.
+/// 公开授权契约使用的稳定点号操作名称。
 /// </summary>
-public static class McpPermissionNames
+public static class SereinFlowOperationNames
 {
-    private static readonly Dictionary<McpPermissionDto, string> Names = new Dictionary<McpPermissionDto, string>
+    private static readonly Dictionary<SereinFlowPermission, string> Names = new Dictionary<SereinFlowPermission, string>
     {
-        [McpPermissionDto.ProjectRead] = ProjectErrorCodes.Read,
-        [McpPermissionDto.ProjectWrite] = ProjectErrorCodes.Write,
-        [McpPermissionDto.LibraryRead] = LibraryErrorCodes.Read,
-        [McpPermissionDto.RunRead] = RunErrorCodes.Read,
-        [McpPermissionDto.DebugRead] = DebugErrorCodes.Read,
-        [McpPermissionDto.FlowWrite] = FlowErrorCodes.Write,
-        [McpPermissionDto.DebugControl] = DebugErrorCodes.Control,
-        [McpPermissionDto.FlowPublish] = "flow.publish",
-        [McpPermissionDto.FlowRollback] = "flow.rollback",
-        [McpPermissionDto.ScriptCompile] = ScriptErrorCodes.Compile,
-        [McpPermissionDto.LibraryImport] = LibraryErrorCodes.Import,
-        [McpPermissionDto.LibraryManage] = LibraryErrorCodes.Manage,
-        [McpPermissionDto.McpKeysManage] = McpErrorCodes.KeysManage,
-        [McpPermissionDto.SensitiveRead] = "sensitive.read",
-        [McpPermissionDto.RunMessagePublish] = "run.message.publish",
-        [McpPermissionDto.RunExecute] = "run.execute",
-        [McpPermissionDto.RunVariableWrite] = "run.variable.write",
+        [SereinFlowPermission.ProjectRead] = ProjectErrorCodes.Read,
+        [SereinFlowPermission.ProjectWrite] = ProjectErrorCodes.Write,
+        [SereinFlowPermission.LibraryRead] = LibraryErrorCodes.Read,
+        [SereinFlowPermission.RunRead] = RunErrorCodes.Read,
+        [SereinFlowPermission.DebugRead] = DebugErrorCodes.Read,
+        [SereinFlowPermission.FlowWrite] = FlowErrorCodes.Write,
+        [SereinFlowPermission.DebugControl] = DebugErrorCodes.Control,
+        [SereinFlowPermission.FlowPublish] = "flow.publish",
+        [SereinFlowPermission.FlowRollback] = "flow.rollback",
+        [SereinFlowPermission.ScriptCompile] = ScriptErrorCodes.Compile,
+        [SereinFlowPermission.LibraryImport] = LibraryErrorCodes.Import,
+        [SereinFlowPermission.LibraryManage] = LibraryErrorCodes.Manage,
+        [SereinFlowPermission.SecurityManage] = "security.manage",
+        [SereinFlowPermission.SensitiveRead] = "sensitive.read",
+        [SereinFlowPermission.RunMessagePublish] = "run.message.publish",
+        [SereinFlowPermission.RunExecute] = "run.execute",
+        [SereinFlowPermission.RunVariableWrite] = "run.variable.write",
+        [SereinFlowPermission.WorkspaceManage] = "workspace.manage",
     };
-    public static string ToName(McpPermissionDto permission)
+    public static string ToName(SereinFlowPermission permission)
     {
         string evaluatedValue = Names.TryGetValue(permission, out var name) ? name : throw new ArgumentOutOfRangeException(nameof(permission), permission, "The MCP permission is not defined. 未定义该 MCP 权限。");
         return evaluatedValue;
     }
 
-    public static bool TryParse(string? value, out McpPermissionDto permission)
+    public static bool TryParse(string? value, out SereinFlowPermission permission)
     {
         permission = default;
         if (string.IsNullOrWhiteSpace(value))
@@ -149,35 +148,29 @@ public static class McpPermissionNames
             }
         }
 
-        var evaluatedValue1 = Enum.TryParse(normalized, ignoreCase: true, out permission) && Enum.IsDefined(permission);
-        return evaluatedValue1;
+        return false;
     }
 }
 
-public sealed class McpPermissionJsonConverter : JsonConverter<McpPermissionDto>
+public sealed class SereinFlowPermissionJsonConverter : JsonConverter<SereinFlowPermission>
 {
-    public override McpPermissionDto Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override SereinFlowPermission Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType == JsonTokenType.String)
         {
             var permissionName = reader.GetString();
-            if (McpPermissionNames.TryParse(permissionName, out var permission))
+            if (SereinFlowOperationNames.TryParse(permissionName, out var permission))
             {
                 return permission;
             }
         }
 
-        if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt32(out var numeric) && Enum.IsDefined((McpPermissionDto)numeric))
-        {
-            return (McpPermissionDto)numeric;
-        }
-
-        throw new JsonException("The MCP permission is invalid. MCP 权限无效。");
+        throw new JsonException("A dotted SereinFlow operation name is required. 必须使用点号分隔的 SereinFlow 操作名称。");
     }
 
-    public override void Write(Utf8JsonWriter writer, McpPermissionDto value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, SereinFlowPermission value, JsonSerializerOptions options)
     {
-        var toNameResult = McpPermissionNames.ToName(value);
+        var toNameResult = SereinFlowOperationNames.ToName(value);
         writer.WriteStringValue(toNameResult);
     }
 }
@@ -478,22 +471,7 @@ public sealed record McpLibraryUpgradePreviewDto(Guid PreviewId, DateTimeOffset 
 /// Defines the API data contract for MCP API key.
 /// 定义MCPAPI密钥的 API 数据契约。
 /// </summary>
-public sealed record McpApiKeyDto(string Id, Guid? ProjectId, string Name, string KeyPrefix, IReadOnlyList<McpPermissionDto> Permissions, DateTimeOffset CreatedAt, DateTimeOffset? ExpiresAt, DateTimeOffset? RevokedAt, DateTimeOffset? LastUsedAt, bool IsAdministrator = false);
-/// <summary>
-/// Carries request data for create MCP API key operations.
-/// 承载创建MCPAPI密钥操作的请求数据。
-/// </summary>
-public sealed record CreateMcpApiKeyRequestDto(Guid? ProjectId, string Name, IReadOnlyList<McpPermissionDto> Permissions, DateTimeOffset? ExpiresAt = null, bool IsAdministrator = false);
-/// <summary>
-/// Defines the API data contract for created MCP API key.
-/// 定义已创建MCPAPI密钥的 API 数据契约。
-/// </summary>
-public sealed record CreatedMcpApiKeyDto(McpApiKeyDto Key, string Secret);
-/// <summary>
-/// Defines the API data contract for rotated MCP API key.
-/// 定义RotatedMCPAPI密钥的 API 数据契约。
-/// </summary>
-public sealed record RotatedMcpApiKeyDto(string RevokedKeyId, McpApiKeyDto Key, string? Secret, bool Replayed = false);
+
 /// <summary>
 /// MCP-only start contract. The HTTP API keeps using
 /// <see cref = "StartFlowDebugSessionRequestDto"/> without an idempotency key.

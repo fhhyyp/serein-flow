@@ -15,9 +15,9 @@ namespace SereinFlow.Mcp;
 public sealed class McpResourceReader
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IMcpPrincipalAccessor _principalAccessor;
+    private readonly ISereinFlowActorAccessor _principalAccessor;
     private readonly McpAiGuidanceProvider _aiGuidanceProvider;
-    public McpResourceReader(IServiceScopeFactory scopeFactory, IMcpPrincipalAccessor principalAccessor, McpAiGuidanceProvider aiGuidanceProvider)
+    public McpResourceReader(IServiceScopeFactory scopeFactory, ISereinFlowActorAccessor principalAccessor, McpAiGuidanceProvider aiGuidanceProvider)
     {
         _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
         _principalAccessor = principalAccessor ?? throw new ArgumentNullException(nameof(principalAccessor));

@@ -1,3 +1,4 @@
+import { authenticatedFetch } from './securityApi';
 import type { ApiNodeType } from './flowApi';
 import type { EnumParameterMetadataDto } from './flowApi';
 import { localizeMessage } from '../i18n';
@@ -222,7 +223,7 @@ export async function unreferenceProjectLibrary(projectId: string, libraryId: st
 }
 export async function archiveEnvironmentLibrary(libraryId: string): Promise<void> {
   const evaluatedValue7: RequestInfo | URL = `${apiBaseUrl}/api/environment/libraries/${encodeURIComponent(libraryId)}/archive`;
-  const response = await fetch(evaluatedValue7, { method: 'POST' });
+  const response = await authenticatedFetch(evaluatedValue7, { method: 'POST' });
   if (!response.ok) {
     const argumentValue: number = response.status;
     const readErrorResult: string = await readError(response);
@@ -236,7 +237,7 @@ export async function reindexEnvironmentLibrary(libraryId: string): Promise<Libr
 }
 export async function deleteLibrary(libraryId: string): Promise<void> {
   const evaluatedValue9: RequestInfo | URL = `${apiBaseUrl}/api/libraries/${encodeURIComponent(libraryId)}`;
-  const response = await fetch(evaluatedValue9, { method: 'DELETE' });
+  const response = await authenticatedFetch(evaluatedValue9, { method: 'DELETE' });
   if (!response.ok) {
     const argumentValue1: number = response.status;
     const readErrorResult1: string = await readError(response);
@@ -274,7 +275,7 @@ async function request<T>(path: string, options: {
     headers: options.json === undefined ? undefined : { 'content-type': 'application/json' },
     body: options.json === undefined ? options.body : JSON.stringify(options.json),
   };
-  const response = await fetch(argumentValue2, evaluatedValue15);
+  const response = await authenticatedFetch(argumentValue2, evaluatedValue15);
   if (response.ok) {
     const evaluatedValue14: T | PromiseLike<T> = response.json() as Promise<T>;
     return evaluatedValue14;

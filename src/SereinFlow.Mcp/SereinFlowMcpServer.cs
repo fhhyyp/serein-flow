@@ -152,7 +152,7 @@ public sealed class SereinFlowMcpServer
         {
             return hasId ? SerializeResponse(id, null, exception) : null;
         }
-        catch (McpSecurityException exception)
+        catch (SereinFlowAccessException exception)
         {
             var error = new McpProtocolException(McpProtocolErrorCodes.FromHttpStatus(exception.StatusCode),
                 exception.Message, new { code = exception.Code });

@@ -13,7 +13,7 @@ public sealed class RunVariablesController(IFlowRunStore runs, IRunVariableServi
     public Task<ActionResult> List(Guid runId, [FromQuery] int offset = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
     {
         WorkerVariableRequestDto evaluatedValue = new(WorkerProtocol.Version, runId, "list", Offset: offset, Take: take);
-        var executeAsyncResult = ExecuteAsync(evaluatedValue, McpPermissionDto.RunRead, cancellationToken);
+        var executeAsyncResult = ExecuteAsync(evaluatedValue, SereinFlowPermission.RunRead, cancellationToken);
         return executeAsyncResult;
     }
 
@@ -23,7 +23,7 @@ public sealed class RunVariablesController(IFlowRunStore runs, IRunVariableServi
     public Task<ActionResult> Get(Guid runId, string name, CancellationToken cancellationToken)
     {
         WorkerVariableRequestDto evaluatedValue1 = new(WorkerProtocol.Version, runId, "get", name);
-        var executeAsyncResult2 = ExecuteAsync(evaluatedValue1, McpPermissionDto.RunRead, cancellationToken);
+        var executeAsyncResult2 = ExecuteAsync(evaluatedValue1, SereinFlowPermission.RunRead, cancellationToken);
         return executeAsyncResult2;
     }
 
@@ -33,11 +33,11 @@ public sealed class RunVariablesController(IFlowRunStore runs, IRunVariableServi
     public Task<ActionResult> Set(Guid runId, string name, [FromBody] RunVariableSetRequestDto request, CancellationToken cancellationToken)
     {
         WorkerVariableRequestDto evaluatedValue3 = new(WorkerProtocol.Version, runId, "set", name, request.Value, request.ValueType);
-        var executeAsyncResult4 = ExecuteAsync(evaluatedValue3, McpPermissionDto.RunVariableWrite, cancellationToken);
+        var executeAsyncResult4 = ExecuteAsync(evaluatedValue3, SereinFlowPermission.RunVariableWrite, cancellationToken);
         return executeAsyncResult4;
     }
 
-    private async Task<ActionResult> ExecuteAsync(WorkerVariableRequestDto request, McpPermissionDto permission, CancellationToken cancellationToken)
+    private async Task<ActionResult> ExecuteAsync(WorkerVariableRequestDto request, SereinFlowPermission permission, CancellationToken cancellationToken)
     {
         var authorizeAsyncResult = await authorization.AuthorizeAsync(HttpContext, permission, null, cancellationToken);
         var preFailure = ToAuthorizationFailure(authorizeAsyncResult);

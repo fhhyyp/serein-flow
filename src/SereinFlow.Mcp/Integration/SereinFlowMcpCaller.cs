@@ -9,10 +9,10 @@ namespace SereinFlow.Mcp.Integration;
 /// 向工具公开调用方信息，不公开依赖注入容器。
 /// </summary>
 [Framework.McpContext]
-public class SereinFlowMcpCaller(McpPrincipal? principal)
+public sealed class SereinFlowMcpCaller(SereinFlowActor? principal)
 {
-    public McpPrincipal? Principal { get; } = principal;
+    public SereinFlowActor? Principal { get; } = principal;
 
-    public McpPrincipal RequirePrincipal() => Principal
-        ?? throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required. 需要进行 MCP 身份验证。", StatusCodes.Status401Unauthorized);
+    public SereinFlowActor RequirePrincipal() => Principal
+        ?? throw new SereinFlowAccessException(McpErrorCodes.Unauthenticated, "MCP authentication is required. 需要进行 MCP 身份验证。", StatusCodes.Status401Unauthorized);
 }

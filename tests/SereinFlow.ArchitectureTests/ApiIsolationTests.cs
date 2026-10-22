@@ -4,7 +4,6 @@ using System.Xml.Linq;
 using SereinFlow.Api;
 
 namespace SereinFlow.ArchitectureTests;
-
 public sealed class ApiIsolationTests
 {
     [Theory]
@@ -14,8 +13,7 @@ public sealed class ApiIsolationTests
     [InlineData("Serein.Script")]
     public void ApiDoesNotStaticallyReferenceUntrustedExecutionComponents(string forbiddenAssemblyName)
     {
-        var referencedAssemblies = typeof(AssemblyMarker).Assembly.GetReferencedAssemblies()
-            .Select(static reference => reference.Name);
+        var referencedAssemblies = typeof(AssemblyMarker).Assembly.GetReferencedAssemblies().Select(static reference => reference.Name);
         Assert.DoesNotContain(forbiddenAssemblyName, referencedAssemblies);
     }
 
@@ -229,7 +227,6 @@ public sealed class ApiIsolationTests
         var toolsRoot = Path.Combine(mcpRoot, "Tools");
         var toolFiles = new[]
         {
-            "ApiKeys/McpApiKeyTools.cs",
             "Projects/McpProjectQueryTools.cs",
             "Projects/McpProjectCommandTools.cs",
             "Flows/McpFlowQueryTools.cs",

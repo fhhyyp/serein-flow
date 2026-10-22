@@ -9,21 +9,31 @@ namespace SereinFlow.Mcp.Integration;
 /// SereinFlow authorization, result semantics and protocol error mapping.
 /// SereinFlow 授权、结果语义及协议错误映射。
 /// </summary>
-public sealed class SereinFlowMcpPolicy(IMcpPrincipalAccessor principalAccessor, McpToolMutationGate mutationGate)
+public sealed class SereinFlowMcpPolicy(ISereinFlowActorAccessor principalAccessor, McpToolMutationGate mutationGate)
     : McpToolPolicy(mutationGate)
 {
     protected override ValueTask AuthorizeAsync(McpToolExecutionContext context, CancellationToken cancellationToken)
     {
         if (context.Tool!.Metadata is not ISereinFlowMcpToolMetadata metadata || metadata.Permissions.Length == 0)
             throw new InvalidOperationException($"SereinFlow tool '{context.Name}' requires a permission policy. SereinFlow 工具必须配置权限策略。");
-        var security = context.CallContext.Services.GetRequiredService<McpSecurityService>();
         var principal = principalAccessor.Current;
-        var caller = new SereinFlowMcpToolContext(context.Scope, security, principal);
+        var caller = new SereinFlowMcpCaller(principal);
         context.CallContext.SetValue<SereinFlowMcpCaller>(caller);
-        context.CallContext.SetValue(caller);
-        var projectId = McpArgumentReader.OptionalGuid(context.Arguments, "projectId");
-        if (metadata.Permissions.Length == 1) security.Require(principal, metadata.Permissions[0], projectId);
-        else security.RequireAny(principal, projectId, metadata.Permissions);
+        caller.RequirePrincipal();
+        context.CallContext.RequestAuthorization = async (request, token) =>
+        {
+            var resource = await SereinFlowMcpResourceResolver.ResolveAsync(context.CallContext.Services, principal!, request, token);
+            var deniedCode = McpErrorCodes.PermissionDenied;
+            foreach (var permission in metadata.Permissions)
+            {
+                var operation = SereinFlowOperationNames.ToName(permission);
+                var authorizer = context.CallContext.Services.GetRequiredService<ISereinFlowAuthorizationService>();
+                var decision = await authorizer.AuthorizeAsync(principal!, operation, resource, token);
+                if (decision.IsAllowed) return;
+                deniedCode = decision.Code ?? deniedCode;
+            }
+            throw new SereinFlowAccessException(deniedCode, "Access denied.", 403);
+        };
         return ValueTask.CompletedTask;
     }
 
@@ -35,7 +45,7 @@ public sealed class SereinFlowMcpPolicy(IMcpPrincipalAccessor principalAccessor,
         {
             McpParameterBindingException binding => Rejected(MapBindingError(context, binding)),
             McpToolNotFoundException missing => Rejected(new McpProtocolException(McpProtocolErrorCodes.MethodNotFound, missing.Message)),
-            McpSecurityException security => new(new McpProtocolException(McpProtocolErrorCodes.FromHttpStatus(security.StatusCode),
+            SereinFlowAccessException security => new(new McpProtocolException(McpProtocolErrorCodes.FromHttpStatus(security.StatusCode),
                 security.Message, new { code = security.Code }), "denied", security.Code),
             McpProtocolException protocol => Rejected(protocol),
             _ => base.MapFailure(context, exception)

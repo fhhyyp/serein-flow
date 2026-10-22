@@ -15,11 +15,11 @@ Fields include queue capacity, concurrency, wait timeout, and library upload lim
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/api/environment/settings/mcp-keys/setup` | First administrator key; local only |
-| `GET` | `/api/environment/settings/mcp-keys` | List key metadata |
-| `POST` | `/api/environment/settings/mcp-keys` | Create a key |
-| `POST` | `/api/environment/settings/mcp-keys/{id}/rotate` | Rotate a key |
-| `DELETE` | `/api/environment/settings/mcp-keys/{id}` | Revoke a key |
+| `POST` | `/api/security/api-keys/initial-admin` | First administrator key; local only |
+| `GET` | `/api/security/api-keys` | List key metadata |
+| `POST` | `/api/security/api-keys` | Create a key |
+| `POST` | `/api/security/api-keys/{id}/rotate` | Rotate a key |
+| `DELETE` | `/api/security/api-keys/{id}` | Revoke a key |
 
 Except for initial setup, key management requires an administrator key even if ordinary REST authentication is off. A new key can have project scope, name, permissions, and expiry. The full secret is shown once after creation or rotation; listing will not return it again.
 

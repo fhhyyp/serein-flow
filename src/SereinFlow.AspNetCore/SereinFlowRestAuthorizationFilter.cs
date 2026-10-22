@@ -1,12 +1,11 @@
-using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using SereinFlow.Application;
 
 namespace SereinFlow.Api;
 /// <summary>
-/// Marks actions that perform their own API-key authorization.
-/// 标记自行执行 API 密钥授权的操作。
+/// Marks actions that perform their own resource authorization.
+/// 标记自行执行资源授权的操作。
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class SereinFlowScopedAuthorizationAttribute : Attribute;
@@ -16,11 +15,11 @@ public sealed class SereinFlowScopedAuthorizationAttribute : Attribute;
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class SereinFlowAnonymousAttribute : Attribute;
-public sealed class SereinFlowRestAuthorizationFilter(IConfiguration configuration, McpSecurityService security) : IAsyncAuthorizationFilter
+public sealed class SereinFlowRestAuthorizationFilter(SereinFlowAccess security) : IAsyncAuthorizationFilter
 {
     public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
     {
-        if (resolveAnyResult() || !configuration.GetValue("SereinFlow:Api:RequireAuthentication", true))
+        if (resolveAnyResult())
         {
             return;
         }
@@ -31,25 +30,18 @@ public sealed class SereinFlowRestAuthorizationFilter(IConfiguration configurati
             return;
         }
 
-        var raw = context.HttpContext.Request.Headers.Authorization.FirstOrDefault();
-        if (!AuthenticationHeaderValue.TryParse(raw, out var header) || !string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(header.Parameter))
-        {
-            Deny(context, StatusCodes.Status401Unauthorized, "SereinFlow API authentication is required. 需要进行 SereinFlow API 身份验证。");
-            return;
-        }
-
-        var principal = await security.AuthenticateAsync(header.Parameter, context.HttpContext.RequestAborted);
+        var principal = SereinFlow.AspNetCore.SereinFlowHttpActor.Get(context.HttpContext);
         if (principal is null)
         {
-            Deny(context, StatusCodes.Status401Unauthorized, "Invalid SereinFlow API key. SereinFlow API 密钥无效。");
+            Deny(context, 401, "Authentication is required.");
             return;
         }
 
         try
         {
-            security.RequireAdministrator(principal);
+            await security.RequireWorkspaceAsync(principal);
         }
-        catch (McpSecurityException exception)
+        catch (SereinFlowAccessException exception)
         {
             Deny(context, exception.StatusCode, exception.Message);
         }

@@ -24,7 +24,7 @@ public sealed class FlowExecutionController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> StartRun([FromRoute] Guid projectId, [FromRoute] Guid flowId, [FromBody] RunFlowRequestDto request, CancellationToken cancellationToken)
     {
-        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunExecute, projectId, cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunExecute, projectId, cancellationToken);
         var failure = ToAuthorizationFailure(authorization);
         if (failure is not null)
         {

@@ -130,7 +130,7 @@ serialized send path. The message service does not operate
 
 ## MCP Publish Tool
 
-Authenticated HTTP MCP or stdio MCP with an explicitly configured API key can
+Authenticated HTTP MCP or stdio MCP using a trusted local identity can
 use `sereinflow_publish_run_message` to publish to an active ordinary or debug
 run:
 

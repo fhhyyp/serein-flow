@@ -70,7 +70,7 @@ public static partial class ExampleHosting
 ```csharp
 internal sealed class ProjectTools(AiReadModelService projects)
 {
-    [SereinFlowMcpTool("example_get_project", McpPermissionDto.ProjectRead,
+    [SereinFlowMcpTool("example_get_project", SereinFlowPermission.ProjectRead,
         Description = "Read a project and its flow summaries.")]
     public async Task<object?> GetAsync(
         ProjectRequest request,
@@ -132,11 +132,10 @@ Schema 采用序列化合同；DataAnnotations 是运行时校验规则，不保
 生成器只处理当前编译程序集中的工具，不自动加载插件。
 
 旧工具继续使用已经发布的显式 Schema，保持描述、字段、必填列表和工具顺序。
-现有 50 个工具已全部使用强类型参数，通过同一框架管线执行；上下文优先使用
-不暴露服务容器的 `SereinFlowMcpCaller`。`SereinFlowMcpToolContext` 继承调用者身份，并补充业务服务访问。
-`SereinFlowMcpToolContext` 及其宿主供值仅为公开 API 兼容保留，内置工具不再访问服务容器或作用域。
+现有 46 个工具已全部使用强类型参数，通过同一框架管线执行；上下文优先使用
+不暴露服务容器的 `SereinFlowMcpCaller`，身份由统一的 `ISereinFlowActorAccessor` 调用作用域提供。旧的服务容器上下文不再保留。
 现有完整查询范例为 `Tools/Projects/McpProjectQueryTools` 与 `Queries/McpProjectQueries`，
-带幂等的写入范例为 `Tools/ApiKeys/McpApiKeyTools.RevokeAsync`。确定结构的查询和预览使用具体返回类型；
+带幂等的写入范例为 `Tools/Flows/McpFlowPatchTools.ApplyPatchAsync`。Key 管理仅通过可选安全库的 HTTP API 提供，不注册 MCP 工具。确定结构的查询和预览使用具体返回类型；
 多态预览、变量查询和已存储的 JSON 回放保留动态结果边界，不增加协议响应包装。
 
 三个 MCP 项目及对应测试已解除仓库自定义表达式拆分规则，可直接返回、使用表达式体和完整 LINQ 查询。

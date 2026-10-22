@@ -7,9 +7,8 @@ using SereinFlow.Contracts;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Api.Controllers;
-
 [Route("api/environment/settings/mcp-skills")]
-public sealed class McpSkillsController(McpAiGuidanceManagementService guidance, McpSecurityService security) : ApiControllerBase
+public sealed class McpSkillsController(McpAiGuidanceManagementService guidance, SereinFlowAccess security) : ApiControllerBase
 {
     [HttpGet]
     [SereinFlowScopedAuthorization]
@@ -84,19 +83,14 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
     {
         try
         {
-            var toStringResult = Request.Headers.Authorization.ToString();
-            AuthenticationHeaderValue.TryParse(toStringResult, out var header);
-            var principal = header is not null && string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) ? await security.AuthenticateAsync(header.Parameter, cancellationToken) : null;
-            // Skill edits change guidance for every MCP client. Require an administrator
-            // even when the host permits anonymous access to other REST endpoints.
-            // 技能修改会影响所有 MCP 客户端的指引；即使宿主允许其他 REST 端点匿名访问，此处仍要求管理员权限。
-            security.RequireAdministrator(principal);
+            var principal = SereinFlow.AspNetCore.SereinFlowHttpActor.Get(HttpContext);
+            await security.RequireWorkspaceAsync(principal);
             Response.Headers.CacheControl = "no-store";
             var actionResult = await action(cancellationToken);
             var okResult = Ok(actionResult);
             return okResult;
         }
-        catch (McpSecurityException exception)
+        catch (SereinFlowAccessException exception)
         {
             if (exception.StatusCode == StatusCodes.Status401Unauthorized)
             {
@@ -123,12 +117,11 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
             return apiProblemResult4;
             Dictionary<string, object?> resolveToDictionaryResult()
             {
-                var toDictionaryResult = data.EnumerateObject()
-                    .ToDictionary(property => property.Name, property =>
-                    {
-                        var evaluatedValue = (object?)property.Value.Clone();
-                        return evaluatedValue;
-                    });
+                var toDictionaryResult = data.EnumerateObject().ToDictionary(property => property.Name, property =>
+                {
+                    var evaluatedValue = (object? )property.Value.Clone();
+                    return evaluatedValue;
+                });
                 return toDictionaryResult;
             }
         }

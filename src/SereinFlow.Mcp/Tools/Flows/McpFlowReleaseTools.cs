@@ -21,7 +21,7 @@ internal sealed class McpFlowReleaseTools(
     McpResourceAuthorization _mcpResourceAuthorization,
     ProjectLibraryService _projectLibraryService)
 {
-    [SereinFlowMcpTool("sereinflow_preview_publish_flow", McpPermissionDto.FlowPublish, ExecutionKind = McpToolExecutionKind.Mutation, HasAuditTrack = true, AuditTrack = FlowVersionTrackDto.Development)]
+    [SereinFlowMcpTool("sereinflow_preview_publish_flow", SereinFlowPermission.FlowPublish, ExecutionKind = McpToolExecutionKind.Mutation, HasAuditTrack = true, AuditTrack = FlowVersionTrackDto.Development)]
     internal async Task<object> PreviewPublishAsync(
         SereinFlowMcpCaller context,
         PublishFlowPreviewRequestDto arguments,
@@ -29,7 +29,7 @@ internal sealed class McpFlowReleaseTools(
     {
         var principal = context.RequirePrincipal();
         var request = arguments;
-        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, McpPermissionDto.FlowPublish, cancellationToken);
+        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, SereinFlowPermission.FlowPublish, cancellationToken);
         var flow = await _flowDefinitionRepository.FindAsync(request.ProjectId, request.FlowId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found. 未找到流程定义。");
         if (flow.Version != request.ExpectedDevelopmentVersion)
         {
@@ -64,7 +64,7 @@ internal sealed class McpFlowReleaseTools(
         };
     }
 
-    [SereinFlowMcpTool("sereinflow_apply_publish_flow", McpPermissionDto.FlowPublish, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true, HasAuditTrack = true, AuditTrack = FlowVersionTrackDto.Development)]
+    [SereinFlowMcpTool("sereinflow_apply_publish_flow", SereinFlowPermission.FlowPublish, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true, HasAuditTrack = true, AuditTrack = FlowVersionTrackDto.Development)]
     internal async Task<object> ApplyPublishAsync(
         SereinFlowMcpCaller context,
         McpMutationApplyRequestDto arguments,
@@ -87,7 +87,7 @@ internal sealed class McpFlowReleaseTools(
         }
 
         var stored = McpPreviewService.Deserialize<StoredPublishPreview>(entry);
-        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, stored.Request.ProjectId, McpPermissionDto.FlowPublish, cancellationToken);
+        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, stored.Request.ProjectId, SereinFlowPermission.FlowPublish, cancellationToken);
         var current = await _flowDefinitionRepository.FindAsync(stored.Request.ProjectId, stored.Request.FlowId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found. 未找到流程定义。");
         if (current.Version != stored.Request.ExpectedDevelopmentVersion)
         {
@@ -123,7 +123,7 @@ internal sealed class McpFlowReleaseTools(
         return response;
     }
 
-    [SereinFlowMcpTool("sereinflow_preview_rollback_flow", McpPermissionDto.FlowRollback, ExecutionKind = McpToolExecutionKind.Mutation)]
+    [SereinFlowMcpTool("sereinflow_preview_rollback_flow", SereinFlowPermission.FlowRollback, ExecutionKind = McpToolExecutionKind.Mutation)]
     internal async Task<object> PreviewRollbackAsync(
         SereinFlowMcpCaller context,
         RollbackFlowPreviewRequestDto arguments,
@@ -136,7 +136,7 @@ internal sealed class McpFlowReleaseTools(
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The rollback request is invalid. 回滚请求无效。");
         }
 
-        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, McpPermissionDto.FlowRollback, cancellationToken);
+        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, SereinFlowPermission.FlowRollback, cancellationToken);
         var source = await _flowVersionRepository.FindVersionAsync(request.ProjectId, request.FlowId, request.SourceVersion, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The rollback source version was not found. 未找到回滚源版本。");
         if (source.Version.Track != request.Track)
         {
@@ -176,7 +176,7 @@ internal sealed class McpFlowReleaseTools(
         };
     }
 
-    [SereinFlowMcpTool("sereinflow_apply_rollback_flow", McpPermissionDto.FlowRollback, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    [SereinFlowMcpTool("sereinflow_apply_rollback_flow", SereinFlowPermission.FlowRollback, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
     internal async Task<object> ApplyRollbackAsync(
         SereinFlowMcpCaller context,
         McpMutationApplyRequestDto arguments,
@@ -199,7 +199,7 @@ internal sealed class McpFlowReleaseTools(
         }
 
         var stored = McpPreviewService.Deserialize<StoredRollbackPreview>(entry);
-        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, stored.Request.ProjectId, McpPermissionDto.FlowRollback, cancellationToken);
+        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, stored.Request.ProjectId, SereinFlowPermission.FlowRollback, cancellationToken);
         long? currentHead;
         if (stored.Request.Track == FlowVersionTrackDto.Development)
         {

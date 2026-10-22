@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>true</IsPackable>
+    <PackageId>SereinFlow.Security.ApiKeys</PackageId>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">0.1.0</PackageVersion>
+    <Authors>SereinFlow</Authors>
+    <Description>Optional API key authentication and authorization for SereinFlow HTTP hosts.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../SereinFlow.AspNetCore/SereinFlow.AspNetCore.csproj" />
+    <!-- These assemblies are supplied by the base hosting package. -->
+    <ProjectReference Include="../SereinFlow.Application/SereinFlow.Application.csproj" PrivateAssets="all" />
+    <ProjectReference Include="../SereinFlow.Infrastructure/SereinFlow.Infrastructure.csproj" PrivateAssets="all" />
+    <ProjectReference Include="../SereinFlow.Contracts/SereinFlow.Contracts.csproj" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

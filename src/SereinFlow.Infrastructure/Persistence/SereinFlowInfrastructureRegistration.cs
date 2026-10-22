@@ -165,13 +165,6 @@ public static class SereinFlowInfrastructureRegistration
             var sqlSugarFlowLibraryUpgradeStore = new SqlSugarFlowLibraryUpgradeStore(getRequiredServiceResult31, getRequiredServiceResult32, getRequiredServiceResult33, getRequiredServiceResult34, getRequiredServiceResult35, getRequiredServiceResult36, getRequiredServiceResult37, getRequiredServiceResult38);
             return sqlSugarFlowLibraryUpgradeStore;
         });
-        services.AddScoped<IMcpApiKeyStore>(serviceProvider =>
-        {
-            var getRequiredServiceResult39 = serviceProvider.GetRequiredService<IRepository<McpApiKeyRecord>>();
-            var database = serviceProvider.GetRequiredService<ISqlSugarClient>();
-            var sqlSugarMcpApiKeyStore = new SqlSugarMcpApiKeyStore(getRequiredServiceResult39, database);
-            return sqlSugarMcpApiKeyStore;
-        });
         services.AddScoped<IMcpPreviewStore>(serviceProvider =>
         {
             var getRequiredServiceResult40 = serviceProvider.GetRequiredService<IRepository<McpPreviewRecord>>();

@@ -36,7 +36,7 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> Invoke([FromRoute] Guid interfaceId, [FromBody] PublicFlowInvocationRequestDto request, CancellationToken cancellationToken)
     {
-        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunExecute, projectId: null, cancellationToken);
+        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunExecute, projectId: null, cancellationToken);
         var preFailure = ToAuthorizationFailure(preAuthorization);
         if (preFailure is not null)
         {
@@ -50,7 +50,7 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
             return apiProblemResult;
         }
 
-        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunExecute, flowInterface.ProjectId, cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunExecute, flowInterface.ProjectId, cancellationToken);
         var authorizationFailure = ToAuthorizationFailure(authorization);
         if (authorizationFailure is not null)
         {
@@ -100,7 +100,7 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetTask([FromRoute] Guid taskId, CancellationToken cancellationToken)
     {
-        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, projectId: null, cancellationToken);
+        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, projectId: null, cancellationToken);
         var preFailure = ToAuthorizationFailure(preAuthorization);
         if (preFailure is not null)
         {
@@ -114,7 +114,7 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
             return apiProblemResult5;
         }
 
-        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, run.ProjectId, cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
         var authorizationFailure = ToAuthorizationFailure(authorization);
         if (authorizationFailure is not null)
         {

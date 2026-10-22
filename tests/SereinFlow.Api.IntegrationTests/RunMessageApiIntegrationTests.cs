@@ -18,13 +18,14 @@ namespace SereinFlow.Api.IntegrationTests;
 public sealed class RunMessageApiIntegrationTests
 {
     [Fact]
-    public async Task PublicRouteBindsArbitraryJsonAndReturnsAcceptedWithoutApiAuthentication()
+    public async Task AuthenticatedRouteBindsArbitraryJsonAndReturnsAccepted()
     {
         var run = CreateRunningRun();
         Assert.Equal(FlowRunStatus.Running, run.Status);
         var worker = new RecordingWorkerClient();
         using var factory = new ApiFactory(run, worker);
         using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "message-test-key");
         using var content = new StringContent("{\"payload\":[null,\"订单\",42,true],\"contractId\":\"order.v1\",\"channelKind\":\"eventBus\"}", Encoding.UTF8, "application/json");
         using var response = await client.PostAsync($"/api/runs/{run.Id:D}/messages/ orders.created ", content);
         var responseBody = await response.Content.ReadAsStringAsync();
@@ -66,7 +67,7 @@ public sealed class RunMessageApiIntegrationTests
                 var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _dataRoot,
-                    ["SereinFlow:Api:RequireAuthentication"] = "false",
+                    ["SereinFlow:Security:ApiKeys:BootstrapAdminKey"] = "message-test-key",
                     ["SereinFlow:ApiDocumentation:Enabled"] = "true",
                 };
                 configuration.AddInMemoryCollection(dictionary);

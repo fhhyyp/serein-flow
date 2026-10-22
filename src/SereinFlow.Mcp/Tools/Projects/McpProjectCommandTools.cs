@@ -11,17 +11,17 @@ namespace SereinFlow.Mcp.Tools;
 internal sealed class McpProjectCommandTools(
     McpIdempotencyService _mcpIdempotencyService,
     McpPreviewService _mcpPreviewService,
-    McpSecurityService _mcpSecurityService,
+    SereinFlowAccess _mcpSecurityService,
     ProjectCreationService _projectCreationService)
 {
-    [SereinFlowMcpTool("sereinflow_preview_create_project", McpPermissionDto.ProjectWrite, ExecutionKind = McpToolExecutionKind.Mutation)]
+    [SereinFlowMcpTool("sereinflow_preview_create_project", SereinFlowPermission.ProjectWrite, ExecutionKind = McpToolExecutionKind.Mutation)]
     internal async Task<ProjectCreatePreviewDto> PreviewCreateAsync(
         SereinFlowMcpCaller context,
         CreateProjectMcpRequestDto arguments,
         CancellationToken cancellationToken)
     {
         var principal = context.RequirePrincipal();
-        _mcpSecurityService.RequireAdministrator(principal);
+        await _mcpSecurityService.RequireWorkspaceAsync(principal);
         var request = arguments;
         if (string.IsNullOrWhiteSpace(request.Name))
         {
@@ -46,7 +46,7 @@ internal sealed class McpProjectCommandTools(
         return ToProjectCreatePreview(mcpPreviewDescriptorDto, candidate);
     }
 
-    [SereinFlowMcpTool("sereinflow_apply_create_project", McpPermissionDto.ProjectWrite, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    [SereinFlowMcpTool("sereinflow_apply_create_project", SereinFlowPermission.ProjectWrite, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
     internal async Task<object> ApplyCreateAsync(
         SereinFlowMcpCaller context,
         McpMutationApplyRequestDto arguments,
@@ -68,8 +68,8 @@ internal sealed class McpProjectCommandTools(
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe project creation. 此预览不是项目创建预览。");
         }
 
-        _mcpSecurityService.RequireAdministrator(principal);
-        _mcpSecurityService.Require(principal, McpPermissionDto.ProjectWrite);
+        await _mcpSecurityService.RequireWorkspaceAsync(principal);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.ProjectWrite);
         var stored = McpPreviewService.Deserialize<StoredProjectCreatePreview>(entry);
         var project = RehydrateProject(stored);
         var candidate = _projectCreationService.Prepare(project, stored.Definition);

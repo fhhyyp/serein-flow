@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
@@ -11,7 +12,7 @@ public sealed class McpApiKeyManagementServiceTests
     {
         var store = new InMemoryApiKeyStore();
         var emptyProjectRepository = new EmptyProjectRepository();
-        var service = new McpApiKeyManagementService(store, emptyProjectRepository);
+        var service = new ApiKeyManagementService(store, emptyProjectRepository);
         var created = await service.CreateInitialAdministratorAsync();
         Assert.True(created.Key.IsAdministrator);
         Assert.StartsWith("sfk_", created.Secret, StringComparison.Ordinal);
@@ -19,12 +20,12 @@ public sealed class McpApiKeyManagementServiceTests
         var saved = Assert.Single(listAsyncResult);
         Assert.NotEqual(created.Secret, saved.SecretHash);
         Assert.DoesNotContain(created.Secret, saved.SecretHash, StringComparison.Ordinal);
-        var secondAttempt = await Assert.ThrowsAsync<McpSecurityException>(() =>
+        var secondAttempt = await Assert.ThrowsAsync<SereinFlowAccessException>(() =>
         {
             var createInitialAdministratorAsyncResult = service.CreateInitialAdministratorAsync();
             return createInitialAdministratorAsyncResult;
         });
-        Assert.Equal(McpErrorCodes.KeySetupAlreadyCompleted, secondAttempt.Code);
+        Assert.Equal(ApiKeyErrorCodes.SetupAlreadyCompleted, secondAttempt.Code);
         Assert.Equal(409, secondAttempt.StatusCode);
         var listAsyncResult1 = await store.ListAsync();
         Assert.Single(listAsyncResult1);
@@ -35,7 +36,7 @@ public sealed class McpApiKeyManagementServiceTests
     {
         var store = new InMemoryApiKeyStore();
         var emptyProjectRepository2 = new EmptyProjectRepository();
-        var service = new McpApiKeyManagementService(store, emptyProjectRepository2);
+        var service = new ApiKeyManagementService(store, emptyProjectRepository2);
         var initial = await service.CreateInitialAdministratorAsync();
         var rotated = await service.RotateAsync(initial.Key.Id);
         Assert.Equal(initial.Key.Id, rotated.RevokedKeyId);
@@ -45,37 +46,37 @@ public sealed class McpApiKeyManagementServiceTests
         Assert.NotNull(evaluatedValue);
         var evaluatedValue3 = (await store.FindAsync(rotated.Key.Id))!.RevokedAt;
         Assert.Null(evaluatedValue3);
-        var security = new McpSecurityService(store);
+        var security = new ApiKeyService(store);
         var authenticateAsyncResult = await security.AuthenticateAsync(initial.Secret);
         Assert.Null(authenticateAsyncResult);
         var authenticateAsyncResult4 = await security.AuthenticateAsync(rotated.Secret);
         Assert.NotNull(authenticateAsyncResult4);
     }
 
-    private sealed class InMemoryApiKeyStore : IMcpApiKeyStore
+    private sealed class InMemoryApiKeyStore : IApiKeyStore
     {
-        private readonly List<McpApiKeyEntry> _entries = [];
-        public Task<IReadOnlyList<McpApiKeyEntry>> ListAsync(CancellationToken cancellationToken = default)
+        private readonly List<ApiKeyEntry> _entries = [];
+        public Task<IReadOnlyList<ApiKeyEntry>> ListAsync(CancellationToken cancellationToken = default)
         {
             var toArrayResult = _entries.ToArray();
-            var fromResultResult = Task.FromResult<IReadOnlyList<McpApiKeyEntry>>(toArrayResult);
+            var fromResultResult = Task.FromResult<IReadOnlyList<ApiKeyEntry>>(toArrayResult);
             return fromResultResult;
         }
 
-        public Task<McpApiKeyEntry?> FindAsync(string id, CancellationToken cancellationToken = default)
+        public Task<ApiKeyEntry?> FindAsync(string id, CancellationToken cancellationToken = default)
         {
             var firstOrDefaultResult = _entries.FirstOrDefault(entry => entry.Id == id);
             var fromResultResult5 = Task.FromResult(firstOrDefaultResult);
             return fromResultResult5;
         }
 
-        public Task AddAsync(McpApiKeyEntry entry, CancellationToken cancellationToken = default)
+        public Task AddAsync(ApiKeyEntry entry, CancellationToken cancellationToken = default)
         {
             _entries.Add(entry);
             return Task.CompletedTask;
         }
 
-        public Task<bool> UpdateAsync(McpApiKeyEntry entry, CancellationToken cancellationToken = default)
+        public Task<bool> UpdateAsync(ApiKeyEntry entry, CancellationToken cancellationToken = default)
         {
             var index = _entries.FindIndex(item => item.Id == entry.Id);
             if (index < 0)
@@ -92,9 +93,20 @@ public sealed class McpApiKeyManagementServiceTests
         public Task<bool> UpdateLastUsedAsync(string id, DateTimeOffset lastUsedAt, CancellationToken cancellationToken = default)
         {
             var index = _entries.FindIndex(entry => entry.Id == id);
-            if (index < 0) return Task.FromResult(false);
-            _entries[index] = _entries[index] with { LastUsedAt = lastUsedAt };
-            return Task.FromResult(true);
+            if (index < 0)
+            {
+                var result1 = Task.FromResult(false);
+                return result1;
+            }
+
+            _entries[index] = _entries[index] with
+            {
+                LastUsedAt = lastUsedAt
+            };
+            {
+                var result2 = Task.FromResult(true);
+                return result2;
+            }
         }
     }
 

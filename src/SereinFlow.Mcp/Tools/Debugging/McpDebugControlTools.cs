@@ -8,9 +8,9 @@ namespace SereinFlow.Mcp.Tools;
 internal sealed class McpDebugControlTools(
     IFlowDebugSessionService _flowDebugSessionService,
     McpIdempotencyService _mcpIdempotencyService,
-    McpSecurityService _mcpSecurityService)
+    SereinFlowAccess _mcpSecurityService)
 {
-    [SereinFlowMcpTool("sereinflow_start_debug_session", McpPermissionDto.DebugControl, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    [SereinFlowMcpTool("sereinflow_start_debug_session", SereinFlowPermission.DebugControl, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
     internal async Task<object> StartAsync(
         SereinFlowMcpCaller context,
         McpStartFlowDebugSessionRequestDto arguments,
@@ -18,7 +18,7 @@ internal sealed class McpDebugControlTools(
     {
         var principal = context.RequirePrincipal();
         var request = arguments;
-        _mcpSecurityService.Require(principal, McpPermissionDto.DebugControl, request.ProjectId);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.DebugControl, request.ProjectId);
         var idempotencyKey = arguments.IdempotencyKey!.Trim();
         request = request with
         {
@@ -44,7 +44,7 @@ internal sealed class McpDebugControlTools(
         return response;
     }
 
-    [SereinFlowMcpTool("sereinflow_continue_debug", McpPermissionDto.DebugControl, ExecutionKind = McpToolExecutionKind.Mutation)]
+    [SereinFlowMcpTool("sereinflow_continue_debug", SereinFlowPermission.DebugControl, ExecutionKind = McpToolExecutionKind.Mutation)]
     internal Task<McpDebugCommandAcceptedDto> ContinueAsync(
         SereinFlowMcpCaller context,
         McpDebugCommandRequest arguments,
@@ -56,7 +56,7 @@ internal sealed class McpDebugControlTools(
         }, cancellationToken);
     }
 
-    [SereinFlowMcpTool("sereinflow_step_debug", McpPermissionDto.DebugControl, ExecutionKind = McpToolExecutionKind.Mutation)]
+    [SereinFlowMcpTool("sereinflow_step_debug", SereinFlowPermission.DebugControl, ExecutionKind = McpToolExecutionKind.Mutation)]
     internal Task<McpDebugCommandAcceptedDto> StepAsync(
         SereinFlowMcpCaller context,
         McpDebugCommandRequest arguments,
@@ -68,7 +68,7 @@ internal sealed class McpDebugControlTools(
         }, cancellationToken);
     }
 
-    [SereinFlowMcpTool("sereinflow_stop_debug", McpPermissionDto.DebugControl, ExecutionKind = McpToolExecutionKind.Mutation)]
+    [SereinFlowMcpTool("sereinflow_stop_debug", SereinFlowPermission.DebugControl, ExecutionKind = McpToolExecutionKind.Mutation)]
     internal Task<McpDebugCommandAcceptedDto> StopAsync(
         SereinFlowMcpCaller context,
         McpDebugCommandRequest arguments,
@@ -95,7 +95,7 @@ internal sealed class McpDebugControlTools(
             throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "Debug session not found. 未找到调试会话。", new { code = DebugErrorCodes.SessionNotFound });
         }
 
-        _mcpSecurityService.Require(context.Principal, McpPermissionDto.DebugControl, session.ProjectId);
+        await _mcpSecurityService.RequireAsync(context.Principal, SereinFlowPermission.DebugControl, session.ProjectId);
         var result = await send(_flowDebugSessionService, sessionId, commandSequence, cancellationToken);
         if (!result.IsAccepted)
         {

@@ -64,10 +64,10 @@ public sealed partial class McpToolGenerator
         {
             /// <summary>Declares SereinFlow permission and audit policy for a tool.</summary>
             [AttributeUsage(AttributeTargets.Method)]
-            internal sealed class SereinFlowMcpToolAttribute(string name, params McpPermissionDto[] permissions)
+            internal sealed class SereinFlowMcpToolAttribute(string name, params SereinFlowPermission[] permissions)
                 : Framework.McpToolAttribute(name), Integration.ISereinFlowMcpToolMetadata
             {
-                public McpPermissionDto[] Permissions { get; } = permissions;
+                public SereinFlowPermission[] Permissions { get; } = permissions;
                 public bool HasAuditTrack { get; set; }
                 public FlowVersionTrackDto AuditTrack { get; set; }
             }

@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -77,7 +78,7 @@ public sealed class McpSkillManagementIntegrationTests
     {
         using var factory = new ApiFactory();
         using var client = factory.CreateClient();
-        foreach (var (method, path) in new[]
+        foreach (var(method, path)in new[]
         {
             (HttpMethod.Get, SkillsPath),
             (HttpMethod.Get, $"{SkillsPath}/sereinlang"),
@@ -100,9 +101,9 @@ public sealed class McpSkillManagementIntegrationTests
         var project = SereinFlow.Domain.Project.Create("skill-authorization-test");
         var getRequiredServiceResult = scope.ServiceProvider.GetRequiredService<IProjectRepository>();
         await getRequiredServiceResult.AddAsync(project);
-        var createMcpApiKeyRequestDto = new CreateMcpApiKeyRequestDto(project.Id, "project-client", [McpPermissionDto.ProjectRead, McpPermissionDto.McpKeysManage], null);
-        var scopedKey = McpSecurityService.CreateKeyWithEntry(createMcpApiKeyRequestDto);
-        var getRequiredServiceResult5 = scope.ServiceProvider.GetRequiredService<IMcpApiKeyStore>();
+        var createMcpApiKeyRequestDto = new CreateApiKeyRequest(project.Id, "project-client", [SereinFlowPermission.ProjectRead, SereinFlowPermission.SecurityManage], null);
+        var scopedKey = ApiKeyService.CreateKeyWithEntry(createMcpApiKeyRequestDto);
+        var getRequiredServiceResult5 = scope.ServiceProvider.GetRequiredService<IApiKeyStore>();
         await getRequiredServiceResult5.AddAsync(scopedKey.Entry);
         client.DefaultRequestHeaders.Authorization = new("Bearer", scopedKey.Dto.Secret);
         using var denied = await client.GetAsync(SkillsPath);
@@ -197,8 +198,7 @@ public sealed class McpSkillManagementIntegrationTests
                 var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _storage.FullName,
-                    ["SereinFlow:Mcp:BootstrapAdminKey"] = BootstrapKey,
-                    ["SereinFlow:Api:RequireAuthentication"] = "false",
+                    ["SereinFlow:Security:ApiKeys:BootstrapAdminKey"] = BootstrapKey,
                 };
                 configuration.AddInMemoryCollection(dictionary);
             });

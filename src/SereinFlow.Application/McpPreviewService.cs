@@ -19,7 +19,7 @@ public sealed class McpPreviewService
         _store = store;
     }
 
-    public async Task<McpPreviewEntry> CreateAsync<T>(string operation, McpPrincipal principal, Guid? projectId, Guid? flowId, long? expectedVersion, T payload, CancellationToken cancellationToken = default)
+    public async Task<McpPreviewEntry> CreateAsync<T>(string operation, SereinFlowActor principal, Guid? projectId, Guid? flowId, long? expectedVersion, T payload, CancellationToken cancellationToken = default)
     {
         var payloadJson = JsonSerializer.Serialize(payload, JsonOptions);
         var fingerprint = Fingerprint(operation, principal.Id, payloadJson);
@@ -30,22 +30,22 @@ public sealed class McpPreviewService
         return entry;
     }
 
-    public async Task<McpPreviewEntry> RequireAsync(Guid id, string fingerprint, McpPrincipal principal, CancellationToken cancellationToken = default)
+    public async Task<McpPreviewEntry> RequireAsync(Guid id, string fingerprint, SereinFlowActor principal, CancellationToken cancellationToken = default)
     {
-        var entry = await _store.FindAsync(id, cancellationToken) ?? throw new McpSecurityException(McpErrorCodes.PreviewNotFound, "The MCP preview was not found. 未找到 MCP 预览。", StatusCodes.Status404NotFound);
+        var entry = await _store.FindAsync(id, cancellationToken) ?? throw new SereinFlowAccessException(McpErrorCodes.PreviewNotFound, "The MCP preview was not found. 未找到 MCP 预览。", StatusCodes.Status404NotFound);
         if (!string.Equals(entry.PrincipalId, principal.Id, StringComparison.Ordinal))
         {
-            throw new McpSecurityException(McpErrorCodes.PreviewOwnerMismatch, "The MCP preview belongs to another caller. 该 MCP 预览属于其他调用方。", StatusCodes.Status403Forbidden);
+            throw new SereinFlowAccessException(McpErrorCodes.PreviewOwnerMismatch, "The MCP preview belongs to another caller. 该 MCP 预览属于其他调用方。", StatusCodes.Status403Forbidden);
         }
 
         if (!string.Equals(entry.PreviewFingerprint, fingerprint, StringComparison.Ordinal))
         {
-            throw new McpSecurityException(McpErrorCodes.PreviewFingerprintMismatch, "The MCP preview fingerprint is invalid. MCP 预览指纹无效。", StatusCodes.Status409Conflict);
+            throw new SereinFlowAccessException(McpErrorCodes.PreviewFingerprintMismatch, "The MCP preview fingerprint is invalid. MCP 预览指纹无效。", StatusCodes.Status409Conflict);
         }
 
         if (entry.Status != McpMutationPreviewStatusDto.Pending)
         {
-            throw new McpSecurityException(McpErrorCodes.PreviewNotPending, "The MCP preview is no longer pending. MCP 预览已不处于待处理状态。", StatusCodes.Status409Conflict);
+            throw new SereinFlowAccessException(McpErrorCodes.PreviewNotPending, "The MCP preview is no longer pending. MCP 预览已不处于待处理状态。", StatusCodes.Status409Conflict);
         }
 
         if (entry.ExpiresAt <= DateTimeOffset.UtcNow)
@@ -55,7 +55,7 @@ public sealed class McpPreviewService
                 Status = McpMutationPreviewStatusDto.Expired
             };
             await _store.UpdateAsync(expired, cancellationToken);
-            throw new McpSecurityException(McpErrorCodes.PreviewExpired, "The MCP preview has expired. MCP 预览已过期。", StatusCodes.Status409Conflict);
+            throw new SereinFlowAccessException(McpErrorCodes.PreviewExpired, "The MCP preview has expired. MCP 预览已过期。", StatusCodes.Status409Conflict);
         }
 
         return entry;

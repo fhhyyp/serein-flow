@@ -19,9 +19,9 @@ internal sealed class McpLibraryPackageTools(
     McpPackageStagingService _mcpPackageStagingService,
     McpPreviewService _mcpPreviewService,
     McpResourceAuthorization _mcpResourceAuthorization,
-    McpSecurityService _mcpSecurityService)
+    SereinFlowAccess _mcpSecurityService)
 {
-    [SereinFlowMcpTool("sereinflow_preview_library_package", McpPermissionDto.LibraryImport, ExecutionKind = McpToolExecutionKind.Mutation)]
+    [SereinFlowMcpTool("sereinflow_preview_library_package", SereinFlowPermission.LibraryImport, ExecutionKind = McpToolExecutionKind.Mutation)]
     internal async Task<LibraryPackagePreviewDto> PreviewPackageAsync(
         SereinFlowMcpCaller context,
         McpLibraryPackagePreviewRequest arguments,
@@ -55,11 +55,11 @@ internal sealed class McpLibraryPackageTools(
 
         if (projectId is not null)
         {
-            await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, projectId.Value, McpPermissionDto.LibraryImport, cancellationToken);
+            await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, projectId.Value, SereinFlowPermission.LibraryImport, cancellationToken);
         }
-        else if (!principal.IsLocal && !principal.IsAdministrator)
+        else
         {
-            _mcpSecurityService.RequireAdministrator(principal);
+            await _mcpSecurityService.RequireWorkspaceAsync(principal);
         }
 
         if (projectId is not null)
@@ -98,7 +98,7 @@ internal sealed class McpLibraryPackageTools(
         }
     }
 
-    [SereinFlowMcpTool("sereinflow_apply_library_package", McpPermissionDto.LibraryImport, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    [SereinFlowMcpTool("sereinflow_apply_library_package", SereinFlowPermission.LibraryImport, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
     internal async Task<object> ApplyPackageAsync(
         SereinFlowMcpCaller context,
         McpMutationApplyRequestDto arguments,
@@ -123,11 +123,11 @@ internal sealed class McpLibraryPackageTools(
         var stored = McpPreviewService.Deserialize<StoredLibraryPackagePreview>(entry);
         if (stored.ProjectId is null)
         {
-            _mcpSecurityService.RequireAdministrator(principal);
+            await _mcpSecurityService.RequireWorkspaceAsync(principal);
         }
         else
         {
-            await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, stored.ProjectId.Value, McpPermissionDto.LibraryImport, cancellationToken);
+            await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, stored.ProjectId.Value, SereinFlowPermission.LibraryImport, cancellationToken);
         }
 
         try
@@ -182,13 +182,13 @@ internal sealed class McpLibraryPackageTools(
     }
 
     private async Task EnsurePackageBaselineAccessAsync(
-        McpPrincipal principal,
+        SereinFlowActor principal,
         Guid projectId,
         string? familyId,
         string? baselineArtifactId,
         CancellationToken cancellationToken)
     {
-        if (principal.IsLocal || principal.IsAdministrator || (string.IsNullOrWhiteSpace(familyId) && string.IsNullOrWhiteSpace(baselineArtifactId)))
+        if (await _mcpSecurityService.CanManageWorkspaceAsync(principal, cancellationToken) || (string.IsNullOrWhiteSpace(familyId) && string.IsNullOrWhiteSpace(baselineArtifactId)))
         {
             return;
         }
@@ -206,7 +206,7 @@ internal sealed class McpLibraryPackageTools(
 
         if (string.IsNullOrWhiteSpace(artifactId) || !await _projectLibraryReferenceRepository.IsReferencedAsync(projectId, artifactId, cancellationToken))
         {
-            throw new McpSecurityException(McpErrorCodes.LibraryAccessDenied, "The MCP caller cannot use the requested library baseline for this project. MCP 调用方无权为此项目使用指定的类库基线。", StatusCodes.Status403Forbidden);
+            throw new SereinFlowAccessException(McpErrorCodes.LibraryAccessDenied, "The MCP caller cannot use the requested library baseline for this project. MCP 调用方无权为此项目使用指定的类库基线。", StatusCodes.Status403Forbidden);
         }
     }
 }

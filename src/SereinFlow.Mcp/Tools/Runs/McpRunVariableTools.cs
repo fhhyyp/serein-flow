@@ -10,16 +10,16 @@ internal sealed class McpRunVariableTools(
     IFlowRunStore _flowRunStore,
     IRunVariableService _runVariableService,
     McpIdempotencyService _mcpIdempotencyService,
-    McpSecurityService _mcpSecurityService)
+    SereinFlowAccess _mcpSecurityService)
 {
-    [SereinFlowMcpTool("sereinflow_get_run_variables", McpPermissionDto.RunRead)]
+    [SereinFlowMcpTool("sereinflow_get_run_variables", SereinFlowPermission.RunRead)]
     internal async Task<object> GetAsync(
         SereinFlowMcpCaller context,
         McpGetRunVariablesRequest arguments,
         CancellationToken cancellationToken)
     {
         var runId = arguments.RunId;
-        await AuthorizeRunAsync(context, runId, McpPermissionDto.RunRead, cancellationToken);
+        await AuthorizeRunAsync(context, runId, SereinFlowPermission.RunRead, cancellationToken);
         var name = arguments.Name;
         var offset = arguments.Offset;
         var take = arguments.Take;
@@ -29,14 +29,14 @@ internal sealed class McpRunVariableTools(
         return (object?)response.Snapshot ?? response.Variable!;
     }
 
-    [SereinFlowMcpTool("sereinflow_set_run_variable", McpPermissionDto.RunVariableWrite, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    [SereinFlowMcpTool("sereinflow_set_run_variable", SereinFlowPermission.RunVariableWrite, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
     internal async Task<object> SetAsync(
         SereinFlowMcpCaller context,
         McpSetRunVariableRequest arguments,
         CancellationToken cancellationToken)
     {
         var runId = arguments.RunId;
-        await AuthorizeRunAsync(context, runId, McpPermissionDto.RunVariableWrite, cancellationToken);
+        await AuthorizeRunAsync(context, runId, SereinFlowPermission.RunVariableWrite, cancellationToken);
         var name = arguments.Name;
         var valueType = arguments.ValueType;
         var value = arguments.Value;
@@ -61,7 +61,7 @@ internal sealed class McpRunVariableTools(
     private async Task AuthorizeRunAsync(
         SereinFlowMcpCaller context,
         Guid runId,
-        McpPermissionDto permission,
+        SereinFlowPermission permission,
         CancellationToken cancellationToken)
     {
         var run = await _flowRunStore.FindAsync(runId, cancellationToken);
@@ -71,7 +71,7 @@ internal sealed class McpRunVariableTools(
         }
 
         var principal = context.RequirePrincipal();
-        _mcpSecurityService.Require(principal, permission, run.ProjectId);
+        await _mcpSecurityService.RequireAsync(principal, permission, run.ProjectId);
     }
 
     private static void EnsureSuccess(WorkerVariableResponseDto response)

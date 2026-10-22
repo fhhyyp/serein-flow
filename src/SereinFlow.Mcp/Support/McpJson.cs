@@ -7,7 +7,7 @@ internal static class McpJson
 {
     internal static readonly JsonSerializerOptions ContractJsonOptions = SereinJsonSerialization.CreateContractOptions(options =>
     {
-        var mcpPermissionJsonConverter = new McpPermissionJsonConverter();
+        var mcpPermissionJsonConverter = new SereinFlowPermissionJsonConverter();
         options.Converters.Insert(0, mcpPermissionJsonConverter);
     });
     internal static string Serialize<T>(T value)

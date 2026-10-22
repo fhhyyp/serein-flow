@@ -1,34 +1,35 @@
+import { authenticatedFetch } from './securityApi';
 import type { ProjectWorkspaceDto } from './flowApi';
-export type McpPermission = 'project.read' | 'project.write' | 'library.read' | 'run.read' | 'debug.read' | 'flow.write' | 'debug.control' | 'flow.publish' | 'flow.rollback' | 'script.compile' | 'library.import' | 'library.manage' | 'mcp.keys.manage' | 'sensitive.read' | 'run.variable.write';
-export interface McpApiKeyDto {
+export type SereinFlowPermission = 'project.read' | 'project.write' | 'library.read' | 'run.read' | 'debug.read' | 'flow.write' | 'debug.control' | 'flow.publish' | 'flow.rollback' | 'script.compile' | 'library.import' | 'library.manage' | 'security.manage' | 'workspace.manage' | 'sensitive.read' | 'run.variable.write' | 'run.execute' | 'run.message.publish';
+export interface ApiKeyDto {
   id: string;
   projectId?: string | null;
   name: string;
   keyPrefix: string;
-  permissions: McpPermission[];
+  permissions: SereinFlowPermission[];
   createdAt: string;
   expiresAt?: string | null;
   revokedAt?: string | null;
   lastUsedAt?: string | null;
   isAdministrator: boolean;
 }
-export interface CreatedMcpApiKeyDto {
-  key: McpApiKeyDto;
+export interface CreatedApiKeyDto {
+  key: ApiKeyDto;
   secret: string;
 }
-export interface RotatedMcpApiKeyDto {
+export interface RotatedApiKeyDto {
   revokedKeyId: string;
-  key: McpApiKeyDto;
+  key: ApiKeyDto;
   secret?: string | null;
 }
-export interface CreateMcpApiKeyRequestDto {
+export interface CreateApiKeyRequest {
   projectId?: string | null;
   name: string;
-  permissions: McpPermission[];
+  permissions: SereinFlowPermission[];
   expiresAt?: string | null;
   isAdministrator?: boolean;
 }
-export interface McpKeyProjectOption {
+export interface KeyProjectOption {
   id: string;
   name: string;
 }
@@ -69,98 +70,42 @@ export async function resetMcpSkill(secret: string, key: string, expectedRevisio
   return requestResult3;
 }
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
-const sessionCredentialKey = 'sereinflow.mcp.management-key';
-const rememberedCredentialKey = 'sereinflow.mcp.management-key.remembered';
-export function getMcpManagementCredential(): string | undefined {
-  if (typeof window === 'undefined') {
-    return undefined;
-  }
-  try {
-    const evaluatedValue3: string | undefined = window.sessionStorage.getItem(sessionCredentialKey)
-      ?? window.localStorage.getItem(rememberedCredentialKey)
-      ?? undefined;
-    return evaluatedValue3;
-  }
-  catch {
-    return undefined;
-  }
-}
-export function hasRememberedMcpManagementCredential(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    const getItemResult: string | null | undefined = window.localStorage.getItem(rememberedCredentialKey);
-    const booleanResult: boolean = Boolean(getItemResult);
-    return booleanResult;
-  }
-  catch {
-    return false;
-  }
-}
-export function storeMcpManagementCredential(secret: string, remember: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.sessionStorage.setItem(sessionCredentialKey, secret);
-    if (remember) {
-      window.localStorage.setItem(rememberedCredentialKey, secret);
-    }
-    else {
-      window.localStorage.removeItem(rememberedCredentialKey);
-    }
-  }
-  catch {
-  }
-}
-export function clearMcpManagementCredential(): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.sessionStorage.removeItem(sessionCredentialKey);
-    window.localStorage.removeItem(rememberedCredentialKey);
-  }
-  catch {
-  }
-}
-export async function setupMcpApiKey(): Promise<CreatedMcpApiKeyDto> {
-  const requestResult4: CreatedMcpApiKeyDto | PromiseLike<CreatedMcpApiKeyDto> = request<CreatedMcpApiKeyDto>('/api/environment/settings/mcp-keys/setup', { method: 'POST' });
+export async function setupApiKey(): Promise<CreatedApiKeyDto> {
+  const requestResult4: CreatedApiKeyDto | PromiseLike<CreatedApiKeyDto> = request<CreatedApiKeyDto>('/api/security/api-keys/initial-admin', { method: 'POST' });
   return requestResult4;
 }
-export async function listMcpApiKeys(secret: string): Promise<McpApiKeyDto[]> {
-  const requestResult5: McpApiKeyDto[] | PromiseLike<McpApiKeyDto[]> = request<McpApiKeyDto[]>('/api/environment/settings/mcp-keys', { secret });
+export async function listApiKeys(secret: string): Promise<ApiKeyDto[]> {
+  const requestResult5: ApiKeyDto[] | PromiseLike<ApiKeyDto[]> = request<ApiKeyDto[]>('/api/security/api-keys', { secret });
   return requestResult5;
 }
-export async function createMcpApiKey(secret: string, body: CreateMcpApiKeyRequestDto): Promise<CreatedMcpApiKeyDto> {
-  const requestResult6: CreatedMcpApiKeyDto | PromiseLike<CreatedMcpApiKeyDto> = request<CreatedMcpApiKeyDto>('/api/environment/settings/mcp-keys', {
+export async function createApiKey(secret: string, body: CreateApiKeyRequest): Promise<CreatedApiKeyDto> {
+  const requestResult6: CreatedApiKeyDto | PromiseLike<CreatedApiKeyDto> = request<CreatedApiKeyDto>('/api/security/api-keys', {
     method: 'POST',
     secret,
     body,
   });
   return requestResult6;
 }
-export async function rotateMcpApiKey(secret: string, keyId: string): Promise<RotatedMcpApiKeyDto> {
-  const evaluatedValue4: string = `/api/environment/settings/mcp-keys/${encodeURIComponent(keyId)}/rotate`;
-  const requestResult7: RotatedMcpApiKeyDto | PromiseLike<RotatedMcpApiKeyDto> = request<RotatedMcpApiKeyDto>(evaluatedValue4, {
+export async function rotateApiKey(secret: string, keyId: string): Promise<RotatedApiKeyDto> {
+  const evaluatedValue4: string = `/api/security/api-keys/${encodeURIComponent(keyId)}/rotate`;
+  const requestResult7: RotatedApiKeyDto | PromiseLike<RotatedApiKeyDto> = request<RotatedApiKeyDto>(evaluatedValue4, {
     method: 'POST',
     secret,
   });
   return requestResult7;
 }
-export async function revokeMcpApiKey(secret: string, keyId: string): Promise<McpApiKeyDto> {
-  const evaluatedValue5: string = `/api/environment/settings/mcp-keys/${encodeURIComponent(keyId)}`;
-  const requestResult8: McpApiKeyDto | PromiseLike<McpApiKeyDto> = request<McpApiKeyDto>(evaluatedValue5, {
+export async function revokeApiKey(secret: string, keyId: string): Promise<ApiKeyDto> {
+  const evaluatedValue5: string = `/api/security/api-keys/${encodeURIComponent(keyId)}`;
+  const requestResult8: ApiKeyDto | PromiseLike<ApiKeyDto> = request<ApiKeyDto>(evaluatedValue5, {
     method: 'DELETE',
     secret,
   });
   return requestResult8;
 }
-export function mcpKeyProjectOptions(workspaces: ProjectWorkspaceDto[]): McpKeyProjectOption[] {
+export function keyProjectOptions(workspaces: ProjectWorkspaceDto[]): KeyProjectOption[] {
   const filterResult = workspaces
     .filter((workspace) => workspace.project.status !== 'archived');
-  const mapResult: McpKeyProjectOption[] = filterResult.map((workspace) => ({ id: workspace.project.id, name: workspace.project.name }));
+  const mapResult: KeyProjectOption[] = filterResult.map((workspace) => ({ id: workspace.project.id, name: workspace.project.name }));
   return mapResult;
 }
 async function request<T>(path: string, options: {
@@ -181,7 +126,7 @@ async function request<T>(path: string, options: {
     headers: Object.keys(headers).length > 0 ? headers : undefined,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   };
-  const response = await fetch(argumentValue, evaluatedValue7);
+  const response = await authenticatedFetch(argumentValue, evaluatedValue7);
   if (response.ok) {
     const payload = await response.text();
     const evaluatedValue6: T | PromiseLike<T> = (payload ? JSON.parse(payload) : undefined) as T;

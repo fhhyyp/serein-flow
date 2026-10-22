@@ -14,9 +14,9 @@ internal sealed class McpLibraryUpgradeTools(
     McpIdempotencyService _mcpIdempotencyService,
     McpPreviewService _mcpPreviewService,
     McpResourceAuthorization _mcpResourceAuthorization,
-    McpSecurityService _mcpSecurityService)
+    SereinFlowAccess _mcpSecurityService)
 {
-    [SereinFlowMcpTool("sereinflow_preview_library_upgrade", McpPermissionDto.FlowWrite, ExecutionKind = McpToolExecutionKind.Mutation)]
+    [SereinFlowMcpTool("sereinflow_preview_library_upgrade", SereinFlowPermission.FlowWrite, ExecutionKind = McpToolExecutionKind.Mutation)]
     internal async Task<McpLibraryUpgradePreviewDto> PreviewLibraryUpgradeAsync(
         SereinFlowMcpCaller context,
         McpLibraryUpgradePreviewRequestDto arguments,
@@ -30,8 +30,8 @@ internal sealed class McpLibraryUpgradeTools(
             TargetArtifactId = request.TargetArtifactId?.Trim() ?? string.Empty,
             FlowIds = request.FlowIds ?? []
         };
-        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, McpPermissionDto.FlowWrite, cancellationToken);
-        _mcpSecurityService.Require(principal, McpPermissionDto.LibraryManage, request.ProjectId);
+        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, SereinFlowPermission.FlowWrite, cancellationToken);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, request.ProjectId);
         var upgradeRequest = new LibraryUpgradePreviewRequestDto(request.SourceArtifactId, request.TargetArtifactId, request.FlowIds);
         var result = await _libraryUpgradeService.PreviewAsync(request.ProjectId, upgradeRequest, cancellationToken);
         if (!result.IsSuccess || result.Value is null)
@@ -45,7 +45,7 @@ internal sealed class McpLibraryUpgradeTools(
         return new McpLibraryUpgradePreviewDto(entry.Id, entry.ExpiresAt, entry.PreviewFingerprint, any, result.Value);
     }
 
-    [SereinFlowMcpTool("sereinflow_apply_library_upgrade", McpPermissionDto.FlowWrite, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    [SereinFlowMcpTool("sereinflow_apply_library_upgrade", SereinFlowPermission.FlowWrite, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
     internal async Task<object> ApplyLibraryUpgradeAsync(
         SereinFlowMcpCaller context,
         McpLibraryUpgradeApplyRequestDto arguments,
@@ -74,8 +74,8 @@ internal sealed class McpLibraryUpgradeTools(
         }
 
         var stored = McpPreviewService.Deserialize<StoredLibraryUpgradePreview>(entry);
-        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, stored.Plan.ProjectId, McpPermissionDto.FlowWrite, cancellationToken);
-        _mcpSecurityService.Require(principal, McpPermissionDto.LibraryManage, stored.Plan.ProjectId);
+        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, stored.Plan.ProjectId, SereinFlowPermission.FlowWrite, cancellationToken);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, stored.Plan.ProjectId);
         object response;
         var hasDurableSuccess = false;
         if (request.Flows.Count == 1)

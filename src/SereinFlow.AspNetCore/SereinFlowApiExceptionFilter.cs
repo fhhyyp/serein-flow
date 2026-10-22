@@ -10,6 +10,30 @@ public sealed class SereinFlowApiExceptionFilter(ILogger<SereinFlowApiExceptionF
 {
     public void OnException(ExceptionContext context)
     {
+        if (context.Exception is SereinFlow.Application.SereinFlowAccessException denied)
+        {
+            if (denied.StatusCode == 401)
+            {
+                context.HttpContext.Response.Headers.WWWAuthenticate = "Bearer";
+            }
+
+            var argument1 = new ProblemDetails
+            {
+                Status = denied.StatusCode,
+                Title = denied.Message,
+                Extensions =
+                {
+                    ["code"] = denied.Code
+                }
+            };
+            context.Result = new ObjectResult(argument1)
+            {
+                StatusCode = denied.StatusCode
+            };
+            context.ExceptionHandled = true;
+            return;
+        }
+
         logger.LogError(context.Exception, "Unhandled SereinFlow API request failure. SereinFlow API 请求发生未处理的错误。");
         var problemDetails = new ProblemDetails
         {

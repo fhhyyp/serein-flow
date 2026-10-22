@@ -14,10 +14,10 @@ internal sealed class McpProjectLibraryTools(
     IProjectRepository _projectRepository,
     McpIdempotencyService _mcpIdempotencyService,
     McpPreviewService _mcpPreviewService,
-    McpSecurityService _mcpSecurityService,
+    SereinFlowAccess _mcpSecurityService,
     ProjectLibraryService _projectLibraryService)
 {
-    [SereinFlowMcpTool("sereinflow_preview_project_library_attach", McpPermissionDto.LibraryManage, ExecutionKind = McpToolExecutionKind.Mutation)]
+    [SereinFlowMcpTool("sereinflow_preview_project_library_attach", SereinFlowPermission.LibraryManage, ExecutionKind = McpToolExecutionKind.Mutation)]
     internal async Task<ProjectLibraryAttachPreviewDto> PreviewProjectAttachAsync(
         SereinFlowMcpCaller context,
         ProjectLibraryAttachRequestDto arguments,
@@ -25,7 +25,7 @@ internal sealed class McpProjectLibraryTools(
     {
         var principal = context.RequirePrincipal();
         var request = arguments;
-        _mcpSecurityService.Require(principal, McpPermissionDto.LibraryManage, request.ProjectId);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, request.ProjectId);
         var libraryId = request.LibraryId?.Trim() ?? string.Empty;
         request = request with
         {
@@ -38,7 +38,7 @@ internal sealed class McpProjectLibraryTools(
         return new ProjectLibraryAttachPreviewDto(entry.Id, request.ProjectId, libraryId, entry.ExpiresAt, entry.PreviewFingerprint, validation.Count == 0, validation);
     }
 
-    [SereinFlowMcpTool("sereinflow_apply_project_library_attach", McpPermissionDto.LibraryManage, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    [SereinFlowMcpTool("sereinflow_apply_project_library_attach", SereinFlowPermission.LibraryManage, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
     internal async Task<object> ApplyProjectAttachAsync(
         SereinFlowMcpCaller context,
         McpMutationApplyRequestDto arguments,
@@ -61,7 +61,7 @@ internal sealed class McpProjectLibraryTools(
         }
 
         var stored = McpPreviewService.Deserialize<StoredProjectLibraryAttachPreview>(entry);
-        _mcpSecurityService.Require(principal, McpPermissionDto.LibraryManage, stored.Request.ProjectId);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, stored.Request.ProjectId);
         var currentDiagnostics = await ValidateProjectLibraryAttachAsync(stored.Request, cancellationToken);
         if (currentDiagnostics.Count > 0)
         {

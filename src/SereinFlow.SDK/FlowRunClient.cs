@@ -5,7 +5,6 @@ using System.Text.Json;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Client;
-
 public sealed class FlowRunClient : IFlowRunClient
 {
     private readonly SereinFlowHttpClient _transport;
@@ -38,14 +37,11 @@ public sealed class FlowRunClient : IFlowRunClient
         ArgumentException.ThrowIfNullOrWhiteSpace(nodeId);
         var getOutputsAsyncResult = GetOutputsAsync(runId, cancellationToken);
         var outputs = await getOutputsAsyncResult.ConfigureAwait(false);
-        var firstOrDefaultResult = outputs
-            .Where(item =>
-            {
-                var equalsResult = string.Equals(item.NodeId, nodeId, StringComparison.Ordinal);
-                return equalsResult;
-            })
-            .OrderByDescending(static item => item.Sequence)
-            .FirstOrDefault();
+        var firstOrDefaultResult = outputs.Where(item =>
+        {
+            var equalsResult = string.Equals(item.NodeId, nodeId, StringComparison.Ordinal);
+            return equalsResult;
+        }).OrderByDescending(static item => item.Sequence).FirstOrDefault();
         return firstOrDefaultResult;
     }
 

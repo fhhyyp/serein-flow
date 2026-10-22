@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,7 @@ public sealed class McpToolDiscoveryTests
     {
         var services = new ServiceCollection();
         services.AddScoped<Probe>();
+        services.AddTestAuthorization();
         services.AddSereinFlowMcpTools(new Generated.McpToolRegistry(), typeof(EchoTools));
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
         var catalog = SereinFlowMcpHosting.CreateCatalog(new Generated.McpToolRegistry(), [typeof(EchoTools)]);
@@ -22,7 +24,7 @@ public sealed class McpToolDiscoveryTests
         Assert.Equal("object", descriptor.InputSchema.GetProperty("type").GetString());
         Assert.True(descriptor.InputSchema.GetProperty("properties").TryGetProperty("name", out _));
         Assert.True(catalog.TryGet("echo", out var tool));
-        var principal = new McpPrincipal("caller", null, new HashSet<McpPermissionDto>(), IsLocal: true);
+        var principal = ApiKeyActors.Create("caller", null, new HashSet<SereinFlowPermission>(), IsAdministrator: true);
         Probe first;
         using (var scope = provider.CreateScope())
         {
@@ -86,7 +88,8 @@ public sealed class McpToolDiscoveryTests
     public async Task ExecutorStillEnforcesAuthorizationBeforeInvokingDiscoveredTool()
     {
         var services = new ServiceCollection();
-        services.AddSingleton(new McpSecurityService(null!));
+        services.AddSingleton(new ApiKeyService(null!));
+        services.AddTestAuthorization();
         services.AddSereinFlowMcpTools(new Generated.McpToolRegistry(), typeof(EchoTools));
         using var provider = services.BuildServiceProvider();
         var executor = new McpToolExecutor(provider.GetRequiredService<IServiceScopeFactory>());
@@ -102,18 +105,19 @@ public sealed class McpToolDiscoveryTests
         var state = new DisposalState();
         var services = new ServiceCollection();
         services.AddSingleton(state);
-        services.AddSingleton(new McpSecurityService(null!));
+        services.AddSingleton(new ApiKeyService(null!));
         services.AddScoped<AsyncProbe>();
+        services.AddTestAuthorization();
         services.AddSereinFlowMcpTools(new Generated.McpToolRegistry(), typeof(AsyncTools));
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
-        provider.GetRequiredService<IMcpPrincipalAccessor>().Current =
-            new McpPrincipal("local", null, new HashSet<McpPermissionDto>(), IsLocal: true);
+        provider.GetRequiredService<ISereinFlowActorAccessor>().Current =
+            ApiKeyActors.Create("local", null, new HashSet<SereinFlowPermission>(), IsAdministrator: true);
         var executor = new McpToolExecutor(provider.GetRequiredService<IServiceScopeFactory>());
         await executor.ExecuteAsync(SereinFlowMcpHosting.CreateCatalog(new Generated.McpToolRegistry(), [typeof(AsyncTools)]), "async-dispose", default, CancellationToken.None);
         Assert.True(state.Disposed);
     }
 
-    private static McpToolCallContext CreateCallContext(IServiceScope scope, McpPrincipal? principal)
+    private static McpToolCallContext CreateCallContext(IServiceScope scope, SereinFlowActor? principal)
     {
         var context = new McpToolCallContext(scope.ServiceProvider);
         context.SetValue(new SereinFlowMcpCaller(principal));
@@ -129,7 +133,7 @@ public sealed class McpToolDiscoveryTests
 
     public sealed class EchoTools(Probe probe)
     {
-        [SereinFlowMcpTool("echo", McpPermissionDto.ProjectRead, Description = "Echo a name.")]
+        [SereinFlowMcpTool("echo", SereinFlowPermission.ProjectRead, Description = "Echo a name.")]
         public Task<EchoResponse> Echo(EchoRequest request, SereinFlowMcpCaller caller, CancellationToken cancellationToken)
             => Task.FromResult(new EchoResponse($"{request.Name}:{caller.RequirePrincipal().Id}", probe.Id));
     }
@@ -155,16 +159,16 @@ public sealed class McpToolDiscoveryTests
 
     public sealed class AsyncTools(AsyncProbe probe)
     {
-        [SereinFlowMcpTool("async-dispose", McpPermissionDto.ProjectRead, Description = "Use an async dependency.")]
+        [SereinFlowMcpTool("async-dispose", SereinFlowPermission.ProjectRead, Description = "Use an async dependency.")]
         public Task<object> Run() => Task.FromResult<object>(probe.GetType().Name);
     }
 
     public static class FailureTools
     {
-        [SereinFlowMcpTool("fail", McpPermissionDto.ProjectRead, Description = "Fail.")]
+        [SereinFlowMcpTool("fail", SereinFlowPermission.ProjectRead, Description = "Fail.")]
         public static Task<object> Fail() => throw new InvalidOperationException("business failure");
 
-        [SereinFlowMcpTool("cancel", McpPermissionDto.ProjectRead, Description = "Cancel.")]
+        [SereinFlowMcpTool("cancel", SereinFlowPermission.ProjectRead, Description = "Cancel.")]
         public static Task<object> Cancel(CancellationToken cancellationToken) => Task.FromCanceled<object>(cancellationToken);
     }
 

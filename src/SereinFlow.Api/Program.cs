@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using SereinFlow.Api;
 using SereinFlow.AspNetCore;
 
@@ -12,7 +13,12 @@ if (args.Any(static argument =>
 }
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration["SereinFlow:Api:RequireAuthentication"] ??= "false";
+var securityMode = builder.Configuration["SereinFlow:Security:Mode"] ?? "ApiKey";
+if (!string.Equals(securityMode, "ApiKey", StringComparison.OrdinalIgnoreCase))
+{
+    throw new InvalidOperationException("The standalone HTTP host uses ApiKey security. Use UseHostSecurity() in an embedding host for external authentication.");
+}
+
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
@@ -35,8 +41,9 @@ builder.Services.AddCors(options =>
 });
 builder.Services.AddSereinFlow(options =>
 {
-    options.UseWebApi(api => api.AllowAnyOrigin = true);
+    options.UseWebApi();
     options.UseMcp();
+    options.UseApiKeySecurity();
 });
 var app = builder.Build();
 app.UseSereinFlow();

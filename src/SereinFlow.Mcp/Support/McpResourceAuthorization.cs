@@ -5,15 +5,15 @@ using SereinFlow.Domain;
 
 namespace SereinFlow.Mcp.Support;
 
-internal sealed class McpResourceAuthorization(IProjectRepository _projectRepository, McpSecurityService security)
+internal sealed class McpResourceAuthorization(IProjectRepository _projectRepository, SereinFlowAccess security)
 {
     internal async Task<Project> RequireActiveProjectAsync(
-        McpPrincipal principal,
+        SereinFlowActor principal,
         Guid projectId,
-        McpPermissionDto permission,
+        SereinFlowPermission permission,
         CancellationToken cancellationToken)
     {
-        security.Require(principal, permission, projectId);
+        await security.RequireAsync(principal, permission, projectId);
         var project = await _projectRepository.FindAsync(projectId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The project was not found. 未找到项目。");
         if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
         {

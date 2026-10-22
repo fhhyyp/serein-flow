@@ -8,7 +8,7 @@ namespace SereinFlow.Mcp.Integration;
 /// </summary>
 public interface ISereinFlowMcpToolMetadata : IMcpToolMetadata
 {
-    McpPermissionDto[] Permissions { get; }
+    SereinFlowPermission[] Permissions { get; }
     bool HasAuditTrack { get; }
     FlowVersionTrackDto AuditTrack { get; }
 }

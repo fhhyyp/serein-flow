@@ -23,7 +23,7 @@ using SereinFlow.Contracts;
 using var client = new SereinFlowClient(new SereinFlowClientOptions
 {
     BaseAddress = new Uri("http://127.0.0.1:8188/"),
-    ApiKey = configuration["SereinFlow:ApiKey"],
+    BearerTokenProvider = _ => ValueTask.FromResult(configuration["SereinFlow:BearerToken"]),
 });
 
 var run = await client.Flows.StartRunAsync(
@@ -48,7 +48,7 @@ using SereinFlow.Client.DependencyInjection;
 builder.Services.AddSereinFlowClient(options =>
 {
     options.BaseAddress = new Uri("http://127.0.0.1:8188/");
-    options.ApiKey = builder.Configuration["SereinFlow:ApiKey"];
+    options.BearerTokenProvider = _ => ValueTask.FromResult(builder.Configuration["SereinFlow:BearerToken"]);
 });
 ```
 
@@ -104,10 +104,7 @@ idempotency protocol.
 
 ## Authentication and errors
 
-The SDK sends API keys as `Authorization: Bearer`. Enable authentication for
-the run-related REST surface with
-`SereinFlow:Api:RequireAuthentication=true`.
-The required shared MCP-key permissions are:
+HTTP hosts explicitly select `UseHostSecurity()` or `UseApiKeySecurity()` from the optional security package. The standalone host enables API-key security by default; embedding hosts reuse existing identities and resource policies. Initial setup uses `/api/security/api-keys/initial-admin` and accepts only direct loopback requests. The previous authentication switch has been removed.
 
 - `run.execute`: start, invoke, and cancel;
 - `run.read`: read runs, outputs, events, and workpieces;

@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System.Net.Http;
 using System.Diagnostics;
 using System.Net;
@@ -12,7 +13,6 @@ using SereinFlow.Api;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.IntegrationTests;
-
 public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTests.ApiFactory>
 {
     private readonly ApiFactory _factory;
@@ -29,21 +29,36 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
         initializeRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ApiFactory.BootstrapKey);
         using var initialize = await client.SendAsync(initializeRequest);
         Assert.Equal(HttpStatusCode.OK, initialize.StatusCode);
-        var sessionId = Assert.Single(initialize.Headers.GetValues("Mcp-Session-Id"));
+        var argument2 = initialize.Headers.GetValues("Mcp-Session-Id");
+        var sessionId = Assert.Single(argument2);
+        foreach (var body in new[]
+        {
+            "[]",
+            "null",
+            "42",
+            "true",
+            "\"text\""
+        }
 
-        foreach (var body in new[] { "[]", "null", "42", "true", "\"text\"" })
+        )
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "/mcp");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ApiFactory.BootstrapKey);
             request.Headers.Add("Mcp-Session-Id", sessionId);
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
             using var response = await client.SendAsync(request);
-
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-            Assert.Equal(-32600, document.RootElement.GetProperty("error").GetProperty("code").GetInt32());
-            Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("id").ValueKind);
+            var argument1 = await response.Content.ReadAsStringAsync();
+            using var document = JsonDocument.Parse(argument1);
+            {
+                var actual1 = document.RootElement.GetProperty("error").GetProperty("code").GetInt32();
+                Assert.Equal(-32600, actual1);
+            }
+
+            {
+                var actual2 = document.RootElement.GetProperty("id").ValueKind;
+                Assert.Equal(JsonValueKind.Null, actual2);
+            }
         }
     }
 
@@ -156,17 +171,16 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
         Assert.False(tryGetPropertyResult24);
         var tryGetPropertyResult25 = paths.TryGetProperty("/hubs/runs", out _);
         Assert.False(tryGetPropertyResult25);
-        var anyResult = paths.EnumerateObject()
-            .Any(path =>
-            {
-                var endsWithResult = path.Name.EndsWith("/events/stream", StringComparison.Ordinal);
-                return endsWithResult;
-            });
+        var anyResult = paths.EnumerateObject().Any(path =>
+        {
+            var endsWithResult = path.Name.EndsWith("/events/stream", StringComparison.Ordinal);
+            return endsWithResult;
+        });
         Assert.False(anyResult);
     }
 
     [Fact]
-    public async Task StdioModeRequiresAnExplicitKeyAndOnlyWritesJsonRpcToStandardOutput()
+    public async Task StdioModeOnlyWritesJsonRpcToStandardOutput()
     {
         using var reservedEndpoint = new TcpListener(IPAddress.Loopback, 0);
         reservedEndpoint.Start();
@@ -175,154 +189,196 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
         const string apiKey = "stdio-integration-key";
         using var process = StartStdioProcess(directory.Path, apiKey, endpoint.Port);
         var standardError = process.StandardError.ReadToEndAsync();
-        var serializeResult = JsonSerializer.Serialize(new { jsonrpc = "2.0", id = 1, method = "initialize", @params = new { }, });
-        await process.StandardInput.WriteLineAsync(serializeResult);
-        var serializeResult74 = JsonSerializer.Serialize(new { jsonrpc = "2.0", id = 2, method = "tools/list", @params = new { }, });
-        await process.StandardInput.WriteLineAsync(serializeResult74);
-        var serializeResult75 = JsonSerializer.Serialize(new { jsonrpc = "2.0", id = 3, method = "resources/list", @params = new { }, });
-        await process.StandardInput.WriteLineAsync(serializeResult75);
-        var readLineAsyncResult = process.StandardOutput.ReadLineAsync();
-        var fromSecondsResult = TimeSpan.FromSeconds(15);
-        var initializeLine = await readLineAsyncResult.WaitAsync(fromSecondsResult);
-        var readLineAsyncResult76 = process.StandardOutput.ReadLineAsync();
-        var fromSecondsResult77 = TimeSpan.FromSeconds(15);
-        var toolsLine = await readLineAsyncResult76.WaitAsync(fromSecondsResult77);
-        var readLineAsyncResult78 = process.StandardOutput.ReadLineAsync();
-        var fromSecondsResult79 = TimeSpan.FromSeconds(15);
-        var resourcesLine = await readLineAsyncResult78.WaitAsync(fromSecondsResult79);
-        var isNullOrWhiteSpaceResult = string.IsNullOrWhiteSpace(initializeLine);
-        Assert.False(isNullOrWhiteSpaceResult);
-        var isNullOrWhiteSpaceResult80 = string.IsNullOrWhiteSpace(toolsLine);
-        Assert.False(isNullOrWhiteSpaceResult80);
-        var isNullOrWhiteSpaceResult81 = string.IsNullOrWhiteSpace(resourcesLine);
-        Assert.False(isNullOrWhiteSpaceResult81);
-        using (var initialize = JsonDocument.Parse(initializeLine))
+        try
         {
-            var getPropertyResult26 = initialize.RootElement.GetProperty("jsonrpc");
-            var getStringResult27 = getPropertyResult26.GetString();
-            Assert.Equal("2.0", getStringResult27);
-            var getPropertyResult28 = initialize.RootElement.GetProperty("result");
-            var getPropertyResult29 = getPropertyResult28.GetProperty("serverInfo");
-            var getPropertyResult30 = getPropertyResult29.GetProperty("name");
-            var getStringResult31 = getPropertyResult30.GetString();
-            Assert.Equal("sereinflow", getStringResult31);
-        }
+            var serializeResult = JsonSerializer.Serialize(new { jsonrpc = "2.0", id = 1, method = "initialize", @params = new { }, });
+            await process.StandardInput.WriteLineAsync(serializeResult);
+            var serializeResult74 = JsonSerializer.Serialize(new { jsonrpc = "2.0", id = 2, method = "tools/list", @params = new { }, });
+            await process.StandardInput.WriteLineAsync(serializeResult74);
+            var serializeResult75 = JsonSerializer.Serialize(new { jsonrpc = "2.0", id = 3, method = "resources/list", @params = new { }, });
+            await process.StandardInput.WriteLineAsync(serializeResult75);
+            var readLineAsyncResult = process.StandardOutput.ReadLineAsync();
+            var fromSecondsResult = TimeSpan.FromSeconds(15);
+            var initializeLine = await readLineAsyncResult.WaitAsync(fromSecondsResult);
+            var readLineAsyncResult76 = process.StandardOutput.ReadLineAsync();
+            var fromSecondsResult77 = TimeSpan.FromSeconds(15);
+            var toolsLine = await readLineAsyncResult76.WaitAsync(fromSecondsResult77);
+            var readLineAsyncResult78 = process.StandardOutput.ReadLineAsync();
+            var fromSecondsResult79 = TimeSpan.FromSeconds(15);
+            var resourcesLine = await readLineAsyncResult78.WaitAsync(fromSecondsResult79);
+            var isNullOrWhiteSpaceResult = string.IsNullOrWhiteSpace(initializeLine);
+            Assert.False(isNullOrWhiteSpaceResult);
+            var isNullOrWhiteSpaceResult80 = string.IsNullOrWhiteSpace(toolsLine);
+            Assert.False(isNullOrWhiteSpaceResult80);
+            var isNullOrWhiteSpaceResult81 = string.IsNullOrWhiteSpace(resourcesLine);
+            Assert.False(isNullOrWhiteSpaceResult81);
+            using (var initialize = JsonDocument.Parse(initializeLine))
+            {
+                var getPropertyResult26 = initialize.RootElement.GetProperty("jsonrpc");
+                var getStringResult27 = getPropertyResult26.GetString();
+                Assert.Equal("2.0", getStringResult27);
+                var getPropertyResult28 = initialize.RootElement.GetProperty("result");
+                var getPropertyResult29 = getPropertyResult28.GetProperty("serverInfo");
+                var getPropertyResult30 = getPropertyResult29.GetProperty("name");
+                var getStringResult31 = getPropertyResult30.GetString();
+                Assert.Equal("sereinflow", getStringResult31);
+            }
 
-        using (var tools = JsonDocument.Parse(toolsLine))
+            using (var tools = JsonDocument.Parse(toolsLine))
+            {
+                var getPropertyResult48 = tools.RootElement.GetProperty("result");
+                var getPropertyResult49 = getPropertyResult48.GetProperty("tools");
+                var enumerateArrayResult50 = getPropertyResult49.EnumerateArray();
+                Assert.Contains(enumerateArrayResult50, tool =>
+                {
+                    var evaluatedValue35 = resolveGetStringResult32() == "sereinflow_list_projects";
+                    return evaluatedValue35;
+                    string? resolveGetStringResult32()
+                    {
+                        var getPropertyResult33 = tool.GetProperty("name");
+                        var getStringResult34 = getPropertyResult33.GetString();
+                        return getStringResult34;
+                    }
+                });
+                var getPropertyResult51 = tools.RootElement.GetProperty("result");
+                var getPropertyResult52 = getPropertyResult51.GetProperty("tools");
+                var enumerateArrayResult53 = getPropertyResult52.EnumerateArray();
+                Assert.Contains(enumerateArrayResult53, tool =>
+                {
+                    var evaluatedValue39 = resolveGetStringResult36() == "sereinflow_start_debug_session";
+                    return evaluatedValue39;
+                    string? resolveGetStringResult36()
+                    {
+                        var getPropertyResult37 = tool.GetProperty("name");
+                        var getStringResult38 = getPropertyResult37.GetString();
+                        return getStringResult38;
+                    }
+                });
+                var getPropertyResult54 = tools.RootElement.GetProperty("result");
+                var getPropertyResult55 = getPropertyResult54.GetProperty("tools");
+                var enumerateArrayResult56 = getPropertyResult55.EnumerateArray();
+                Assert.Contains(enumerateArrayResult56, tool =>
+                {
+                    var evaluatedValue43 = resolveGetStringResult40() == "sereinflow_step_debug";
+                    return evaluatedValue43;
+                    string? resolveGetStringResult40()
+                    {
+                        var getPropertyResult41 = tool.GetProperty("name");
+                        var getStringResult42 = getPropertyResult41.GetString();
+                        return getStringResult42;
+                    }
+                });
+                var getPropertyResult57 = tools.RootElement.GetProperty("result");
+                var getPropertyResult58 = getPropertyResult57.GetProperty("tools");
+                var enumerateArrayResult59 = getPropertyResult58.EnumerateArray();
+                Assert.Contains(enumerateArrayResult59, tool =>
+                {
+                    var evaluatedValue47 = resolveGetStringResult44() == "sereinflow_stop_debug";
+                    return evaluatedValue47;
+                    string? resolveGetStringResult44()
+                    {
+                        var getPropertyResult45 = tool.GetProperty("name");
+                        var getStringResult46 = getPropertyResult45.GetString();
+                        return getStringResult46;
+                    }
+                });
+            }
+
+            using (var resources = JsonDocument.Parse(resourcesLine))
+            {
+                var getPropertyResult68 = resources.RootElement.GetProperty("result");
+                var getPropertyResult69 = getPropertyResult68.GetProperty("resources");
+                var enumerateArrayResult70 = getPropertyResult69.EnumerateArray();
+                Assert.Contains(enumerateArrayResult70, resource =>
+                {
+                    var evaluatedValue63 = resolveGetStringResult60() == "sereinflow://runs";
+                    return evaluatedValue63;
+                    string? resolveGetStringResult60()
+                    {
+                        var getPropertyResult61 = resource.GetProperty("uri");
+                        var getStringResult62 = getPropertyResult61.GetString();
+                        return getStringResult62;
+                    }
+                });
+                var getPropertyResult71 = resources.RootElement.GetProperty("result");
+                var getPropertyResult72 = getPropertyResult71.GetProperty("resources");
+                var enumerateArrayResult73 = getPropertyResult72.EnumerateArray();
+                Assert.Contains(enumerateArrayResult73, resource =>
+                {
+                    var evaluatedValue67 = resolveGetStringResult64() == "sereinflow://debug-sessions";
+                    return evaluatedValue67;
+                    string? resolveGetStringResult64()
+                    {
+                        var getPropertyResult65 = resource.GetProperty("uri");
+                        var getStringResult66 = getPropertyResult65.GetString();
+                        return getStringResult66;
+                    }
+                });
+            }
+
+            process.StandardInput.Close();
+            var fromSecondsResult82 = TimeSpan.FromSeconds(15);
+            using var exitTimeout = new CancellationTokenSource(fromSecondsResult82);
+            await process.WaitForExitAsync(exitTimeout.Token);
+            var diagnostics = await standardError;
+            Assert.Equal(0, process.ExitCode);
+            Assert.DoesNotContain("Now listening", diagnostics, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
         {
-            var getPropertyResult48 = tools.RootElement.GetProperty("result");
-            var getPropertyResult49 = getPropertyResult48.GetProperty("tools");
-            var enumerateArrayResult50 = getPropertyResult49.EnumerateArray();
-            Assert.Contains(enumerateArrayResult50, tool =>
+            if (!process.HasExited)
             {
-                var evaluatedValue35 = resolveGetStringResult32() == "sereinflow_list_projects";
-                return evaluatedValue35;
-                string? resolveGetStringResult32()
-                {
-                    var getPropertyResult33 = tool.GetProperty("name");
-                    var getStringResult34 = getPropertyResult33.GetString();
-                    return getStringResult34;
-                }
-            });
-            var getPropertyResult51 = tools.RootElement.GetProperty("result");
-            var getPropertyResult52 = getPropertyResult51.GetProperty("tools");
-            var enumerateArrayResult53 = getPropertyResult52.EnumerateArray();
-            Assert.Contains(enumerateArrayResult53, tool =>
-            {
-                var evaluatedValue39 = resolveGetStringResult36() == "sereinflow_start_debug_session";
-                return evaluatedValue39;
-                string? resolveGetStringResult36()
-                {
-                    var getPropertyResult37 = tool.GetProperty("name");
-                    var getStringResult38 = getPropertyResult37.GetString();
-                    return getStringResult38;
-                }
-            });
-            var getPropertyResult54 = tools.RootElement.GetProperty("result");
-            var getPropertyResult55 = getPropertyResult54.GetProperty("tools");
-            var enumerateArrayResult56 = getPropertyResult55.EnumerateArray();
-            Assert.Contains(enumerateArrayResult56, tool =>
-            {
-                var evaluatedValue43 = resolveGetStringResult40() == "sereinflow_step_debug";
-                return evaluatedValue43;
-                string? resolveGetStringResult40()
-                {
-                    var getPropertyResult41 = tool.GetProperty("name");
-                    var getStringResult42 = getPropertyResult41.GetString();
-                    return getStringResult42;
-                }
-            });
-            var getPropertyResult57 = tools.RootElement.GetProperty("result");
-            var getPropertyResult58 = getPropertyResult57.GetProperty("tools");
-            var enumerateArrayResult59 = getPropertyResult58.EnumerateArray();
-            Assert.Contains(enumerateArrayResult59, tool =>
-            {
-                var evaluatedValue47 = resolveGetStringResult44() == "sereinflow_stop_debug";
-                return evaluatedValue47;
-                string? resolveGetStringResult44()
-                {
-                    var getPropertyResult45 = tool.GetProperty("name");
-                    var getStringResult46 = getPropertyResult45.GetString();
-                    return getStringResult46;
-                }
-            });
+                process.Kill(true);
+                var argument3 = TimeSpan.FromSeconds(5);
+                await process.WaitForExitAsync().WaitAsync(argument3);
+            }
         }
-
-        using (var resources = JsonDocument.Parse(resourcesLine))
-        {
-            var getPropertyResult68 = resources.RootElement.GetProperty("result");
-            var getPropertyResult69 = getPropertyResult68.GetProperty("resources");
-            var enumerateArrayResult70 = getPropertyResult69.EnumerateArray();
-            Assert.Contains(enumerateArrayResult70, resource =>
-            {
-                var evaluatedValue63 = resolveGetStringResult60() == "sereinflow://runs";
-                return evaluatedValue63;
-                string? resolveGetStringResult60()
-                {
-                    var getPropertyResult61 = resource.GetProperty("uri");
-                    var getStringResult62 = getPropertyResult61.GetString();
-                    return getStringResult62;
-                }
-            });
-            var getPropertyResult71 = resources.RootElement.GetProperty("result");
-            var getPropertyResult72 = getPropertyResult71.GetProperty("resources");
-            var enumerateArrayResult73 = getPropertyResult72.EnumerateArray();
-            Assert.Contains(enumerateArrayResult73, resource =>
-            {
-                var evaluatedValue67 = resolveGetStringResult64() == "sereinflow://debug-sessions";
-                return evaluatedValue67;
-                string? resolveGetStringResult64()
-                {
-                    var getPropertyResult65 = resource.GetProperty("uri");
-                    var getStringResult66 = getPropertyResult65.GetString();
-                    return getStringResult66;
-                }
-            });
-        }
-
-        process.StandardInput.Close();
-        var fromSecondsResult82 = TimeSpan.FromSeconds(15);
-        using var exitTimeout = new CancellationTokenSource(fromSecondsResult82);
-        await process.WaitForExitAsync(exitTimeout.Token);
-        var diagnostics = await standardError;
-        Assert.Equal(0, process.ExitCode);
-        Assert.DoesNotContain("Now listening", diagnostics, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public async Task StdioModeFailsBeforeServingWhenTheExplicitKeyIsMissing()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("obsolete-key-is-ignored")]
+    public async Task StdioModeWorksWithoutKeysAndIgnoresInheritedLegacyKeys(string? legacyKey)
     {
-        using var directory = new TemporaryDirectory();
-        using var process = StartStdioProcess(directory.Path, null, null);
-        var standardError = process.StandardError.ReadToEndAsync();
-        var fromSecondsResult83 = TimeSpan.FromSeconds(15);
-        using var exitTimeout = new CancellationTokenSource(fromSecondsResult83);
-        await process.WaitForExitAsync(exitTimeout.Token);
-        var diagnostics = await standardError;
-        Assert.NotEqual(0, process.ExitCode);
-        Assert.Contains("SereinFlow:Mcp:Stdio:ApiKey must be configured explicitly", diagnostics, StringComparison.Ordinal);
-        var readToEndAsyncResult = await process.StandardOutput.ReadToEndAsync();
-        Assert.Equal(string.Empty, readToEndAsyncResult);
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using var directory = new TemporaryDirectory();
+            using var process = StartStdioProcess(directory.Path, legacyKey, null);
+            var error = process.StandardError.ReadToEndAsync();
+            try
+            {
+                await process.StandardInput.WriteLineAsync("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"}");
+                var argument4 = TimeSpan.FromSeconds(15);
+                var line = await process.StandardOutput.ReadLineAsync().WaitAsync(argument4);
+                using var response = JsonDocument.Parse(line!);
+                {
+                    var actual3 = response.RootElement.TryGetProperty("result", out _);
+                    Assert.True(actual3);
+                }
+
+                process.StandardInput.Close();
+                var argument5 = TimeSpan.FromSeconds(15);
+                using var timeout = new CancellationTokenSource(argument5);
+                await process.WaitForExitAsync(timeout.Token);
+                Assert.Equal(0, process.ExitCode);
+                {
+                    var actual4 = await process.StandardOutput.ReadToEndAsync();
+                    Assert.Equal(string.Empty, actual4);
+                }
+
+                var argument6 = await error;
+                Assert.DoesNotContain("Unhandled exception", argument6);
+            }
+            finally
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(true);
+                    var argument7 = TimeSpan.FromSeconds(5);
+                    await process.WaitForExitAsync().WaitAsync(argument7);
+                }
+            }
+        }
     }
 
     private static HttpRequestMessage CreateMcpRequest(string method, int id)
@@ -354,7 +410,7 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
         startInfo.ArgumentList.Add(typeof(Program).Assembly.Location);
         startInfo.ArgumentList.Add("--mcp-stdio");
         startInfo.Environment["SereinFlow__DataRoot"] = dataRoot;
-        startInfo.Environment["SereinFlow__Mcp__BootstrapAdminKey"] = "stdio-integration-key";
+        startInfo.Environment.Remove("SereinFlow__Mcp__Stdio__ApiKey");
         if (apiKey is not null)
         {
             startInfo.Environment["SereinFlow__Mcp__Stdio__ApiKey"] = apiKey;
@@ -378,14 +434,14 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
             builder.UseEnvironment("Testing");
             builder.UseSetting(WebHostDefaults.PreventHostingStartupKey, "true");
             builder.UseSetting("SereinFlow:DataRoot", _storage.Path);
-            builder.UseSetting("SereinFlow:Mcp:BootstrapAdminKey", BootstrapKey);
+            builder.UseSetting("SereinFlow:Security:ApiKeys:BootstrapAdminKey", BootstrapKey);
             builder.ConfigureAppConfiguration(configuration =>
             {
                 configuration.Sources.Clear();
                 var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _storage.Path,
-                    ["SereinFlow:Mcp:BootstrapAdminKey"] = BootstrapKey,
+                    ["SereinFlow:Security:ApiKeys:BootstrapAdminKey"] = BootstrapKey,
                     ["SereinFlow:ApiDocumentation:Enabled"] = "true",
                 };
                 configuration.AddInMemoryCollection(dictionary);

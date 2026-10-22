@@ -6,7 +6,6 @@ using SereinFlow.Domain;
 using static SereinFlow.Api.ApiEndpointHelpers;
 
 namespace SereinFlow.Api.Controllers;
-
 [Route("api/runs")]
 public sealed class RunsController : ApiControllerBase
 {
@@ -60,9 +59,7 @@ public sealed class RunsController : ApiControllerBase
 
         var flowRunQuery = new FlowRunQuery(statuses, projectId, take ?? 100);
         var runs = await _runs.ListAsync(flowRunQuery, cancellationToken);
-        var toArrayResult = runs
-            .Select(ToRunDto)
-            .ToArray();
+        var toArrayResult = runs.Select(ToRunDto).ToArray();
         var okResult = Ok(toArrayResult);
         return okResult;
     }
@@ -78,17 +75,9 @@ public sealed class RunsController : ApiControllerBase
         var flowRunQuery3 = new FlowRunQuery(Take: RecentRunQueryLimit);
         var recent = await _runs.ListAsync(flowRunQuery3, cancellationToken);
         var snapshot = _queue.GetSnapshot();
-        var toArrayResult5 = queued
-            .Select(ToRunDto)
-            .ToArray();
-        var toArrayResult7 = active
-            .Select(ToRunDto)
-            .ToArray();
-        var toArrayResult9 = recent
-            .Where(static run => run.IsTerminal)
-            .Take(RecentCompletedRunLimit)
-            .Select(ToRunDto)
-            .ToArray();
+        var toArrayResult5 = queued.Select(ToRunDto).ToArray();
+        var toArrayResult7 = active.Select(ToRunDto).ToArray();
+        var toArrayResult9 = recent.Where(static run => run.IsTerminal).Take(RecentCompletedRunLimit).Select(ToRunDto).ToArray();
         var flowRunOverviewDto = new FlowRunOverviewDto(snapshot.QueueCapacity, snapshot.QueuedCount, snapshot.ActiveRunCount, snapshot.ActiveListenerRunCount, snapshot.MaxConcurrentRuns, snapshot.MaxConcurrentListenerRuns, snapshot.MaxConcurrentRunsPerProject, toArrayResult5, toArrayResult7, toArrayResult9);
         var okResult10 = Ok(flowRunOverviewDto);
         return okResult10;
@@ -100,7 +89,7 @@ public sealed class RunsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Get([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
-        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, projectId: null, cancellationToken);
+        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, projectId: null, cancellationToken);
         var preFailure = ToAuthorizationFailure(preAuthorization);
         if (preFailure is not null)
         {
@@ -114,7 +103,7 @@ public sealed class RunsController : ApiControllerBase
             return apiProblemResult11;
         }
 
-        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, run.ProjectId, cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
         var failure = ToAuthorizationFailure(authorization);
         var evaluatedValue = failure ?? resolveOkResult();
         return evaluatedValue;
@@ -148,7 +137,7 @@ public sealed class RunsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetSnapshot([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
-        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, projectId: null, cancellationToken);
+        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, projectId: null, cancellationToken);
         var preFailure = ToAuthorizationFailure(preAuthorization);
         if (preFailure is not null)
         {
@@ -162,7 +151,7 @@ public sealed class RunsController : ApiControllerBase
             return apiProblemResult16;
         }
 
-        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, run.ProjectId, cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
         var failure = ToAuthorizationFailure(authorization);
         if (failure is not null)
         {
@@ -180,7 +169,7 @@ public sealed class RunsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetOutputs([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
-        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, projectId: null, cancellationToken);
+        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, projectId: null, cancellationToken);
         var preFailure = ToAuthorizationFailure(preAuthorization);
         if (preFailure is not null)
         {
@@ -194,7 +183,7 @@ public sealed class RunsController : ApiControllerBase
             return apiProblemResult18;
         }
 
-        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, run.ProjectId, cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
         var failure = ToAuthorizationFailure(authorization);
         if (failure is not null)
         {
@@ -202,9 +191,7 @@ public sealed class RunsController : ApiControllerBase
         }
 
         var outputs = await _outputs.ListAsync(runId, cancellationToken);
-        var toArrayResult20 = outputs
-            .Select(ToRunOutputDto)
-            .ToArray();
+        var toArrayResult20 = outputs.Select(ToRunOutputDto).ToArray();
         var okResult21 = Ok(toArrayResult20);
         return okResult21;
     }
@@ -216,7 +203,7 @@ public sealed class RunsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> Cancel([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
-        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunExecute, projectId: null, cancellationToken);
+        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunExecute, projectId: null, cancellationToken);
         var preFailure = ToAuthorizationFailure(preAuthorization);
         if (preFailure is not null)
         {
@@ -230,7 +217,7 @@ public sealed class RunsController : ApiControllerBase
             return apiProblemResult22;
         }
 
-        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunExecute, run.ProjectId, cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunExecute, run.ProjectId, cancellationToken);
         var failure = ToAuthorizationFailure(authorization);
         if (failure is not null)
         {
@@ -258,7 +245,7 @@ public sealed class RunsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status504GatewayTimeout)]
     public async Task<ActionResult> DeliverMessage([FromRoute] Guid runId, [FromRoute] string topic, [FromBody] RunMessageIngressRequestDto? request, CancellationToken cancellationToken)
     {
-        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunMessagePublish, projectId: null, cancellationToken);
+        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunMessagePublish, projectId: null, cancellationToken);
         var preFailure = ToAuthorizationFailure(preAuthorization);
         if (preFailure is not null)
         {
@@ -272,7 +259,7 @@ public sealed class RunsController : ApiControllerBase
             return apiProblemResult25;
         }
 
-        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunMessagePublish, run.ProjectId, cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunMessagePublish, run.ProjectId, cancellationToken);
         var failure = ToAuthorizationFailure(authorization);
         if (failure is not null)
         {
@@ -287,8 +274,7 @@ public sealed class RunsController : ApiControllerBase
             RunMessageDeliveryDisposition.Accepted => resolveAcceptedResult(),
             RunMessageDeliveryDisposition.TimedOut => StatusCode(result.StatusCode, result.Response),
             RunMessageDeliveryDisposition.EndpointForbidden or RunMessageDeliveryDisposition.ChannelFull => StatusCode(result.StatusCode, result.Response),
-            _ => resolveApiProblemResult()
-        };
+            _ => resolveApiProblemResult()};
         return evaluatedValue29;
         ObjectResult resolveAcceptedResult()
         {
@@ -317,7 +303,7 @@ public sealed class RunsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> Interrupt([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
-        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunExecute, projectId: null, cancellationToken);
+        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunExecute, projectId: null, cancellationToken);
         var preFailure = ToAuthorizationFailure(preAuthorization);
         if (preFailure is not null)
         {
@@ -331,7 +317,7 @@ public sealed class RunsController : ApiControllerBase
             return apiProblemResult30;
         }
 
-        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunExecute, run.ProjectId, cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunExecute, run.ProjectId, cancellationToken);
         var failure = ToAuthorizationFailure(authorization);
         if (failure is not null)
         {
@@ -380,7 +366,7 @@ public sealed class RunsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetEvents([FromRoute] Guid runId, [FromQuery] long? afterSequence, CancellationToken cancellationToken)
     {
-        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, projectId: null, cancellationToken);
+        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, projectId: null, cancellationToken);
         var preFailure = ToAuthorizationFailure(preAuthorization);
         if (preFailure is not null)
         {
@@ -394,19 +380,18 @@ public sealed class RunsController : ApiControllerBase
             return apiProblemResult38;
         }
 
-        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, run.ProjectId, cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
         var failure = ToAuthorizationFailure(authorization);
         if (failure is not null)
         {
             return failure;
         }
 
-        var events = (await _events.GetAfterAsync(runId, afterSequence ?? 0, cancellationToken))
-            .Select(item =>
-            {
-                var flowRunEventDto = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);
-                return flowRunEventDto;
-            });
+        var events = (await _events.GetAfterAsync(runId, afterSequence ?? 0, cancellationToken)).Select(item =>
+        {
+            var flowRunEventDto = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);
+            return flowRunEventDto;
+        });
         var okResult40 = Ok(events);
         return okResult40;
     }
@@ -417,7 +402,7 @@ public sealed class RunsController : ApiControllerBase
     [Produces("text/event-stream")]
     public async Task StreamEvents([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
-        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, projectId: null, cancellationToken);
+        var preAuthorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, projectId: null, cancellationToken);
         if (!preAuthorization.IsAllowed)
         {
             HttpContext.Response.StatusCode = preAuthorization.StatusCode;
@@ -432,7 +417,7 @@ public sealed class RunsController : ApiControllerBase
             return;
         }
 
-        var authorization = await _authorization.AuthorizeAsync(HttpContext, McpPermissionDto.RunRead, run.ProjectId, cancellationToken);
+        var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
         if (!authorization.IsAllowed)
         {
             HttpContext.Response.StatusCode = authorization.StatusCode;

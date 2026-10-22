@@ -6,7 +6,7 @@ namespace SereinFlow.Client;
 public sealed class SereinFlowClientOptions
 {
     public Uri? BaseAddress { get; set; }
-    public string? ApiKey { get; set; }
+    public Func<CancellationToken, ValueTask<string?>>? BearerTokenProvider { get; set; }
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(100);
     public int MaxRetries { get; set; } = 3;
     public TimeSpan RetryBaseDelay { get; set; } = TimeSpan.FromMilliseconds(250);

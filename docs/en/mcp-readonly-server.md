@@ -81,7 +81,7 @@ bootstrap key. The angle-bracket value must be the same random secret in both
 lines and must not be committed or recorded:
 
 ```powershell
-[Environment]::SetEnvironmentVariable('SereinFlow__Mcp__BootstrapAdminKey', '<temporary-random-secret>', 'User')
+[Environment]::SetEnvironmentVariable('SereinFlow__Security__ApiKeys__BootstrapAdminKey', '<temporary-random-secret>', 'User')
 [Environment]::SetEnvironmentVariable('SEREINFLOW_MCP_API_KEY', '<temporary-random-secret>', 'User')
 ```
 
@@ -99,13 +99,7 @@ stdio is an explicit entry point of the API executable:
 dotnet run --project src/SereinFlow.Api/SereinFlow.Api.csproj -- --mcp-stdio
 ```
 
-stdio mode registers only the MCP, Application, Storage, and stdio services it
-needs. It does not start the HTTP listener, SignalR, or API-only hosted
-services. `SereinFlow:Mcp:Stdio:ApiKey` must be set explicitly (the environment
-variable form is `SereinFlow__Mcp__Stdio__ApiKey`). A missing, invalid, expired,
-or revoked key causes the process to exit with a nonzero status. stdout outputs
-only JSON-RPC; startup errors, logs, and internal diagnostics go to stderr.
-Normal EOF performs cleanup and exits normally.
+stdio uses a stable local identity derived from the operating-system account and data directory. It requires no key and does not read legacy key environment variables. It starts no HTTP listener, writes only JSON-RPC to stdout, sends diagnostics to stderr, and exits normally at stdin EOF.
 
 ## JSON-RPC Protocol Error Codes
 
@@ -367,19 +361,12 @@ error codes include `run.not_found`, `worker.not_active`, `worker.not_found`,
 `message.delivery_timeout`. A formal run that attempts to use an unsaved
 candidate returns `run.candidate_definition_not_allowed`.
 
-MCP API-key management tools are administrator-only. Use
-`sereinflow_list_mcp_api_keys` to read the current state, then call create,
-rotate, or revoke tools only when explicitly requested. Mutations require an
-`idempotencyKey`. A project-scoped key must bind to an unarchived project; an
-administrator key must not bind to a project. A Secret returned by creation or
-rotation is shown only once and must not be written to logs, the repository,
-Prompts, or unrelated tool arguments. If a response is ambiguous, reread the
-key list before retrying; do not blindly repeat the mutation.
+Key administration is provided only by the optional `SereinFlow.Security.ApiKeys` package through HTTP `/api/security/api-keys` and the web console. There are no MCP key-management tools. Secrets returned at creation or rotation are shown once and must be saved by the operator.
 
 When creating a key, `permissions` must use these stable dotted names:
 `project.read`, `project.write`, `library.read`, `run.read`, `debug.read`,
 `flow.write`, `debug.control`, `flow.publish`, `flow.rollback`,
-`script.compile`, `library.import`, `library.manage`, `mcp.keys.manage`,
+`script.compile`, `library.import`, `library.manage`, `security.manage`,
 `sensitive.read`, or `run.message.publish`. A project-scoped key provides
 `projectId` and must not set `isAdministrator: true`; an administrator key sets
 `isAdministrator: true` and must not provide `projectId`.

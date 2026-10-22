@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System.Collections.Generic;
 using System.Text.Json;
 using SereinFlow.Application;
@@ -221,14 +222,13 @@ public sealed class McpProtocolTests
     public async Task DispatcherAddsRequestIdToSharedContextAndRestoresTransportContext()
     {
         var accessor = new McpRequestContextAccessor();
-        var hashSet = new HashSet<McpPermissionDto>();
-        var principal = new McpPrincipal("stdio-key", null, hashSet, IsLocal: true);
-        accessor.Current = new McpRequestContext(principal, "stdio");
+        var transportContext = new McpRequestContext("stdio");
+        accessor.Current = transportContext;
         var backend = new ContextBackend(accessor);
         var server = new SereinFlowMcpServer(backend, requestContextAccessor: accessor);
         await server.HandleRequestAsync("{\"jsonrpc\":\"2.0\",\"id\":42,\"method\":\"tools/call\",\"params\":{\"name\":\"example\"}}");
         Assert.Equal("42", backend.RequestId);
-        Assert.Same(principal, accessor.Current!.Principal);
+        Assert.Same(transportContext, accessor.Current);
         Assert.Equal("stdio", accessor.Current.Transport);
         Assert.Null(accessor.Current.RequestId);
     }

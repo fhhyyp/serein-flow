@@ -1,3 +1,4 @@
+import { authenticatedFetch } from './securityApi';
 import type { FlowEdgeLineType } from '../flow/types';
 import { localizeMessage } from '../i18n';
 const hubRecordSeparator = '\u001e';
@@ -644,7 +645,7 @@ export function subscribeFlowRunEvents(runId: string, onEvent: (event: FlowRunEv
       return;
     }
     fallbackStarted = true;
-    const source = new EventSource(`${apiBaseUrl}/api/runs/${runId}/events/stream`);
+    const source = new EventSource(`${apiBaseUrl}/api/runs/${runId}/events/stream`, { withCredentials: true });
     const eventTypes = ['run.started', 'node.started', 'node.completed', 'node.failed', 'node.error', 'run.completed', 'run.failed', 'run.cancelled', 'run.timed_out', 'run.interrupted', 'log'];
     const listeners = eventTypes.map((type) => {
       const listener = (event: Event) => {
@@ -953,7 +954,7 @@ async function request<T>(path: string, options: {
     headers: options.body ? { 'content-type': 'application/json' } : undefined,
     body: options.body ? JSON.stringify(options.body) : undefined,
   };
-  const response = await fetch(argumentValue, evaluatedValue7);
+  const response = await authenticatedFetch(argumentValue, evaluatedValue7);
   if (response.ok) {
     if (response.status === 204) {
       return undefined as T;

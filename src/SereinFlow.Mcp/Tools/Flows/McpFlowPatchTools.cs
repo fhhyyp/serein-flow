@@ -21,7 +21,7 @@ internal sealed class McpFlowPatchTools(
     McpPreviewService _mcpPreviewService,
     McpResourceAuthorization _mcpResourceAuthorization)
 {
-    [SereinFlowMcpTool("sereinflow_preview_flow_patch", McpPermissionDto.FlowWrite, ExecutionKind = McpToolExecutionKind.Mutation, HasAuditTrack = true, AuditTrack = FlowVersionTrackDto.Development)]
+    [SereinFlowMcpTool("sereinflow_preview_flow_patch", SereinFlowPermission.FlowWrite, ExecutionKind = McpToolExecutionKind.Mutation, HasAuditTrack = true, AuditTrack = FlowVersionTrackDto.Development)]
     internal async Task<FlowPatchPreviewDto> PreviewPatchAsync(
         SereinFlowMcpCaller context,
         NormalizedFlowPatchRequest arguments,
@@ -35,7 +35,7 @@ internal sealed class McpFlowPatchTools(
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow patch request is invalid. 流程补丁请求无效。");
         }
 
-        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, McpPermissionDto.FlowWrite, cancellationToken);
+        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, SereinFlowPermission.FlowWrite, cancellationToken);
         var current = await _flowDefinitionRepository.FindAsync(request.ProjectId, request.FlowId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found. 未找到流程定义。");
         if (current.Version != request.ExpectedDevelopmentVersion)
         {
@@ -78,7 +78,7 @@ internal sealed class McpFlowPatchTools(
         return McpPreviewProjection.ToFlowPatchPreview(preview, stored);
     }
 
-    [SereinFlowMcpTool("sereinflow_apply_flow_patch", McpPermissionDto.FlowWrite, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true, HasAuditTrack = true, AuditTrack = FlowVersionTrackDto.Development)]
+    [SereinFlowMcpTool("sereinflow_apply_flow_patch", SereinFlowPermission.FlowWrite, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true, HasAuditTrack = true, AuditTrack = FlowVersionTrackDto.Development)]
     internal async Task<object> ApplyPatchAsync(
         SereinFlowMcpCaller context,
         McpMutationApplyRequestDto arguments,
@@ -101,7 +101,7 @@ internal sealed class McpFlowPatchTools(
         }
 
         var stored = McpPreviewService.Deserialize<StoredFlowPatchPreview>(entry);
-        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, stored.Request.ProjectId, McpPermissionDto.FlowWrite, cancellationToken);
+        await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, stored.Request.ProjectId, SereinFlowPermission.FlowWrite, cancellationToken);
         if (!stored.Validation.IsValid || stored.Diff.Changes.Count == 0)
         {
             throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The flow patch preview cannot be applied. 无法应用此流程补丁预览。");

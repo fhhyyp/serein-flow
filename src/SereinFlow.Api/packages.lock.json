@@ -376,6 +376,12 @@
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
         }
       },
+      "sereinflow.security.apikeys": {
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.AspNetCore": "[0.1.0, )"
+        }
+      },
       "sereinflow.worker.client": {
         "type": "Project",
         "dependencies": {

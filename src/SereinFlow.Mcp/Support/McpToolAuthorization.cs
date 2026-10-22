@@ -6,10 +6,9 @@ namespace SereinFlow.Mcp.Support;
 
 internal static class McpToolAuthorization
 {
-    internal static bool IsProjectScoped(McpPrincipal? principal) => principal?.ProjectId is not null && !principal.IsLocal && !principal.IsAdministrator;
-    internal static void RequireSensitiveRead(
-        McpSecurityService security,
-        McpPrincipal? principal,
+    internal static async Task RequireSensitiveReadAsync(
+        SereinFlowAccess security,
+        SereinFlowActor? principal,
         Guid projectId,
         AiReadModelOptions? options)
     {
@@ -18,38 +17,38 @@ internal static class McpToolAuthorization
             return;
         }
 
-        security.Require(principal, McpPermissionDto.SensitiveRead, projectId);
+        await security.RequireAsync(principal, SereinFlowPermission.SensitiveRead, projectId);
     }
 
-    internal static void RequirePreviewPermission(McpSecurityService security, McpPrincipal? principal, McpPreviewEntry entry)
+    internal static async Task RequirePreviewPermissionAsync(SereinFlowAccess security, SereinFlowActor? principal, McpPreviewEntry entry)
     {
         var permission = entry.Operation switch
         {
-            ProjectErrorCodes.Create => McpPermissionDto.ProjectWrite,
-            FlowErrorCodes.Patch => McpPermissionDto.FlowWrite,
-            "flow.publish" => McpPermissionDto.FlowPublish,
-            "flow.rollback" => McpPermissionDto.FlowRollback,
-            LibraryErrorCodes.Package => McpPermissionDto.LibraryImport,
-            ProjectErrorCodes.LibraryAttach => McpPermissionDto.LibraryManage,
-            "sereinflow_create_library_node_template" => McpPermissionDto.ProjectRead,
-            "sereinflow_create_builtin_node_template" => McpPermissionDto.ProjectRead,
-            _ => McpPermissionDto.ProjectRead,
+            ProjectErrorCodes.Create => SereinFlowPermission.ProjectWrite,
+            FlowErrorCodes.Patch => SereinFlowPermission.FlowWrite,
+            "flow.publish" => SereinFlowPermission.FlowPublish,
+            "flow.rollback" => SereinFlowPermission.FlowRollback,
+            LibraryErrorCodes.Package => SereinFlowPermission.LibraryImport,
+            ProjectErrorCodes.LibraryAttach => SereinFlowPermission.LibraryManage,
+            "sereinflow_create_library_node_template" => SereinFlowPermission.ProjectRead,
+            "sereinflow_create_builtin_node_template" => SereinFlowPermission.ProjectRead,
+            _ => SereinFlowPermission.ProjectRead,
         };
         if (string.Equals(entry.Operation, LibraryErrorCodes.FamilyAssign, StringComparison.Ordinal))
         {
-            security.RequireAdministrator(principal);
-            security.Require(principal, McpPermissionDto.LibraryManage);
+            await security.RequireWorkspaceAsync(principal);
+            await security.RequireAsync(principal, SereinFlowPermission.LibraryManage);
             return;
         }
 
         if (string.Equals(entry.Operation, "library.upgrade", StringComparison.Ordinal))
         {
-            security.Require(principal, McpPermissionDto.FlowWrite, entry.ProjectId);
-            security.Require(principal, McpPermissionDto.LibraryManage, entry.ProjectId);
+            await security.RequireAsync(principal, SereinFlowPermission.FlowWrite, entry.ProjectId);
+            await security.RequireAsync(principal, SereinFlowPermission.LibraryManage, entry.ProjectId);
             return;
         }
 
-        security.Require(principal, permission, entry.ProjectId);
+        await security.RequireAsync(principal, permission, entry.ProjectId);
     }
 
 }

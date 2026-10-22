@@ -26,6 +26,12 @@ public sealed class McpToolCallContext(IServiceProvider services, IReadOnlyDicti
     private readonly Dictionary<Type, object> _values = values is null ? [] : new(values);
     public IServiceProvider Services { get; } = services;
 
+    /// <summary>Optional host policy invoked after request binding and before the handler.</summary>
+    public Func<object?, CancellationToken, ValueTask>? RequestAuthorization { get; set; }
+
+    public ValueTask AuthorizeRequestAsync(object? request, CancellationToken cancellationToken) =>
+        RequestAuthorization?.Invoke(request, cancellationToken) ?? ValueTask.CompletedTask;
+
     public T GetValue<T>() => _values.TryGetValue(typeof(T), out var value)
         ? (T)value
         : throw new InvalidOperationException($"No invocation context was provided for '{typeof(T)}'. 未提供指定类型的调用上下文。");

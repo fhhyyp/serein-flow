@@ -393,7 +393,8 @@
       "sereinflow.api": {
         "type": "Project",
         "dependencies": {
-          "SereinFlow.AspNetCore": "[0.1.0, )"
+          "SereinFlow.AspNetCore": "[0.1.0, )",
+          "SereinFlow.Security.ApiKeys": "[0.1.0, )"
         }
       },
       "sereinflow.application": {
@@ -486,6 +487,12 @@
         "dependencies": {
           "Serein.ScriptLang": "[0.1.0, )",
           "SereinFlow.Runtime.Abstractions": "[1.0.0, )"
+        }
+      },
+      "sereinflow.security.apikeys": {
+        "type": "Project",
+        "dependencies": {
+          "SereinFlow.AspNetCore": "[0.1.0, )"
         }
       },
       "sereinflow.worker.client": {

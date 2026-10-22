@@ -410,13 +410,9 @@ public static class McpErrorCodes
     public const string ProjectAccessDenied = "mcp.project_access_denied";
     public const string InvalidPatchValue = "mcp.invalid_patch_value";
     public const string PreviewStatePersistFailed = "mcp.preview_state_persist_failed";
-    public const string KeysManage = "mcp.keys.manage";
     public const string SessionRequired = "mcp.session_required";
     public const string ToolTimeout = "mcp.tool_timeout";
     public const string InternalError = "mcp.internal_error";
-    public const string KeySetupAlreadyCompleted = "mcp.key_setup_already_completed";
-    public const string KeyAlreadyRevoked = "mcp.key_already_revoked";
-    public const string KeyNotFound = "mcp.key_not_found";
     public const string ProjectNotFound = "mcp.project_not_found";
     public const string ProjectArchived = "mcp.project_archived";
     public const string AdministratorRequired = "mcp.administrator_required";

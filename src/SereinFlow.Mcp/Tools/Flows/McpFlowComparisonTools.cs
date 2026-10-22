@@ -7,9 +7,9 @@ namespace SereinFlow.Mcp.Tools;
 internal sealed class McpFlowComparisonTools(
     AiReadModelService _aiReadModelService,
     FlowDiffService _flowDiffService,
-    McpSecurityService _mcpSecurityService)
+    SereinFlowAccess _mcpSecurityService)
 {
-    [SereinFlowMcpTool("sereinflow_compare_flow_versions", McpPermissionDto.ProjectRead)]
+    [SereinFlowMcpTool("sereinflow_compare_flow_versions", SereinFlowPermission.ProjectRead)]
     internal async Task<FlowVersionComparisonDto> CompareVersionsAsync(
         SereinFlowMcpCaller context,
         McpCompareFlowVersionsRequest arguments,
@@ -21,7 +21,7 @@ internal sealed class McpFlowComparisonTools(
         var track = arguments.Track;
         var fromVersion = arguments.FromVersion;
         var toVersion = arguments.ToVersion;
-        _mcpSecurityService.Require(principal, McpPermissionDto.ProjectRead, projectId);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.ProjectRead, projectId);
         var fromVersionDetail = await _aiReadModelService.GetFlowVersionAsync(projectId, flowId, fromVersion, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The source flow version was not found. 未找到源流程版本。");
         var toVersionDetail = await _aiReadModelService.GetFlowVersionAsync(projectId, flowId, toVersion, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The target flow version was not found. 未找到目标流程版本。");
         if (fromVersionDetail.Version.Track != track || toVersionDetail.Version.Track != track)

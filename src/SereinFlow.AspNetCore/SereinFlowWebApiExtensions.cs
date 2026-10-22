@@ -41,13 +41,7 @@ public static class SereinFlowWebApiExtensions
                 return mcpAiGuidanceProvider;
             }
         });
-        services.TryAddScoped<McpSecurityService>(provider =>
-        {
-            var getRequiredServiceResult3 = provider.GetRequiredService<IMcpApiKeyStore>();
-            var evaluatedValue4 = provider.GetRequiredService<IConfiguration>()["SereinFlow:Mcp:BootstrapAdminKey"];
-            var mcpSecurityService = new McpSecurityService(getRequiredServiceResult3, evaluatedValue4);
-            return mcpSecurityService;
-        });
+        services.AddSereinFlowAccess();
         return services;
     }
 
@@ -101,7 +95,7 @@ public static class SereinFlowWebApiExtensions
     private static void ConfigureJson(JsonSerializerOptions options)
     {
         options.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
-        var mcpPermissionJsonConverter = new McpPermissionJsonConverter();
+        var mcpPermissionJsonConverter = new SereinFlowPermissionJsonConverter();
         options.Converters.Insert(0, mcpPermissionJsonConverter);
         var jsonStringEnumConverter = new JsonStringEnumConverter(JsonNamingPolicy.CamelCase);
         options.Converters.Add(jsonStringEnumConverter);

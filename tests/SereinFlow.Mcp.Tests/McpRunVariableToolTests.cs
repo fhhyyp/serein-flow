@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
@@ -17,7 +18,7 @@ public sealed class McpRunVariableToolTests
     public async Task ToolsReadValuesAndReplayWritesWithoutCallingTheWorkerAgain()
     {
         using var host = new TestHost();
-        host.SetPrincipal(host.Run.ProjectId, McpPermissionDto.RunRead, McpPermissionDto.RunVariableWrite);
+        host.SetPrincipal(host.Run.ProjectId, SereinFlowPermission.RunRead, SereinFlowPermission.RunVariableWrite);
         var arguments = JsonSerializer.SerializeToElement(new { runId = host.Run.Id, name = " count ", value = 42, valueType = "int32", idempotencyKey = "write-1" });
         var first = await host.Backend.CallToolAsync("sereinflow_set_run_variable", arguments, CancellationToken.None);
         var replay = await host.Backend.CallToolAsync("sereinflow_set_run_variable", arguments, CancellationToken.None);
@@ -43,7 +44,7 @@ public sealed class McpRunVariableToolTests
                 return getStringResult;
             });
         Assert.Contains("valueType", selectResult);
-        var toNameResult = McpPermissionNames.ToName(McpPermissionDto.RunVariableWrite);
+        var toNameResult = SereinFlowOperationNames.ToName(SereinFlowPermission.RunVariableWrite);
         Assert.Equal("run.variable.write", toNameResult);
     }
 
@@ -54,7 +55,7 @@ public sealed class McpRunVariableToolTests
     {
         using var host = new TestHost();
         Guid evaluatedValue6 = wrongProject ? Guid.NewGuid() : host.Run.ProjectId;
-        host.SetPrincipal(evaluatedValue6, readOnly ? McpPermissionDto.RunRead : McpPermissionDto.RunVariableWrite);
+        host.SetPrincipal(evaluatedValue6, readOnly ? SereinFlowPermission.RunRead : SereinFlowPermission.RunVariableWrite);
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
             var serializeToElementResult5 = JsonSerializer.SerializeToElement(new { runId = host.Run.Id, name = "count", value = 1, valueType = "int32", idempotencyKey = "denied" });
@@ -70,7 +71,7 @@ public sealed class McpRunVariableToolTests
     {
         using var host = new TestHost();
         var newGuidResult = Guid.NewGuid();
-        host.SetPrincipal(newGuidResult, McpPermissionDto.RunRead);
+        host.SetPrincipal(newGuidResult, SereinFlowPermission.RunRead);
         await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
             var serializeToElementResult7 = JsonSerializer.SerializeToElement(new { runId = host.Run.Id });
@@ -78,7 +79,7 @@ public sealed class McpRunVariableToolTests
             return callToolAsyncResult8;
         });
         Assert.Equal(0, host.Variables.CallCount);
-        host.SetPrincipal(host.Run.ProjectId, McpPermissionDto.RunRead);
+        host.SetPrincipal(host.Run.ProjectId, SereinFlowPermission.RunRead);
         host.Variables.Inactive = true;
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
@@ -122,6 +123,7 @@ public sealed class McpRunVariableToolTests
             services.AddLogging();
             services.AddSereinFlowStorage(configuration, _root);
             services.AddSereinFlowApplication();
+            services.AddTestAuthorization();
             services.AddSereinFlowMcp(configuration);
             var testRunStore = new TestRunStore(Run);
             services.AddSingleton<IFlowRunStore>(testRunStore);
@@ -133,10 +135,10 @@ public sealed class McpRunVariableToolTests
             _services = services.BuildServiceProvider(serviceProviderOptions);
         }
 
-        public void SetPrincipal(Guid projectId, params McpPermissionDto[] permissions)
+        public void SetPrincipal(Guid projectId, params SereinFlowPermission[] permissions)
         {
             var toHashSetResult = permissions.ToHashSet();
-            _services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal("caller", projectId, toHashSetResult);
+            _services.GetRequiredService<ISereinFlowActorAccessor>().Current = ApiKeyActors.Create("caller", projectId, toHashSetResult);
         }
 
         public void Dispose()

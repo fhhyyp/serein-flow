@@ -22,15 +22,19 @@ New-Item -ItemType Directory -Path $hostPublish -Force | Out-Null
 
 try {
     $runnerProject = Join-Path $repoRoot 'src/SereinFlow.Worker.Runner/SereinFlow.Worker.Runner.csproj'
-    dotnet publish $runnerProject -c Release --output $workerPublish -p:UseAppHost=false -v:q
+    dotnet publish $runnerProject -c Release --output $workerPublish -p:UseAppHost=false -p:BaseOutputPath=artifacts/package-build/bin/ -m:1 -p:BuildInParallel=false -v:q
     if ($LASTEXITCODE -ne 0) { throw 'Worker Runner publish failed.' }
 
     $projectFile = Join-Path $repoRoot 'src/SereinFlow.AspNetCore/SereinFlow.AspNetCore.csproj'
-    dotnet publish $projectFile -c Release --output $hostPublish -v:q
+    dotnet publish $projectFile -c Release --output $hostPublish -p:BaseOutputPath=artifacts/package-build/bin/ -m:1 -p:BuildInParallel=false -v:q
     if ($LASTEXITCODE -ne 0) { throw 'ASP.NET Core host publish failed.' }
 
-    dotnet pack $projectFile -c Release --output $feed "-p:PackageVersion=$PackageVersion" "-p:SereinFlowWorkerPublishDir=$workerPublish" "-p:SereinFlowHostPublishDir=$hostPublish" -v:q
+    dotnet pack $projectFile -c Release --output $feed "-p:PackageVersion=$PackageVersion" "-p:SereinFlowWorkerPublishDir=$workerPublish" "-p:SereinFlowHostPublishDir=$hostPublish" -p:BaseOutputPath=artifacts/package-build/bin/ -m:1 -p:BuildInParallel=false -v:q
     if ($LASTEXITCODE -ne 0) { throw 'SereinFlow.AspNetCore pack failed.' }
+
+    $securityProject = Join-Path $repoRoot 'src/SereinFlow.Security.ApiKeys/SereinFlow.Security.ApiKeys.csproj'
+    dotnet pack $securityProject -c Release --output $feed "-p:PackageVersion=$PackageVersion" -p:UseAppHost=false -p:BaseOutputPath=artifacts/package-build/bin/ -m:1 -p:BuildInParallel=false -v:q
+    if ($LASTEXITCODE -ne 0) { throw 'SereinFlow.Security.ApiKeys pack failed.' }
 
     Write-Host "SereinFlow package is available at $(Join-Path $feed "SereinFlow.AspNetCore.$PackageVersion.nupkg")"
 }

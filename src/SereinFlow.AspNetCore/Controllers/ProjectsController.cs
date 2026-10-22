@@ -25,13 +25,18 @@ public sealed class ProjectsController : ApiControllerBase
     }
 
     [HttpGet]
+    [SereinFlowScopedAuthorization]
     [ProducesResponseType(typeof(ProjectWorkspaceDto[]), StatusCodes.Status200OK)]
     public async Task<ActionResult> List([FromQuery] bool? includeArchived, CancellationToken cancellationToken)
     {
+        var actor = SereinFlow.AspNetCore.SereinFlowHttpActor.Get(HttpContext);
+        var access = HttpContext.RequestServices.GetRequiredService<SereinFlowAccess>();
+        await access.RequireAsync(actor, SereinFlowPermission.ProjectRead, cancellationToken: cancellationToken);
+        var scope = await access.GetScopeAsync(actor!, SereinFlowPermission.ProjectRead, cancellationToken);
         var workspaces = new List<ProjectWorkspaceDto>();
         foreach (var project in await _projects.ListAsync(cancellationToken))
         {
-            if (includeArchived != true && project.Status == ProjectStatus.Archived)
+            if (!scope.Contains(project.Id) || includeArchived != true && project.Status == ProjectStatus.Archived)
             {
                 continue;
             }

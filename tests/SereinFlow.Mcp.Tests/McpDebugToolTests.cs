@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -95,9 +96,9 @@ public sealed class McpDebugToolTests
         await store.CreateAsync(sessions[1]);
         var toHashSetResult15 = new[]
         {
-            McpPermissionDto.DebugRead
+            SereinFlowPermission.DebugRead
         }.ToHashSet();
-        host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal("project-debug-reader", firstProjectId, toHashSetResult15);
+        host.Services.GetRequiredService<ISereinFlowActorAccessor>().Current = ApiKeyActors.Create("project-debug-reader", firstProjectId, toHashSetResult15);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var serializeToElementResult16 = JsonSerializer.SerializeToElement(new { });
         var evaluatedValue17 = (await backend.CallToolAsync("sereinflow_list_debug_sessions", serializeToElementResult16, CancellationToken.None)).Value;
@@ -113,9 +114,9 @@ public sealed class McpDebugToolTests
         Assert.Equal(McpProtocolErrorCodes.PermissionDenied, otherProjectDenied.Code);
         var toHashSetResult18 = new[]
         {
-            McpPermissionDto.RunRead
+            SereinFlowPermission.RunRead
         }.ToHashSet();
-        host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal("run-reader", firstProjectId, toHashSetResult18);
+        host.Services.GetRequiredService<ISereinFlowActorAccessor>().Current = ApiKeyActors.Create("run-reader", firstProjectId, toHashSetResult18);
         var serializeToElementResult19 = JsonSerializer.SerializeToElement(new { });
         var evaluatedValue20 = (await backend.CallToolAsync("sereinflow_list_debug_sessions", serializeToElementResult19, CancellationToken.None)).Value;
         var runPermissionPage = Deserialize<AiPageDto<AiDebugSessionSummaryDto>>(evaluatedValue20);
@@ -154,9 +155,9 @@ public sealed class McpDebugToolTests
         });
         var toHashSetResult26 = new[]
         {
-            McpPermissionDto.DebugControl
+            SereinFlowPermission.DebugControl
         }.ToHashSet();
-        host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal("debug-admin", null, toHashSetResult26, IsAdministrator: true);
+        host.Services.GetRequiredService<ISereinFlowActorAccessor>().Current = ApiKeyActors.Create("debug-admin", null, toHashSetResult26, IsAdministrator: true);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var arguments = JsonSerializer.SerializeToElement(new { projectId, flowId, breakpointNodeIds = new[] { "node-a" }, idempotencyKey = "debug-start-once" });
         var evaluatedValue27 = (await backend.CallToolAsync("sereinflow_start_debug_session", arguments, CancellationToken.None)).Value;
@@ -182,8 +183,8 @@ public sealed class McpDebugToolTests
         var flowId = Guid.NewGuid();
         var fake = new TestDebugSessionService(deniedProjectId, flowId);
         using var host = CreateHost(services => services.AddSingleton<IFlowDebugSessionService>(fake));
-        host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal(
-            "project-debug-controller", allowedProjectId, new HashSet<McpPermissionDto> { McpPermissionDto.DebugControl });
+        host.Services.GetRequiredService<ISereinFlowActorAccessor>().Current = ApiKeyActors.Create(
+            "project-debug-controller", allowedProjectId, new HashSet<SereinFlowPermission> { SereinFlowPermission.DebugControl });
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
 
         var caseVariant = JsonSerializer.SerializeToElement(new
@@ -206,8 +207,8 @@ public sealed class McpDebugToolTests
         Assert.Equal(McpProtocolErrorCodes.PermissionDenied, denied.Code);
         Assert.Equal(0, fake.CreateCalls);
 
-        host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal(
-            "target-project-debug-controller", deniedProjectId, new HashSet<McpPermissionDto> { McpPermissionDto.DebugControl });
+        host.Services.GetRequiredService<ISereinFlowActorAccessor>().Current = ApiKeyActors.Create(
+            "target-project-debug-controller", deniedProjectId, new HashSet<SereinFlowPermission> { SereinFlowPermission.DebugControl });
         var accepted = await backend.CallToolAsync("sereinflow_start_debug_session", caseVariant, CancellationToken.None);
         Assert.Equal(fake.Session.Id, Deserialize<McpDebugSessionStartedDto>(accepted.Value).SessionId);
         Assert.Equal(1, fake.CreateCalls);
@@ -226,9 +227,9 @@ public sealed class McpDebugToolTests
         var newGuidResult31 = Guid.NewGuid();
         var toHashSetResult32 = new[]
         {
-            McpPermissionDto.DebugControl
+            SereinFlowPermission.DebugControl
         }.ToHashSet();
-        host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal("wrong-project-debug-controller", newGuidResult31, toHashSetResult32);
+        host.Services.GetRequiredService<ISereinFlowActorAccessor>().Current = ApiKeyActors.Create("wrong-project-debug-controller", newGuidResult31, toHashSetResult32);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var arguments = JsonSerializer.SerializeToElement(new { sessionId = fake.Session.Id, commandSequence = 1L });
         var denied = await Assert.ThrowsAsync<McpProtocolException>(() =>
@@ -239,9 +240,9 @@ public sealed class McpDebugToolTests
         Assert.Equal(McpProtocolErrorCodes.PermissionDenied, denied.Code);
         var toHashSetResult33 = new[]
         {
-            McpPermissionDto.DebugControl
+            SereinFlowPermission.DebugControl
         }.ToHashSet();
-        host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal("correct-project-debug-controller", projectId, toHashSetResult33);
+        host.Services.GetRequiredService<ISereinFlowActorAccessor>().Current = ApiKeyActors.Create("correct-project-debug-controller", projectId, toHashSetResult33);
         var evaluatedValue34 = (await backend.CallToolAsync("sereinflow_continue_debug", arguments, CancellationToken.None)).Value;
         var accepted = Deserialize<McpDebugCommandAcceptedDto>(evaluatedValue34);
         Assert.True(accepted.Accepted);
@@ -282,6 +283,7 @@ public sealed class McpDebugToolTests
         services.AddLogging();
         services.AddSereinFlowStorage(configuration, root);
         services.AddSereinFlowApplication();
+        services.AddTestAuthorization();
         services.AddSereinFlowMcp(configuration);
         configureServices?.Invoke(services);
         services.AddSingleton<SereinFlowMcpBackend>(provider =>

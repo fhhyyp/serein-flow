@@ -47,4 +47,4 @@ public sealed record FlowRunAdmissionResult(FlowRun? Run, Guid? ActiveRunId = nu
 /// Represents flow run query data used by SereinFlow.
 /// 表示 SereinFlow 使用的流程运行查询数据。
 /// </summary>
-public sealed record FlowRunQuery(IReadOnlyCollection<FlowRunStatus>? Statuses = null, Guid? ProjectId = null, int Take = 100);
+public sealed record FlowRunQuery(IReadOnlyCollection<FlowRunStatus>? Statuses = null, Guid? ProjectId = null, int Take = 100, IReadOnlyCollection<Guid>? ProjectIds = null);

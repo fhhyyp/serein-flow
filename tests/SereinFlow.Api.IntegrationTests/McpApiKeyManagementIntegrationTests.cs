@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System.Net.Http;
 using System.Net;
 using System.Net.Http.Headers;
@@ -12,7 +13,7 @@ using SereinFlow.Contracts;
 namespace SereinFlow.Api.IntegrationTests;
 public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKeyManagementIntegrationTests.ApiFactory>
 {
-    private static readonly McpPermissionDto[] ProjectReadPermission = [McpPermissionDto.ProjectRead];
+    private static readonly SereinFlowPermission[] ProjectReadPermission = [SereinFlowPermission.ProjectRead];
     private readonly ApiFactory _factory;
     public McpApiKeyManagementIntegrationTests(ApiFactory factory)
     {
@@ -23,7 +24,7 @@ public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKe
     public async Task WebConsoleCanInitializeAndManageApiKeys()
     {
         using var client = _factory.CreateClient();
-        var setup = await client.PostAsync("/api/environment/settings/mcp-keys/setup", content: null);
+        var setup = await client.PostAsync("/api/security/api-keys/initial-admin", content: null);
         Assert.Equal(HttpStatusCode.Created, setup.StatusCode);
         var readAsStringAsyncResult = await setup.Content.ReadAsStringAsync();
         using var setupDocument = JsonDocument.Parse(readAsStringAsyncResult);
@@ -31,9 +32,9 @@ public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKe
         var administratorSecret = getPropertyResult1.GetString();
         var isNullOrWhiteSpaceResult = string.IsNullOrWhiteSpace(administratorSecret);
         Assert.False(isNullOrWhiteSpaceResult);
-        var repeatedSetup = await client.PostAsync("/api/environment/settings/mcp-keys/setup", content: null);
+        var repeatedSetup = await client.PostAsync("/api/security/api-keys/initial-admin", content: null);
         Assert.Equal(HttpStatusCode.Conflict, repeatedSetup.StatusCode);
-        using var listRequest = new HttpRequestMessage(HttpMethod.Get, "/api/environment/settings/mcp-keys");
+        using var listRequest = new HttpRequestMessage(HttpMethod.Get, "/api/security/api-keys");
         listRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", administratorSecret);
         var list = await client.SendAsync(listRequest);
         Assert.Equal(HttpStatusCode.OK, list.StatusCode);
@@ -49,7 +50,7 @@ public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKe
             Assert.False(tryGetPropertyResult);
         }
 
-        using var createRequest = new HttpRequestMessage(HttpMethod.Post, "/api/environment/settings/mcp-keys")
+        using var createRequest = new HttpRequestMessage(HttpMethod.Post, "/api/security/api-keys")
         {
             Content = resolveStringContent()
         };
@@ -64,7 +65,7 @@ public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKe
         Assert.False(isNullOrWhiteSpaceResult5);
         HttpContent resolveStringContent()
         {
-            var createMcpApiKeyRequestDto = new CreateMcpApiKeyRequestDto(null, "integration-client", ProjectReadPermission, null, IsAdministrator: true);
+            var createMcpApiKeyRequestDto = new CreateApiKeyRequest(null, "integration-client", ProjectReadPermission, null, IsAdministrator: true);
             var serializeResult = JsonSerializer.Serialize(createMcpApiKeyRequestDto);
             var stringContent = new StringContent(serializeResult, Encoding.UTF8, "application/json");
             return stringContent;
@@ -77,6 +78,10 @@ public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKe
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing");
+            builder.ConfigureServices(services =>
+            {
+                Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddSingleton<IStartupFilter, LoopbackTestStartupFilter>(services);
+            });
             builder.UseSetting(WebHostDefaults.PreventHostingStartupKey, "true");
             builder.UseSetting("SereinFlow:DataRoot", _storage.Path);
             builder.ConfigureAppConfiguration(configuration =>

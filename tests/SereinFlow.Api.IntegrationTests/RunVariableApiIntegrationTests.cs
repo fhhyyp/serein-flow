@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http.Headers;
@@ -15,7 +16,6 @@ using SereinFlow.Domain;
 using SereinFlow.Worker.Client;
 
 namespace SereinFlow.Api.IntegrationTests;
-
 public sealed class RunVariableApiIntegrationTests
 {
     [Fact]
@@ -155,8 +155,7 @@ public sealed class RunVariableApiIntegrationTests
                 var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _root,
-                    ["SereinFlow:Mcp:BootstrapAdminKey"] = Key,
-                    ["SereinFlow:Api:RequireAuthentication"] = "true",
+                    ["SereinFlow:Security:ApiKeys:BootstrapAdminKey"] = Key,
                 };
                 configuration.AddInMemoryCollection(dictionary);
             });
@@ -322,11 +321,7 @@ public sealed class RunVariableApiIntegrationTests
 
         public Task<long> GetLastSequenceAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            var maxResult = _events
-                .Where(item => item.RunId == id)
-                .Select(item => item.Sequence)
-                .DefaultIfEmpty()
-                .Max();
+            var maxResult = _events.Where(item => item.RunId == id).Select(item => item.Sequence).DefaultIfEmpty().Max();
             var fromResultResult33 = Task.FromResult(maxResult);
             return fromResultResult33;
         }
@@ -338,9 +333,7 @@ public sealed class RunVariableApiIntegrationTests
 
         public IReadOnlyList<FlowRunEvent> GetAfter(Guid id, long sequence)
         {
-            var toArrayResult = _events
-                .Where(item => item.RunId == id && item.Sequence > sequence)
-                .ToArray();
+            var toArrayResult = _events.Where(item => item.RunId == id && item.Sequence > sequence).ToArray();
             return toArrayResult;
         }
     }

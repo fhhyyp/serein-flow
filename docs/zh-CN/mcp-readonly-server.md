@@ -66,7 +66,7 @@ SereinFlow AI Toolkit 将 `SEREINFLOW_MCP_API_KEY` 作为 HTTP Bearer token 的
 内容是同一段随机密钥，不能提交或记录：
 
 ```powershell
-[Environment]::SetEnvironmentVariable('SereinFlow__Mcp__BootstrapAdminKey', '<temporary-random-secret>', 'User')
+[Environment]::SetEnvironmentVariable('SereinFlow__Security__ApiKeys__BootstrapAdminKey', '<temporary-random-secret>', 'User')
 [Environment]::SetEnvironmentVariable('SEREINFLOW_MCP_API_KEY', '<temporary-random-secret>', 'User')
 ```
 
@@ -82,12 +82,7 @@ stdio 是 API 可执行文件的显式入口：
 dotnet run --project src/SereinFlow.Api/SereinFlow.Api.csproj -- --mcp-stdio
 ```
 
-stdio 模式只注册 MCP、Application、Storage 和 stdio 所需服务，不启动 HTTP
-监听器、SignalR 或仅限 API 的托管服务。必须显式设置
-`SereinFlow:Mcp:Stdio:ApiKey`（环境变量形式为
-`SereinFlow__Mcp__Stdio__ApiKey`）；缺少、无效、过期或撤销的 key 会使进程以
-非零状态退出。stdout 只输出 JSON-RPC，启动错误、日志和内部诊断写入 stderr。
-正常 EOF 会清理并正常退出。
+stdio 使用由本机账户和数据目录确定的本地可信身份，不需要 Key，也不读取旧 Key 环境变量。它不启动 HTTP 服务；stdout 只输出 JSON-RPC，诊断写入 stderr，stdin EOF 后正常退出。
 
 ## JSON-RPC 协议错误码
 
@@ -308,16 +303,12 @@ JSON 值（包括数组、字符串、数值、布尔值和 `null`），`channel
 `message.delivery_timeout`。正式运行尝试使用未保存候选时返回
 `run.candidate_definition_not_allowed`。
 
-MCP API 密钥管理工具仅限管理员使用。使用
-`sereinflow_list_mcp_api_keys` 读取当前状态后，再按明确请求调用创建、轮换或
-撤销工具；变更操作需要 `idempotencyKey`。项目级密钥必须绑定未归档项目，管理员
-密钥不能绑定项目。创建或轮换返回的 secret 只显示一次，不得写入日志、仓库、
-提示词或无关工具参数；发生不明确响应时先重新读取密钥列表，不要盲目重试。
+Key 管理仅由可选 `SereinFlow.Security.ApiKeys` 库的 HTTP `/api/security/api-keys` 与前端界面提供，MCP 不提供 Key 管理工具。创建或轮换返回的密钥只显示一次，应交给操作者保存。
 
 创建 key 时 `permissions` 必须使用稳定的点号名称：`project.read`、
 `project.write`、`library.read`、`run.read`、`debug.read`、`flow.write`、
 `debug.control`、`flow.publish`、`flow.rollback`、`script.compile`、
-`library.import`、`library.manage`、`mcp.keys.manage`、`sensitive.read` 或
+`library.import`、`library.manage`、`security.manage`、`sensitive.read` 或
 `run.message.publish`。项目级 key 提供 `projectId` 且不得设置
 `isAdministrator: true`；管理员 key 设置 `isAdministrator: true` 且不得提供
 `projectId`。

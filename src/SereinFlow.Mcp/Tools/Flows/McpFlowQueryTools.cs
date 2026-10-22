@@ -7,12 +7,12 @@ namespace SereinFlow.Mcp.Tools;
 
 internal sealed class McpFlowQueryTools(McpFlowQueries queries)
 {
-    [SereinFlowMcpTool("sereinflow_get_flow_topology", McpPermissionDto.ProjectRead)]
+    [SereinFlowMcpTool("sereinflow_get_flow_topology", SereinFlowPermission.ProjectRead)]
     internal Task<AiFlowTopologyDto?> GetTopologyAsync(
         SereinFlowMcpCaller caller,
         McpFlowTopologyRequest request,
         CancellationToken cancellationToken) => queries.ReadFlowTopologyAsync(caller.Principal, request.ProjectId, request.FlowId, request.Track, request.Version, ReadOptions(request), cancellationToken);
-    [SereinFlowMcpTool("sereinflow_get_flow_edit_model", McpPermissionDto.ProjectRead)]
+    [SereinFlowMcpTool("sereinflow_get_flow_edit_model", SereinFlowPermission.ProjectRead)]
     internal Task<AiFlowEditModelDto?> GetEditModelAsync(
         SereinFlowMcpCaller caller,
         McpFlowEditRequest request,

@@ -92,6 +92,8 @@ internal static class McpToolRegistryExtension
                     ? $"var request = {tool.BindingMethodName}(global::SereinFlow.Mcp.Framework.McpRequestBinder.Normalize(arguments), options);"
                     : $"var request = global::SereinFlow.Mcp.Framework.McpRequestBinder.Bind<{tool.RequestTypeName}>(context, arguments, options, {tool.ValidationMethodName});");
             }
+            var boundRequest = tool.RequestTypeName is null ? "null" : "request";
+            generator.AppendCode($"await context.AuthorizeRequestAsync({boundRequest}, cancellationToken).ConfigureAwait(false);");
             if (!tool.IsStatic)
                 generator.AppendCode($"var handler = global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<{tool.HandlerTypeName}>(context.Services);");
             var owner = tool.IsStatic ? tool.HandlerTypeName : "handler";

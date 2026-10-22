@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -71,11 +72,11 @@ public sealed class McpRunMessageToolTests
                 return getStringResult4;
             });
         Assert.Equal(ChannelKindNames, selectResult22);
-        var toNameResult = McpPermissionNames.ToName(McpPermissionDto.RunMessagePublish);
+        var toNameResult = SereinFlowOperationNames.ToName(SereinFlowPermission.RunMessagePublish);
         Assert.Equal("run.message.publish", toNameResult);
-        var tryParseResult = McpPermissionNames.TryParse("run.message.publish", out var parsedPermission);
+        var tryParseResult = SereinFlowOperationNames.TryParse("run.message.publish", out var parsedPermission);
         Assert.True(tryParseResult);
-        Assert.Equal(McpPermissionDto.RunMessagePublish, parsedPermission);
+        Assert.Equal(SereinFlowPermission.RunMessagePublish, parsedPermission);
         var evaluatedValue23 = host.Services.GetRequiredService<McpToolCatalog>().Descriptors;
         var tool = evaluatedValue23.Single(item => item.Name == "sereinflow_publish_run_message");
         var getRawTextResult24 = descriptor.InputSchema.GetRawText();
@@ -91,9 +92,9 @@ public sealed class McpRunMessageToolTests
         using var host = CreateHost(run, delivery);
         var toHashSetResult = new[]
         {
-            McpPermissionDto.RunMessagePublish
+            SereinFlowPermission.RunMessagePublish
         }.ToHashSet();
-        var mcpPrincipal = new McpPrincipal("run-message-caller", run.ProjectId, toHashSetResult);
+        var mcpPrincipal = ApiKeyActors.Create("run-message-caller", run.ProjectId, toHashSetResult);
         host.SetPrincipal(mcpPrincipal);
         var arguments = JsonSerializer.SerializeToElement(new { runId = run.Id, topic = " orders.created ", payload = new object?[] { null, "订单", 42, true }, channelKind = "EVENTBUS", contractId = "orders.v1", idempotencyKey = "publish-once", });
         var first = await host.Backend.CallToolAsync("sereinflow_publish_run_message", arguments, CancellationToken.None);
@@ -121,9 +122,9 @@ public sealed class McpRunMessageToolTests
         var newGuidResult = Guid.NewGuid();
         var toHashSetResult27 = new[]
         {
-            McpPermissionDto.RunMessagePublish
+            SereinFlowPermission.RunMessagePublish
         }.ToHashSet();
-        var mcpPrincipal28 = new McpPrincipal("other-project-caller", newGuidResult, toHashSetResult27);
+        var mcpPrincipal28 = ApiKeyActors.Create("other-project-caller", newGuidResult, toHashSetResult27);
         host.SetPrincipal(mcpPrincipal28);
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
@@ -143,9 +144,9 @@ public sealed class McpRunMessageToolTests
         using var host = CreateHost(run, delivery);
         var toHashSetResult31 = new[]
         {
-            McpPermissionDto.RunMessagePublish
+            SereinFlowPermission.RunMessagePublish
         }.ToHashSet();
-        var mcpPrincipal32 = new McpPrincipal("run-message-caller", run.ProjectId, toHashSetResult31);
+        var mcpPrincipal32 = ApiKeyActors.Create("run-message-caller", run.ProjectId, toHashSetResult31);
         host.SetPrincipal(mcpPrincipal32);
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
@@ -176,9 +177,9 @@ public sealed class McpRunMessageToolTests
         using var host = CreateHost(null, delivery);
         var toHashSetResult37 = new[]
         {
-            McpPermissionDto.RunMessagePublish
+            SereinFlowPermission.RunMessagePublish
         }.ToHashSet();
-        var mcpPrincipal38 = new McpPrincipal("run-message-admin", null, toHashSetResult37, IsAdministrator: true);
+        var mcpPrincipal38 = ApiKeyActors.Create("run-message-admin", null, toHashSetResult37, IsAdministrator: true);
         host.SetPrincipal(mcpPrincipal38);
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
@@ -218,6 +219,7 @@ public sealed class McpRunMessageToolTests
         services.AddLogging();
         services.AddSereinFlowStorage(configuration, root);
         services.AddSereinFlowApplication();
+        services.AddTestAuthorization();
         services.AddSereinFlowMcp(configuration);
         if (run is not null)
         {
@@ -258,9 +260,9 @@ public sealed class McpRunMessageToolTests
             }
         }
 
-        public void SetPrincipal(McpPrincipal principal)
+        public void SetPrincipal(SereinFlowActor principal)
         {
-            Services.GetRequiredService<IMcpPrincipalAccessor>().Current = principal;
+            Services.GetRequiredService<ISereinFlowActorAccessor>().Current = principal;
         }
 
         public void Dispose()

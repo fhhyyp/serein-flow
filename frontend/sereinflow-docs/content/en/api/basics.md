@@ -14,15 +14,17 @@ GET /api/projects
 
 ## When a key is needed
 
-The official `SereinFlow.Api` host disables REST authentication by default for local development. In another ASP.NET Core host, REST authentication is required by default. `SereinFlow:Api:RequireAuthentication` determines the behavior.
+The official `SereinFlow.Api` host enables the optional `SereinFlow.Security.ApiKeys` library by default. Embedded applications select `UseHostSecurity()` to reuse their identity, resource policies and project scope provider without a second SereinFlow Key check. HTTP hosts must select a security mode; missing configuration fails startup.
 
-When enabled, send:
+Programmatic callers in Key mode send:
 
 ```http
 Authorization: Bearer <your key>
 ```
 
-Project, flow, and environment administration usually require an administrator key. Run routes check `run.execute`, `run.read`, or `run.message.publish`. Key management always requires an administrator key even when normal REST authentication is disabled. First administrator setup at `/mcp-keys/setup` accepts local requests only.
+Project, flow and environment administration generally require `workspace.manage`. Run routes check `run.execute`, `run.read` or `run.message.publish`. Key management requires `security.manage`; `POST /api/security/api-keys/initial-admin` requires a direct loopback request and an empty Key table.
+
+Browsers use a Bearer Key with `POST /api/security/session` to create an eight-hour HttpOnly, SameSite=Strict cookie session. Later requests revalidate the Key; `DELETE` signs out. REST, SignalR and SSE share credentials without long-lived keys in URLs. Anonymous `GET /api/security/capabilities` returns the mode and setup status. stdio uses a trusted local identity and needs no Key.
 
 The full secret is shown once on creation or rotation. Store it securely, never in documentation, source, or logs.
 

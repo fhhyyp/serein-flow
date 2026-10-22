@@ -5,7 +5,6 @@ namespace SereinFlow.Application.Persistence;
 /// Represents MCP API key entry data used by SereinFlow.
 /// 表示 SereinFlow 使用的MCPAPI密钥入口数据。
 /// </summary>
-public sealed record McpApiKeyEntry(string Id, Guid? ProjectId, string Name, string KeyPrefix, string SecretHash, string Salt, IReadOnlyList<McpPermissionDto> Permissions, DateTimeOffset CreatedAt, DateTimeOffset? ExpiresAt, DateTimeOffset? RevokedAt, DateTimeOffset? LastUsedAt, bool IsAdministrator = false);
 /// <summary>
 /// Represents MCP preview entry data used by SereinFlow.
 /// 表示 SereinFlow 使用的MCP预览入口数据。
@@ -21,19 +20,6 @@ public sealed record McpAuditEntry(Guid Id, string PrincipalId, string Operation
 /// 表示 SereinFlow 使用的MCP幂等入口数据。
 /// </summary>
 public sealed record McpIdempotencyEntry(Guid Id, string PrincipalId, string Operation, string KeyHash, string RequestHash, string ResponseJson, DateTimeOffset CreatedAt);
-public interface IMcpApiKeyStore
-{
-    Task<IReadOnlyList<McpApiKeyEntry>> ListAsync(CancellationToken cancellationToken = default);
-    Task<McpApiKeyEntry?> FindAsync(string id, CancellationToken cancellationToken = default);
-    Task AddAsync(McpApiKeyEntry entry, CancellationToken cancellationToken = default);
-    Task<bool> UpdateAsync(McpApiKeyEntry entry, CancellationToken cancellationToken = default);
-    /// <summary>
-    /// Updates usage telemetry without changing key authorization or revocation fields.
-    /// 只更新使用情况遥测，不更改密钥授权或撤销字段。
-    /// </summary>
-    Task<bool> UpdateLastUsedAsync(string id, DateTimeOffset lastUsedAt, CancellationToken cancellationToken = default);
-}
-
 public interface IMcpPreviewStore
 {
     Task<McpPreviewEntry?> FindAsync(Guid id, CancellationToken cancellationToken = default);

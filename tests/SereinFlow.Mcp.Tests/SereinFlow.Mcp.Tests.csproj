@@ -28,4 +28,5 @@
     <EmbeddedResource Include="tool-schemas.json" />
   </ItemGroup>
 
+  <ItemGroup><ProjectReference Include="../../src/SereinFlow.Security.ApiKeys/SereinFlow.Security.ApiKeys.csproj" /><Compile Include="../SecurityTestSupport.cs" Link="SecurityTestSupport.cs" /></ItemGroup>
 </Project>

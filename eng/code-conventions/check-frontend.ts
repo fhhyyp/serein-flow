@@ -318,6 +318,9 @@ function main(): void {
   let violationCount = emptyOffset;
   for (const file of uniqueFiles) {
     const absolutePath = path.join(repositoryRoot, file);
+    if (!fs.existsSync(absolutePath)) {
+      continue;
+    }
     const source = fs.readFileSync(absolutePath, 'utf8');
     const diagnostics = checkFile(source, file);
     for (const diagnostic of diagnostics) {

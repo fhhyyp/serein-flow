@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,7 +9,6 @@ using SereinFlow.Domain;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Api.IntegrationTests;
-
 public sealed class McpDebugIntegrationTests : IClassFixture<McpHostIntegrationTests.ApiFactory>
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();
@@ -31,10 +31,9 @@ public sealed class McpDebugIntegrationTests : IClassFixture<McpHostIntegrationT
             await getRequiredServiceResult1.AddAsync(project.Id, flow);
         }
 
-        var toHashSetResult = Enum.GetValues<McpPermissionDto>()
-            .ToHashSet();
-        var principal = new McpPrincipal("mcp-debug-integration-admin", null, toHashSetResult, IsAdministrator: true);
-        _factory.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = principal;
+        var toHashSetResult = Enum.GetValues<SereinFlowPermission>().ToHashSet();
+        var principal = ApiKeyActors.Create("mcp-debug-integration-admin", null, toHashSetResult, IsAdministrator: true);
+        _factory.Services.GetRequiredService<ISereinFlowActorAccessor>().Current = principal;
         var backend = _factory.Services.GetRequiredService<ISereinFlowMcpBackend>();
         var listed = await CallAsync<AiPageDto<AiRunSummaryDto>>(backend, "sereinflow_list_runs", new { projectId = project.Id, maxItems = 10 });
         Assert.Empty(listed.Items);

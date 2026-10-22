@@ -11,24 +11,24 @@ internal sealed class McpLibraryFamilyTools(
     ILibraryCatalogService _libraryCatalogService,
     McpIdempotencyService _mcpIdempotencyService,
     McpPreviewService _mcpPreviewService,
-    McpSecurityService _mcpSecurityService)
+    SereinFlowAccess _mcpSecurityService)
 {
-    [SereinFlowMcpTool("sereinflow_preview_library_family_assignment", McpPermissionDto.LibraryManage, ExecutionKind = McpToolExecutionKind.Mutation)]
+    [SereinFlowMcpTool("sereinflow_preview_library_family_assignment", SereinFlowPermission.LibraryManage, ExecutionKind = McpToolExecutionKind.Mutation)]
     internal async Task<LibraryFamilyAssignmentMcpPreviewDto> PreviewLibraryFamilyAssignmentAsync(
         SereinFlowMcpCaller context,
         LibraryFamilyAssignmentMcpRequestDto arguments,
         CancellationToken cancellationToken)
     {
         var principal = context.RequirePrincipal();
-        _mcpSecurityService.RequireAdministrator(principal);
-        _mcpSecurityService.Require(principal, McpPermissionDto.LibraryManage);
+        await _mcpSecurityService.RequireWorkspaceAsync(principal);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage);
         var validated = await ValidateLibraryFamilyAssignmentAsync(arguments, cancellationToken);
         var stored = new StoredLibraryFamilyAssignmentPreview(validated.Request, validated.Diagnostics, validated.CurrentFamily, validated.TargetFamily);
         var entry = await _mcpPreviewService.CreateAsync(LibraryErrorCodes.FamilyAssign, principal, null, null, null, stored, cancellationToken);
         return new LibraryFamilyAssignmentMcpPreviewDto(entry.Id, validated.Request, entry.ExpiresAt, entry.PreviewFingerprint, validated.Diagnostics.Count == 0, validated.Diagnostics, validated.CurrentFamily, validated.TargetFamily);
     }
 
-    [SereinFlowMcpTool("sereinflow_apply_library_family_assignment", McpPermissionDto.LibraryManage, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    [SereinFlowMcpTool("sereinflow_apply_library_family_assignment", SereinFlowPermission.LibraryManage, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
     internal async Task<object> ApplyLibraryFamilyAssignmentAsync(
         SereinFlowMcpCaller context,
         McpMutationApplyRequestDto arguments,
@@ -50,8 +50,8 @@ internal sealed class McpLibraryFamilyTools(
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a library family assignment. 此预览不是类库家族分配预览。");
         }
 
-        _mcpSecurityService.RequireAdministrator(principal);
-        _mcpSecurityService.Require(principal, McpPermissionDto.LibraryManage);
+        await _mcpSecurityService.RequireWorkspaceAsync(principal);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage);
         var stored = McpPreviewService.Deserialize<StoredLibraryFamilyAssignmentPreview>(entry);
         var validated = await ValidateLibraryFamilyAssignmentAsync(stored.Request, cancellationToken);
         if (validated.Diagnostics.Count > 0)

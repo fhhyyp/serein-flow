@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System.Text.Json;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
@@ -10,35 +11,47 @@ public sealed class McpSecurityAndIdempotencyTests
     public async Task BootstrapKeyAuthenticatesAsAdministrator()
     {
         var inMemoryApiKeyStore = new InMemoryApiKeyStore();
-        var security = new McpSecurityService(inMemoryApiKeyStore, "bootstrap-secret");
+        var security = new ApiKeyService(inMemoryApiKeyStore, "bootstrap-secret");
         var principal = await security.AuthenticateAsync("bootstrap-secret");
         Assert.NotNull(principal);
-        Assert.True(principal.IsAdministrator);
-        Assert.Null(principal.ProjectId);
-        Assert.Contains(McpPermissionDto.RunMessagePublish, principal.Permissions);
+        {
+            var actual1 = principal.Principal.HasClaim("sereinflow.admin", "true");
+            Assert.True(actual1);
+        }
+
+        {
+            var actual2 = SecurityTestSupport.ProjectId(principal);
+            Assert.Null(actual2);
+        }
+
+        {
+            var actual3 = SecurityTestSupport.Permissions(principal);
+            Assert.Contains(SereinFlowPermission.RunMessagePublish, actual3);
+        }
+
         var newGuidResult = Guid.NewGuid();
-        security.Require(principal, McpPermissionDto.SensitiveRead, newGuidResult);
+        security.Require(principal, SereinFlowPermission.SensitiveRead, newGuidResult);
     }
 
     [Fact]
     public async Task ProjectKeyCannotCrossProjectOrReadSensitiveDataWithoutPermission()
     {
         var newGuidResult2 = Guid.NewGuid();
-        var createMcpApiKeyRequestDto = new CreateMcpApiKeyRequestDto(newGuidResult2, "project-key", [McpPermissionDto.ProjectRead]);
-        var created = McpSecurityService.CreateKeyWithEntry(createMcpApiKeyRequestDto);
+        var createMcpApiKeyRequestDto = new CreateApiKeyRequest(newGuidResult2, "project-key", [SereinFlowPermission.ProjectRead]);
+        var created = ApiKeyService.CreateKeyWithEntry(createMcpApiKeyRequestDto);
         var store = new InMemoryApiKeyStore(created.Entry);
-        var security = new McpSecurityService(store);
+        var security = new ApiKeyService(store);
         var principal = await security.AuthenticateAsync(created.Dto.Secret);
         Assert.NotNull(principal);
-        security.Require(principal, McpPermissionDto.ProjectRead, created.Entry.ProjectId!.Value);
-        Assert.Throws<McpSecurityException>(() =>
+        security.Require(principal, SereinFlowPermission.ProjectRead, created.Entry.ProjectId!.Value);
+        Assert.Throws<SereinFlowAccessException>(() =>
         {
             var newGuidResult1 = Guid.NewGuid();
-            security.Require(principal, McpPermissionDto.ProjectRead, newGuidResult1);
+            security.Require(principal, SereinFlowPermission.ProjectRead, newGuidResult1);
         });
-        Assert.Throws<McpSecurityException>(() =>
+        Assert.Throws<SereinFlowAccessException>(() =>
         {
-            security.Require(principal, McpPermissionDto.SensitiveRead, created.Entry.ProjectId.Value);
+            security.Require(principal, SereinFlowPermission.SensitiveRead, created.Entry.ProjectId.Value);
         });
     }
 
@@ -46,10 +59,10 @@ public sealed class McpSecurityAndIdempotencyTests
     public async Task SuccessfulAuthenticationWaitsForLastUsedTracking()
     {
         var newGuidResult3 = Guid.NewGuid();
-        var createMcpApiKeyRequestDto4 = new CreateMcpApiKeyRequestDto(newGuidResult3, "tracked-key", [McpPermissionDto.ProjectRead]);
-        var created = McpSecurityService.CreateKeyWithEntry(createMcpApiKeyRequestDto4);
+        var createMcpApiKeyRequestDto4 = new CreateApiKeyRequest(newGuidResult3, "tracked-key", [SereinFlowPermission.ProjectRead]);
+        var created = ApiKeyService.CreateKeyWithEntry(createMcpApiKeyRequestDto4);
         var store = new InMemoryApiKeyStore(created.Entry);
-        var security = new McpSecurityService(store);
+        var security = new ApiKeyService(store);
         var principal = await security.AuthenticateAsync(created.Dto.Secret);
         Assert.NotNull(principal);
         var listAsyncResult = await store.ListAsync();
@@ -60,45 +73,50 @@ public sealed class McpSecurityAndIdempotencyTests
     [Fact]
     public async Task AuthenticationTelemetryPreservesRevocationAfterTheKeySnapshotWasRead()
     {
-        var created = McpSecurityService.CreateKeyWithEntry(new CreateMcpApiKeyRequestDto(
-            Guid.NewGuid(), "concurrently-revoked", [McpPermissionDto.ProjectRead]));
+        var argument2 = Guid.NewGuid();
+        var argument1 = new CreateApiKeyRequest(argument2, "concurrently-revoked", [SereinFlowPermission.ProjectRead]);
+        var created = ApiKeyService.CreateKeyWithEntry(argument1);
         var store = new InMemoryApiKeyStore(created.Entry);
         var revokedAt = DateTimeOffset.UtcNow;
         store.AfterSnapshotRead = () =>
         {
             store.AfterSnapshotRead = null;
-            return store.UpdateAsync(created.Entry with { RevokedAt = revokedAt });
+            {
+                var result4 = store.UpdateAsync(created.Entry with { RevokedAt = revokedAt });
+                return result4;
+            }
         };
-        var security = new McpSecurityService(store);
-
+        var security = new ApiKeyService(store);
         await security.AuthenticateAsync(created.Dto.Secret);
-
         var persisted = await store.FindAsync(created.Entry.Id);
         Assert.NotNull(persisted);
         Assert.Equal(revokedAt, persisted.RevokedAt);
         Assert.NotNull(persisted.LastUsedAt);
-        Assert.Null(await security.AuthenticateAsync(created.Dto.Secret));
+        {
+            var actual5 = await security.AuthenticateAsync(created.Dto.Secret);
+            Assert.Null(actual5);
+        }
     }
 
     [Fact]
     public async Task ExpiredAndRevokedKeysCannotAuthenticate()
     {
         var newGuidResult5 = Guid.NewGuid();
-        var createMcpApiKeyRequestDto6 = new CreateMcpApiKeyRequestDto(newGuidResult5, "expired", []);
-        var expiredCreated = McpSecurityService.CreateKeyWithEntry(createMcpApiKeyRequestDto6);
+        var createMcpApiKeyRequestDto6 = new CreateApiKeyRequest(newGuidResult5, "expired", []);
+        var expiredCreated = ApiKeyService.CreateKeyWithEntry(createMcpApiKeyRequestDto6);
         var expired = expiredCreated.Entry with
         {
             ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1)
         };
         var newGuidResult7 = Guid.NewGuid();
-        var createMcpApiKeyRequestDto8 = new CreateMcpApiKeyRequestDto(newGuidResult7, "revoked", []);
-        var revokedCreated = McpSecurityService.CreateKeyWithEntry(createMcpApiKeyRequestDto8);
+        var createMcpApiKeyRequestDto8 = new CreateApiKeyRequest(newGuidResult7, "revoked", []);
+        var revokedCreated = ApiKeyService.CreateKeyWithEntry(createMcpApiKeyRequestDto8);
         var revoked = revokedCreated.Entry with
         {
             RevokedAt = DateTimeOffset.UtcNow
         };
         var inMemoryApiKeyStore9 = new InMemoryApiKeyStore(expired, revoked);
-        var security = new McpSecurityService(inMemoryApiKeyStore9);
+        var security = new ApiKeyService(inMemoryApiKeyStore9);
         var authenticateAsyncResult = await security.AuthenticateAsync(expiredCreated.Dto.Secret);
         Assert.Null(authenticateAsyncResult);
         var authenticateAsyncResult10 = await security.AuthenticateAsync(revokedCreated.Dto.Secret);
@@ -113,17 +131,18 @@ public sealed class McpSecurityAndIdempotencyTests
         var newGuidResult11 = Guid.NewGuid();
         var toHashSetResult = new[]
         {
-            McpPermissionDto.FlowWrite
+            SereinFlowPermission.FlowWrite
         }.ToHashSet();
-        var principal = new McpPrincipal("preview-caller", newGuidResult11, toHashSetResult);
+        var principal = ApiKeyActors.Create("preview-caller", newGuidResult11, toHashSetResult);
         var newGuidResult12 = Guid.NewGuid();
-        var preview = await service.CreateAsync("flow.patch", principal, principal.ProjectId, newGuidResult12, 1, new { value = "candidate" });
+        var argument3 = SecurityTestSupport.ProjectId(principal);
+        var preview = await service.CreateAsync("flow.patch", principal, argument3, newGuidResult12, 1, new { value = "candidate" });
         var evaluatedValue13 = preview with
         {
             ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1)
         };
         await store.UpdateAsync(evaluatedValue13);
-        var exception = await Assert.ThrowsAsync<McpSecurityException>(() =>
+        var exception = await Assert.ThrowsAsync<SereinFlowAccessException>(() =>
         {
             var requireAsyncResult = service.RequireAsync(preview.Id, preview.PreviewFingerprint, principal);
             return requireAsyncResult;
@@ -138,41 +157,46 @@ public sealed class McpSecurityAndIdempotencyTests
     {
         Assert.Throws<ArgumentException>(() =>
         {
-            var createMcpApiKeyRequestDto15 = new CreateMcpApiKeyRequestDto(null, "ordinary", []);
-            var createKeyWithEntryResult = McpSecurityService.CreateKeyWithEntry(createMcpApiKeyRequestDto15);
+            var createMcpApiKeyRequestDto15 = new CreateApiKeyRequest(null, "ordinary", []);
+            var createKeyWithEntryResult = ApiKeyService.CreateKeyWithEntry(createMcpApiKeyRequestDto15);
             return createKeyWithEntryResult;
         });
         Assert.Throws<ArgumentException>(() =>
         {
             var newGuidResult16 = Guid.NewGuid();
-            var createMcpApiKeyRequestDto17 = new CreateMcpApiKeyRequestDto(newGuidResult16, "admin", [], IsAdministrator: true);
-            var createKeyWithEntryResult18 = McpSecurityService.CreateKeyWithEntry(createMcpApiKeyRequestDto17);
+            var createMcpApiKeyRequestDto17 = new CreateApiKeyRequest(newGuidResult16, "admin", [], IsAdministrator: true);
+            var createKeyWithEntryResult18 = ApiKeyService.CreateKeyWithEntry(createMcpApiKeyRequestDto17);
             return createKeyWithEntryResult18;
         });
         Assert.Throws<ArgumentException>(() =>
         {
             var newGuidResult19 = Guid.NewGuid();
             var addSecondsResult = DateTimeOffset.UtcNow.AddSeconds(-1);
-            var createMcpApiKeyRequestDto20 = new CreateMcpApiKeyRequestDto(newGuidResult19, "expired", [], addSecondsResult);
-            var createKeyWithEntryResult21 = McpSecurityService.CreateKeyWithEntry(createMcpApiKeyRequestDto20);
+            var createMcpApiKeyRequestDto20 = new CreateApiKeyRequest(newGuidResult19, "expired", [], addSecondsResult);
+            var createKeyWithEntryResult21 = ApiKeyService.CreateKeyWithEntry(createMcpApiKeyRequestDto20);
             return createKeyWithEntryResult21;
         });
     }
 
     [Fact]
-    public void PermissionWireNamesUseDottedContractAndReadLegacyNames()
+    public void PermissionWireNamesUseDottedContractWithoutPublicLegacyAliases()
     {
         var options = SereinJsonSerialization.CreateWebOptions();
-        var json = JsonSerializer.Serialize(McpPermissionDto.FlowWrite, options);
+        var json = JsonSerializer.Serialize(SereinFlowPermission.FlowWrite, options);
         Assert.Equal("\"flow.write\"", json);
-        var tryParseResult = McpPermissionNames.TryParse("project.read", out var dotted);
+        var tryParseResult = SereinFlowOperationNames.TryParse("project.read", out var dotted);
         Assert.True(tryParseResult);
-        Assert.Equal(McpPermissionDto.ProjectRead, dotted);
-        var tryParseResult22 = McpPermissionNames.TryParse("FlowWrite", out var legacy);
-        Assert.True(tryParseResult22);
-        Assert.Equal(McpPermissionDto.FlowWrite, legacy);
-        var deserializeResult = JsonSerializer.Deserialize<McpPermissionDto>("\"libraryImport\"", options);
-        Assert.Equal(McpPermissionDto.LibraryImport, deserializeResult);
+        Assert.Equal(SereinFlowPermission.ProjectRead, dotted);
+        var legacyAccepted = SereinFlowOperationNames.TryParse("FlowWrite", out _);
+        Assert.False(legacyAccepted);
+        Assert.Throws<JsonException>(() =>
+        {
+            JsonSerializer.Deserialize<SereinFlowPermission>("\"libraryImport\"", options);
+        });
+        Assert.Throws<JsonException>(() =>
+        {
+            JsonSerializer.Deserialize<SereinFlowPermission>("0", options);
+        });
     }
 
     [Fact]
@@ -183,7 +207,7 @@ public sealed class McpSecurityAndIdempotencyTests
         await service.SaveAsync("principal", "flow.patch", "request-1", new { accepted = true }, "{\"value\":1}");
         var findAsyncResult23 = await service.FindAsync("principal", "flow.patch", "request-1", "{\"value\":1}");
         Assert.NotNull(findAsyncResult23);
-        var exception = await Assert.ThrowsAsync<McpSecurityException>(() =>
+        var exception = await Assert.ThrowsAsync<SereinFlowAccessException>(() =>
         {
             var findAsyncResult = service.FindAsync("principal", "flow.patch", "request-1", "{\"value\":2}");
             return findAsyncResult;
@@ -191,31 +215,36 @@ public sealed class McpSecurityAndIdempotencyTests
         Assert.Equal(McpErrorCodes.IdempotencyConflict, exception.Code);
     }
 
-    private sealed class InMemoryApiKeyStore(params McpApiKeyEntry[] entries) : IMcpApiKeyStore
+    private sealed class InMemoryApiKeyStore(params ApiKeyEntry[] entries) : IApiKeyStore
     {
-        private readonly List<McpApiKeyEntry> _entries = entries.ToList();
+        private readonly List<ApiKeyEntry> _entries = entries.ToList();
         public Func<Task>? AfterSnapshotRead { get; set; }
-        public async Task<IReadOnlyList<McpApiKeyEntry>> ListAsync(CancellationToken cancellationToken = default)
+
+        public async Task<IReadOnlyList<ApiKeyEntry>> ListAsync(CancellationToken cancellationToken = default)
         {
             var snapshot = _entries.ToArray();
-            if (AfterSnapshotRead is { } callback) await callback();
+            if (AfterSnapshotRead is { } callback)
+            {
+                await callback();
+            }
+
             return snapshot;
         }
 
-        public Task<McpApiKeyEntry?> FindAsync(string id, CancellationToken cancellationToken = default)
+        public Task<ApiKeyEntry?> FindAsync(string id, CancellationToken cancellationToken = default)
         {
             var firstOrDefaultResult = _entries.FirstOrDefault(item => item.Id == id);
             var fromResultResult24 = Task.FromResult(firstOrDefaultResult);
             return fromResultResult24;
         }
 
-        public Task AddAsync(McpApiKeyEntry entry, CancellationToken cancellationToken = default)
+        public Task AddAsync(ApiKeyEntry entry, CancellationToken cancellationToken = default)
         {
             _entries.Add(entry);
             return Task.CompletedTask;
         }
 
-        public Task<bool> UpdateAsync(McpApiKeyEntry entry, CancellationToken cancellationToken = default)
+        public Task<bool> UpdateAsync(ApiKeyEntry entry, CancellationToken cancellationToken = default)
         {
             var index = _entries.FindIndex(item => item.Id == entry.Id);
             if (index < 0)
@@ -232,9 +261,20 @@ public sealed class McpSecurityAndIdempotencyTests
         public Task<bool> UpdateLastUsedAsync(string id, DateTimeOffset lastUsedAt, CancellationToken cancellationToken = default)
         {
             var index = _entries.FindIndex(entry => entry.Id == id);
-            if (index < 0) return Task.FromResult(false);
-            _entries[index] = _entries[index] with { LastUsedAt = lastUsedAt };
-            return Task.FromResult(true);
+            if (index < 0)
+            {
+                var result6 = Task.FromResult(false);
+                return result6;
+            }
+
+            _entries[index] = _entries[index] with
+            {
+                LastUsedAt = lastUsedAt
+            };
+            {
+                var result7 = Task.FromResult(true);
+                return result7;
+            }
         }
     }
 

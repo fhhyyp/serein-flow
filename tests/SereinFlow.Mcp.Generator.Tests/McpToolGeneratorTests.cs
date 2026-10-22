@@ -94,14 +94,14 @@ public sealed class McpToolGeneratorTests
         var (run, compilation) = Generate("""
             namespace SereinFlow.Contracts
             {
-                public enum McpPermissionDto { Read }
+                public enum SereinFlowPermission { Read }
                 public enum FlowVersionTrackDto { Development }
             }
             namespace SereinFlow.Mcp.Integration
             {
                 public interface ISereinFlowMcpToolMetadata : Framework.IMcpToolMetadata
                 {
-                    Contracts.McpPermissionDto[] Permissions { get; }
+                    Contracts.SereinFlowPermission[] Permissions { get; }
                     bool HasAuditTrack { get; }
                     Contracts.FlowVersionTrackDto AuditTrack { get; }
                 }
@@ -110,7 +110,7 @@ public sealed class McpToolGeneratorTests
             {
                 public static class Tools
                 {
-                    [SereinFlowMcpTool("read", Contracts.McpPermissionDto.Read, Description = "Read.", HasAuditTrack = true)]
+                    [SereinFlowMcpTool("read", Contracts.SereinFlowPermission.Read, Description = "Read.", HasAuditTrack = true)]
                     public static System.Threading.Tasks.Task<string> Read() => System.Threading.Tasks.Task.FromResult("");
                 }
             }
@@ -145,6 +145,10 @@ public sealed class McpToolGeneratorTests
         Assert.Empty(compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
         var output = Assert.Single(Assert.Single(run.Results).GeneratedSources, source => source.HintName == "McpToolRegistry.g.cs").SourceText.ToString();
         Assert.Contains("handler.@Echo(request, context.GetValue<global::Sample.Caller>(), cancellationToken)", output);
+        var bound = output.IndexOf("McpRequestBinder.Bind<", StringComparison.Ordinal);
+        var authorized = output.IndexOf("context.AuthorizeRequestAsync(request, cancellationToken)", StringComparison.Ordinal);
+        var invoked = output.IndexOf("handler.@Echo(", StringComparison.Ordinal);
+        Assert.True(bound >= 0 && authorized > bound && invoked > authorized);
         Assert.Contains("new global::Sample.Tools(", output);
         Assert.Contains("GetRequiredService<global::Sample.Service>(provider)", output);
         Assert.DoesNotContain("System.Reflection", output);

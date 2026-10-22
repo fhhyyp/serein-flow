@@ -20,7 +20,7 @@ using SereinFlow.Contracts;
 using var client = new SereinFlowClient(new SereinFlowClientOptions
 {
     BaseAddress = new Uri("http://127.0.0.1:8188/"),
-    ApiKey = configuration["SereinFlow:ApiKey"],
+    BearerTokenProvider = _ => ValueTask.FromResult(configuration["SereinFlow:BearerToken"]),
 });
 
 var run = await client.Flows.StartRunAsync(
@@ -45,7 +45,7 @@ using SereinFlow.Client.DependencyInjection;
 builder.Services.AddSereinFlowClient(options =>
 {
     options.BaseAddress = new Uri("http://127.0.0.1:8188/");
-    options.ApiKey = builder.Configuration["SereinFlow:ApiKey"];
+    options.BearerTokenProvider = _ => ValueTask.FromResult(builder.Configuration["SereinFlow:BearerToken"]);
 });
 ```
 
@@ -99,9 +99,7 @@ await download.Content.CopyToAsync(file);
 
 ## 鉴权和错误
 
-API key 通过 `Authorization: Bearer` 发送。服务端可通过
-`SereinFlow:Api:RequireAuthentication=true` 开启运行相关 REST 端点的鉴权。
-调用端需要使用 MCP key 的相应权限：
+HTTP 宿主必须显式选择 `UseHostSecurity()` 或可选库的 `UseApiKeySecurity()`。独立宿主默认启用 Key 库；嵌入宿主复用现有身份与资源策略。初始化管理员接口为 `/api/security/api-keys/initial-admin`，仅允许直接回环访问。旧授权开关已移除。
 
 - `run.execute`：启动、公开调用和取消；
 - `run.read`：运行、输出、事件和工件读取；

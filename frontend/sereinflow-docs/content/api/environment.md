@@ -15,11 +15,11 @@
 
 | 方法 | 路径 | 做什么 |
 | --- | --- | --- |
-| `POST` | `/api/environment/settings/mcp-keys/setup` | 首次创建管理员密钥，仅本机可用 |
-| `GET` | `/api/environment/settings/mcp-keys` | 列出密钥信息 |
-| `POST` | `/api/environment/settings/mcp-keys` | 创建新密钥 |
-| `POST` | `/api/environment/settings/mcp-keys/{id}/rotate` | 轮换密钥 |
-| `DELETE` | `/api/environment/settings/mcp-keys/{id}` | 撤销密钥 |
+| `POST` | `/api/security/api-keys/initial-admin` | 首次创建管理员密钥，仅本机可用 |
+| `GET` | `/api/security/api-keys` | 列出密钥信息 |
+| `POST` | `/api/security/api-keys` | 创建新密钥 |
+| `POST` | `/api/security/api-keys/{id}/rotate` | 轮换密钥 |
+| `DELETE` | `/api/security/api-keys/{id}` | 撤销密钥 |
 
 除了首次设置，密钥管理接口都要求管理员密钥，即使普通 REST 鉴权关闭也一样。新建密钥时可指定项目范围、名称、权限和到期时间。创建或轮换后的完整 Secret 只显示一次，请妥善保存；列表接口不会再次返回完整 Secret。
 

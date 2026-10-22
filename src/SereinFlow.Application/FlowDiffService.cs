@@ -6,7 +6,6 @@ using System.Text.Json.Nodes;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
-
 /// <summary>
 /// Compares flow definitions and describes their changes.
 /// 比较流程定义并描述其中的变更。
@@ -31,9 +30,7 @@ public sealed class FlowDiffService
         AddScalar(changes, "runPolicy", serializeResult6, serializeResult7);
         var beforeCanvases = before.Canvases.ToDictionary(item => item.Id, StringComparer.Ordinal);
         var afterCanvases = after.Canvases.ToDictionary(item => item.Id, StringComparer.Ordinal);
-        foreach (var id in beforeCanvases.Keys
-            .Union(afterCanvases.Keys)
-            .Order(StringComparer.Ordinal))
+        foreach (var id in beforeCanvases.Keys.Union(afterCanvases.Keys).Order(StringComparer.Ordinal))
         {
             if (!beforeCanvases.TryGetValue(id, out var oldCanvas))
             {
@@ -103,18 +100,16 @@ public sealed class FlowDiffService
         return evaluatedValue12;
         IReadOnlyList<FlowDiffItemDto> resolveToArrayResult()
         {
-            var toArrayResult = diff.Changes
-                .Select(static change =>
+            var toArrayResult = diff.Changes.Select(static change =>
+            {
+                var evaluatedValue11 = change with
                 {
-                    var evaluatedValue11 = change with
-                    {
-                        Before = RedactJson(change.Before),
-                        After = RedactJson(change.After),
-                        IsSensitive = IsSensitiveChange(change) || change.IsSensitive,
-                    };
-                    return evaluatedValue11;
-                })
-                .ToArray();
+                    Before = RedactJson(change.Before),
+                    After = RedactJson(change.After),
+                    IsSensitive = IsSensitiveChange(change) || change.IsSensitive,
+                };
+                return evaluatedValue11;
+            }).ToArray();
             return toArrayResult;
         }
     }
@@ -129,41 +124,35 @@ public sealed class FlowDiffService
         return evaluatedValue24;
         IReadOnlyList<CanvasDto> resolveToArrayResult21()
         {
-            var toArrayResult23 = definition.Canvases
-                .Select(static canvas =>
+            var toArrayResult23 = definition.Canvases.Select(static canvas =>
+            {
+                var evaluatedValue20 = canvas with
                 {
-                    var evaluatedValue20 = canvas with
+                    Nodes = resolveToArrayResult17(),
+                };
+                return evaluatedValue20;
+                IReadOnlyList<NodeDto> resolveToArrayResult17()
+                {
+                    var toArrayResult19 = canvas.Nodes.Select(static node =>
                     {
-                        Nodes = resolveToArrayResult17(),
-                    };
-                    return evaluatedValue20;
-                    IReadOnlyList<NodeDto> resolveToArrayResult17()
-                    {
-                        var toArrayResult19 = canvas.Nodes
-                            .Select(static node =>
+                        var evaluatedValue16 = node with
+                        {
+                            Parameters = resolveToArrayResult13(),
+                            Script = node.Script is null ? null : node.Script with
                             {
-                                var evaluatedValue16 = node with
-                                {
-                                    Parameters = resolveToArrayResult13(),
-                                    Script = node.Script is null ? null : node.Script with
-                                    {
-                                        Source = "[redacted]"
-                                    },
-                                };
-                                return evaluatedValue16;
-                                IReadOnlyList<NodeParameterDto> resolveToArrayResult13()
-                                {
-                                    var toArrayResult15 = node.Parameters
-                                        .Select(static parameter => parameter with { ValueJson = null, Ui = parameter.Ui is null ? null : parameter.Ui with { LiteralValue = null, ProjectInputKey = null, Expression = null, }, })
-                                        .ToArray();
-                                    return toArrayResult15;
-                                }
-                            })
-                            .ToArray();
-                        return toArrayResult19;
-                    }
-                })
-                .ToArray();
+                                Source = "[redacted]"
+                            },
+                        };
+                        return evaluatedValue16;
+                        IReadOnlyList<NodeParameterDto> resolveToArrayResult13()
+                        {
+                            var toArrayResult15 = node.Parameters.Select(static parameter => parameter with { ValueJson = null, Ui = parameter.Ui is null ? null : parameter.Ui with { LiteralValue = null, ProjectInputKey = null, Expression = null, }, }).ToArray();
+                            return toArrayResult15;
+                        }
+                    }).ToArray();
+                    return toArrayResult19;
+                }
+            }).ToArray();
             return toArrayResult23;
         }
     }
@@ -250,9 +239,7 @@ public sealed class FlowDiffService
     {
         var oldItems = before.ToDictionary(key, StringComparer.Ordinal);
         var newItems = after.ToDictionary(key, StringComparer.Ordinal);
-        foreach (var id in oldItems.Keys
-            .Union(newItems.Keys)
-            .Order(StringComparer.Ordinal))
+        foreach (var id in oldItems.Keys.Union(newItems.Keys).Order(StringComparer.Ordinal))
         {
             if (!oldItems.TryGetValue(id, out var oldItem))
             {
@@ -322,9 +309,7 @@ public sealed class FlowPatchService
     public FlowDefinitionDto Apply(FlowDefinitionDto definition, IReadOnlyList<FlowPatchCanonicalOperationDto> operations)
     {
         ArgumentNullException.ThrowIfNull(operations);
-        var toArrayResult39 = operations
-            .Select(FlowPatchContractNormalizer.ToLegacyOperation)
-            .ToArray();
+        var toArrayResult39 = operations.Select(FlowPatchContractNormalizer.ToLegacyOperation).ToArray();
         var applyResult = Apply(definition, toArrayResult39);
         return applyResult;
     }
@@ -541,9 +526,7 @@ public sealed class FlowPatchService
         };
         IReadOnlyList<NodeDto> resolveToArrayResult70()
         {
-            var toArrayResult71 = canvas.Nodes
-                .Where(node => node.Id != nodeId)
-                .ToArray();
+            var toArrayResult71 = canvas.Nodes.Where(node => node.Id != nodeId).ToArray();
             return toArrayResult71;
         }
     }
@@ -739,9 +722,7 @@ public sealed class FlowPatchService
         };
         IReadOnlyList<ConnectionDto> resolveToArrayResult78()
         {
-            var toArrayResult80 = updatedCanvas.Connections
-                .Where(connection => connection.Id != connectionId)
-                .ToArray();
+            var toArrayResult80 = updatedCanvas.Connections.Where(connection => connection.Id != connectionId).ToArray();
             return toArrayResult80;
         }
     }

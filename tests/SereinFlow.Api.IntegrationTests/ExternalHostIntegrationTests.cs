@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System.Net.Http;
 using System.Net;
 using System.Net.Http.Headers;
@@ -27,6 +28,7 @@ public sealed class ExternalHostIntegrationTests
         });
         services.AddSereinFlow(options =>
         {
+            options.UseApiKeySecurity();
             options.UseWebApi();
         });
         Assert.Throws<InvalidOperationException>(() =>
@@ -59,6 +61,7 @@ public sealed class ExternalHostIntegrationTests
         builder.Configuration.AddInMemoryCollection(dictionary);
         builder.Services.AddSereinFlow(options =>
         {
+            options.UseApiKeySecurity();
             options.UseWebApi();
         });
         var existsResult = Directory.Exists(dataRoot);
@@ -95,6 +98,7 @@ public sealed class ExternalHostIntegrationTests
         builder.Configuration.AddInMemoryCollection(dictionary5);
         builder.Services.AddSereinFlow(options =>
         {
+            options.UseApiKeySecurity();
             options.UseWebApi();
         });
         await using var app = builder.Build();
@@ -128,6 +132,7 @@ public sealed class ExternalHostIntegrationTests
         builder.Configuration.AddInMemoryCollection(dictionary8);
         builder.Services.AddSereinFlow(options =>
         {
+            options.UseApiKeySecurity();
             options.UseWebApi();
         });
         builder.WebHost.ConfigureKestrel(kestrel => kestrel.Limits.MaxRequestBodySize = 1_000_000);
@@ -166,11 +171,12 @@ public sealed class ExternalHostIntegrationTests
         {
             ["SereinFlow:DataRoot"] = dataRoot.Path,
             ["SereinFlow:WorkerRunnerPath"] = FindRunnerPath(),
-            ["SereinFlow:Mcp:BootstrapAdminKey"] = "external-host-test-key",
+            ["SereinFlow:Security:ApiKeys:BootstrapAdminKey"] = "external-host-test-key",
         };
         builder.Configuration.AddInMemoryCollection(dictionary13);
         builder.Services.AddSereinFlow(options =>
         {
+            options.UseApiKeySecurity();
             if (webApi)
             {
                 options.UseWebApi(api =>
@@ -243,7 +249,7 @@ public sealed class ExternalHostIntegrationTests
         )
         {
             var evaluatedValue10 = (await client.PostAsync(hub, content: null)).StatusCode;
-            Assert.Equal(webApi ? HttpStatusCode.OK : HttpStatusCode.NotFound, evaluatedValue10);
+            Assert.Equal(webApi ? HttpStatusCode.Unauthorized : HttpStatusCode.NotFound, evaluatedValue10);
         }
 
         if (mcp)

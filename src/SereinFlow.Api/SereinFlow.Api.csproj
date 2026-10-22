@@ -25,4 +25,5 @@
       Properties="Configuration=$(Configuration)" />
   </Target>
 
+  <ItemGroup><ProjectReference Include="../SereinFlow.Security.ApiKeys/SereinFlow.Security.ApiKeys.csproj" /></ItemGroup>
 </Project>

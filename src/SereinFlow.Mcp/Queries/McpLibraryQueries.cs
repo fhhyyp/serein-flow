@@ -11,24 +11,25 @@ internal sealed class McpLibraryQueries(
     ILibraryCatalogService _libraryCatalogService,
     IProjectLibraryReferenceRepository _projectLibraryReferenceRepository,
     LibraryUpgradeService _libraryUpgradeService,
-    McpSecurityService security,
+    SereinFlowAccess security,
     ProjectLibraryService _projectLibraryService)
 {
     internal async Task<AiPageDto<AiLibrarySummaryDto>> ReadLibrariesAsync(
-        McpPrincipal? principal,
+        SereinFlowActor? principal,
         CancellationToken cancellationToken,
         LibraryListScope listScope = LibraryListScope.Active,
         AiReadModelOptions? options = null)
     {
-        security.Require(principal, McpPermissionDto.LibraryRead);
-        if (!IsProjectScoped(principal))
+        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead);
+        var scope = await security.GetScopeAsync(principal!, SereinFlowPermission.LibraryRead, cancellationToken);
+        if (scope.AllProjects)
         {
             return listScope == LibraryListScope.Archived
                 ? await service.ListArchivedLibrariesAsync(options, cancellationToken)
                 : await service.ListLibrariesAsync(listScope == LibraryListScope.All, options, cancellationToken);
         }
 
-        var references = await _projectLibraryReferenceRepository.ListByProjectAsync(principal!.ProjectId!.Value, cancellationToken);
+        var references = await VisibleReferencesAsync(scope, cancellationToken);
         var maxItems = (options ?? new()).Normalize().MaxItems;
         var items = new List<AiLibrarySummaryDto>(maxItems + 1);
         var libraryIds = references
@@ -71,18 +72,19 @@ internal sealed class McpLibraryQueries(
     }
 
     internal async Task<AiLibrarySummaryDto?> ReadLibraryAsync(
-        McpPrincipal? principal,
+        SereinFlowActor? principal,
         string libraryId,
         CancellationToken cancellationToken)
     {
-        security.Require(principal, McpPermissionDto.LibraryRead);
+        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead);
+        var scope = await security.GetScopeAsync(principal!, SereinFlowPermission.LibraryRead, cancellationToken);
         var library = await service.GetLibraryAsync(libraryId, cancellationToken);
-        if (library is not null && IsProjectScoped(principal))
+        if (library is not null && !scope.AllProjects)
         {
-            var referenced = await _projectLibraryReferenceRepository.IsReferencedAsync(principal!.ProjectId!.Value, library.Id, cancellationToken);
+            var referenced = (await VisibleReferencesAsync(scope, cancellationToken)).Any(reference => string.Equals(reference.LibraryId, library.Id, StringComparison.OrdinalIgnoreCase));
             if (!referenced)
             {
-                throw new McpSecurityException(McpErrorCodes.LibraryAccessDenied, "The MCP caller cannot access this library artifact. MCP 调用方无权访问此类库制品。", StatusCodes.Status403Forbidden);
+                throw new SereinFlowAccessException(McpErrorCodes.LibraryAccessDenied, "The MCP caller cannot access this library artifact. MCP 调用方无权访问此类库制品。", StatusCodes.Status403Forbidden);
             }
         }
 
@@ -90,16 +92,17 @@ internal sealed class McpLibraryQueries(
     }
 
     internal async Task<AiPageDto<LibraryFamilyDto>> ReadLibraryFamiliesAsync(
-        McpPrincipal? principal,
+        SereinFlowActor? principal,
         bool includeArchivedArtifacts,
         AiReadModelOptions options,
         CancellationToken cancellationToken)
     {
-        security.Require(principal, McpPermissionDto.LibraryRead);
+        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead);
+        var scope = await security.GetScopeAsync(principal!, SereinFlowPermission.LibraryRead, cancellationToken);
         var normalized = options.Normalize();
         var families = await _libraryCatalogService.ListFamiliesAsync(includeArchivedArtifacts, cancellationToken);
-        var visibleFamilies = IsProjectScoped(principal)
-            ? await ProjectVisibleFamiliesAsync(principal!.ProjectId!.Value, families, cancellationToken)
+        var visibleFamilies = !scope.AllProjects
+            ? await ProjectVisibleFamiliesAsync(scope, families, cancellationToken)
             : families;
         var items = visibleFamilies.Take(normalized.MaxItems + 1).ToArray();
         var hasMore = items.Length > normalized.MaxItems;
@@ -108,22 +111,23 @@ internal sealed class McpLibraryQueries(
     }
 
     internal async Task<LibraryFamilyDto?> ReadLibraryFamilyAsync(
-        McpPrincipal? principal,
+        SereinFlowActor? principal,
         string familyId,
         CancellationToken cancellationToken)
     {
-        security.Require(principal, McpPermissionDto.LibraryRead);
+        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead);
+        var scope = await security.GetScopeAsync(principal!, SereinFlowPermission.LibraryRead, cancellationToken);
         var families = await _libraryCatalogService.ListFamiliesAsync(includeArchivedArtifacts: true, cancellationToken: cancellationToken);
-        var visible = IsProjectScoped(principal) ? await ProjectVisibleFamiliesAsync(principal!.ProjectId!.Value, families, cancellationToken) : families;
+        var visible = !scope.AllProjects ? await ProjectVisibleFamiliesAsync(scope, families, cancellationToken) : families;
         return visible.SingleOrDefault(item => string.Equals(item.Id, familyId, StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task<IReadOnlyList<LibraryFamilyDto>> ProjectVisibleFamiliesAsync(
-        Guid projectId,
+        ProjectAccessScope scope,
         IReadOnlyList<LibraryFamilyDto> families,
         CancellationToken cancellationToken)
     {
-        var references = await _projectLibraryReferenceRepository.ListByProjectAsync(projectId, cancellationToken);
+        var references = await VisibleReferencesAsync(scope, cancellationToken);
         var referencedArtifactIds = references
             .Select(static reference => reference.LibraryId)
             .Where(static id => !string.IsNullOrWhiteSpace(id))
@@ -156,16 +160,24 @@ internal sealed class McpLibraryQueries(
         };
     }
 
+    private async Task<IReadOnlyList<ProjectLibraryReference>> VisibleReferencesAsync(ProjectAccessScope scope, CancellationToken cancellationToken)
+    {
+        var references = new List<ProjectLibraryReference>();
+        foreach (var project in scope.ProjectIds)
+            references.AddRange(await _projectLibraryReferenceRepository.ListByProjectAsync(project, cancellationToken));
+        return references;
+    }
+
     private static Version ParseSemanticVersion(string value)
         => Version.TryParse(value?.Trim().TrimStart('v', 'V'), out var version) ? version : new Version(0, 0);
 
     internal async Task<AiPageDto<ProjectLibraryReferenceDto>> ReadProjectLibrariesAsync(
-        McpPrincipal? principal,
+        SereinFlowActor? principal,
         Guid projectId,
         AiReadModelOptions options,
         CancellationToken cancellationToken)
     {
-        security.Require(principal, McpPermissionDto.LibraryRead, projectId);
+        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead, projectId);
         var result = await _projectLibraryService.ListAsync(projectId, cancellationToken);
         if (!result.IsSuccess)
         {
@@ -183,12 +195,12 @@ internal sealed class McpLibraryQueries(
     }
 
     internal async Task<LibraryUpgradePlanDto> ReadLibraryUpgradeAsync(
-        McpPrincipal? principal,
+        SereinFlowActor? principal,
         Guid projectId,
         Guid upgradeId,
         CancellationToken cancellationToken)
     {
-        security.Require(principal, McpPermissionDto.LibraryRead, projectId);
+        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead, projectId);
         var result = await _libraryUpgradeService.GetPlanAsync(projectId, upgradeId, cancellationToken);
         if (!result.IsSuccess || result.Value is null)
         {

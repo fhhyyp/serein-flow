@@ -24,24 +24,14 @@ internal static class McpStdioHost
         builder.Services.AddSignalR();
         builder.Services.AddSereinFlowMcp(builder.Configuration, builder.Environment.ContentRootPath);
         builder.Services.AddSereinFlowExecution(builder.Configuration, builder.Environment.ContentRootPath);
-        var apiKey = builder.Configuration["SereinFlow:Mcp:Stdio:ApiKey"];
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            throw new InvalidOperationException("SereinFlow:Mcp:Stdio:ApiKey must be configured explicitly for --mcp-stdio. 使用 --mcp-stdio 时必须显式配置 SereinFlow:Mcp:Stdio:ApiKey。");
-        }
-
+        builder.Services.AddSereinFlowLocalAccess();
         using var host = builder.Build();
-        var principalAccessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        var principalAccessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
         var requestContextAccessor = host.Services.GetRequiredService<IMcpRequestContextAccessor>();
-        var security = host.Services.GetRequiredService<McpSecurityService>();
-        var principal = await security.AuthenticateAsync(apiKey, CancellationToken.None);
-        if (principal is null)
-        {
-            throw new InvalidOperationException("The configured stdio MCP API key is invalid, expired or revoked. 配置的 stdio MCP API 密钥无效、已过期或已撤销。");
-        }
-
-        principalAccessor.Current = principal;
-        requestContextAccessor.Current = new McpRequestContext(principal, "stdio");
+        var principal = LocalTrustedAuthorization.CreateActor(storageOptions.DataRoot);
+        using var actorScope = principalAccessor.Push(principal);
+        var previousContext = requestContextAccessor.Current;
+        requestContextAccessor.Current = new McpRequestContext("stdio");
         try
         {
             var getRequiredServiceResult = host.Services.GetRequiredService<SereinFlowMcpServer>();
@@ -49,8 +39,7 @@ internal static class McpStdioHost
         }
         finally
         {
-            requestContextAccessor.Current = null;
-            principalAccessor.Current = null;
+            requestContextAccessor.Current = previousContext;
         }
     }
 }

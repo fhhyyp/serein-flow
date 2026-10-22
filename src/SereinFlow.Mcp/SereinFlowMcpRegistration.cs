@@ -101,7 +101,7 @@ public static class SereinFlowMcpServiceCollectionExtensions
                 policy.AllowAnyHeader().AllowAnyMethod();
                 if (options.AllowedOrigins.Length > 0)
                 {
-                    policy.WithOrigins(options.AllowedOrigins);
+                    policy.WithOrigins(options.AllowedOrigins).AllowCredentials();
                 }
                 else
                 {
@@ -110,12 +110,7 @@ public static class SereinFlowMcpServiceCollectionExtensions
             });
         });
         services.TryAddScoped<ISereinLangCompiler, SereinLangCompiler>();
-        services.TryAddScoped<McpSecurityService>(serviceProvider =>
-        {
-            var store = serviceProvider.GetRequiredService<IMcpApiKeyStore>();
-            var bootstrapKey = (configuration ?? serviceProvider.GetRequiredService<IConfiguration>())["SereinFlow:Mcp:BootstrapAdminKey"];
-            return new McpSecurityService(store, bootstrapKey);
-        });
+        services.AddSereinFlowAccess();
         services.TryAddSingleton<IMcpRequestContextAccessor, McpRequestContextAccessor>();
         services.TryAddSingleton<McpHttpSessionRegistry>();
         services.TryAddSingleton<McpRequestLimiter>(serviceProvider =>
@@ -157,7 +152,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
         var getEndpoint = endpoints.MapMethods(pattern, ["GET"],
             static () => Results.StatusCode(StatusCodes.Status405MethodNotAllowed))
             .RequireCors("sereinflow-mcp");
-        var mapDeleteResult = endpoints.MapDelete(pattern, async (HttpContext context, McpSecurityService security, McpHttpSessionRegistry sessions, CancellationToken cancellationToken) =>
+        var mapDeleteResult = endpoints.MapDelete(pattern, async (HttpContext context, SereinFlowAccess security, McpHttpSessionRegistry sessions, CancellationToken cancellationToken) =>
         {
             var principal = await AuthenticateAsync(context, security, cancellationToken);
             if (principal is null)
@@ -174,7 +169,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
             return Results.NoContent();
         });
         var deleteEndpoint = mapDeleteResult.RequireCors("sereinflow-mcp");
-        var mapPostResult = endpoints.MapPost(pattern, async (HttpContext context, SereinFlowMcpServer server, McpSecurityService security, IMcpPrincipalAccessor principalAccessor, IMcpRequestContextAccessor requestContextAccessor, McpHttpSessionRegistry sessions, McpRequestLimiter limiter, CancellationToken cancellationToken) =>
+        var mapPostResult = endpoints.MapPost(pattern, async (HttpContext context, SereinFlowMcpServer server, SereinFlowAccess security, ISereinFlowActorAccessor principalAccessor, IMcpRequestContextAccessor requestContextAccessor, McpHttpSessionRegistry sessions, McpRequestLimiter limiter, CancellationToken cancellationToken) =>
         {
             var maxRequestBytes = FileUploadLimits.GetMcpRequestBodyLimit(fileUploadSettings.MaxLibraryUploadBytes, options.MaxRequestBytes);
             if (context.Request.ContentLength is > 0 && context.Request.ContentLength > maxRequestBytes)
@@ -224,8 +219,9 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                     return Results.Json(new { error = new { code = McpErrorCodes.SessionRequired, message = "A valid Mcp-Session-Id is required. 必须提供有效的 Mcp-Session-Id。" } }, statusCode: StatusCodes.Status400BadRequest);
                 }
 
-                principalAccessor.Current = principal;
-                requestContextAccessor.Current = new McpRequestContext(principal, "http", sessionId);
+                using var actorScope = principalAccessor.Push(principal);
+                var previousContext = requestContextAccessor.Current;
+                requestContextAccessor.Current = new McpRequestContext("http", sessionId);
                 using var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 requestTimeout.CancelAfter(TimeSpan.FromSeconds(options.MaxToolExecutionSeconds));
                 try
@@ -256,8 +252,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                 }
                 finally
                 {
-                    requestContextAccessor.Current = null;
-                    principalAccessor.Current = null;
+                    requestContextAccessor.Current = previousContext;
                 }
             }
         });
@@ -265,16 +260,10 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
         return new CompositeEndpointConventionBuilder(getEndpoint, deleteEndpoint, postEndpoint);
     }
 
-    private static async Task<McpPrincipal?> AuthenticateAsync(HttpContext context, McpSecurityService security, CancellationToken cancellationToken)
+    private static async Task<SereinFlowActor?> AuthenticateAsync(HttpContext context, SereinFlowAccess security, CancellationToken cancellationToken)
     {
-        var header = context.Request.Headers["Authorization"].FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(header) || !header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        var secret = header["Bearer ".Length..].Trim();
-        return await security.AuthenticateAsync(secret, cancellationToken);
+        await Task.CompletedTask;
+        return context.RequestServices.GetRequiredService<ISereinFlowActorAccessor>().Current;
     }
 
     private static IResult Unauthorized(HttpContext context)

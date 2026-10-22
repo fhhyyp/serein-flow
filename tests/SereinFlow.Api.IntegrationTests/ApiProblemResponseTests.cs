@@ -5,11 +5,9 @@ using SereinFlow.Application;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.IntegrationTests;
-
 public sealed class ApiProblemResponseTests
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateWebOptions();
-
     [Fact]
     public void ExplicitNullCodeIsRetainedAtTheTopLevel()
     {
@@ -102,14 +100,11 @@ public sealed class ApiProblemResponseTests
     {
         var controller = new ProblemController();
         using var document = JsonDocument.Parse("{\"path\":\"nodes[0]\",\"retryable\":false}");
-        var extensions = document.RootElement.EnumerateObject().ToDictionary(
-            property => property.Name,
-            property =>
-            {
-                var value = (object?)property.Value.Clone();
-                return value;
-            },
-            StringComparer.Ordinal);
+        var extensions = document.RootElement.EnumerateObject().ToDictionary(property => property.Name, property =>
+        {
+            var value = (object? )property.Value.Clone();
+            return value;
+        }, StringComparer.Ordinal);
         var response = controller.WithExtensions(extensions);
         var json = ReadProblem(response);
         var path = json.GetProperty("path").GetString();

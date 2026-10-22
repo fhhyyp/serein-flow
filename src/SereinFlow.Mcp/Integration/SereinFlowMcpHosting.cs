@@ -18,7 +18,7 @@ public static partial class SereinFlowMcpHosting
 {
     static partial void ConfigureServices(IServiceCollection services)
     {
-        services.TryAddSingleton<IMcpPrincipalAccessor, McpPrincipalAccessor>();
+        services.TryAddSingleton<ISereinFlowActorAccessor, SereinFlowActorAccessor>();
         services.TryAddScoped<SereinFlowMcpAuditProjection>();
         services.TryAddScoped<McpProjectQueries>();
         services.TryAddScoped<McpFlowQueries>();

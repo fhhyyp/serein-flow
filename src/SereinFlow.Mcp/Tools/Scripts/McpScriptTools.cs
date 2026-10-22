@@ -5,7 +5,7 @@ namespace SereinFlow.Mcp.Tools;
 
 internal sealed class McpScriptTools(ScriptAdapter.ISereinLangCompiler _sereinLangCompiler)
 {
-    [SereinFlowMcpTool("sereinflow_compile_sereinlang", McpPermissionDto.ScriptCompile)]
+    [SereinFlowMcpTool("sereinflow_compile_sereinlang", SereinFlowPermission.ScriptCompile)]
     internal async Task<ScriptCompileResultDto> CompileScriptAsync(
         SereinFlowMcpCaller context,
         ScriptCompileRequestDto arguments,

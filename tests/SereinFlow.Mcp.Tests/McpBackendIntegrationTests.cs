@@ -1,3 +1,4 @@
+using SereinFlow.Security.ApiKeys;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -40,10 +41,10 @@ public sealed class McpBackendIntegrationTests
             var testLibraryCatalog = new TestLibraryCatalog(availableLibrary, archivedLibrary);
             services.AddSingleton<ILibraryCatalogService>(testLibraryCatalog);
         });
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var toHashSetResult = Enum.GetValues<McpPermissionDto>()
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
+        var toHashSetResult = Enum.GetValues<SereinFlowPermission>()
             .ToHashSet();
-        accessor.Current = new McpPrincipal("catalog-admin", null, toHashSetResult, IsAdministrator: true);
+        accessor.Current = ApiKeyActors.Create("catalog-admin", null, toHashSetResult, IsAdministrator: true);
         var activeProject = Project.Create("Active MCP project");
         var archivedProject = Project.Create("Archived MCP project");
         archivedProject.Archive();
@@ -159,13 +160,13 @@ public sealed class McpBackendIntegrationTests
 
         await references.AddAsync(project.Id, availableLibrary.Id);
         await references.AddAsync(project.Id, archivedLibrary.Id);
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
         var toHashSetResult34 = new[]
         {
-            McpPermissionDto.ProjectRead,
-            McpPermissionDto.LibraryRead
+            SereinFlowPermission.ProjectRead,
+            SereinFlowPermission.LibraryRead
         }.ToHashSet();
-        accessor.Current = new McpPrincipal("catalog-project-key", project.Id, toHashSetResult34);
+        accessor.Current = ApiKeyActors.Create("catalog-project-key", project.Id, toHashSetResult34);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var serializeToElementResult35 = JsonSerializer.SerializeToElement(new { });
         var evaluatedValue36 = (await backend.CallToolAsync("sereinflow_list_projects", serializeToElementResult35, CancellationToken.None)).Value;
@@ -202,10 +203,10 @@ public sealed class McpBackendIntegrationTests
         {
             services.AddSingleton<ILibraryCatalogService>(catalog);
         });
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var toHashSetResult49 = Enum.GetValues<McpPermissionDto>()
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
+        var toHashSetResult49 = Enum.GetValues<SereinFlowPermission>()
             .ToHashSet();
-        accessor.Current = new McpPrincipal("family-admin", null, toHashSetResult49, IsAdministrator: true);
+        accessor.Current = ApiKeyActors.Create("family-admin", null, toHashSetResult49, IsAdministrator: true);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var serializeToElementResult50 = JsonSerializer.SerializeToElement(new { libraryId = artifact.Id, name = "Image processing", description = "Immutable versions of the image processing package", });
         var evaluatedValue51 = (await backend.CallToolAsync("sereinflow_preview_library_family_assignment", serializeToElementResult50, CancellationToken.None)).Value;
@@ -239,13 +240,13 @@ public sealed class McpBackendIntegrationTests
             var testLibraryCatalog58 = new TestLibraryCatalog(artifact);
             services.AddSingleton<ILibraryCatalogService>(testLibraryCatalog58);
         });
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
         var newGuidResult = Guid.NewGuid();
         var toHashSetResult60 = new[]
         {
-            McpPermissionDto.LibraryManage
+            SereinFlowPermission.LibraryManage
         }.ToHashSet();
-        accessor.Current = new McpPrincipal("family-project-key", newGuidResult, toHashSetResult60);
+        accessor.Current = ApiKeyActors.Create("family-project-key", newGuidResult, toHashSetResult60);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
@@ -279,12 +280,12 @@ public sealed class McpBackendIntegrationTests
         }
 
         await references.AddAsync(project.Id, source.Id);
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
         var toHashSetResult66 = new[]
         {
-            McpPermissionDto.FlowWrite
+            SereinFlowPermission.FlowWrite
         }.ToHashSet();
-        accessor.Current = new McpPrincipal("upgrade-flow-only-key", project.Id, toHashSetResult66);
+        accessor.Current = ApiKeyActors.Create("upgrade-flow-only-key", project.Id, toHashSetResult66);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
@@ -497,57 +498,13 @@ public sealed class McpBackendIntegrationTests
     }
 
     [Fact]
-    public async Task ToolCatalogPublishesCanonicalScalarAndPermissionEnums()
-    {
-        using var host = CreateHost();
-        var getRequiredServiceResult155 = host.Services.GetRequiredService<SereinFlowMcpBackend>();
-        var tools = await getRequiredServiceResult155.ListToolsAsync(CancellationToken.None);
-        var topology = tools.Single(item => item.Name == "sereinflow_get_flow_topology");
-        var getPropertyResult156 = topology.InputSchema.GetProperty("properties");
-        var getPropertyResult157 = getPropertyResult156.GetProperty("track");
-        var getPropertyResult158 = getPropertyResult157.GetProperty("enum");
-        var enumerateArrayResult159 = getPropertyResult158.EnumerateArray();
-        var selectResult160 = enumerateArrayResult159.Select(item =>
-        {
-            var evaluatedValue152 = item.GetString()!;
-            return evaluatedValue152;
-        });
-        Assert.Equal(["development", "production"], selectResult160);
-        var runList = tools.Single(item => item.Name == "sereinflow_list_runs");
-        var getPropertyResult161 = runList.InputSchema.GetProperty("properties");
-        var getPropertyResult162 = getPropertyResult161.GetProperty("status");
-        var getPropertyResult163 = getPropertyResult162.GetProperty("enum");
-        var enumerateArrayResult164 = getPropertyResult163.EnumerateArray();
-        var selectResult165 = enumerateArrayResult164.Select(item =>
-        {
-            var evaluatedValue153 = item.GetString()!;
-            return evaluatedValue153;
-        });
-        Assert.Equal(["pending", "running", "succeeded", "failed", "cancelled", "timedOut", "interrupted"], selectResult165);
-        var apiKey = tools.Single(item => item.Name == "sereinflow_create_mcp_api_key");
-        var selectResult167 = Enum.GetValues<McpPermissionDto>()
-            .Select(McpPermissionNames.ToName);
-        var getPropertyResult168 = apiKey.InputSchema.GetProperty("properties");
-        var getPropertyResult169 = getPropertyResult168.GetProperty("permissions");
-        var getPropertyResult170 = getPropertyResult169.GetProperty("items");
-        var getPropertyResult171 = getPropertyResult170.GetProperty("enum");
-        var enumerateArrayResult172 = getPropertyResult171.EnumerateArray();
-        var selectResult173 = enumerateArrayResult172.Select(item =>
-        {
-            var evaluatedValue154 = item.GetString()!;
-            return evaluatedValue154;
-        });
-        Assert.Equal(selectResult167, selectResult173);
-    }
-
-    [Fact]
     public async Task FlowPatchCanAddAndRemoveAParameterThroughMcp()
     {
         using var host = CreateHost();
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var toHashSetResult175 = Enum.GetValues<McpPermissionDto>()
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
+        var toHashSetResult175 = Enum.GetValues<SereinFlowPermission>()
             .ToHashSet();
-        accessor.Current = new McpPrincipal("parameter-patch-admin", null, toHashSetResult175, IsAdministrator: true);
+        accessor.Current = ApiKeyActors.Create("parameter-patch-admin", null, toHashSetResult175, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP parameter patch project");
         var getRequiredServiceResult176 = dataScope.ServiceProvider.GetRequiredService<IProjectRepository>();
@@ -617,10 +574,10 @@ public sealed class McpBackendIntegrationTests
     public async Task FlowPatchCanRemoveTheEntryNodeAndPersistAnEmptyDraftThroughMcp()
     {
         using var host = CreateHost();
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var toHashSetResult196 = Enum.GetValues<McpPermissionDto>()
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
+        var toHashSetResult196 = Enum.GetValues<SereinFlowPermission>()
             .ToHashSet();
-        accessor.Current = new McpPrincipal("empty-draft-admin", null, toHashSetResult196, IsAdministrator: true);
+        accessor.Current = ApiKeyActors.Create("empty-draft-admin", null, toHashSetResult196, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP empty draft project");
         var getRequiredServiceResult197 = dataScope.ServiceProvider.GetRequiredService<IProjectRepository>();
@@ -676,10 +633,10 @@ public sealed class McpBackendIntegrationTests
     public async Task FlowPatchV2NormalizesLegacySnakeCaseAndNumericEnums()
     {
         using var host = CreateHost();
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var toHashSetResult221 = Enum.GetValues<McpPermissionDto>()
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
+        var toHashSetResult221 = Enum.GetValues<SereinFlowPermission>()
             .ToHashSet();
-        accessor.Current = new McpPrincipal("integration-admin", null, toHashSetResult221, IsAdministrator: true);
+        accessor.Current = ApiKeyActors.Create("integration-admin", null, toHashSetResult221, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP canonical patch project");
         var getRequiredServiceResult222 = dataScope.ServiceProvider.GetRequiredService<IProjectRepository>();
@@ -734,10 +691,10 @@ public sealed class McpBackendIntegrationTests
     public async Task FlowPatchV2RejectsUnknownFieldsWithStructuredDiagnostic()
     {
         using var host = CreateHost();
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var toHashSetResult254 = Enum.GetValues<McpPermissionDto>()
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
+        var toHashSetResult254 = Enum.GetValues<SereinFlowPermission>()
             .ToHashSet();
-        accessor.Current = new McpPrincipal("integration-admin", null, toHashSetResult254, IsAdministrator: true);
+        accessor.Current = ApiKeyActors.Create("integration-admin", null, toHashSetResult254, IsAdministrator: true);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
@@ -841,10 +798,10 @@ public sealed class McpBackendIntegrationTests
     public async Task FlowPatchAcceptsStringEnumsAndApplyReadsBackAuthoritativeState()
     {
         using var host = CreateHost();
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var toHashSetResult288 = Enum.GetValues<McpPermissionDto>()
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
+        var toHashSetResult288 = Enum.GetValues<SereinFlowPermission>()
             .ToHashSet();
-        accessor.Current = new McpPrincipal("integration-admin", null, toHashSetResult288, IsAdministrator: true);
+        accessor.Current = ApiKeyActors.Create("integration-admin", null, toHashSetResult288, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP enum patch project");
         var getRequiredServiceResult289 = dataScope.ServiceProvider.GetRequiredService<IProjectRepository>();
@@ -881,10 +838,10 @@ public sealed class McpBackendIntegrationTests
     public async Task MalformedContractArgumentsReturnInvalidParamsInsteadOfInternalError()
     {
         using var host = CreateHost();
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var toHashSetResult305 = Enum.GetValues<McpPermissionDto>()
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
+        var toHashSetResult305 = Enum.GetValues<SereinFlowPermission>()
             .ToHashSet();
-        accessor.Current = new McpPrincipal("integration-admin", null, toHashSetResult305, IsAdministrator: true);
+        accessor.Current = ApiKeyActors.Create("integration-admin", null, toHashSetResult305, IsAdministrator: true);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
@@ -914,10 +871,10 @@ public sealed class McpBackendIntegrationTests
     public async Task ProjectCreatePreviewApplyCreatesEmptyDraftProjectAndIsIdempotent()
     {
         using var host = CreateHost();
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var toHashSetResult311 = Enum.GetValues<McpPermissionDto>()
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
+        var toHashSetResult311 = Enum.GetValues<SereinFlowPermission>()
             .ToHashSet();
-        accessor.Current = new McpPrincipal("project-admin", null, toHashSetResult311, IsAdministrator: true);
+        accessor.Current = ApiKeyActors.Create("project-admin", null, toHashSetResult311, IsAdministrator: true);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var serializeToElementResult312 = JsonSerializer.SerializeToElement(new { name = "OpenCV demo", flowName = "Main flow" });
         var evaluatedValue313 = (await backend.CallToolAsync("sereinflow_preview_create_project", serializeToElementResult312, CancellationToken.None)).Value;
@@ -971,13 +928,13 @@ public sealed class McpBackendIntegrationTests
     public async Task ProjectCreateRequiresAnAdministratorEvenWhenProjectWriteIsGranted()
     {
         using var host = CreateHost();
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
         var newGuidResult327 = Guid.NewGuid();
         var toHashSetResult328 = new[]
         {
-            McpPermissionDto.ProjectWrite
+            SereinFlowPermission.ProjectWrite
         }.ToHashSet();
-        accessor.Current = new McpPrincipal("project-scoped-key", newGuidResult327, toHashSetResult328);
+        accessor.Current = ApiKeyActors.Create("project-scoped-key", newGuidResult327, toHashSetResult328);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var exception = await Assert.ThrowsAsync<McpProtocolException>(() =>
         {
@@ -989,68 +946,15 @@ public sealed class McpBackendIntegrationTests
     }
 
     [Fact]
-    public async Task ApiKeyLifecycleIsIdempotentAndReturnsSecretsOnlyOnce()
-    {
-        using var host = CreateHost();
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var toHashSetResult331 = Enum.GetValues<McpPermissionDto>()
-            .ToHashSet();
-        accessor.Current = new McpPrincipal("key-admin", null, toHashSetResult331, IsAdministrator: true);
-        using var dataScope = host.Services.CreateScope();
-        var project = Project.Create("MCP key project");
-        var getRequiredServiceResult332 = dataScope.ServiceProvider.GetRequiredService<IProjectRepository>();
-        await getRequiredServiceResult332.AddAsync(project);
-        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
-        var createArguments = JsonSerializer.SerializeToElement(new { projectId = project.Id, name = "project-key", permissions = ProjectReadPermissionNames, idempotencyKey = "create-key-once", });
-        var evaluatedValue333 = (await backend.CallToolAsync("sereinflow_create_mcp_api_key", createArguments, CancellationToken.None)).Value;
-        var created = Deserialize<CreatedMcpApiKeyDto>(evaluatedValue333);
-        Assert.NotNull(created.Secret);
-        var evaluatedValue334 = (await backend.CallToolAsync("sereinflow_create_mcp_api_key", createArguments, CancellationToken.None)).Value;
-        var serializeResult335 = JsonSerializer.Serialize(evaluatedValue334, JsonOptions);
-        var replayDocument = JsonDocument.Parse(serializeResult335);
-        var getPropertyResult336 = replayDocument.RootElement.GetProperty("secret");
-        var getStringResult337 = getPropertyResult336.GetString();
-        Assert.Null(getStringResult337);
-        var getPropertyResult338 = replayDocument.RootElement.GetProperty("replayed");
-        var getBooleanResult339 = getPropertyResult338.GetBoolean();
-        Assert.True(getBooleanResult339);
-        var rotateArguments = JsonSerializer.SerializeToElement(new { keyId = created.Key.Id, idempotencyKey = "rotate-key-once", });
-        var evaluatedValue340 = (await backend.CallToolAsync("sereinflow_rotate_mcp_api_key", rotateArguments, CancellationToken.None)).Value;
-        var rotated = Deserialize<RotatedMcpApiKeyDto>(evaluatedValue340);
-        Assert.Equal(created.Key.Id, rotated.RevokedKeyId);
-        Assert.NotNull(rotated.Secret);
-        var security = dataScope.ServiceProvider.GetRequiredService<McpSecurityService>();
-        var authenticateAsyncResult = await security.AuthenticateAsync(created.Secret);
-        Assert.Null(authenticateAsyncResult);
-        var authenticateAsyncResult341 = await security.AuthenticateAsync(rotated.Secret);
-        Assert.NotNull(authenticateAsyncResult341);
-        var evaluatedValue342 = (await backend.CallToolAsync("sereinflow_rotate_mcp_api_key", rotateArguments, CancellationToken.None)).Value;
-        var rotatedReplay = Deserialize<RotatedMcpApiKeyDto>(evaluatedValue342);
-        Assert.True(rotatedReplay.Replayed);
-        Assert.Null(rotatedReplay.Secret);
-        var revokeArguments = JsonSerializer.SerializeToElement(new { keyId = rotated.Key.Id, idempotencyKey = "revoke-key-once", });
-        await backend.CallToolAsync("sereinflow_revoke_mcp_api_key", revokeArguments, CancellationToken.None);
-        var authenticateAsyncResult343 = await security.AuthenticateAsync(rotated.Secret);
-        Assert.Null(authenticateAsyncResult343);
-        var getRequiredServiceResult344 = dataScope.ServiceProvider.GetRequiredService<IRepository<McpAuditRecord>>();
-        var auditRecords = await getRequiredServiceResult344.ListAsync();
-        Assert.DoesNotContain(auditRecords, record =>
-        {
-            var evaluatedValue329 = record.Summary?.Contains(created.Secret, StringComparison.Ordinal) == true || record.Summary?.Contains(rotated.Secret, StringComparison.Ordinal) == true;
-            return evaluatedValue329;
-        });
-    }
-
-    [Fact]
     public async Task ApiKeyUsageUpdatesPreserveAuthorizationAndRevocationFields()
     {
         using var host = CreateHost();
         using var scope = host.Services.CreateScope();
-        var store = scope.ServiceProvider.GetRequiredService<IMcpApiKeyStore>();
+        var store = scope.ServiceProvider.GetRequiredService<IApiKeyStore>();
         var project = Project.Create("MCP key usage tracking");
         await scope.ServiceProvider.GetRequiredService<IProjectRepository>().AddAsync(project);
-        var created = McpSecurityService.CreateKeyWithEntry(new CreateMcpApiKeyRequestDto(
-            project.Id, "tracked-key", [McpPermissionDto.ProjectRead]));
+        var created = ApiKeyService.CreateKeyWithEntry(new CreateApiKeyRequest(
+            project.Id, "tracked-key", [SereinFlowPermission.ProjectRead]));
         await store.AddAsync(created.Entry);
         var revoked = created.Entry with { RevokedAt = DateTimeOffset.UtcNow };
         await store.UpdateAsync(revoked);
@@ -1071,8 +975,8 @@ public sealed class McpBackendIntegrationTests
     public async Task ReleaseToolsRejectPatchPreviewsBeforeChangingFlowState(string toolName)
     {
         using var host = CreateHost();
-        var principal = new McpPrincipal("release-admin", null, new HashSet<McpPermissionDto>(), IsAdministrator: true);
-        host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = principal;
+        var principal = ApiKeyActors.Create("release-admin", null, new HashSet<SereinFlowPermission>(), IsAdministrator: true);
+        host.Services.GetRequiredService<ISereinFlowActorAccessor>().Current = principal;
         using var scope = host.Services.CreateScope();
         var project = Project.Create("MCP preview isolation");
         await scope.ServiceProvider.GetRequiredService<IProjectRepository>().AddAsync(project);
@@ -1108,10 +1012,10 @@ public sealed class McpBackendIntegrationTests
     public async Task PublishPreviewApplyAndReplayUseTheSameProductionGuard()
     {
         using var host = CreateHost();
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var toHashSetResult346 = Enum.GetValues<McpPermissionDto>()
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
+        var toHashSetResult346 = Enum.GetValues<SereinFlowPermission>()
             .ToHashSet();
-        accessor.Current = new McpPrincipal("integration-admin", null, toHashSetResult346, IsAdministrator: true);
+        accessor.Current = ApiKeyActors.Create("integration-admin", null, toHashSetResult346, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP publish project");
         var projectRepository = dataScope.ServiceProvider.GetRequiredService<IProjectRepository>();
@@ -1158,10 +1062,10 @@ public sealed class McpBackendIntegrationTests
     public async Task PublishPreviewRejectsWhenProductionHeadChangesBeforeApply()
     {
         using var host = CreateHost();
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var toHashSetResult368 = Enum.GetValues<McpPermissionDto>()
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
+        var toHashSetResult368 = Enum.GetValues<SereinFlowPermission>()
             .ToHashSet();
-        accessor.Current = new McpPrincipal("integration-admin", null, toHashSetResult368, IsAdministrator: true);
+        accessor.Current = ApiKeyActors.Create("integration-admin", null, toHashSetResult368, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP conflict project");
         var getRequiredServiceResult369 = dataScope.ServiceProvider.GetRequiredService<IProjectRepository>();
@@ -1203,10 +1107,10 @@ public sealed class McpBackendIntegrationTests
     public async Task RollbackToolsKeepDevelopmentAndProductionTracksIndependent()
     {
         using var host = CreateHost();
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
-        var toHashSetResult373 = Enum.GetValues<McpPermissionDto>()
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
+        var toHashSetResult373 = Enum.GetValues<SereinFlowPermission>()
             .ToHashSet();
-        accessor.Current = new McpPrincipal("rollback-admin", null, toHashSetResult373, IsAdministrator: true);
+        accessor.Current = ApiKeyActors.Create("rollback-admin", null, toHashSetResult373, IsAdministrator: true);
         using var dataScope = host.Services.CreateScope();
         var project = Project.Create("MCP rollback project");
         var getRequiredServiceResult374 = dataScope.ServiceProvider.GetRequiredService<IProjectRepository>();
@@ -1285,13 +1189,13 @@ public sealed class McpBackendIntegrationTests
         var flow = CreateFlow();
         var getRequiredServiceResult391 = dataScope.ServiceProvider.GetRequiredService<IFlowDefinitionRepository>();
         await getRequiredServiceResult391.AddAsync(project.Id, flow);
-        var accessor = host.Services.GetRequiredService<IMcpPrincipalAccessor>();
+        var accessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
         var toHashSetResult392 = new[]
         {
-            McpPermissionDto.FlowWrite,
-            McpPermissionDto.ProjectRead
+            SereinFlowPermission.FlowWrite,
+            SereinFlowPermission.ProjectRead
         }.ToHashSet();
-        accessor.Current = new McpPrincipal("owner-key", project.Id, toHashSetResult392);
+        accessor.Current = ApiKeyActors.Create("owner-key", project.Id, toHashSetResult392);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         var emptyResult393 = Array.Empty<object>();
         var evaluatedValue394 = new
@@ -1309,10 +1213,10 @@ public sealed class McpBackendIntegrationTests
         var previewId = getPropertyResult397.GetGuid();
         var toHashSetResult398 = new[]
         {
-            McpPermissionDto.ProjectRead
+            SereinFlowPermission.ProjectRead
         }.ToHashSet();
-        accessor.Current = new McpPrincipal("other-key", project.Id, toHashSetResult398);
-        var exception = await Assert.ThrowsAsync<McpSecurityException>(() =>
+        accessor.Current = ApiKeyActors.Create("other-key", project.Id, toHashSetResult398);
+        var exception = await Assert.ThrowsAsync<SereinFlowAccessException>(() =>
         {
             var readResourceAsyncResult = backend.ReadResourceAsync($"sereinflow://mcp-previews/{previewId:D}", CancellationToken.None);
             return readResourceAsyncResult;
@@ -1333,8 +1237,8 @@ public sealed class McpBackendIntegrationTests
             stores.Add(store);
             return store;
         }));
-        host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal(
-            "resource-scope", null, Enum.GetValues<McpPermissionDto>().ToHashSet(), IsAdministrator: true);
+        host.Services.GetRequiredService<ISereinFlowActorAccessor>().Current = ApiKeyActors.Create(
+            "resource-scope", null, Enum.GetValues<SereinFlowPermission>().ToHashSet(), IsAdministrator: true);
         var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
         using var cancellation = new CancellationTokenSource();
         if (outcome == "cancelled") cancellation.Cancel();
@@ -1403,6 +1307,8 @@ public sealed class McpBackendIntegrationTests
         services.AddLogging();
         services.AddSereinFlowStorage(configuration, root);
         services.AddSereinFlowApplication();
+        services.AddTestAuthorization();
+        services.AddScoped<IApiKeyStore, ApiKeyStore>();
         services.AddSereinFlowMcp(configuration);
         configureServices?.Invoke(services);
         services.AddSingleton<SereinFlowMcpBackend>(provider =>

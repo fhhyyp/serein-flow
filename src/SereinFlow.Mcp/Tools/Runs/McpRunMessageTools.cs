@@ -10,10 +10,10 @@ internal sealed class McpRunMessageTools(
     IFlowRunStore _flowRunStore,
     IRunMessageDeliveryService _runMessageDeliveryService,
     McpIdempotencyService _mcpIdempotencyService,
-    McpSecurityService _mcpSecurityService)
+    SereinFlowAccess _mcpSecurityService)
 {
     private const string Operation = "run.message.publish";
-    [SereinFlowMcpTool("sereinflow_publish_run_message", McpPermissionDto.RunMessagePublish, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
+    [SereinFlowMcpTool("sereinflow_publish_run_message", SereinFlowPermission.RunMessagePublish, ExecutionKind = McpToolExecutionKind.Mutation, RequiresIdempotencyKey = true)]
     internal async Task<object> PublishAsync(
         SereinFlowMcpCaller context,
         McpPublishRunMessageRequest arguments,
@@ -31,7 +31,7 @@ internal sealed class McpRunMessageTools(
         var run = await _flowRunStore.FindAsync(runId, cancellationToken);
         if (run is not null)
         {
-            _mcpSecurityService.Require(principal, McpPermissionDto.RunMessagePublish, run.ProjectId);
+            await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.RunMessagePublish, run.ProjectId);
         }
 
         var replay = await _mcpIdempotencyService.FindAsync(principal.Id, Operation, idempotencyKey, requestPayload, cancellationToken);

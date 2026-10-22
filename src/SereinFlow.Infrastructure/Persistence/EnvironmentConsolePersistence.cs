@@ -3,7 +3,6 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Infrastructure.Persistence;
-
 public sealed class SqlSugarRunEnvironmentSettingsStore : IRunEnvironmentSettingsStore
 {
     private const string SettingsId = "default";
@@ -78,11 +77,7 @@ public sealed class SqlSugarFlowInterfaceRepository : IFlowInterfaceRepository
 
     public async Task<IReadOnlyList<FlowInterfaceDto>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var toArrayResult = (await _interfaces.ListAsync(cancellationToken: cancellationToken))
-            .Select(Map)
-            .OrderBy(static item => item.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(static item => item.Id)
-            .ToArray();
+        var toArrayResult = (await _interfaces.ListAsync(cancellationToken: cancellationToken)).Select(Map).OrderBy(static item => item.Name, StringComparer.OrdinalIgnoreCase).ThenBy(static item => item.Id).ToArray();
         return toArrayResult;
     }
 

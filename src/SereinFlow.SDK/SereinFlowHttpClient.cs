@@ -83,6 +83,15 @@ internal sealed class SereinFlowHttpClient
         for (var attempt = 0; attempt < attempts; attempt++)
         {
             using var request = CreateRequest(method, relativePath, payload, headers);
+            if (_options.BearerTokenProvider is { } tokenProvider)
+            {
+                var token = await tokenProvider(cancellationToken).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                }
+            }
+
             using var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             requestTimeout.CancelAfter(_options.RequestTimeout);
             HttpResponseMessage? response = null;
@@ -125,11 +134,6 @@ internal sealed class SereinFlowHttpClient
         {
             var mediaTypeWithQualityHeaderValue = new MediaTypeWithQualityHeaderValue("application/json");
             request.Headers.Accept.Add(mediaTypeWithQualityHeaderValue);
-        }
-
-        if (!string.IsNullOrWhiteSpace(_options.ApiKey))
-        {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
         }
 
         if (headers is not null)

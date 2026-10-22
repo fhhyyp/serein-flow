@@ -5,7 +5,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSereinFlowClient(options =>
 {
     options.BaseAddress = new Uri(builder.Configuration["SereinFlow:BaseAddress"] ?? "http://127.0.0.1:8188/");
-    options.ApiKey = builder.Configuration["SereinFlow:ApiKey"];
+    options.BearerTokenProvider = _ =>
+    {
+        var value1 = ValueTask.FromResult(builder.Configuration["SereinFlow:BearerToken"]);
+        return value1;
+    };
 });
 var app = builder.Build();
 app.MapGet("/health", () =>

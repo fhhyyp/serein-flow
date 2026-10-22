@@ -13,7 +13,7 @@ namespace SereinFlow.Mcp.Integration;
 /// </summary>
 public sealed class SereinFlowMcpAuditProjection(IMcpAuditStore auditStore, IMcpPreviewStore? previewStore = null)
 {
-    public async Task RecordAsync(McpToolCompletion completion, McpPrincipal? principal)
+    public async Task RecordAsync(McpToolCompletion completion, SereinFlowActor? principal)
     {
         var context = completion.Context;
         var arguments = context.Arguments;

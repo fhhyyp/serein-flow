@@ -14,15 +14,17 @@ GET /api/projects
 
 ## 什么时候要带密钥
 
-官方 `SereinFlow.Api` 宿主默认关闭 REST 鉴权，方便本机开发。将 SereinFlow 集成到其他 ASP.NET Core 宿主时，REST 默认要求鉴权。实际行为由 `SereinFlow:Api:RequireAuthentication` 决定。
+官方 `SereinFlow.Api` 宿主默认启用可选 `SereinFlow.Security.ApiKeys` 库。嵌入已有系统时选择 `UseHostSecurity()`，复用宿主身份、资源策略和项目可见范围；无需再验证 SereinFlow Key。HTTP 宿主必须明确选择安全模式，缺少配置会启动失败。
 
-开启后，请在请求头放入：
+默认 Key 模式的程序调用在请求头放入：
 
 ```http
 Authorization: Bearer <你的密钥>
 ```
 
-管理项目、流程和环境的接口通常需要管理员密钥。运行相关接口分别检查 `run.execute`、`run.read` 或 `run.message.publish` 权限。管理密钥的接口即使 REST 鉴权开关关闭，也仍要求管理员密钥；首次创建管理员密钥的 `/mcp-keys/setup` 只接受本机请求。
+管理项目、流程和环境的接口通常要求 `workspace.manage`，运行接口检查 `run.execute`、`run.read` 或 `run.message.publish`。密钥管理要求 `security.manage`；首次创建管理员的 `POST /api/security/api-keys/initial-admin` 仅接受直接回环请求且 Key 表必须为空。
+
+浏览器通过 `POST /api/security/session` 使用 Bearer Key 建立八小时会话，凭据保存在 HttpOnly、SameSite=Strict Cookie 中，后续请求会重新检查 Key 有效性；`DELETE` 注销。REST、SignalR 和 SSE 共享身份，不在 URL 中传递长期 Key。`GET /api/security/capabilities` 匿名返回安全模式与初始化状态。stdio 使用本地可信身份，无需 Key。
 
 完整密钥只在创建或轮换时显示一次。把它放在自己的安全配置中，不要写进文章、源码或日志。
 

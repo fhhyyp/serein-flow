@@ -1,5 +1,5 @@
 import { createApp } from 'vue';
 import './style.css';
-import App from './App.vue';
-const createAppResult = createApp(App);
+import SecurityGate from './SecurityGate.vue';
+const createAppResult = createApp(SecurityGate);
 createAppResult.mount('#app');

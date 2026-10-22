@@ -8,14 +8,13 @@ using SereinFlow.Client;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.SDK.Tests;
-
 public sealed class SereinFlowClientTests
 {
     private static readonly Uri BaseAddress = new("https://sereinflow.test/");
     [Fact]
     public void RunExecutePermissionUsesStableContractName()
     {
-        var toNameResult = McpPermissionNames.ToName(McpPermissionDto.RunExecute);
+        var toNameResult = SereinFlowOperationNames.ToName(SereinFlowPermission.RunExecute);
         Assert.Equal("run.execute", toNameResult);
     }
 
@@ -139,7 +138,7 @@ public sealed class SereinFlowClientTests
     public async Task WaitForCompletionPollsUntilTerminalAndReadsOutputs()
     {
         var runId = Guid.NewGuid();
-        IEnumerable<HttpResponseMessage> evaluatedValue7 = [resolveJsonResponseResult(), resolveJsonResponseResult9(), resolveJsonResponseResult13(),];
+        IEnumerable<HttpResponseMessage> evaluatedValue7 = [resolveJsonResponseResult(), resolveJsonResponseResult9(), resolveJsonResponseResult13(), ];
         var responses = new Queue<HttpResponseMessage>(evaluatedValue7);
         var handler = new RecordingHandler(_ =>
         {
@@ -298,8 +297,7 @@ public sealed class SereinFlowClientTests
         var attempt = 0;
         var handler = new RecordingHandler(request =>
         {
-            var singleResult27 = request.Headers.GetValues("Idempotency-Key")
-                .Single();
+            var singleResult27 = request.Headers.GetValues("Idempotency-Key").Single();
             keys.Add(singleResult27);
             if (++attempt == 1)
             {
@@ -359,7 +357,11 @@ public sealed class SereinFlowClientTests
         var options = new SereinFlowClientOptions
         {
             BaseAddress = BaseAddress,
-            ApiKey = apiKey,
+            BearerTokenProvider = _ =>
+            {
+                var value1 = ValueTask.FromResult<string?>(apiKey);
+                return value1;
+            },
             RequestTimeout = TimeSpan.FromSeconds(5),
         };
         configure?.Invoke(options);
