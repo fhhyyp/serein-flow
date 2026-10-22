@@ -6,7 +6,10 @@ using SereinFlow.Mcp.Generator.Models;
 
 namespace SereinFlow.Mcp.Generator;
 
-/// <summary>Owns tool semantics and snapshots valid entries before the aggregate pipeline.</summary>
+/// <summary>
+/// Owns tool semantics and snapshots valid entries before the aggregate pipeline.
+/// 负责工具语义分析，并在聚合管线前为有效条目创建快照。
+/// </summary>
 internal static class McpToolAnalyzer
 {
     internal static AnalysisResult<McpToolAnalysis> Analyze(SymbolContext<IMethodSymbol> input, AnalysisContext context)

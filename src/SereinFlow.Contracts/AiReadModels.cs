@@ -138,6 +138,7 @@ public sealed record AiDebugStateDto(Guid Id, Guid RunId, Guid ProjectId, Guid F
 /// Bounded discovery projection for active debug sessions. Detailed pause
 /// inputs and node outputs remain available only through the single-session
 /// debug state projection.
+/// 活动调试会话的有界发现投影；详细暂停输入和节点输出仅通过单会话调试状态投影提供。
 /// </summary>
 public sealed record AiDebugSessionSummaryDto(Guid Id, Guid RunId, Guid ProjectId, Guid FlowId, string Status, IReadOnlyList<string> BreakpointNodeIds, string? CurrentNodeId, Guid? ActiveInvocationId, string? ActiveFlipflopNodeId, int QueuedTriggerCount, long LastCommandSequence, long StateRevision, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 /// <summary>

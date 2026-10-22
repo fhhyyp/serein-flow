@@ -8,6 +8,7 @@ namespace SereinFlow.Infrastructure.Persistence;
 /// Reads the run-scoped sidecars written by the isolated Worker. Only IDs are
 /// accepted from callers; neither route segments nor stored names are used to
 /// construct an arbitrary path.
+/// 读取隔离 Worker 写入的运行级附属文件；调用方只传入 ID，不使用路由片段或存储名称构造任意路径。
 /// </summary>
 public sealed class FileFlowWorkpieceStore : IFlowWorkpieceStore
 {
@@ -62,11 +63,13 @@ public sealed class FileFlowWorkpieceStore : IFlowWorkpieceStore
             {
                 // An incomplete sidecar can be visible during the final write.
                 // It is ignored until the next read after the atomic rename.
+                // 最终写入期间可能看到不完整的附属文件；忽略该文件，待原子重命名后的下次读取再处理。
             }
             catch (IOException)
             {
                 // A concurrently removed or unavailable workpiece is not a
                 // reason to fail the complete run listing.
+                // 工件被并发删除或暂时不可用时，不应使整个运行的列表读取失败。
             }
         }
 

@@ -14,7 +14,7 @@ internal sealed class McpScriptTools(ScriptAdapter.ISereinLangCompiler _sereinLa
         var request = arguments;
         if (string.IsNullOrWhiteSpace(request.Source))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinLang source is required.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinLang source is required. 必须提供 SereinLang 源码。");
         }
 
         return await _sereinLangCompiler.CompileAsync(request, cancellationToken);

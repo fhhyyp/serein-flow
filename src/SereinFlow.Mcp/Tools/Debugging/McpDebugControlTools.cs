@@ -104,6 +104,7 @@ internal sealed class McpDebugControlTools(
 
         // Keep the acknowledgement cursor at command acceptance, so a fast
         // Worker pause remains visible to the next wait-for-state request.
+        // 将应答游标固定在命令被接受时的修订号，使 Worker 快速暂停仍可被下一次状态等待观察到。
         var latest = result.Session ?? await _flowDebugSessionService.FindAsync(sessionId, cancellationToken) ?? session;
         return new McpDebugCommandAcceptedDto(latest.Id, latest.RunId, command, commandSequence, (FlowDebugSessionStatusDto)latest.Status, latest.StateRevision);
     }
@@ -111,13 +112,13 @@ internal sealed class McpDebugControlTools(
     private static void ThrowStartFailure(FlowDebugSessionStartResult result)
     {
         var code = result.ErrorCode ?? DebugErrorCodes.StartRejected;
-        throw new McpProtocolException(ToProtocolCode(result.StatusCode), result.ErrorTitle ?? "The debug session could not be started.", new { code, details = result.ErrorBody });
+        throw new McpProtocolException(ToProtocolCode(result.StatusCode), result.ErrorTitle ?? "The debug session could not be started. 无法启动调试会话。", new { code, details = result.ErrorBody });
     }
 
     private static void ThrowCommandFailure(FlowDebugSessionCommandResult result)
     {
         var code = result.ErrorCode ?? DebugErrorCodes.CommandRejected;
-        throw new McpProtocolException(ToProtocolCode(result.StatusCode), result.ErrorTitle ?? "The debug command was rejected.", new { code });
+        throw new McpProtocolException(ToProtocolCode(result.StatusCode), result.ErrorTitle ?? "The debug command was rejected. 调试命令已被拒绝。", new { code });
     }
 
     private static int ToProtocolCode(int statusCode)

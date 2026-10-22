@@ -5,7 +5,10 @@ namespace SereinFlow.Mcp.Framework;
 
 public delegate Task<object?> McpToolExecutionDelegate(McpToolExecutionContext context, CancellationToken cancellationToken);
 
-/// <summary>Host policies wrap the shared execution pipeline without replacing tool models.</summary>
+/// <summary>
+/// Host policies wrap the shared execution pipeline without replacing tool models.
+/// 宿主策略包裹共用执行管线，不替换工具模型。
+/// </summary>
 public interface IMcpToolMiddleware
 {
     Task<object?> InvokeAsync(McpToolExecutionContext context, McpToolExecutionDelegate next, CancellationToken cancellationToken);
@@ -30,9 +33,12 @@ public sealed class McpToolExecutionContext
     public bool CanExecute => Tool is not null && Arguments.ValueKind is JsonValueKind.Object or JsonValueKind.Undefined;
 }
 
-public sealed class McpToolNotFoundException(string name) : Exception($"MCP tool '{name}' is not supported.");
+public sealed class McpToolNotFoundException(string name) : Exception($"MCP tool '{name}' is not supported. 不支持此 MCP 工具。");
 
-/// <summary>Owns tool lookup, per-call async DI scope, middleware ordering and direct invocation.</summary>
+/// <summary>
+/// Owns tool lookup, per-call async DI scope, middleware ordering and direct invocation.
+/// 负责工具查找、每次调用的异步依赖注入作用域、中间件顺序和直接调用。
+/// </summary>
 public sealed class McpToolExecutor(IServiceScopeFactory scopeFactory)
 {
     public async Task<object?> ExecuteAsync(McpToolCatalog catalog, string name, JsonElement arguments, CancellationToken cancellationToken = default)
@@ -57,7 +63,7 @@ public sealed class McpToolExecutor(IServiceScopeFactory scopeFactory)
         if (context.Tool is not null)
             return context.Tool.ExecuteAsync(context.CallContext, context.Arguments, cancellationToken);
         if (context.Arguments.ValueKind is not (JsonValueKind.Object or JsonValueKind.Undefined))
-            throw new McpParameterBindingException("MCP tool arguments must be a JSON object.", "$");
+            throw new McpParameterBindingException("MCP tool arguments must be a JSON object. MCP 工具参数必须是 JSON 对象。", "$");
         throw new McpToolNotFoundException(context.Name);
     }
 }

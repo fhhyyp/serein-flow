@@ -76,7 +76,7 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
     {
         if (request is null || !ModelState.IsValid)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "A valid MCP skill request is required.", new { code = McpErrorCodes.InvalidArguments });
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "A valid MCP skill request is required. 必须提供有效的 MCP 技能请求。", new { code = McpErrorCodes.InvalidArguments });
         }
     }
 
@@ -89,6 +89,7 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
             var principal = header is not null && string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) ? await security.AuthenticateAsync(header.Parameter, cancellationToken) : null;
             // Skill edits change guidance for every MCP client. Require an administrator
             // even when the host permits anonymous access to other REST endpoints.
+            // 技能修改会影响所有 MCP 客户端的指引；即使宿主允许其他 REST 端点匿名访问，此处仍要求管理员权限。
             security.RequireAdministrator(principal);
             Response.Headers.CacheControl = "no-store";
             var actionResult = await action(cancellationToken);

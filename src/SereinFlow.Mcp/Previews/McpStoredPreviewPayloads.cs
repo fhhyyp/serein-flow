@@ -4,6 +4,7 @@ using SereinFlow.Contracts;
 namespace SereinFlow.Mcp.Previews;
 // Persisted payloads are shared by preview-producing tools and preview reads.
 // They intentionally remain internal to avoid extending the public MCP model.
+// 预览生成工具和预览读取共用持久化载荷；保持内部可见，避免扩大公开 MCP 模型。
 internal sealed record StoredProjectCreatePreview(CreateProjectMcpRequestDto Request, Guid ProjectId, Guid FlowId, DateTimeOffset CreatedAt, FlowDefinitionDto Definition, FlowValidationResultDto Validation);
 /// <summary>
 /// Represents stored flow patch preview data used by SereinFlow.

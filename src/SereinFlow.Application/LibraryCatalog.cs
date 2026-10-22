@@ -29,7 +29,7 @@ public interface ILibraryCatalogService
     /// </summary>
     Task<LibraryUploadResultDto> UploadVerifiedAsync(Stream package, string fileName, long expectedSizeBytes, string expectedSha256, string origin = "mcp", CancellationToken cancellationToken = default)
     {
-        throw new NotSupportedException("This library catalog does not support importing previewed packages.");
+        throw new NotSupportedException("This library catalog does not support importing previewed packages. 此类库目录不支持导入已预览的包。");
     }
 
     /// <summary>

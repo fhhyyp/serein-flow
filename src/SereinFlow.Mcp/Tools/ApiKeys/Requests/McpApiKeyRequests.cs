@@ -13,7 +13,7 @@ internal class McpCreateApiKeyRequest
     [McpParameter(Required = true)]
     public IReadOnlyList<McpPermissionDto> Permissions { get; set; } = Array.Empty<McpPermissionDto>();
 
-    [McpParameter(IgnoreWhitespace = true, ErrorMessage = "MCP parameter 'expiresAt' must be an ISO date.")]
+    [McpParameter(IgnoreWhitespace = true, ErrorMessage = "MCP parameter 'expiresAt' must be an ISO date. MCP 参数 expiresAt 必须是 ISO 格式日期。")]
     public DateTimeOffset? ExpiresAt { get; set; }
     public bool IsAdministrator { get; set; } = false;
 

@@ -53,7 +53,10 @@ public sealed record FlowRunOutput
     public long Sequence { get; }
     public DateTimeOffset Timestamp { get; }
     public string NodeId { get; }
-    /// <summary>completed, failed, or error.</summary>
+    /// <summary>
+    /// completed, failed, or error.
+    /// 取值为 completed、failed 或 error。
+    /// </summary>
     public string Outcome { get; }
     public string? Branch { get; }
     public string OutputsJson { get; }

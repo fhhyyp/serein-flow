@@ -186,6 +186,7 @@ export function createDebugDockableWorkspaceLayout(size: WorkspaceSize = { width
 }
 // Keep the two free panels in the debugger's left column attached to each other
 // and to the right-hand session panel after a workspace resize or an older saved layout.
+// 工作区缩放或恢复旧布局后，保持调试器左列的两个浮动面板相互贴合，并与右侧会话面板对齐。
 export function fitDebugDockableWorkspaceLayout(layout: DockableWorkspaceLayout, size: WorkspaceSize): void {
   const canvas = layout.groups.find((group) => group.id === layout.panels.canvas.groupId);
   const workpieces = layout.groups.find((group) => group.id === layout.panels.workpieces.groupId);

@@ -7,7 +7,10 @@ namespace SereinFlow.ScriptAdapter;
 
 public static partial class ScriptValueConverter
 {
-    /// <summary>Projects audit data with a shared budget across the complete object graph.</summary>
+    /// <summary>
+    /// Projects audit data with a shared budget across the complete object graph.
+    /// 在整个对象图上共用预算，对审计数据进行有界投影。
+    /// </summary>
     public static object? ToBoundedAuditValue(object? value, int maxDepth = 16, int maxItems = 512, int maxTextCharacters = 8192)
     {
         object? operationResult1 = new AuditBudget(maxDepth, maxItems, maxTextCharacters).Project(value, 0);
@@ -106,6 +109,7 @@ public static partial class ScriptValueConverter
             try
             {
                 // DTO serialization is capped before materializing a JsonElement.
+                // 在物化 JsonElement 前限制 DTO 序列化大小。
                 using var stream = new AuditBuffer(64 * 1024);
                 JsonSerializer.Serialize(stream, value);
                 var operationResult15 = stream.ToArray();
@@ -199,7 +203,10 @@ public static partial class ScriptValueConverter
         }
     }
 
-    /// <summary>A bounded serialization target used before allocating a full JSON string.</summary>
+    /// <summary>
+    /// A bounded serialization target used before allocating a full JSON string.
+    /// 在分配完整 JSON 字符串之前使用的有界序列化目标。
+    /// </summary>
     public sealed class AuditBuffer(int maximumBytes) : MemoryStream
     {
         public override void Write(byte[] buffer, int offset, int count)

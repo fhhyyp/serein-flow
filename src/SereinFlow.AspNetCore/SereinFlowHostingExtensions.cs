@@ -40,7 +40,7 @@ public sealed class SereinFlowHostBuilder
     {
         if (WebApiEnabled)
         {
-            throw new InvalidOperationException("SereinFlow Web API has already been enabled.");
+            throw new InvalidOperationException("SereinFlow Web API has already been enabled. SereinFlow Web API 已启用。");
         }
 
         WebApiEnabled = true;
@@ -56,14 +56,14 @@ public sealed class SereinFlowHostBuilder
     {
         if (McpEnabled)
         {
-            throw new InvalidOperationException("SereinFlow HTTP MCP has already been enabled.");
+            throw new InvalidOperationException("SereinFlow HTTP MCP has already been enabled. SereinFlow HTTP MCP 已启用。");
         }
 
         McpEnabled = true;
         configure?.Invoke(McpOptions);
         if (string.IsNullOrWhiteSpace(McpOptions.EndpointPath) || !McpOptions.EndpointPath.StartsWith("/", StringComparison.Ordinal))
         {
-            throw new ArgumentException("The MCP endpoint path must start with '/'.", nameof(configure));
+            throw new ArgumentException("The MCP endpoint path must start with '/'. MCP 端点路径必须以“/”开头。", nameof(configure));
         }
 
         return this;
@@ -82,14 +82,14 @@ public static class SereinFlowHostingExtensions
         ArgumentNullException.ThrowIfNull(configure);
         if (services.Any(static descriptor => descriptor.ServiceType == typeof(SereinFlowHostBuilder)))
         {
-            throw new InvalidOperationException("AddSereinFlow can only be called once per host.");
+            throw new InvalidOperationException("AddSereinFlow can only be called once per host. 每个宿主只能调用一次 AddSereinFlow。");
         }
 
         var options = new SereinFlowHostBuilder();
         configure(options);
         if (!options.WebApiEnabled && !options.McpEnabled)
         {
-            throw new InvalidOperationException("Enable UseWebApi() or UseMcp() in AddSereinFlow.");
+            throw new InvalidOperationException("Enable UseWebApi() or UseMcp() in AddSereinFlow. 请在 AddSereinFlow 中启用 UseWebApi() 或 UseMcp()。");
         }
 
         services.AddSingleton(options);
@@ -154,6 +154,7 @@ public static class SereinFlowHostingExtensions
             var required = RequiredRequestBodyLimit(options, configuration);
             // Kestrel's built-in default is 30,000,000 bytes. Preserve an explicit
             // larger or unlimited host limit instead of replacing it.
+            // Kestrel 内置默认限制为 30,000,000 字节；保留宿主显式设置的更大限制或无限制配置。
             if (kestrel.Limits.MaxRequestBodySize == 30_000_000)
             {
                 kestrel.Limits.MaxRequestBodySize = required;
@@ -165,7 +166,7 @@ public static class SereinFlowHostingExtensions
             var required = RequiredRequestBodyLimit(options, configuration);
             if (kestrel.Limits.MaxRequestBodySize is long current && current < required)
             {
-                throw new InvalidOperationException($"Kestrel MaxRequestBodySize ({current}) is below SereinFlow's required upload limit ({required}).");
+                throw new InvalidOperationException($"Kestrel MaxRequestBodySize ({current}) is below SereinFlow's required upload limit ({required}). Kestrel MaxRequestBodySize 小于 SereinFlow 所需的上传限制。");
             }
         });
         services.AddSereinFlowExecution();
@@ -191,7 +192,7 @@ public static class SereinFlowHostingExtensions
         var properties = ((IApplicationBuilder)app).Properties;
         if (properties.ContainsKey("SereinFlow:MiddlewareInstalled"))
         {
-            throw new InvalidOperationException("UseSereinFlow can only be called once per host.");
+            throw new InvalidOperationException("UseSereinFlow can only be called once per host. 每个宿主只能调用一次 UseSereinFlow。");
         }
 
         properties["SereinFlow:MiddlewareInstalled"] = true;
@@ -219,7 +220,7 @@ public static class SereinFlowHostingExtensions
         var properties = ((IApplicationBuilder)app).Properties;
         if (properties.ContainsKey("SereinFlow:EndpointsMapped"))
         {
-            throw new InvalidOperationException("MapSereinFlow can only be called once per host.");
+            throw new InvalidOperationException("MapSereinFlow can only be called once per host. 每个宿主只能调用一次 MapSereinFlow。");
         }
 
         properties["SereinFlow:EndpointsMapped"] = true;
@@ -264,7 +265,7 @@ internal sealed class SereinFlowInitializationService(SqliteDatabase database, S
     {
         if (endpoints is null)
         {
-            throw new InvalidOperationException("MapSereinFlow() must be called before SereinFlow starts.");
+            throw new InvalidOperationException("MapSereinFlow() must be called before SereinFlow starts. 必须在 SereinFlow 启动前调用 MapSereinFlow()。");
         }
 
         var selectManyResult = endpoints.DataSources.SelectMany(static source => source.Endpoints);
@@ -284,7 +285,7 @@ internal sealed class SereinFlowInitializationService(SqliteDatabase database, S
                     continue;
                 }
 
-                throw new InvalidOperationException($"SereinFlow route conflict at '{route.Endpoint.RoutePattern.RawText}'. " + $"Endpoints '{route.Endpoint.DisplayName}' and '{other.Endpoint.DisplayName}' overlap.");
+                throw new InvalidOperationException($"SereinFlow route conflict at '{route.Endpoint.RoutePattern.RawText}'. " + $"Endpoints '{route.Endpoint.DisplayName}' and '{other.Endpoint.DisplayName}' overlap. SereinFlow 路由冲突，列出的端点相互重叠。");
                 bool resolveEqualsResult()
                 {
                     var evaluatedValue1 = route.Endpoint.RoutePattern.RawText?.TrimStart('/');

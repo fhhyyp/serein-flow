@@ -9,6 +9,7 @@ namespace SereinFlow.Worker.Runner;
 /// Owns the restricted DI containers used by libraries during one Worker run.
 /// Each uploaded assembly gets an isolated root provider so a service cannot
 /// cross a library package boundary.
+/// 管理单次 Worker 运行中类库使用的受限依赖注入容器；每个上传程序集独立拥有根服务提供程序，防止服务跨越类库包边界。
 /// </summary>
 internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
 {
@@ -50,7 +51,7 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            throw new LibraryServiceException(LibraryErrorCodes.ServiceProviderFailed, $"The library service provider could not be created. Library DI service provider creation failed. {exception.Message}", exception);
+            throw new LibraryServiceException(LibraryErrorCodes.ServiceProviderFailed, $"The library service provider could not be created. Library DI service provider creation failed. {exception.Message} 无法创建类库服务提供程序，类库依赖注入服务提供程序创建失败。", exception);
         }
     }
 
@@ -74,7 +75,7 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            throw new LibraryServiceException(LibraryErrorCodes.ServiceActivationFailed, $"The library node type '{nodeType.FullName ?? nodeType.Name}' could not be activated from declared FlowService dependencies. {exception.Message}", exception);
+            throw new LibraryServiceException(LibraryErrorCodes.ServiceActivationFailed, $"The library node type '{nodeType.FullName ?? nodeType.Name}' could not be activated from declared FlowService dependencies. {exception.Message} 无法根据声明的 FlowService 依赖激活类库节点类型。", exception);
         }
     }
 
@@ -109,7 +110,8 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
             {
                 // The cache must still dispose the remaining providers before
                 // their collectible AssemblyLoadContexts are unloaded.
-                Console.Error.WriteLine($"Worker library service cleanup failed. Worker library DI cleanup failed. {exception.Message}");
+                // 必须在卸载可回收 AssemblyLoadContext 之前，继续释放缓存中其余的服务提供程序。
+                Console.Error.WriteLine($"Worker library service cleanup failed. Worker library DI cleanup failed. {exception.Message} Worker 类库服务清理失败，依赖注入清理失败。");
             }
         }
     }
@@ -179,7 +181,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
         catch (Exception exception)
         {
             provider?.Dispose();
-            throw new LibraryServiceException(LibraryErrorCodes.ServiceValidationFailed, $"The declared FlowService dependency graph is invalid. {exception.Message}", exception);
+            throw new LibraryServiceException(LibraryErrorCodes.ServiceValidationFailed, $"The declared FlowService dependency graph is invalid. {exception.Message} 声明的 FlowService 依赖关系图无效。", exception);
         }
     }
 
@@ -199,7 +201,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
     {
         if (!nodeType.IsClass || nodeType.IsAbstract || nodeType.ContainsGenericParameters)
         {
-            throw new LibraryServiceException(LibraryErrorCodes.ServiceNodeTypeInvalid, $"The library node type '{nodeType.FullName ?? nodeType.Name}' cannot be constructed by the Worker service runtime.");
+            throw new LibraryServiceException(LibraryErrorCodes.ServiceNodeTypeInvalid, $"The library node type '{nodeType.FullName ?? nodeType.Name}' cannot be constructed by the Worker service runtime. Worker 服务运行时无法构造指定的类库节点类型。");
         }
 
         ValidateRestrictedConstructorParameters(nodeType, "node");
@@ -225,12 +227,12 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                 .Where(static item => item is not null)
                 .Select(static item => item!.Message);
             var details = string.Join(" ", selectResult);
-            var evaluatedValue = $"FlowService types could not be loaded from '{assembly.GetName().Name}'. {details}";
+            var evaluatedValue = $"FlowService types could not be loaded from '{assembly.GetName().Name}'. {details} 无法从指定程序集中加载 FlowService 类型。";
             throw new LibraryServiceException(LibraryErrorCodes.ServiceDiscoveryFailed, evaluatedValue, exception);
         }
         catch (Exception exception)
         {
-            var evaluatedValue7 = $"FlowService types could not be discovered from '{assembly.GetName().Name}'. {exception.Message}";
+            var evaluatedValue7 = $"FlowService types could not be discovered from '{assembly.GetName().Name}'. {exception.Message} 无法从指定程序集中发现 FlowService 类型。";
             throw new LibraryServiceException(LibraryErrorCodes.ServiceDiscoveryFailed, evaluatedValue7, exception);
         }
     }
@@ -299,12 +301,12 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
             {
                 if (!Enum.IsDefined(attribute.Lifetime))
                 {
-                    throw new LibraryServiceException(LibraryErrorCodes.ServiceLifetimeInvalid, $"FlowService '{implementationType.FullName}' declares an unsupported lifetime.");
+                    throw new LibraryServiceException(LibraryErrorCodes.ServiceLifetimeInvalid, $"FlowService '{implementationType.FullName}' declares an unsupported lifetime. FlowService 声明了不支持的生命周期。");
                 }
 
                 if (implementations.TryGetValue(implementationType, out var previousLifetime) && previousLifetime != attribute.Lifetime)
                 {
-                    throw new LibraryServiceException(LibraryErrorCodes.ServiceLifetimeConflict, $"FlowService '{implementationType.FullName}' declares more than one lifetime.");
+                    throw new LibraryServiceException(LibraryErrorCodes.ServiceLifetimeConflict, $"FlowService '{implementationType.FullName}' declares more than one lifetime. FlowService 声明了多个生命周期。");
                 }
 
                 implementations[implementationType] = attribute.Lifetime;
@@ -313,12 +315,13 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                 var registration = new ServiceRegistration(implementationType, attribute.Lifetime);
                 if (contracts.TryGetValue(contractType, out var existing) && existing != registration)
                 {
-                    throw new LibraryServiceException(LibraryErrorCodes.ServiceContractDuplicate, $"More than one FlowService declares the contract '{contractType.FullName ?? contractType.Name}'.");
+                    throw new LibraryServiceException(LibraryErrorCodes.ServiceContractDuplicate, $"More than one FlowService declares the contract '{contractType.FullName ?? contractType.Name}'. 多个 FlowService 声明了同一契约。");
                 }
 
                 contracts[contractType] = registration;
                 // A class declared through an interface must still resolve by
                 // its concrete type, matching the FlowService contract.
+                // 通过接口声明的类仍须能按其具体类型解析，以符合 FlowService 契约。
                 contracts.TryAdd(implementationType, registration);
             }
         }
@@ -331,13 +334,13 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
     {
         if (!implementationType.IsClass || implementationType.IsAbstract || implementationType.ContainsGenericParameters || implementationType.IsPointer || implementationType.IsByRef)
         {
-            throw new LibraryServiceException(LibraryErrorCodes.ServiceImplementationInvalid, $"FlowService '{implementationType.FullName ?? implementationType.Name}' must be a concrete, closed class.");
+            throw new LibraryServiceException(LibraryErrorCodes.ServiceImplementationInvalid, $"FlowService '{implementationType.FullName ?? implementationType.Name}' must be a concrete, closed class. FlowService 必须是可实例化且不含未绑定泛型参数的类。");
         }
 
         var constructors = implementationType.GetConstructors(BindingFlags.Instance | BindingFlags.Public);
         if (constructors.Length != 1)
         {
-            throw new LibraryServiceException(LibraryErrorCodes.ServiceConstructorInvalid, $"FlowService '{implementationType.FullName ?? implementationType.Name}' must have exactly one public constructor.");
+            throw new LibraryServiceException(LibraryErrorCodes.ServiceConstructorInvalid, $"FlowService '{implementationType.FullName ?? implementationType.Name}' must have exactly one public constructor. FlowService 必须且只能有一个公共构造函数。");
         }
 
         ValidateRestrictedConstructorParameters(implementationType, "service");
@@ -347,7 +350,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
     {
         if (contractType.IsPointer || contractType.IsByRef || contractType.ContainsGenericParameters || RestrictedConstructorTypes.Contains(contractType) || !contractType.IsAssignableFrom(implementationType))
         {
-            throw new LibraryServiceException(LibraryErrorCodes.ServiceContractInvalid, $"FlowService '{implementationType.FullName ?? implementationType.Name}' cannot expose the contract '{contractType.FullName ?? contractType.Name}'.");
+            throw new LibraryServiceException(LibraryErrorCodes.ServiceContractInvalid, $"FlowService '{implementationType.FullName ?? implementationType.Name}' cannot expose the contract '{contractType.FullName ?? contractType.Name}'. FlowService 不能公开指定契约。");
         }
     }
 
@@ -362,7 +365,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                     continue;
                 }
 
-                throw new LibraryServiceException(LibraryErrorCodes.ServiceDependencyForbidden, $"The {kind} type '{type.FullName ?? type.Name}' cannot request '{parameter.ParameterType.FullName}' through constructor injection.");
+                throw new LibraryServiceException(LibraryErrorCodes.ServiceDependencyForbidden, $"The {kind} type '{type.FullName ?? type.Name}' cannot request '{parameter.ParameterType.FullName}' through constructor injection. 指定类型不能通过构造函数注入请求该依赖。");
             }
         }
     }
@@ -374,7 +377,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
             FlowServiceLifetime.Run => ServiceLifetime.Singleton,
             FlowServiceLifetime.Invocation => ServiceLifetime.Scoped,
             FlowServiceLifetime.Transient => ServiceLifetime.Transient,
-            _ => throw new ArgumentOutOfRangeException(nameof(lifetime), lifetime, "Unsupported FlowService lifetime."),
+            _ => throw new ArgumentOutOfRangeException(nameof(lifetime), lifetime, "Unsupported FlowService lifetime. 不支持此 FlowService 生命周期。"),
         };
         return evaluatedValue20;
     }

@@ -56,6 +56,7 @@ function unfocusedState(nodes: readonly FlowNode[], edges: readonly FlowEdge[]):
  * sources and return-value consumers stay in the focused context. A
  * multi-node selection intentionally focuses only the selected nodes; using
  * one node as the relationship root would make batch selection misleading.
+ * 根据编辑器选择推导可见邻域，不修改图本身；数据边与执行边同等处理，保留参数来源和返回值使用方。多选时只聚焦所选节点，避免以单个节点为关系根而误导批量选择。
  */
 export function canvasFocusState(nodes: readonly FlowNode[], edges: readonly FlowEdge[], selectedNodeId?: string, selectedEdgeId?: string, settings: CanvasFocusSettings = defaultCanvasFocusSettings): CanvasFocusState {
   const filterResult1 = nodes.filter((node) => node.selected);

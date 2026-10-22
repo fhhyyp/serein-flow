@@ -32,7 +32,7 @@ internal sealed class McpLibraryPackageTools(
         var packageBase64 = arguments.PackageBase64;
         if (packageBase64.Length > FileUploadLimits.GetBase64EncodedLimit(_fileUploadSettings.MaxLibraryUploadBytes))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.RequestTooLarge, "The library package request is too large.");
+            throw new McpProtocolException(McpProtocolErrorCodes.RequestTooLarge, "The library package request is too large. 类库包请求过大。");
         }
 
         byte[] bytes;
@@ -42,7 +42,7 @@ internal sealed class McpLibraryPackageTools(
         }
         catch (FormatException exception)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The library package must be valid base64.", exception.Message);
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The library package must be valid base64. 类库包必须使用有效的 base64 编码。", exception.Message);
         }
 
         var projectId = arguments.ProjectId;
@@ -50,7 +50,7 @@ internal sealed class McpLibraryPackageTools(
         var baselineArtifactId = arguments.BaselineArtifactId;
         if (!string.IsNullOrWhiteSpace(familyId) && !string.IsNullOrWhiteSpace(baselineArtifactId))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "Specify either familyId or baselineArtifactId, not both.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "Specify either familyId or baselineArtifactId, not both. familyId 和 baselineArtifactId 只能指定其中一个。");
         }
 
         if (projectId is not null)
@@ -73,7 +73,7 @@ internal sealed class McpLibraryPackageTools(
             var memoryStream = new MemoryStream(bytes, writable: false);
             staged = await _mcpPackageStagingService.StageAsync(memoryStream, cancellationToken);
             await using var package = _mcpPackageStagingService.OpenRead(staged.Path);
-            var inspection = await _libraryCatalogService.InspectAsync(package, fileName, staged.SizeBytes, familyId, baselineArtifactId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.LibraryInspectionUnavailable, "Library package inspection is not configured in this host.");
+            var inspection = await _libraryCatalogService.InspectAsync(package, fileName, staged.SizeBytes, familyId, baselineArtifactId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.LibraryInspectionUnavailable, "Library package inspection is not configured in this host. 当前宿主未配置类库包检查功能。");
             var compatibility = inspection.Compatibility;
             var projectImpact = projectId is null || compatibility is null ? null : await BuildLibraryPackageProjectImpactAsync(_flowDefinitionRepository, projectId.Value, compatibility.BaselineArtifactId, cancellationToken);
             var stored = new StoredLibraryPackagePreview(fileName, projectId, staged.Path, staged.SizeBytes, inspection.Library.Sha256, inspection, compatibility, projectImpact);
@@ -117,7 +117,7 @@ internal sealed class McpLibraryPackageTools(
         var entry = await _mcpPreviewService.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, LibraryErrorCodes.Package, StringComparison.Ordinal))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a library package.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a library package. 此预览不是类库包预览。");
         }
 
         var stored = McpPreviewService.Deserialize<StoredLibraryPackagePreview>(entry);
@@ -135,7 +135,7 @@ internal sealed class McpLibraryPackageTools(
             await using var package = _mcpPackageStagingService.OpenRead(stored.StagingPath);
             if (package.Length != stored.SizeBytes)
             {
-                throw new McpProtocolException(McpProtocolErrorCodes.Conflict, "The staged library package changed after preview.");
+                throw new McpProtocolException(McpProtocolErrorCodes.Conflict, "The staged library package changed after preview. 暂存的类库包在预览后发生了变化。");
             }
 
             var result = await _libraryCatalogService.UploadVerifiedAsync(package, stored.FileName, stored.SizeBytes, stored.PackageSha256, origin: "mcp", cancellationToken: cancellationToken);
@@ -149,7 +149,7 @@ internal sealed class McpLibraryPackageTools(
         }
         catch (FileNotFoundException)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The staged library package is no longer available. Create a new preview and apply it again.", new { code = McpErrorCodes.PreviewPackageUnavailable });
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The staged library package is no longer available. Create a new preview and apply it again. 暂存的类库包已不可用，请创建新预览并重新应用。", new { code = McpErrorCodes.PreviewPackageUnavailable });
         }
         finally
         {
@@ -206,7 +206,7 @@ internal sealed class McpLibraryPackageTools(
 
         if (string.IsNullOrWhiteSpace(artifactId) || !await _projectLibraryReferenceRepository.IsReferencedAsync(projectId, artifactId, cancellationToken))
         {
-            throw new McpSecurityException(McpErrorCodes.LibraryAccessDenied, "The MCP caller cannot use the requested library baseline for this project.", StatusCodes.Status403Forbidden);
+            throw new McpSecurityException(McpErrorCodes.LibraryAccessDenied, "The MCP caller cannot use the requested library baseline for this project. MCP 调用方无权为此项目使用指定的类库基线。", StatusCodes.Status403Forbidden);
         }
     }
 }

@@ -25,7 +25,7 @@ internal sealed class McpProjectCommandTools(
         var request = arguments;
         if (string.IsNullOrWhiteSpace(request.Name))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'name' is required.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'name' is required. 必须提供 MCP 参数 name。");
         }
 
         ProjectCreationCandidate candidate;
@@ -65,7 +65,7 @@ internal sealed class McpProjectCommandTools(
         var entry = await _mcpPreviewService.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, "project.create", StringComparison.Ordinal))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe project creation.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe project creation. 此预览不是项目创建预览。");
         }
 
         _mcpSecurityService.RequireAdministrator(principal);
@@ -75,18 +75,18 @@ internal sealed class McpProjectCommandTools(
         var candidate = _projectCreationService.Prepare(project, stored.Definition);
         if (!candidate.Validation.IsValid)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The project creation preview is no longer valid.", new { code = McpErrorCodes.ValidationFailed, diagnostics = candidate.Validation.Diagnostics });
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The project creation preview is no longer valid. 项目创建预览已失效。", new { code = McpErrorCodes.ValidationFailed, diagnostics = candidate.Validation.Diagnostics });
         }
 
         var result = await _projectCreationService.CreateAsync(candidate, cancellationToken);
         if (result.Status == ProjectCreationStatus.Conflict)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.Conflict, result.ErrorMessage ?? "The project already exists.", new { code = result.ErrorCode });
+            throw new McpProtocolException(McpProtocolErrorCodes.Conflict, result.ErrorMessage ?? "The project already exists. 项目已存在。", new { code = result.ErrorCode });
         }
 
         if (result.Status != ProjectCreationStatus.Created)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The project creation preview cannot be applied.");
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The project creation preview cannot be applied. 无法应用此项目创建预览。");
         }
 
         var response = CreateWorkspace(candidate);

@@ -21,7 +21,7 @@ internal sealed class McpNodeTemplateTools(
         var request = arguments;
         if (request.ProjectId == Guid.Empty)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The library node template request is invalid.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The library node template request is invalid. 类库节点模板请求无效。");
         }
 
         await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, McpPermissionDto.ProjectRead, cancellationToken);
@@ -44,7 +44,7 @@ internal sealed class McpNodeTemplateTools(
         var request = arguments;
         if (request.ProjectId == Guid.Empty)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The built-in node template request is invalid.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The built-in node template request is invalid. 内置节点模板请求无效。");
         }
 
         var principal = context.RequirePrincipal();
@@ -65,7 +65,7 @@ internal sealed class McpNodeTemplateTools(
                 remediation = exception.Remediation,
                 statusCode = exception.StatusCode
             };
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The built-in node template request is invalid.", value);
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The built-in node template request is invalid. 内置节点模板请求无效。", value);
         }
     }
 }

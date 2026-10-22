@@ -95,6 +95,7 @@ public sealed class DataConnectionResolver
     /// Resolves the deliberately small dynamic-value syntax used by parameter
     /// bindings. This is not SereinLang evaluation: JSON values are parsed
     /// first, then supported execution-context references are looked up.
+    /// 解析参数绑定所用的有限动态值语法，不执行 SereinLang；先解析 JSON，再查找支持的执行上下文引用。
     /// </summary>
     private static object? ResolveDynamicReference(string? expression, FlowExecutionSession session)
     {
@@ -107,6 +108,7 @@ public sealed class DataConnectionResolver
         // Parse JSON before looking for a dot. Otherwise decimal literals and
         // quoted strings such as "a.b" are incorrectly treated as context
         // references and resolve to null.
+        // 先解析 JSON 再检查点号，避免将小数和“a.b”等字符串误判为上下文引用并解析为 null。
         if (TryParseJson(trimmed, out var jsonValue))
         {
             return jsonValue;

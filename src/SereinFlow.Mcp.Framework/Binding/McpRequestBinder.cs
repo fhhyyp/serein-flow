@@ -4,7 +4,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace SereinFlow.Mcp.Framework;
 
-/// <summary>Shared JSON and validation policy used by generated strongly typed delegates.</summary>
+/// <summary>
+/// Shared JSON and validation policy used by generated strongly typed delegates.
+/// 生成的强类型委托共用的 JSON 与校验策略。
+/// </summary>
 public static class McpRequestBinder
 {
     public static JsonElement Normalize(JsonElement arguments) => arguments.ValueKind == JsonValueKind.Undefined
@@ -23,17 +26,17 @@ public static class McpRequestBinder
         {
             var binder = context.Services.GetService<IMcpRequestBinder<T>>();
             request = (binder is null ? arguments.Deserialize<T>(jsonOptions) : binder.Bind(arguments, jsonOptions))
-                ?? throw new McpParameterBindingException("MCP arguments cannot be null.", "$");
+                ?? throw new McpParameterBindingException("MCP arguments cannot be null. MCP 参数不能为 null。", "$");
         }
         catch (JsonException exception)
         {
             var path = string.IsNullOrWhiteSpace(exception.Path) ? null : exception.Path;
             var location = path is null ? string.Empty : $" at '{path}'";
-            throw new McpParameterBindingException($"MCP arguments are invalid{location}.", path);
+            throw new McpParameterBindingException($"MCP arguments are invalid{location}. MCP 参数无效。", path);
         }
         catch (NotSupportedException)
         {
-            throw new McpParameterBindingException("MCP arguments contain an unsupported contract value.");
+            throw new McpParameterBindingException("MCP arguments contain an unsupported contract value. MCP 参数包含不受支持的契约值。");
         }
 
         validate(request, "$", new HashSet<object>(ReferenceEqualityComparer.Instance));
@@ -50,7 +53,7 @@ public static class McpRequestBinder
         var errors = new List<ValidationResult>();
         if (!Validator.TryValidateObject(value, new ValidationContext(value), errors, validateAllProperties: true))
         {
-            throw new McpParameterBindingException("MCP arguments failed validation.", path,
+            throw new McpParameterBindingException("MCP arguments failed validation. MCP 参数校验失败。", path,
                 errors.Select(error => error.ErrorMessage).ToArray());
         }
 

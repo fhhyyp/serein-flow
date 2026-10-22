@@ -24,7 +24,10 @@ public interface IWorkerMessageRunClient
     Task<WorkerMessageDeliveryResponseDto> DeliverMessageAsync(WorkerMessageDeliveryDto delivery, CancellationToken cancellationToken = default);
 }
 
-/// <summary>Reads and writes the variable table owned by an active Worker run.</summary>
+/// <summary>
+/// Reads and writes the variable table owned by an active Worker run.
+/// 读写活动 Worker 运行拥有的变量表。
+/// </summary>
 public interface IWorkerVariableRunClient
 {
     Task<WorkerVariableResponseDto> AccessVariablesAsync(WorkerVariableRequestDto request, CancellationToken cancellationToken = default);
@@ -58,7 +61,10 @@ public interface IWorkerRunEventSink
     ValueTask PublishAsync(WorkerEventEnvelopeDto workerEvent, CancellationToken cancellationToken = default);
 }
 
-/// <summary>Optional ordered batch sink; single-event clients remain compatible.</summary>
+/// <summary>
+/// Optional ordered batch sink; single-event clients remain compatible.
+/// 可选的有序批量接收端，保持单事件客户端兼容。
+/// </summary>
 public interface IWorkerRunBatchEventSink : IWorkerRunEventSink
 {
     ValueTask PublishBatchAsync(IReadOnlyList<WorkerEventEnvelopeDto> events, CancellationToken cancellationToken = default);

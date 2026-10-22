@@ -5,14 +5,17 @@ using SereinFlow.Contracts;
 
 namespace SereinFlow.Mcp.Integration;
 
-/// <summary>SereinFlow authorization, result semantics and protocol error mapping.</summary>
+/// <summary>
+/// SereinFlow authorization, result semantics and protocol error mapping.
+/// SereinFlow 授权、结果语义及协议错误映射。
+/// </summary>
 public sealed class SereinFlowMcpPolicy(IMcpPrincipalAccessor principalAccessor, McpToolMutationGate mutationGate)
     : McpToolPolicy(mutationGate)
 {
     protected override ValueTask AuthorizeAsync(McpToolExecutionContext context, CancellationToken cancellationToken)
     {
         if (context.Tool!.Metadata is not ISereinFlowMcpToolMetadata metadata || metadata.Permissions.Length == 0)
-            throw new InvalidOperationException($"SereinFlow tool '{context.Name}' requires a permission policy.");
+            throw new InvalidOperationException($"SereinFlow tool '{context.Name}' requires a permission policy. SereinFlow 工具必须配置权限策略。");
         var security = context.CallContext.Services.GetRequiredService<McpSecurityService>();
         var principal = principalAccessor.Current;
         var caller = new SereinFlowMcpToolContext(context.Scope, security, principal);
@@ -25,7 +28,7 @@ public sealed class SereinFlowMcpPolicy(IMcpPrincipalAccessor principalAccessor,
     }
 
     protected override object? ProcessResult(McpToolExecutionContext context, object? value)
-        => value ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The requested SereinFlow resource was not found.");
+        => value ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The requested SereinFlow resource was not found. 未找到请求的 SereinFlow 资源。");
 
     protected override McpToolFailure MapFailure(McpToolExecutionContext context, Exception exception)
         => exception switch
@@ -57,6 +60,7 @@ public sealed class SereinFlowMcpPolicy(IMcpPrincipalAccessor principalAccessor,
             data = exception.Path is null ? new { code = exception.ErrorCode } : new { code = exception.ErrorCode, path = exception.Path };
         if (exception.SuppressErrorData) data = null;
         // Preserve the published non-object argument error shape.
+        // 保留已发布的非对象参数错误结构。
         if (context.Arguments.ValueKind is not (System.Text.Json.JsonValueKind.Object or System.Text.Json.JsonValueKind.Undefined)) data = null;
         return new McpProtocolException(McpProtocolErrorCodes.InvalidParams, exception.Message, data);
     }

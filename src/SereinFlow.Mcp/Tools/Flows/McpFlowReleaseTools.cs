@@ -30,7 +30,7 @@ internal sealed class McpFlowReleaseTools(
         var principal = context.RequirePrincipal();
         var request = arguments;
         await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, McpPermissionDto.FlowPublish, cancellationToken);
-        var flow = await _flowDefinitionRepository.FindAsync(request.ProjectId, request.FlowId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found.");
+        var flow = await _flowDefinitionRepository.FindAsync(request.ProjectId, request.FlowId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found. 未找到流程定义。");
         if (flow.Version != request.ExpectedDevelopmentVersion)
         {
             throw VersionConflict(flow.Version);
@@ -83,19 +83,19 @@ internal sealed class McpFlowReleaseTools(
         var entry = await _mcpPreviewService.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, "flow.publish", StringComparison.Ordinal))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a flow publication.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a flow publication. 此预览不是流程发布预览。");
         }
 
         var stored = McpPreviewService.Deserialize<StoredPublishPreview>(entry);
         await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, stored.Request.ProjectId, McpPermissionDto.FlowPublish, cancellationToken);
-        var current = await _flowDefinitionRepository.FindAsync(stored.Request.ProjectId, stored.Request.FlowId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found.");
+        var current = await _flowDefinitionRepository.FindAsync(stored.Request.ProjectId, stored.Request.FlowId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found. 未找到流程定义。");
         if (current.Version != stored.Request.ExpectedDevelopmentVersion)
         {
             throw VersionConflict(current.Version);
         }
 
         var currentValidation = await _mcpFlowValidation.ValidateExecutableFlowAsync(stored.Request.ProjectId, current, cancellationToken);
-        RequireValidMutation(currentValidation, "The current development flow cannot be published.");
+        RequireValidMutation(currentValidation, "The current development flow cannot be published. 无法发布当前开发流程。");
         var currentProductionVersion = await _flowVersionRepository.FindProductionVersionAsync(stored.Request.ProjectId, stored.Request.FlowId, cancellationToken);
         if (currentProductionVersion != stored.ExpectedProductionVersion)
         {
@@ -106,7 +106,7 @@ internal sealed class McpFlowReleaseTools(
         if (currentProduction is not null
             && string.Equals(FlowDiffService.GetChecksum(currentProduction), FlowDiffService.GetChecksum(current), StringComparison.Ordinal))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The development definition is already published.");
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The development definition is already published. 当前开发定义已发布。");
         }
 
         var result = await _flowVersionRepository.PublishAsync(stored.Request.ProjectId, stored.Request.FlowId, stored.Request.ExpectedDevelopmentVersion, stored.Request.Remark, expectedProductionVersion: stored.ExpectedProductionVersion, cancellationToken: cancellationToken);
@@ -133,14 +133,14 @@ internal sealed class McpFlowReleaseTools(
         var request = arguments;
         if (request.SourceVersion < 1 || request.ExpectedHeadVersion < 1 || !Enum.IsDefined(request.Track))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The rollback request is invalid.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The rollback request is invalid. 回滚请求无效。");
         }
 
         await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, McpPermissionDto.FlowRollback, cancellationToken);
-        var source = await _flowVersionRepository.FindVersionAsync(request.ProjectId, request.FlowId, request.SourceVersion, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The rollback source version was not found.");
+        var source = await _flowVersionRepository.FindVersionAsync(request.ProjectId, request.FlowId, request.SourceVersion, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The rollback source version was not found. 未找到回滚源版本。");
         if (source.Version.Track != request.Track)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The rollback source version is not on the selected track.");
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The rollback source version is not on the selected track. 回滚源版本不属于所选版本轨道。");
         }
 
         var head = ((await _flowVersionRepository.ListVersionsAsync(request.ProjectId, request.FlowId, request.Track, cancellationToken))).FirstOrDefault(item => item.IsCurrent);
@@ -195,7 +195,7 @@ internal sealed class McpFlowReleaseTools(
         var entry = await _mcpPreviewService.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, "flow.rollback", StringComparison.Ordinal))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a flow rollback.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a flow rollback. 此预览不是流程回滚预览。");
         }
 
         var stored = McpPreviewService.Deserialize<StoredRollbackPreview>(entry);
@@ -216,14 +216,14 @@ internal sealed class McpFlowReleaseTools(
             throw VersionConflict(currentHead);
         }
 
-        var source = await _flowVersionRepository.FindVersionAsync(stored.Request.ProjectId, stored.Request.FlowId, stored.Request.SourceVersion, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The rollback source version was not found.");
+        var source = await _flowVersionRepository.FindVersionAsync(stored.Request.ProjectId, stored.Request.FlowId, stored.Request.SourceVersion, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The rollback source version was not found. 未找到回滚源版本。");
         if (source.Version.Track != stored.Request.Track)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The rollback source version is not on the selected track.");
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The rollback source version is not on the selected track. 回滚源版本不属于所选版本轨道。");
         }
 
         var currentValidation = await _mcpFlowValidation.ValidateExecutableFlowAsync(stored.Request.ProjectId, source.Definition, cancellationToken);
-        RequireValidMutation(currentValidation, "The rollback source flow cannot be executed.");
+        RequireValidMutation(currentValidation, "The rollback source flow cannot be executed. 回滚源流程无法执行。");
         var result = await _flowVersionRepository.RollbackAsync(stored.Request.ProjectId, stored.Request.FlowId, stored.Request.SourceVersion, stored.Request.Track, stored.Request.ExpectedHeadVersion, cancellationToken);
         if (!result.IsCommitted)
         {

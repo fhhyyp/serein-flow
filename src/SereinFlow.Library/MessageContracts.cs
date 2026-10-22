@@ -118,7 +118,7 @@ public sealed record MessageChannelOptions
 /// Provides the message queue surface shared by node libraries in one Worker run.
 /// 提供一次 Worker 运行内供节点类库共享的消息队列接口。
 /// </summary>
-[SuppressMessage("Naming", "CA1711", Justification = "IMessageQueue is the stable public SDK name.")]
+[SuppressMessage("Naming", "CA1711", Justification = "IMessageQueue is the stable public SDK name. IMessageQueue 是稳定的公共 SDK 名称。")]
 public interface IMessageQueue
 {
     /// <summary>

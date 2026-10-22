@@ -1,6 +1,9 @@
 namespace SereinFlow.Mcp.Framework;
 
-/// <summary>Runtime policy contract implemented by compile-time generated declarations.</summary>
+/// <summary>
+/// Runtime policy contract implemented by compile-time generated declarations.
+/// 由编译期生成声明实现的运行时策略契约。
+/// </summary>
 public interface IMcpToolMetadata
 {
     string Name { get; }

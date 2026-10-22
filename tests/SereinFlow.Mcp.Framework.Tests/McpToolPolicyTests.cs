@@ -16,7 +16,7 @@ public sealed class McpToolPolicyTests
         var gate = new McpToolMutationGate();
         using var document = JsonDocument.Parse(json);
         var exception = await Assert.ThrowsAsync<McpParameterBindingException>(() => gate.AcquireAsync(Tool("write"), document.RootElement, default));
-        Assert.Equal("MCP parameter 'idempotencyKey' is required.", exception.Message);
+        Assert.Equal("MCP parameter 'idempotencyKey' is required. 必须提供 MCP 参数 idempotencyKey。", exception.Message);
         Assert.True(exception.SuppressErrorData);
     }
 

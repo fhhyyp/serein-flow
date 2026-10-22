@@ -162,6 +162,7 @@ public static class LibraryArgumentConverter
         string evaluatedValue5 = value is IEnumerable and not string ? JsonSerializer.Serialize(value, JsonOptions) : value.ToString() ?? string.Empty;
         // Preserve useful content when a node returns an object/array and the
         // target method explicitly asks for a string.
+        // 当节点返回对象或数组且目标方法显式要求字符串时，保留有用内容。
         return evaluatedValue5;
     }
 

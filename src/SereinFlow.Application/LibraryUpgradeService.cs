@@ -48,7 +48,7 @@ public sealed class LibraryUpgradeService
 
         if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
         {
-            var conflictResult = Conflict<LibraryUpgradePlanDto>(ProjectErrorCodes.Archived, "Archived projects cannot apply library upgrades.");
+            var conflictResult = Conflict<LibraryUpgradePlanDto>(ProjectErrorCodes.Archived, "Archived projects cannot apply library upgrades. 已归档的项目不能应用类库升级。");
             return conflictResult;
         }
 
@@ -69,13 +69,13 @@ public sealed class LibraryUpgradeService
 
         if (target.Lifecycle != LibraryLifecycleDto.Available)
         {
-            var conflictResult3 = Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.Archived, "An archived library artifact cannot be used as an upgrade target.");
+            var conflictResult3 = Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.Archived, "An archived library artifact cannot be used as an upgrade target. 已归档的类库制品不能作为升级目标。");
             return conflictResult3;
         }
 
         if (!await _references.IsReferencedAsync(projectId, source.Id, cancellationToken))
         {
-            var conflictResult4 = Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.UpgradeSourceNotReferenced, "The project does not reference the source library artifact.");
+            var conflictResult4 = Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.UpgradeSourceNotReferenced, "The project does not reference the source library artifact. 项目未引用源类库制品。");
             return conflictResult4;
         }
 
@@ -98,7 +98,7 @@ public sealed class LibraryUpgradeService
 
             if (!UsesArtifact(flow, source.Id))
             {
-                var conflictResult6 = Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.UpgradeFlowNotUsingSource, "A selected flow does not use the source library artifact.");
+                var conflictResult6 = Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.UpgradeFlowNotUsingSource, "A selected flow does not use the source library artifact. 所选流程中有流程未使用源类库制品。");
                 return conflictResult6;
             }
 
@@ -145,13 +145,13 @@ public sealed class LibraryUpgradeService
         var project = await _projects.FindAsync(projectId, cancellationToken);
         if (project is null)
         {
-            var notFoundResult10 = NotFound<LibraryUpgradeApplyResultDto>(ProjectErrorCodes.NotFound, "Project was not found.");
+            var notFoundResult10 = NotFound<LibraryUpgradeApplyResultDto>(ProjectErrorCodes.NotFound, "Project was not found. 未找到项目。");
             return notFoundResult10;
         }
 
         if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
         {
-            var conflictResult11 = Conflict<LibraryUpgradeApplyResultDto>(ProjectErrorCodes.Archived, "Archived projects cannot apply library upgrades.");
+            var conflictResult11 = Conflict<LibraryUpgradeApplyResultDto>(ProjectErrorCodes.Archived, "Archived projects cannot apply library upgrades. 已归档的项目不能应用类库升级。");
             return conflictResult11;
         }
 
@@ -216,13 +216,13 @@ public sealed class LibraryUpgradeService
 
         if (!await _references.IsReferencedAsync(projectId, source.Id, cancellationToken))
         {
-            var conflictResult21 = Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeSourceNotReferenced, "The project does not reference the source library artifact.");
+            var conflictResult21 = Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeSourceNotReferenced, "The project does not reference the source library artifact. 项目未引用源类库制品。");
             return conflictResult21;
         }
 
         if (!UsesArtifact(flow, source.Id))
         {
-            var conflictResult22 = Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeFlowNotUsingSource, "The selected flow no longer uses the source library artifact.");
+            var conflictResult22 = Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeFlowNotUsingSource, "The selected flow no longer uses the source library artifact. 所选流程已不再使用源类库制品。");
             return conflictResult22;
         }
 

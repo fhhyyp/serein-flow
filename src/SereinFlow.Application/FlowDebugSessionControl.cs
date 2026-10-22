@@ -6,6 +6,7 @@ namespace SereinFlow.Application;
 /// Application boundary for starting and controlling a debug Worker. The API
 /// host owns the concrete Worker supervision implementation, while MCP and
 /// other application-facing clients depend only on this port.
+/// 启动和控制调试 Worker 的应用边界；API 宿主负责具体的 Worker 监管实现，MCP 等应用客户端仅依赖此端口。
 /// </summary>
 public interface IFlowDebugSessionService
 {

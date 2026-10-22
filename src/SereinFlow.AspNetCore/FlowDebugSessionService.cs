@@ -679,6 +679,7 @@ public sealed class FlowDebugSessionService : IHostedService, IFlowDebugSessionS
         public RunExecutionQueue.RunExecutionLease Lease { get; } = lease;
         // Commands, Worker events and completion all replace the durable state.
         // Serialize their read/modify/write cycles to preserve pauses and revisions.
+        // 命令、Worker 事件和完成处理都会替换持久化状态；串行执行读改写过程，保留暂停状态和修订号。
         public SemaphoreSlim CommandGate { get; } = stateGate;
     }
 

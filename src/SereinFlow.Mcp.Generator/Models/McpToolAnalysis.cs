@@ -3,7 +3,10 @@ using Serein.Generator.Framework;
 
 namespace SereinFlow.Mcp.Generator.Models;
 
-/// <summary>Immutable semantic boundary: no symbols, syntax trees or mutable caches survive here.</summary>
+/// <summary>
+/// Immutable semantic boundary: no symbols, syntax trees or mutable caches survive here.
+/// 不可变的语义边界，不保留符号、语法树或可变缓存。
+/// </summary>
 internal sealed class McpToolAnalysis(string name, SourceLocation? location, string entry,
     EquatableArray<GeneratedSource> support) : IEquatable<McpToolAnalysis>
 {

@@ -25,6 +25,7 @@ export interface NodeExecutionState {
  * The step number is the primary order because it is assigned by the flow
  * runner at node start; event sequence is used for legacy entries without a
  * step number and as a deterministic tie-breaker.
+ * 按首次执行到最近执行排序；优先使用运行器在节点启动时分配的步骤号，无步骤号的旧条目按事件序号排序，序号也用于稳定处理相同步骤。
  */
 export function sortNodeExecutionStates(states: readonly NodeExecutionState[]): NodeExecutionState[] {
   const sortResult: NodeExecutionState[] = [...states].sort((left, right) => {

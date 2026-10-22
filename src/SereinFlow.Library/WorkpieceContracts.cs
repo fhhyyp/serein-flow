@@ -5,9 +5,15 @@ namespace SereinFlow.Library;
 /// </summary>
 public enum FlowWorkpieceKind
 {
-    /// <summary>Image data.</summary>
+    /// <summary>
+    /// Image data.
+    /// 图像数据。
+    /// </summary>
     Image = 0,
-    /// <summary>General file data.</summary>
+    /// <summary>
+    /// General file data.
+    /// 通用文件数据。
+    /// </summary>
     File = 1,
 }
 

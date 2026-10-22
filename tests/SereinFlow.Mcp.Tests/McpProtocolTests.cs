@@ -206,7 +206,7 @@ public sealed class McpProtocolTests
         Assert.Equal(McpProtocolErrorCodes.InternalError, getInt32Result77);
         var getPropertyResult78 = error.GetProperty("message");
         var getStringResult79 = getPropertyResult78.GetString();
-        Assert.Equal("The MCP request failed internally.", getStringResult79);
+        Assert.Equal("The MCP request failed internally. MCP 请求发生内部错误。", getStringResult79);
         var data = error.GetProperty("data");
         var getPropertyResult80 = data.GetProperty("code");
         var getStringResult81 = getPropertyResult80.GetString();
@@ -265,7 +265,7 @@ public sealed class McpProtocolTests
         var response = await server.HandleRequestAsync(request);
         Assert.NotNull(response);
         using var actual = JsonDocument.Parse(response);
-        var expectedJson = $"{{\"jsonrpc\":\"2.0\",\"id\":{idJson},\"error\":{{\"code\":-32601,\"message\":\"MCP method 'unknown' is not supported.\",\"data\":null}}}}";
+        var expectedJson = $"{{\"jsonrpc\":\"2.0\",\"id\":{idJson},\"error\":{{\"code\":-32601,\"message\":\"MCP method 'unknown' is not supported. 不支持此 MCP 方法。\",\"data\":null}}}}";
         using var expected = JsonDocument.Parse(expectedJson);
         var matches = JsonElement.DeepEquals(expected.RootElement, actual.RootElement);
         Assert.True(matches, response);
@@ -287,7 +287,7 @@ public sealed class McpProtocolTests
         var limitedResponse = await smallerLimitServer.HandleRequestAsync(request);
         Assert.NotNull(limitedResponse);
         using var actual = JsonDocument.Parse(limitedResponse);
-        const string expectedJson = "{\"jsonrpc\":\"2.0\",\"id\":\"中文\",\"error\":{\"code\":-32013,\"message\":\"The MCP response exceeds the configured size limit.\"}}";
+        const string expectedJson = "{\"jsonrpc\":\"2.0\",\"id\":\"中文\",\"error\":{\"code\":-32013,\"message\":\"The MCP response exceeds the configured size limit. MCP 响应超过配置的大小限制。\"}}";
         using var expected = JsonDocument.Parse(expectedJson);
         var matches = JsonElement.DeepEquals(expected.RootElement, actual.RootElement);
         Assert.True(matches, limitedResponse);

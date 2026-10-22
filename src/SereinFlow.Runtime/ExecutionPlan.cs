@@ -126,6 +126,7 @@ public sealed class ExecutionPlanBuilder
         // The normalized runtime metadata is kept on the immutable execution
         // plan, so Worker connectors and the executor use one deterministic
         // return-type result even when an older editor omitted the hint.
+        // 将规范化的运行时元数据保存在不可变执行计划中；即使旧版编辑器未提供提示，Worker 连接器和执行器也使用同一确定的返回类型结果。
         return executionPlan;
     }
 
@@ -339,6 +340,7 @@ public sealed record FlowCallReturnTypeAnalysis(string ReturnType, bool IsDynami
 /// <summary>
 /// Performs the conservative static return-type analysis used by FlowCall
 /// connector hints. Runtime values are still validated by the executor.
+/// 为 FlowCall 连接器提示执行保守的静态返回类型分析；执行器仍会校验运行时值。
 /// </summary>
 public static class FlowCallReturnTypeAnalyzer
 {

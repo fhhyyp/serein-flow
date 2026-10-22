@@ -448,6 +448,7 @@ function handleCanvasNodeClick(event: {
   // A completed debug session remains available so its results can still be
   // inspected. It must not make normal editor clicks reopen the workpieces
   // panel after the user has switched back to edit mode.
+  // 保留已完成的调试会话供检查结果；用户切回编辑模式后，普通编辑器点击不应重新打开运行工件面板。
   if (!debugSession.value || dockableDisplayMode.value !== 'debug') {
     return;
   }
@@ -1321,6 +1322,7 @@ watch(() => debugSession.value?.id, (sessionId, previousSessionId) => {
 // Keep canvas-driven selections in sync with the debug execution list. The
 // explicit canvas click handler separately marks manual selections as eligible
 // to focus the matching workpiece.
+// 同步画布选择与调试执行列表；画布点击处理器另行标记手动选择，使其可以聚焦对应工件。
 watch(() => selectedNode.value?.id, (nodeId) => {
   if (!debugSession.value || !nodeId || selectedDebugNodeId.value === nodeId) {
     return;

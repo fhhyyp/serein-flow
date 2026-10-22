@@ -123,6 +123,7 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
         {
             // The original request already returned the timeout/cancellation
             // result; the background compiler must not surface a second error.
+            // 原始请求已返回超时或取消结果；后台编译器不得再对外报告第二次错误。
         }
         finally
         {
@@ -137,6 +138,7 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
         // Register only the built-in SereinFlow module. The null runtime context
         // makes log/env unavailable for execution while keeping module names
         // visible to the compiler.
+        // 只注册内置 SereinFlow 模块；空运行时上下文使 log/env 不可执行，但编译器仍可识别模块名称。
         SereinFlowScriptModuleRegistration.Register(engine, sereinFlowScriptModuleContext);
         var selectResult = inputs.Select(static input => input.Name);
         _ = engine.CompileSource(source, sourceName, selectResult);

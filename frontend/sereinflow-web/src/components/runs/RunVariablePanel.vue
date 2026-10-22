@@ -55,6 +55,7 @@ async function refresh(): Promise<void> {
       return;
     }
     // Variables can be added during a run; reconcile pages when their count changes.
+    // 运行期间可能新增变量；变量总数变化时重新协调分页。
     if (result.variables.length === 0 && offset.value > 0) {
       offset.value = 0;
       retryPage = true;
@@ -111,6 +112,7 @@ onBeforeUnmount(stop);
 function formatValue(variable: RunVariableDto): string {
   const evaluatedValue1: string = variable.valueJson ?? JSON.stringify(variable.value, null, 2) ?? 'null';
   // JSON.parse would round Int64 and decimal values; preserve the Worker's JSON text.
+  // JSON.parse 会使 Int64 和 decimal 值损失精度，因此保留 Worker 返回的 JSON 原文。
   return evaluatedValue1;
 }
 const readTemplateText = computed(() => {

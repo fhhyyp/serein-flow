@@ -27,7 +27,10 @@ public interface IMcpApiKeyStore
     Task<McpApiKeyEntry?> FindAsync(string id, CancellationToken cancellationToken = default);
     Task AddAsync(McpApiKeyEntry entry, CancellationToken cancellationToken = default);
     Task<bool> UpdateAsync(McpApiKeyEntry entry, CancellationToken cancellationToken = default);
-    /// <summary>Updates usage telemetry without changing key authorization or revocation fields.</summary>
+    /// <summary>
+    /// Updates usage telemetry without changing key authorization or revocation fields.
+    /// 只更新使用情况遥测，不更改密钥授权或撤销字段。
+    /// </summary>
     Task<bool> UpdateLastUsedAsync(string id, DateTimeOffset lastUsedAt, CancellationToken cancellationToken = default);
 }
 

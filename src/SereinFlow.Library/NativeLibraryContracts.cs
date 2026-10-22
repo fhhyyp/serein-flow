@@ -47,8 +47,8 @@ public sealed class FlowNativeLibraryException : Exception
     /// <param name = "innerException">The underlying exception, when available.</param>
     public FlowNativeLibraryException(string code, string message, string relativePath, Exception? innerException = null) : base(message, innerException)
     {
-        Code = string.IsNullOrWhiteSpace(code) ? throw new ArgumentException("A native library error code is required.", nameof(code)) : code;
-        RelativePath = string.IsNullOrWhiteSpace(relativePath) ? throw new ArgumentException("A native library path is required.", nameof(relativePath)) : relativePath;
+        Code = string.IsNullOrWhiteSpace(code) ? throw new ArgumentException("A native library error code is required. 必须提供本机类库错误码。", nameof(code)) : code;
+        RelativePath = string.IsNullOrWhiteSpace(relativePath) ? throw new ArgumentException("A native library path is required. 必须提供本机类库路径。", nameof(relativePath)) : relativePath;
     }
 
     /// <summary>

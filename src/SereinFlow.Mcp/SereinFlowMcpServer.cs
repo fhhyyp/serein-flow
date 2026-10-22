@@ -82,6 +82,7 @@ public sealed class SereinFlowMcpServer
         ArgumentNullException.ThrowIfNull(message);
         var byteCount = Encoding.UTF8.GetByteCount(message);
         // Bound stdio input before allocating a JSON tree. HTTP already bounds body reads.
+        // 在分配 JSON 树之前限制 stdio 输入；HTTP 已对请求体读取设置限制。
         if (byteCount > GetMaxRequestBytes())
         {
             return SerializeResponse(null, null, RequestTooLarge());
@@ -99,7 +100,7 @@ public sealed class SereinFlowMcpServer
             if (document.RootElement.ValueKind != JsonValueKind.Object)
             {
                 return new ParsedRequest(size, default,
-                    new McpProtocolException(McpProtocolErrorCodes.InvalidRequest, "The MCP message must be a JSON object."));
+                    new McpProtocolException(McpProtocolErrorCodes.InvalidRequest, "The MCP message must be a JSON object. MCP 消息必须是 JSON 对象。"));
             }
 
             return new ParsedRequest(size, document.RootElement.Clone());
@@ -107,7 +108,7 @@ public sealed class SereinFlowMcpServer
         catch (JsonException exception)
         {
             return new ParsedRequest(size, default,
-                new McpProtocolException(McpProtocolErrorCodes.ParseError, "The MCP message contains invalid JSON.", exception.Message));
+                new McpProtocolException(McpProtocolErrorCodes.ParseError, "The MCP message contains invalid JSON. MCP 消息包含无效 JSON。", exception.Message));
         }
     }
 
@@ -128,7 +129,7 @@ public sealed class SereinFlowMcpServer
         if (method is null)
         {
             return hasId
-                ? SerializeResponse(id, null, new McpProtocolException(McpProtocolErrorCodes.InvalidRequest, "The MCP request method is missing."))
+                ? SerializeResponse(id, null, new McpProtocolException(McpProtocolErrorCodes.InvalidRequest, "The MCP request method is missing. MCP 请求缺少方法名称。"))
                 : null;
         }
 
@@ -165,8 +166,8 @@ public sealed class SereinFlowMcpServer
         {
             // Exception messages can contain user-controlled script or literal data.
             // 异常消息可能包含用户脚本或字面量，只记录类型，避免敏感数据进入日志。
-            await _diagnostics.WriteLineAsync($"MCP request '{method}' failed internally; diagnosticId={diagnosticId} ({exception.GetType().Name}).");
-            var error = new McpProtocolException(McpProtocolErrorCodes.InternalError, "The MCP request failed internally.",
+            await _diagnostics.WriteLineAsync($"MCP request '{method}' failed internally; diagnosticId={diagnosticId} ({exception.GetType().Name}). MCP 请求发生内部错误，诊断标识和异常类型见上述信息。");
+            var error = new McpProtocolException(McpProtocolErrorCodes.InternalError, "The MCP request failed internally. MCP 请求发生内部错误。",
                 new { code = McpErrorCodes.InternalError, diagnosticId });
             return hasId ? SerializeResponse(id, null, error) : null;
         }
@@ -180,7 +181,7 @@ public sealed class SereinFlowMcpServer
     }
 
     private static McpProtocolException RequestTooLarge() =>
-        new(McpProtocolErrorCodes.RequestTooLarge, "The MCP request exceeds the configured size limit.");
+        new(McpProtocolErrorCodes.RequestTooLarge, "The MCP request exceeds the configured size limit. MCP 请求超过配置的大小限制。");
 
     /// <summary>
     /// Carries request data for parsed operations.
@@ -231,7 +232,7 @@ public sealed class SereinFlowMcpServer
             "prompts/get" => await GetPromptAsync(parameters, cancellationToken),
             "tools/call" => await CallToolAsync(parameters, cancellationToken),
             "shutdown" => RequestShutdown(),
-            _ => throw new McpProtocolException(McpProtocolErrorCodes.MethodNotFound, $"MCP method '{method}' is not supported.")
+            _ => throw new McpProtocolException(McpProtocolErrorCodes.MethodNotFound, $"MCP method '{method}' is not supported. 不支持此 MCP 方法。")
         };
     }
 
@@ -327,7 +328,7 @@ public sealed class SereinFlowMcpServer
     {
         if (parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString()))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' is required.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"MCP parameter '{name}' is required. 必须提供该 MCP 参数。");
         }
 
         return value.GetString()!.Trim();
@@ -360,7 +361,7 @@ public sealed class SereinFlowMcpServer
 
         if (Encoding.UTF8.GetByteCount(serialized) > _maxResponseBytes)
         {
-            var responseError = new McpJsonRpcErrorSummary(McpProtocolErrorCodes.ResponseTooLarge, "The MCP response exceeds the configured size limit.");
+            var responseError = new McpJsonRpcErrorSummary(McpProtocolErrorCodes.ResponseTooLarge, "The MCP response exceeds the configured size limit. MCP 响应超过配置的大小限制。");
             var response = new McpJsonRpcErrorResponse<McpJsonRpcErrorSummary>(id, responseError);
             serialized = JsonSerializer.Serialize(response, JsonOptions);
         }

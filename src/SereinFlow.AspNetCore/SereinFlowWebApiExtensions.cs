@@ -76,7 +76,7 @@ public static class SereinFlowWebApiExtensions
 
         if (string.IsNullOrWhiteSpace(routeTemplate) || !routeTemplate.Contains("{documentName}", StringComparison.Ordinal) || string.IsNullOrWhiteSpace(uiRoutePrefix))
         {
-            throw new ArgumentException("A Swagger route template with {documentName} and a UI route prefix are required.");
+            throw new ArgumentException("A Swagger route template with {documentName} and a UI route prefix are required. 必须提供包含 {documentName} 的 Swagger 路由模板和 UI 路由前缀。");
         }
 
         app.UseSwagger(options =>

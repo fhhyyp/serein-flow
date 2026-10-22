@@ -3,13 +3,19 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace SereinFlow.Mcp.Framework;
 
-/// <summary>Implemented by the compile-time generated registry in each tool assembly.</summary>
+/// <summary>
+/// Implemented by the compile-time generated registry in each tool assembly.
+/// 由各工具程序集内编译生成的注册表实现。
+/// </summary>
 public interface IMcpToolRegistry
 {
     IReadOnlyList<McpGeneratedTool> Tools { get; }
 }
 
-/// <summary>Generated metadata and direct delegates; no MethodInfo or expression compilation.</summary>
+/// <summary>
+/// Generated metadata and direct delegates; no MethodInfo or expression compilation.
+/// 生成的元数据和直接委托，不使用 MethodInfo 或表达式编译。
+/// </summary>
 public sealed record McpGeneratedTool(
     Type HandlerType,
     Type? RequestType,

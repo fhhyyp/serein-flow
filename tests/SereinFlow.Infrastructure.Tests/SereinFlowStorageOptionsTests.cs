@@ -57,7 +57,7 @@ public sealed class SereinFlowStorageOptionsTests
             var fromConfigurationResult = SereinFlowStorageOptions.FromConfiguration(configuration, directory.Path);
             return fromConfigurationResult;
         });
-        Assert.Equal("Legacy SereinFlow path settings require an explicit SereinFlow:DataRoot migration setting.", exception.Message);
+        Assert.Equal("Legacy SereinFlow path settings require an explicit SereinFlow:DataRoot migration setting. 旧版 SereinFlow 路径设置需要显式配置 SereinFlow:DataRoot 迁移设置。", exception.Message);
         Assert.DoesNotContain(directory.Path, exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 

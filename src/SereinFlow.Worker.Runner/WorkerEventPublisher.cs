@@ -14,6 +14,7 @@ internal sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runI
     private readonly SortedDictionary<long, WorkerEventEnvelopeDto> _pending = [];
     // RunStarted is written by RunnerHost before this publisher is created,
     // so the first runtime event has sequence 2.
+    // RunnerHost 在创建此发布器之前已写入 RunStarted，因此首个运行时事件的序号为 2。
     private long _lastWrittenSequence = 1;
     public async ValueTask PublishAsync(RuntimeEvent runtimeEvent, CancellationToken cancellationToken)
     {
@@ -36,6 +37,7 @@ internal sealed class WorkerEventPublisher(IWorkerTransport transport, Guid runI
         // Runtime sessions can retain ScriptLang.Value instances so a following
         // DLL node can convert them against its declared type. The protocol
         // boundary must receive only a safe audit projection.
+        // 运行时会话可保留 ScriptLang.Value，供后续 DLL 节点按声明类型转换；协议边界只接收安全的审计投影。
         var orderedPayload = runtimeEvent.Payload.OrderBy(static pair => pair.Key is "inputs" or "outputs" or "value" ? 1 : 0).ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal);
         var operationResult1 = ScriptValueConverter.ToBoundedAuditValue(orderedPayload);
         var payload = SerializeAudit(operationResult1);

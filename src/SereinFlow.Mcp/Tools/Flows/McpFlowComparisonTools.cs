@@ -22,11 +22,11 @@ internal sealed class McpFlowComparisonTools(
         var fromVersion = arguments.FromVersion;
         var toVersion = arguments.ToVersion;
         _mcpSecurityService.Require(principal, McpPermissionDto.ProjectRead, projectId);
-        var fromVersionDetail = await _aiReadModelService.GetFlowVersionAsync(projectId, flowId, fromVersion, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The source flow version was not found.");
-        var toVersionDetail = await _aiReadModelService.GetFlowVersionAsync(projectId, flowId, toVersion, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The target flow version was not found.");
+        var fromVersionDetail = await _aiReadModelService.GetFlowVersionAsync(projectId, flowId, fromVersion, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The source flow version was not found. 未找到源流程版本。");
+        var toVersionDetail = await _aiReadModelService.GetFlowVersionAsync(projectId, flowId, toVersion, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The target flow version was not found. 未找到目标流程版本。");
         if (fromVersionDetail.Version.Track != track || toVersionDetail.Version.Track != track)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The requested versions are not on the selected track.");
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The requested versions are not on the selected track. 请求的版本不属于所选版本轨道。");
         }
 
         var redactedSource = fromVersionDetail with

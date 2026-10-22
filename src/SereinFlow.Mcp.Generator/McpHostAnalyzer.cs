@@ -13,11 +13,11 @@ internal static class McpHostAnalyzer
         var name = GetRegistrationName(input.Attribute);
         if (!SyntaxFacts.IsValidIdentifier(name))
         {
-            return "the registration method name must be a valid C# identifier";
+            return "the registration method name must be a valid C# identifier 注册方法名称必须是有效的 C# 标识符。";
         }
         if (name == input.Symbol.Name || name is "ConfigureServices" or "ConfigureJsonOptions" or "ConfigureCatalog")
         {
-            return "the registration method name conflicts with the host class or a configuration hook";
+            return "the registration method name conflicts with the host class or a configuration hook 注册方法名称与宿主类或配置钩子冲突。";
         }
         return null;
     });

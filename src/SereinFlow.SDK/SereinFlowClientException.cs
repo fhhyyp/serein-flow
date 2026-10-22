@@ -8,7 +8,7 @@ namespace SereinFlow.Client;
 public sealed record SereinFlowApiError(int StatusCode, string? Code, string? Title, string? Detail, string? Instance, IReadOnlyDictionary<string, JsonElement> Extensions);
 public class SereinFlowClientException : Exception
 {
-    public SereinFlowClientException(int statusCode, Uri requestUri, SereinFlowApiError error, string? responseBody = null) : base(error.Detail ?? error.Title ?? $"SereinFlow request failed with status {statusCode}.")
+    public SereinFlowClientException(int statusCode, Uri requestUri, SereinFlowApiError error, string? responseBody = null) : base(error.Detail ?? error.Title ?? $"SereinFlow request failed with status {statusCode}. SereinFlow 请求失败，状态码见上述信息。")
     {
         StatusCode = statusCode;
         RequestUri = requestUri;
@@ -25,7 +25,7 @@ public class SereinFlowClientException : Exception
 
 public sealed class SereinFlowClientTimeoutException : TimeoutException
 {
-    public SereinFlowClientTimeoutException(Guid resourceId, TimeSpan timeout, object? lastKnownState) : base($"SereinFlow resource '{resourceId:D}' did not complete within {timeout}.")
+    public SereinFlowClientTimeoutException(Guid resourceId, TimeSpan timeout, object? lastKnownState) : base($"SereinFlow resource '{resourceId:D}' did not complete within {timeout}. SereinFlow 资源未在指定时限内完成。")
     {
         ResourceId = resourceId;
         Timeout = timeout;

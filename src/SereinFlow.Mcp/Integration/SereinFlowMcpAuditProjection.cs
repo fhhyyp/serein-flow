@@ -7,7 +7,10 @@ using Arguments = SereinFlow.Mcp.Framework.McpArgumentReader;
 
 namespace SereinFlow.Mcp.Integration;
 
-/// <summary>Projects a completed tool call into the SereinFlow audit storage contract.</summary>
+/// <summary>
+/// Projects a completed tool call into the SereinFlow audit storage contract.
+/// 将已完成的工具调用投影为 SereinFlow 审计存储契约。
+/// </summary>
 public sealed class SereinFlowMcpAuditProjection(IMcpAuditStore auditStore, IMcpPreviewStore? previewStore = null)
 {
     public async Task RecordAsync(McpToolCompletion completion, McpPrincipal? principal)
@@ -22,7 +25,7 @@ public sealed class SereinFlowMcpAuditProjection(IMcpAuditStore auditStore, IMcp
         var outputBytes = completion.Value is null ? 0 : Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(completion.Value, Support.McpJson.ContractJsonOptions));
         var previewId = Arguments.TryGuid(arguments, "previewId");
         var preview = previewId is null ? null : await (previewStore
-            ?? throw new InvalidOperationException("A preview store is required for preview audit projection.")).FindAsync(previewId.Value, CancellationToken.None);
+            ?? throw new InvalidOperationException("A preview store is required for preview audit projection. 预览审计投影需要预览存储。")).FindAsync(previewId.Value, CancellationToken.None);
         var projectId = Arguments.TryGuid(arguments, "projectId") ?? preview?.ProjectId;
         var flowId = Arguments.TryGuid(arguments, "flowId") ?? preview?.FlowId;
         var defaultTrack = metadata?.HasAuditTrack == true ? metadata.AuditTrack : (FlowVersionTrackDto?)null;

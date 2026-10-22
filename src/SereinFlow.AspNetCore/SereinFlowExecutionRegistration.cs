@@ -83,7 +83,7 @@ public static class SereinFlowExecutionRegistration
             var configured = Path.IsPathRooted(configuredPath) ? Path.GetFullPath(configuredPath) : resolveGetFullPathResult();
             if (!File.Exists(configured))
             {
-                throw new InvalidOperationException($"Configured SereinFlow:WorkerRunnerPath does not exist: '{configured}'.");
+                throw new InvalidOperationException($"Configured SereinFlow:WorkerRunnerPath does not exist: '{configured}'. 配置的 SereinFlow:WorkerRunnerPath 路径不存在。");
             }
 
             ValidateManagedRunnerFiles(configured);
@@ -111,6 +111,7 @@ public static class SereinFlowExecutionRegistration
 
         // Only the repository's official host may use source-tree build output.
         // A package consumer must resolve the bundled Runner or configure an explicit path.
+        // 只有仓库内的官方宿主可以使用源码树构建输出；包使用方必须解析随包提供的 Runner，或显式配置路径。
         for (var ancestor = new DirectoryInfo(contentRootPath); ancestor is not null; ancestor = ancestor.Parent)
         {
             if (!string.Equals(ancestor.Name, "SereinFlow.Api", StringComparison.OrdinalIgnoreCase) || !string.Equals(ancestor.Parent?.Name, "src", StringComparison.OrdinalIgnoreCase))
@@ -171,7 +172,7 @@ public static class SereinFlowExecutionRegistration
             var required = Path.Combine(directory, name + suffix);
             if (!File.Exists(required))
             {
-                throw new InvalidOperationException($"Worker Runner deployment is incomplete. Missing '{required}'.");
+                throw new InvalidOperationException($"Worker Runner deployment is incomplete. Missing '{required}'. Worker Runner 部署不完整，缺少上述文件。");
             }
         }
     }

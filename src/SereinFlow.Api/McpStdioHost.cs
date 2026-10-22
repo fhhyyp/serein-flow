@@ -27,7 +27,7 @@ internal static class McpStdioHost
         var apiKey = builder.Configuration["SereinFlow:Mcp:Stdio:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            throw new InvalidOperationException("SereinFlow:Mcp:Stdio:ApiKey must be configured explicitly for --mcp-stdio.");
+            throw new InvalidOperationException("SereinFlow:Mcp:Stdio:ApiKey must be configured explicitly for --mcp-stdio. 使用 --mcp-stdio 时必须显式配置 SereinFlow:Mcp:Stdio:ApiKey。");
         }
 
         using var host = builder.Build();
@@ -37,7 +37,7 @@ internal static class McpStdioHost
         var principal = await security.AuthenticateAsync(apiKey, CancellationToken.None);
         if (principal is null)
         {
-            throw new InvalidOperationException("The configured stdio MCP API key is invalid, expired or revoked.");
+            throw new InvalidOperationException("The configured stdio MCP API key is invalid, expired or revoked. 配置的 stdio MCP API 密钥无效、已过期或已撤销。");
         }
 
         principalAccessor.Current = principal;

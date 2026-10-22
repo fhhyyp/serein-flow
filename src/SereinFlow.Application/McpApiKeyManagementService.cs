@@ -7,6 +7,7 @@ namespace SereinFlow.Application;
 /// <summary>
 /// Shared MCP API key lifecycle used by the HTTP management surface and MCP tools.
 /// Secrets are returned only at creation or rotation time; persistence stores hashes.
+/// HTTP 管理接口与 MCP 工具共用的 API 密钥生命周期服务；仅在创建或轮换时返回密钥明文，持久化只保存哈希。
 /// </summary>
 public sealed class McpApiKeyManagementService
 {
@@ -44,7 +45,7 @@ public sealed class McpApiKeyManagementService
             var existing = await _keys.ListAsync(cancellationToken);
             if (existing.Count > 0)
             {
-                throw new McpSecurityException(McpErrorCodes.KeySetupAlreadyCompleted, "MCP API key setup has already been completed.", StatusCodes.Status409Conflict);
+                throw new McpSecurityException(McpErrorCodes.KeySetupAlreadyCompleted, "MCP API key setup has already been completed. MCP API 密钥初始化已完成。", StatusCodes.Status409Conflict);
             }
 
             var getValuesResult = Enum.GetValues<McpPermissionDto>();
@@ -81,7 +82,7 @@ public sealed class McpApiKeyManagementService
         var existing = await FindAsync(id, cancellationToken);
         if (existing.RevokedAt is not null)
         {
-            throw new McpSecurityException(McpErrorCodes.KeyAlreadyRevoked, "The MCP API key has already been revoked.", StatusCodes.Status409Conflict);
+            throw new McpSecurityException(McpErrorCodes.KeyAlreadyRevoked, "The MCP API key has already been revoked. MCP API 密钥已撤销。", StatusCodes.Status409Conflict);
         }
 
         var replacement = McpSecurityService.RotateKeyWithEntry(existing);
@@ -93,7 +94,7 @@ public sealed class McpApiKeyManagementService
 
     private async Task<McpApiKeyEntry> FindAsync(string id, CancellationToken cancellationToken)
     {
-        var evaluatedValue2 = await _keys.FindAsync(id, cancellationToken) ?? throw new McpSecurityException(McpErrorCodes.KeyNotFound, "The MCP API key was not found.", StatusCodes.Status404NotFound);
+        var evaluatedValue2 = await _keys.FindAsync(id, cancellationToken) ?? throw new McpSecurityException(McpErrorCodes.KeyNotFound, "The MCP API key was not found. 未找到 MCP API 密钥。", StatusCodes.Status404NotFound);
         return evaluatedValue2;
     }
 
@@ -107,12 +108,12 @@ public sealed class McpApiKeyManagementService
         var project = await _projects.FindAsync(projectId.Value, cancellationToken);
         if (project is null)
         {
-            throw new McpSecurityException(McpErrorCodes.ProjectNotFound, "The API key project was not found.", StatusCodes.Status404NotFound);
+            throw new McpSecurityException(McpErrorCodes.ProjectNotFound, "The API key project was not found. 未找到 API 密钥所属项目。", StatusCodes.Status404NotFound);
         }
 
         if (project.Status == ProjectStatus.Archived)
         {
-            throw new McpSecurityException(McpErrorCodes.ProjectArchived, "An API key cannot be bound to an archived project.", StatusCodes.Status409Conflict);
+            throw new McpSecurityException(McpErrorCodes.ProjectArchived, "An API key cannot be bound to an archived project. API 密钥不能绑定到已归档的项目。", StatusCodes.Status409Conflict);
         }
     }
 }

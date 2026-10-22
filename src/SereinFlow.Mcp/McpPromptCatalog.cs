@@ -40,17 +40,18 @@ internal static class McpPromptCatalog
     {
         ArgumentNullException.ThrowIfNull(guidanceProvider);
         // Keep argument validation ahead of the unsupported-name error for compatibility.
+        // 为保持兼容性，先校验参数，再报告不支持的名称。
         var definition = name is not null && ByName.TryGetValue(name, out var registered) ? registered : null;
         var requestRequired = definition?.RequestRequired ?? true;
         var request = GetRequest(arguments, requestRequired);
         if (definition is null)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"The SereinFlow prompt '{name}' is not supported.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"The SereinFlow prompt '{name}' is not supported. 不支持此 SereinFlow 提示词。");
         }
 
         var guidance = await guidanceProvider.ReadManyAsync(definition.GuidanceIds, cancellationToken);
         var guidanceText = string.Join("\n\n", guidance.Select(static resource =>
-            resource.Value as string ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The SereinFlow AI guidance is not available.")));
+            resource.Value as string ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The SereinFlow AI guidance is not available. SereinFlow AI 指引不可用。")));
         return Result(definition.ResultDescription, $"""
             SereinFlow workflow: {name}
             User request: {request}
@@ -81,7 +82,7 @@ internal static class McpPromptCatalog
 
         if (arguments.ValueKind != JsonValueKind.Object)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt arguments must be a JSON object.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt arguments must be a JSON object. MCP 提示词参数必须是 JSON 对象。");
         }
 
         if (!arguments.TryGetProperty("request", out var request) || request.ValueKind == JsonValueKind.Null || request.ValueKind == JsonValueKind.Undefined)
@@ -91,18 +92,18 @@ internal static class McpPromptCatalog
                 return "No additional request was supplied.";
             }
 
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt argument 'request' is required.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt argument 'request' is required. 必须提供 MCP 提示词参数 request。");
         }
 
         if (request.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(request.GetString()))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt argument 'request' must be a non-empty string.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt argument 'request' must be a non-empty string. MCP 提示词参数 request 必须是非空字符串。");
         }
 
         var value = request.GetString()!.Trim();
         if (value.Length > MaxRequestLength)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt argument 'request' exceeds the configured length limit.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP prompt argument 'request' exceeds the configured length limit. MCP 提示词参数 request 超过配置的长度限制。");
         }
 
         return value;

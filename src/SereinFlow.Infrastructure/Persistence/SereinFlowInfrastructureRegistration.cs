@@ -64,6 +64,7 @@ public static class SereinFlowInfrastructureRegistration
         // infrastructure tests.  Register the repository-backed constructor
         // explicitly so ASP.NET Core does not see two equally applicable
         // constructors when resolving the application abstractions.
+        // 这些适配器为基础设施测试保留 SqliteDatabase 兼容构造函数；显式注册基于仓储的构造函数，避免 ASP.NET Core 解析时出现歧义。
         services.AddScoped<IProjectRepository>(serviceProvider =>
         {
             var getRequiredServiceResult3 = serviceProvider.GetRequiredService<IRepository<ProjectRecord>>();

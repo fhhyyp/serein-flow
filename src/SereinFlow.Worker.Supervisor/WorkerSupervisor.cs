@@ -613,6 +613,7 @@ public sealed partial class WorkerSupervisor
                     // The runner can close stdin after flushing its result while
                     // stdout still contains events. Drain that stream before
                     // declaring a crash, with a bounded grace period.
+                    // Runner 可能在刷新结果后关闭 stdin，此时 stdout 中仍有事件；在有限宽限期内读完该流，再判断是否崩溃。
                     heartbeatFailure = exception;
                     heartbeatTask = Task.Delay(_launchOptions.EffectiveCancellationGracePeriod, heartbeatCancellation.Token);
                     continue;

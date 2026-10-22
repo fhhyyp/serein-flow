@@ -225,6 +225,7 @@ public sealed class StdioWorkerTransport : IWorkerTransport
                     catch
                     {
                     // Diagnostics must never break protocol consumption.
+                    // 诊断处理不得中断协议消费。
                     }
                 }
             }

@@ -5,7 +5,10 @@ using static SereinFlow.Mcp.Tools.McpToolSchemas;
 
 namespace SereinFlow.Mcp.Tools;
 
-/// <summary>Published tool contracts, including their descriptions, schemas and listing order.</summary>
+/// <summary>
+/// Published tool contracts, including their descriptions, schemas and listing order.
+/// 已发布的工具契约，包含描述、架构和列表顺序。
+/// </summary>
 internal static class SereinFlowMcpToolCatalogFactory
 {
     private static readonly IReadOnlyList<McpToolDescriptor> ToolDescriptors =

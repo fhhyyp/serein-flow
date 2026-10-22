@@ -717,6 +717,7 @@ public sealed class RunEventBroadcaster
                 {
                     // End the slow stream at its last delivered sequence. SSE
                     // reconnects using Last-Event-ID and replays durable events.
+                    // 在最后成功投递的序号处结束慢速流；SSE 通过 Last-Event-ID 重连并回放持久化事件。
                     RemoveSubscription(item.RunId, subscriber.Key);
                 }
             }
@@ -1146,6 +1147,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         }
 
         // Each batch owns its scope, including when a timed-out sink is still unwinding.
+        // 每个批次独立持有服务作用域；即使接收端超时后仍在退出，该作用域也归该批次所有。
         using var scope = _scopeFactory.CreateScope();
         var runStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
         var eventStore = scope.ServiceProvider.GetRequiredService<IFlowRunEventStore>();

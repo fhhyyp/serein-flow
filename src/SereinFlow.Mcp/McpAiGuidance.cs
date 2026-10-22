@@ -230,7 +230,7 @@ public sealed class McpAiGuidanceOptions
                 string.Equals(resource.Key, child.Key, StringComparison.Ordinal));
             if (resource is null)
             {
-                throw new InvalidOperationException($"{SectionName}:Modules contains unsupported resource key '{child.Key}'.");
+                throw new InvalidOperationException($"{SectionName}:Modules contains unsupported resource key '{child.Key}'. Modules 包含不支持的资源键。");
             }
 
             moduleFilePaths[resource.Key] = child.Value ?? string.Empty;
@@ -242,14 +242,14 @@ public sealed class McpAiGuidanceOptions
             if (!McpAiGuidance.AllResources.Any(resource =>
                 string.Equals(resource.Key, child.Key, StringComparison.Ordinal)))
             {
-                throw new InvalidOperationException($"{SectionName}:Resources contains unsupported resource key '{child.Key}'.");
+                throw new InvalidOperationException($"{SectionName}:Resources contains unsupported resource key '{child.Key}'. Resources 包含不支持的资源键。");
             }
 
             var uri = child["Uri"]?.Trim();
             var resourceFilePath = child["FilePath"]?.Trim();
             if (string.IsNullOrWhiteSpace(uri) && string.IsNullOrWhiteSpace(resourceFilePath))
             {
-                throw new InvalidOperationException($"{SectionName}:Resources:{child.Key} must configure Uri, FilePath, or both.");
+                throw new InvalidOperationException($"{SectionName}:Resources:{child.Key} must configure Uri, FilePath, or both. 必须配置 Uri、FilePath 或两者。");
             }
 
             if (!string.IsNullOrWhiteSpace(uri))
@@ -292,7 +292,7 @@ public sealed class McpAiGuidanceOptions
         if (string.IsNullOrWhiteSpace(filePath) || Path.IsPathRooted(filePath) || filePath is "." or ".."
             || filePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries).Any(static segment => segment is "." or ".."))
         {
-            throw new InvalidOperationException($"{SectionName}:FilePath must be a non-empty relative path without '.' or '..' segments.");
+            throw new InvalidOperationException($"{SectionName}:FilePath must be a non-empty relative path without '.' or '..' segments. FilePath 必须是非空相对路径，且不能包含“.”或“..”路径段。");
         }
     }
 
@@ -300,7 +300,7 @@ public sealed class McpAiGuidanceOptions
     {
         if (!Uri.TryCreate(uri, UriKind.Absolute, out var parsed) || !string.Equals(parsed.Scheme, McpResourceUris.Scheme, StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(parsed.Host) || !string.IsNullOrEmpty(parsed.Query) || !string.IsNullOrEmpty(parsed.Fragment) || uri.IndexOfAny(['{', '}']) >= 0)
         {
-            throw new InvalidOperationException($"{SectionName}:Resources URI must be an absolute sereinflow URI without templates, query, or fragment.");
+            throw new InvalidOperationException($"{SectionName}:Resources URI must be an absolute sereinflow URI without templates, query, or fragment. Resources URI 必须是绝对 sereinflow URI，且不能包含模板、查询或片段。");
         }
     }
 }
@@ -309,6 +309,7 @@ public sealed class McpAiGuidanceOptions
 /// Resolves MCP guidance from the current configuration and server deployment
 /// at read time. Configuration controls the public URI and backing file path;
 /// the MCP caller can select only a currently registered URI.
+/// 读取时根据当前配置和服务部署解析 MCP 指引；配置决定公开 URI 及后备文件路径，调用方只能选择当前已注册的 URI。
 /// </summary>
 public sealed class McpAiGuidanceProvider
 {
@@ -369,7 +370,7 @@ public sealed class McpAiGuidanceProvider
         var snapshot = CreateSnapshot();
         if (!snapshot.ByUri.TryGetValue(uri, out var resource))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow AI guidance URI is not supported.", new { code = McpErrorCodes.AiGuidanceUriUnsupported });
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow AI guidance URI is not supported. 不支持此 SereinFlow AI 指引 URI。", new { code = McpErrorCodes.AiGuidanceUriUnsupported });
         }
 
         return await ReadAsync(resource, snapshot.MaxBytes, cancellationToken);
@@ -413,7 +414,7 @@ public sealed class McpAiGuidanceProvider
             var path = Path.GetFullPath(Path.Combine(_root, relativePath));
             if (!path.StartsWith(_rootPrefix, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException($"{McpAiGuidanceOptions.SectionName}:FilePath must remain inside the server content root.");
+                throw new InvalidOperationException($"{McpAiGuidanceOptions.SectionName}:FilePath must remain inside the server content root. FilePath 必须位于服务器内容根目录内。");
             }
 
             var embeddedName = $"SereinFlow.Mcp.Guidance.{Path.GetFileName(resource.DefaultFilePath)}";
@@ -421,18 +422,18 @@ public sealed class McpAiGuidanceProvider
             if (McpResourceCatalog.DirectResources.Any(direct =>
                 string.Equals(direct.UriTemplate, uri, StringComparison.Ordinal)))
             {
-                throw new InvalidOperationException($"{McpAiGuidanceOptions.SectionName}:Resources URI '{uri}' conflicts with a direct MCP resource.");
+                throw new InvalidOperationException($"{McpAiGuidanceOptions.SectionName}:Resources URI '{uri}' conflicts with a direct MCP resource. 资源 URI 与直接注册的 MCP 资源冲突。");
             }
 
             if (!byUri.TryAdd(uri, resolved))
             {
-                throw new InvalidOperationException($"{McpAiGuidanceOptions.SectionName}:Resources contains duplicate URI '{uri}'.");
+                throw new InvalidOperationException($"{McpAiGuidanceOptions.SectionName}:Resources contains duplicate URI '{uri}'. Resources 中存在重复 URI。");
             }
 
             byId[id] = resolved;
         }
 
-        var maxBytes = options.MaxBytes > 0 ? options.MaxBytes : throw new ArgumentOutOfRangeException(nameof(options), "The AI guidance size limit must be positive.");
+        var maxBytes = options.MaxBytes > 0 ? options.MaxBytes : throw new ArgumentOutOfRangeException(nameof(options), "The AI guidance size limit must be positive. AI 指引大小限制必须为正数。");
         return new GuidanceSnapshot(byId, byUri, maxBytes);
     }
 
@@ -463,7 +464,7 @@ public sealed class McpAiGuidanceProvider
             await using var stream = embeddedOnly ? OpenEmbeddedResourceStream(resource) : OpenResourceStream(resource, out source);
             if (stream.Length > maxBytes)
             {
-                throw new McpProtocolException(McpProtocolErrorCodes.RequestTooLarge, "The configured SereinFlow AI guidance is too large.", new { code = McpErrorCodes.AiGuidanceTooLarge });
+                throw new McpProtocolException(McpProtocolErrorCodes.RequestTooLarge, "The configured SereinFlow AI guidance is too large. 配置的 SereinFlow AI 指引过大。", new { code = McpErrorCodes.AiGuidanceTooLarge });
             }
 
             using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 8192, leaveOpen: false);
@@ -483,7 +484,7 @@ public sealed class McpAiGuidanceProvider
         }
         catch (UnauthorizedAccessException)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.PermissionDenied, "The configured SereinFlow AI guidance cannot be read.", new { code = McpErrorCodes.AiGuidanceAccessDenied });
+            throw new McpProtocolException(McpProtocolErrorCodes.PermissionDenied, "The configured SereinFlow AI guidance cannot be read. 无法读取配置的 SereinFlow AI 指引。", new { code = McpErrorCodes.AiGuidanceAccessDenied });
         }
         catch (IOException)
         {
@@ -492,7 +493,7 @@ public sealed class McpAiGuidanceProvider
 
         if (Encoding.UTF8.GetByteCount(content) > maxBytes)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.RequestTooLarge, "The configured SereinFlow AI guidance is too large.", new { code = McpErrorCodes.AiGuidanceTooLarge });
+            throw new McpProtocolException(McpProtocolErrorCodes.RequestTooLarge, "The configured SereinFlow AI guidance is too large. 配置的 SereinFlow AI 指引过大。", new { code = McpErrorCodes.AiGuidanceTooLarge });
         }
 
         if (string.IsNullOrWhiteSpace(content))
@@ -546,6 +547,6 @@ public sealed class McpAiGuidanceProvider
     internal sealed record GuidanceSnapshot(Dictionary<McpAiGuidanceId, ResolvedGuidanceResource> ById, Dictionary<string, ResolvedGuidanceResource> ByUri, long MaxBytes);
     private static McpProtocolException Unavailable()
     {
-        return new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The SereinFlow AI guidance is not available.", new { code = McpErrorCodes.AiGuidanceUnavailable });
+        return new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The SereinFlow AI guidance is not available. SereinFlow AI 指引不可用。", new { code = McpErrorCodes.AiGuidanceUnavailable });
     }
 }

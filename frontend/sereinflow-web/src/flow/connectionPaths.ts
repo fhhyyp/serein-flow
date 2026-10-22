@@ -8,6 +8,7 @@ interface ConnectionPoints {
   targetPosition: Position;
 }
 /** Distance from the arrow tip to the target card border, in canvas pixels. */
+/** 箭头尖端到目标卡片边框的距离，以画布像素计。 */
 export const CONNECTION_ARROW_GAP = 6;
 const approachLength = 16;
 function withTargetGap(points: ConnectionPoints, gap: number): ConnectionPoints {
@@ -27,6 +28,7 @@ function withTargetGap(points: ConnectionPoints, gap: number): ConnectionPoints 
   }
 }
 /** Keep the arrow clear of the input seat and give it a horizontal approach. */
+/** 使箭头避开输入连接位，并水平接近目标。 */
 export function bezierConnectionPath(points: ConnectionPoints, gap = CONNECTION_ARROW_GAP): string {
   const bindingSource1 = points;
   const { sourceX } = bindingSource1;

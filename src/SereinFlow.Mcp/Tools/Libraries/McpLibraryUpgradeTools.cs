@@ -57,7 +57,7 @@ internal sealed class McpLibraryUpgradeTools(
         RequireConfirmation(applyEnvelope);
         if (request.Flows is null || request.Flows.Count == 0)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "At least one flow must be selected for a library upgrade.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "At least one flow must be selected for a library upgrade. 类库升级必须至少选择一个流程。");
         }
 
         var requestPayload = Serialize(request);
@@ -70,7 +70,7 @@ internal sealed class McpLibraryUpgradeTools(
         var entry = await _mcpPreviewService.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, "library.upgrade", StringComparison.Ordinal))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a library upgrade.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a library upgrade. 此预览不是类库升级预览。");
         }
 
         var stored = McpPreviewService.Deserialize<StoredLibraryUpgradePreview>(entry);
@@ -118,6 +118,6 @@ internal sealed class McpLibraryUpgradeTools(
             StatusCodes.Status400BadRequest => McpProtocolErrorCodes.InvalidParams,
             StatusCodes.Status404NotFound => McpProtocolErrorCodes.ResourceNotFound,
             _ => McpProtocolErrorCodes.OperationRejected,
-        }, result.Message ?? "The library upgrade could not be completed.", new { code = result.Code, statusCode = result.StatusCode, currentVersion = result.CurrentVersion });
+        }, result.Message ?? "The library upgrade could not be completed. 无法完成类库升级。", new { code = result.Code, statusCode = result.StatusCode, currentVersion = result.CurrentVersion });
     }
 }

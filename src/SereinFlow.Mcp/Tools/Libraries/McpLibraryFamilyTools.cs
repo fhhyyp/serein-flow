@@ -47,7 +47,7 @@ internal sealed class McpLibraryFamilyTools(
         var entry = await _mcpPreviewService.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, LibraryErrorCodes.FamilyAssign, StringComparison.Ordinal))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a library family assignment.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a library family assignment. 此预览不是类库家族分配预览。");
         }
 
         _mcpSecurityService.RequireAdministrator(principal);
@@ -56,7 +56,7 @@ internal sealed class McpLibraryFamilyTools(
         var validated = await ValidateLibraryFamilyAssignmentAsync(stored.Request, cancellationToken);
         if (validated.Diagnostics.Count > 0)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The library family assignment is no longer valid. Create a new preview and review it again.", new { code = McpErrorCodes.ValidationFailed, diagnostics = validated.Diagnostics });
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The library family assignment is no longer valid. Create a new preview and review it again. 类库家族分配已失效，请创建新预览并重新审阅。", new { code = McpErrorCodes.ValidationFailed, diagnostics = validated.Diagnostics });
         }
 
         LibraryFamilyDto? result;
@@ -67,12 +67,12 @@ internal sealed class McpLibraryFamilyTools(
         }
         catch (ArgumentException exception)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The library family assignment is no longer valid. Create a new preview and review it again.", new { code = McpErrorCodes.ValidationFailed, message = exception.Message });
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The library family assignment is no longer valid. Create a new preview and review it again. 类库家族分配已失效，请创建新预览并重新审阅。", new { code = McpErrorCodes.ValidationFailed, message = exception.Message });
         }
 
         if (result is null)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The library artifact was not found.", new { code = LibraryErrorCodes.NotFound });
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The library artifact was not found. 未找到类库制品。", new { code = LibraryErrorCodes.NotFound });
         }
 
         await MarkPreviewAppliedAsync(_mcpPreviewService, entry, cancellationToken);
@@ -96,11 +96,11 @@ internal sealed class McpLibraryFamilyTools(
         var library = string.IsNullOrWhiteSpace(libraryId) ? null : await _libraryCatalogService.FindAsync(libraryId, cancellationToken);
         if (string.IsNullOrWhiteSpace(libraryId))
         {
-            diagnostics.Add(new ValidationDiagnosticDto(LibraryErrorCodes.IdRequired, "The library ID is required.", "libraryId"));
+            diagnostics.Add(new ValidationDiagnosticDto(LibraryErrorCodes.IdRequired, "The library ID is required. 必须提供类库 ID。", "libraryId"));
         }
         else if (library is null)
         {
-            diagnostics.Add(new ValidationDiagnosticDto(LibraryErrorCodes.NotFound, "The library artifact was not found.", "libraryId"));
+            diagnostics.Add(new ValidationDiagnosticDto(LibraryErrorCodes.NotFound, "The library artifact was not found. 未找到类库制品。", "libraryId"));
         }
 
         var families = await _libraryCatalogService.ListFamiliesAsync(includeArchivedArtifacts: true, cancellationToken: cancellationToken);
@@ -108,12 +108,12 @@ internal sealed class McpLibraryFamilyTools(
         var targetFamily = familyId is null ? null : families.SingleOrDefault(item => string.Equals(item.Id, familyId, StringComparison.OrdinalIgnoreCase));
         if (familyId is not null && targetFamily is null)
         {
-            diagnostics.Add(new ValidationDiagnosticDto(LibraryErrorCodes.FamilyNotFound, "The requested library family was not found.", "familyId"));
+            diagnostics.Add(new ValidationDiagnosticDto(LibraryErrorCodes.FamilyNotFound, "The requested library family was not found. 未找到请求的类库家族。", "familyId"));
         }
 
         if (familyId is null && string.IsNullOrWhiteSpace(name))
         {
-            diagnostics.Add(new ValidationDiagnosticDto(LibraryErrorCodes.FamilyNameRequired, "A family name is required when creating a library family.", "name"));
+            diagnostics.Add(new ValidationDiagnosticDto(LibraryErrorCodes.FamilyNameRequired, "A family name is required when creating a library family. 创建类库家族时必须提供家族名称。", "name"));
         }
 
         return new LibraryFamilyAssignmentValidation(normalized, diagnostics, currentFamily, targetFamily);

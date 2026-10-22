@@ -211,6 +211,7 @@ public sealed class FlowDiffService
         {
             // A value that looked like structured JSON but could not be
             // parsed is safer to omit than to return unredacted.
+            // 看似结构化 JSON 却无法解析的值应予以省略，避免返回未经脱敏的内容。
             return null;
         }
     }
@@ -316,6 +317,7 @@ public sealed class FlowPatchService
     /// The MCP boundary supplies only canonical v2 operations. The established
     /// mutation implementation still uses the legacy internal envelope, which
     /// is created here after the contract normalizer has completed validation.
+    /// MCP 边界只提供规范的 v2 操作；契约规范化器完成校验后，在此转换为现有修改实现使用的旧版内部封装。
     /// </summary>
     public FlowDefinitionDto Apply(FlowDefinitionDto definition, IReadOnlyList<FlowPatchCanonicalOperationDto> operations)
     {
@@ -415,7 +417,7 @@ public sealed class FlowPatchService
                     ReplaceScriptSource(canvases, requiredResult66, requiredResult67, readValueResult68);
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(operations), operation.Operation, "The flow patch operation is not supported.");
+                    throw new ArgumentOutOfRangeException(nameof(operations), operation.Operation, "The flow patch operation is not supported. 不支持此流程补丁操作。");
             }
         }
 
@@ -442,12 +444,12 @@ public sealed class FlowPatchService
         var index = canvases.FindIndex(item => item.Id == canvas.Id);
         if (index >= 0 && !replace)
         {
-            throw new InvalidOperationException($"Canvas '{canvas.Id}' already exists.");
+            throw new InvalidOperationException($"Canvas '{canvas.Id}' already exists. 指定画布已存在。");
         }
 
         if (index < 0 && replace)
         {
-            throw new InvalidOperationException($"Canvas '{canvas.Id}' does not exist.");
+            throw new InvalidOperationException($"Canvas '{canvas.Id}' does not exist. 指定画布不存在。");
         }
 
         if (index >= 0)
@@ -471,12 +473,12 @@ public sealed class FlowPatchService
         var index = canvases.FindIndex(item => item.Id == canvasId);
         if (index < 0)
         {
-            throw new InvalidOperationException($"Canvas '{canvasId}' does not exist.");
+            throw new InvalidOperationException($"Canvas '{canvasId}' does not exist. 指定画布不存在。");
         }
 
         if (canvases[index].Nodes.Count > 0 || canvases[index].Connections.Count > 0)
         {
-            throw new InvalidOperationException($"Canvas '{canvasId}' must be empty before removal.");
+            throw new InvalidOperationException($"Canvas '{canvasId}' must be empty before removal. 移除画布前必须先清空画布。");
         }
 
         canvases.RemoveAt(index);
@@ -496,12 +498,12 @@ public sealed class FlowPatchService
         var index = nodes.FindIndex(item => item.Id == node.Id);
         if (index >= 0 && !replace)
         {
-            throw new InvalidOperationException($"Node '{node.Id}' already exists.");
+            throw new InvalidOperationException($"Node '{node.Id}' already exists. 指定节点已存在。");
         }
 
         if (index < 0 && replace)
         {
-            throw new InvalidOperationException($"Node '{node.Id}' does not exist.");
+            throw new InvalidOperationException($"Node '{node.Id}' does not exist. 指定节点不存在。");
         }
 
         if (index >= 0)
@@ -525,12 +527,12 @@ public sealed class FlowPatchService
         var canvas = canvases[canvasIndex];
         if (!canvas.Nodes.Any(node => node.Id == nodeId))
         {
-            throw new InvalidOperationException($"Node '{nodeId}' does not exist.");
+            throw new InvalidOperationException($"Node '{nodeId}' does not exist. 指定节点不存在。");
         }
 
         if (canvas.Connections.Any(connection => connection.FromNodeId == nodeId || connection.ToNodeId == nodeId))
         {
-            throw new InvalidOperationException($"Connections for node '{nodeId}' must be removed first.");
+            throw new InvalidOperationException($"Connections for node '{nodeId}' must be removed first. 必须先移除指定节点的连接。");
         }
 
         canvases[canvasIndex] = canvas with
@@ -562,7 +564,7 @@ public sealed class FlowPatchService
         RequireObjectId(parameter.Ui?.Id, "value.ui.id");
         if (!string.Equals(parameterId, parameter.Ui!.Id, StringComparison.Ordinal))
         {
-            throw new InvalidOperationException("The parameter ID does not match value.ui.id.");
+            throw new InvalidOperationException("The parameter ID does not match value.ui.id. 参数 ID 与 value.ui.id 不一致。");
         }
 
         var canvasIndex = FindCanvas(canvases, canvasId);
@@ -571,7 +573,7 @@ public sealed class FlowPatchService
         var nodeIndex = toListResult.FindIndex(node => node.Id == nodeId);
         if (nodeIndex < 0)
         {
-            throw new InvalidOperationException($"Node '{nodeId}' does not exist.");
+            throw new InvalidOperationException($"Node '{nodeId}' does not exist. 指定节点不存在。");
         }
 
         var nodes = canvas.Nodes.ToList();
@@ -584,7 +586,7 @@ public sealed class FlowPatchService
         });
         if (index < 0)
         {
-            throw new InvalidOperationException($"Parameter '{parameterId}' does not exist on node '{nodeId}'.");
+            throw new InvalidOperationException($"Parameter '{parameterId}' does not exist on node '{nodeId}'. 指定节点上不存在该参数。");
         }
 
         parameters[index] = parameter;
@@ -608,7 +610,7 @@ public sealed class FlowPatchService
         var nodeIndex = toListResult75.FindIndex(node => node.Id == nodeId);
         if (nodeIndex < 0)
         {
-            throw new InvalidOperationException($"Node '{nodeId}' does not exist.");
+            throw new InvalidOperationException($"Node '{nodeId}' does not exist. 指定节点不存在。");
         }
 
         var nodes = canvas.Nodes.ToList();
@@ -619,7 +621,7 @@ public sealed class FlowPatchService
             return equalsResult74;
         }))
         {
-            throw new InvalidOperationException($"Parameter '{parameterId}' already exists on node '{nodeId}'.");
+            throw new InvalidOperationException($"Parameter '{parameterId}' already exists on node '{nodeId}'. 指定节点上已存在该参数。");
         }
 
         var parameters = node.Parameters.ToList();
@@ -642,12 +644,12 @@ public sealed class FlowPatchService
         var nodeIndex = toListResult77.FindIndex(node => node.Id == nodeId);
         if (nodeIndex < 0)
         {
-            throw new InvalidOperationException($"Node '{nodeId}' does not exist.");
+            throw new InvalidOperationException($"Node '{nodeId}' does not exist. 指定节点不存在。");
         }
 
         if (canvas.Connections.Any(connection => connection.Kind == ConnectionKindDto.Data && connection.ToNodeId == nodeId && connection.ToPortId == parameterId))
         {
-            throw new InvalidOperationException($"Data connections for parameter '{parameterId}' on node '{nodeId}' must be removed first.");
+            throw new InvalidOperationException($"Data connections for parameter '{parameterId}' on node '{nodeId}' must be removed first. 必须先移除指定节点上该参数的数据连接。");
         }
 
         var nodes = canvas.Nodes.ToList();
@@ -660,7 +662,7 @@ public sealed class FlowPatchService
         });
         if (parameterIndex < 0)
         {
-            throw new InvalidOperationException($"Parameter '{parameterId}' does not exist on node '{nodeId}'.");
+            throw new InvalidOperationException($"Parameter '{parameterId}' does not exist on node '{nodeId}'. 指定节点上不存在该参数。");
         }
 
         parameters.RemoveAt(parameterIndex);
@@ -694,12 +696,12 @@ public sealed class FlowPatchService
         var index = connections.FindIndex(item => item.Id == connection.Id);
         if (index >= 0 && !replace)
         {
-            throw new InvalidOperationException($"Connection '{connection.Id}' already exists.");
+            throw new InvalidOperationException($"Connection '{connection.Id}' already exists. 指定连接已存在。");
         }
 
         if (index < 0 && replace)
         {
-            throw new InvalidOperationException($"Connection '{connection.Id}' does not exist.");
+            throw new InvalidOperationException($"Connection '{connection.Id}' does not exist. 指定连接不存在。");
         }
 
         if (index >= 0)
@@ -726,7 +728,7 @@ public sealed class FlowPatchService
         var connection = canvas.Connections.FirstOrDefault(item => item.Id == connectionId);
         if (connection is null)
         {
-            throw new InvalidOperationException($"Connection '{connectionId}' does not exist.");
+            throw new InvalidOperationException($"Connection '{connectionId}' does not exist. 指定连接不存在。");
         }
 
         ResetDataConnectionTargetParameter(canvases, canvasId, connection);
@@ -868,7 +870,7 @@ public sealed class FlowPatchService
         var nodeIndex = nodes.FindIndex(node => node.Id == nodeId);
         if (nodeIndex < 0 || nodes[nodeIndex].Script is null)
         {
-            throw new InvalidOperationException($"Script node '{nodeId}' does not exist.");
+            throw new InvalidOperationException($"Script node '{nodeId}' does not exist. 指定脚本节点不存在。");
         }
 
         var script = nodes[nodeIndex].Script!;
@@ -890,7 +892,7 @@ public sealed class FlowPatchService
         var index = canvases.FindIndex(canvas => canvas.Id == canvasId);
         if (index < 0)
         {
-            throw new InvalidOperationException($"Canvas '{canvasId}' does not exist.");
+            throw new InvalidOperationException($"Canvas '{canvasId}' does not exist. 指定画布不存在。");
         }
 
         return index;
@@ -900,16 +902,16 @@ public sealed class FlowPatchService
     {
         if (operation.Value is not { } value)
         {
-            throw new InvalidOperationException($"Operation '{operation.Operation}' requires a value.");
+            throw new InvalidOperationException($"Operation '{operation.Operation}' requires a value. 此操作必须提供值。");
         }
 
-        var evaluatedValue87 = value.Deserialize<T>(JsonOptions) ?? throw new InvalidOperationException($"Operation '{operation.Operation}' contains an invalid value.");
+        var evaluatedValue87 = value.Deserialize<T>(JsonOptions) ?? throw new InvalidOperationException($"Operation '{operation.Operation}' contains an invalid value. 操作包含无效的值。");
         return evaluatedValue87;
     }
 
     private static string Required(string? value, string name)
     {
-        string evaluatedValue88 = string.IsNullOrWhiteSpace(value) ? throw new InvalidOperationException($"'{name}' is required.") : value.Trim();
+        string evaluatedValue88 = string.IsNullOrWhiteSpace(value) ? throw new InvalidOperationException($"'{name}' is required. 必须提供该字段。") : value.Trim();
         return evaluatedValue88;
     }
 
@@ -917,7 +919,7 @@ public sealed class FlowPatchService
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new InvalidOperationException($"'{name}' must be explicitly provided for a structured flow patch.");
+            throw new InvalidOperationException($"'{name}' must be explicitly provided for a structured flow patch. 结构化流程补丁必须显式提供该字段。");
         }
     }
 
@@ -926,7 +928,7 @@ public sealed class FlowPatchService
         RequireObjectId(expected, name);
         if (!resolveEqualsResult89())
         {
-            throw new InvalidOperationException($"The operation {name} does not match the value object's {name}.");
+            throw new InvalidOperationException($"The operation {name} does not match the value object's {name}. 操作字段与值对象中的对应字段不一致。");
         }
 
         bool resolveEqualsResult89()
@@ -945,7 +947,7 @@ public sealed class FlowPatchService
             RequireObjectId(node.Id, "nodeId");
             if (!nodeIds.Add(node.Id))
             {
-                throw new InvalidOperationException($"Node '{node.Id}' is duplicated in canvas '{canvas.Id}'.");
+                throw new InvalidOperationException($"Node '{node.Id}' is duplicated in canvas '{canvas.Id}'. 画布中存在重复的节点 ID。");
             }
 
             ValidateNodeObjects(node);
@@ -957,7 +959,7 @@ public sealed class FlowPatchService
             RequireObjectId(connection.Id, "connectionId");
             if (!connectionIds.Add(connection.Id))
             {
-                throw new InvalidOperationException($"Connection '{connection.Id}' is duplicated in canvas '{canvas.Id}'.");
+                throw new InvalidOperationException($"Connection '{connection.Id}' is duplicated in canvas '{canvas.Id}'. 画布中存在重复的连接 ID。");
             }
         }
     }
@@ -970,7 +972,7 @@ public sealed class FlowPatchService
             RequireObjectId(parameter.Ui?.Id, "parameter.ui.id");
             if (!parameterIds.Add(parameter.Ui!.Id))
             {
-                throw new InvalidOperationException($"Parameter '{parameter.Ui.Id}' is duplicated on node '{node.Id}'.");
+                throw new InvalidOperationException($"Parameter '{parameter.Ui.Id}' is duplicated on node '{node.Id}'. 节点上存在重复的参数 ID。");
             }
         }
 
@@ -978,7 +980,7 @@ public sealed class FlowPatchService
         {
             if (!string.Equals(node.Script.NodeId, node.Id, StringComparison.Ordinal))
             {
-                throw new InvalidOperationException($"Script node data must target node '{node.Id}'.");
+                throw new InvalidOperationException($"Script node data must target node '{node.Id}'. 脚本节点数据必须指向指定节点。");
             }
 
             var inputIds = new HashSet<string>(StringComparer.Ordinal);
@@ -987,7 +989,7 @@ public sealed class FlowPatchService
                 RequireObjectId(input.Id, "script input id");
                 if (!inputIds.Add(input.Id!))
                 {
-                    throw new InvalidOperationException($"Script input '{input.Id}' is duplicated on node '{node.Id}'.");
+                    throw new InvalidOperationException($"Script input '{input.Id}' is duplicated on node '{node.Id}'. 节点上存在重复的脚本输入 ID。");
                 }
             }
 
@@ -997,7 +999,7 @@ public sealed class FlowPatchService
                 RequireObjectId(output.Id, "script output id");
                 if (!outputIds.Add(output.Id!))
                 {
-                    throw new InvalidOperationException($"Script output '{output.Id}' is duplicated on node '{node.Id}'.");
+                    throw new InvalidOperationException($"Script output '{output.Id}' is duplicated on node '{node.Id}'. 节点上存在重复的脚本输出 ID。");
                 }
             }
         }

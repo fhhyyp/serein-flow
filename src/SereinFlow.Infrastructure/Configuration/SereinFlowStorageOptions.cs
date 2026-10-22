@@ -20,7 +20,7 @@ public sealed record SereinFlowStorageOptions(string DataRoot, string DatabasePa
         ArgumentException.ThrowIfNullOrWhiteSpace(contentRootPath);
         if (HasLegacyPathSettings(configuration) && string.IsNullOrWhiteSpace(configuration["SereinFlow:DataRoot"]))
         {
-            throw new InvalidOperationException("Legacy SereinFlow path settings require an explicit SereinFlow:DataRoot migration setting.");
+            throw new InvalidOperationException("Legacy SereinFlow path settings require an explicit SereinFlow:DataRoot migration setting. 旧版 SereinFlow 路径设置需要显式配置 SereinFlow:DataRoot 迁移设置。");
         }
 
         var dataRoot = ResolveRoot(configuration["SereinFlow:DataRoot"], contentRootPath);
@@ -62,7 +62,7 @@ public sealed record SereinFlowStorageOptions(string DataRoot, string DatabasePa
         var name = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
         if (Path.IsPathRooted(name) || name is "." or ".." || name.Contains("..", StringComparison.Ordinal) || name.Contains(Path.DirectorySeparatorChar) || name.Contains(Path.AltDirectorySeparatorChar))
         {
-            throw new InvalidOperationException($"SereinFlow:{fieldName} must be a single relative name.");
+            throw new InvalidOperationException($"SereinFlow:{fieldName} must be a single relative name. 上述配置项必须是单个相对名称。");
         }
 
         return name;
@@ -89,7 +89,7 @@ public sealed record SereinFlowStorageOptions(string DataRoot, string DatabasePa
         var prefix = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
         if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException($"SereinFlow:{fieldName} must remain inside SereinFlow:DataRoot.");
+            throw new InvalidOperationException($"SereinFlow:{fieldName} must remain inside SereinFlow:DataRoot. 上述配置项必须位于 SereinFlow:DataRoot 内。");
         }
     }
 }

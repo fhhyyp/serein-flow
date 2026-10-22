@@ -20,7 +20,7 @@ public sealed class SereinFlowClientOptions
         var baseAddress = BaseAddress ?? fallbackBaseAddress;
         if (baseAddress is null || !baseAddress.IsAbsoluteUri || (baseAddress.Scheme != Uri.UriSchemeHttp && baseAddress.Scheme != Uri.UriSchemeHttps))
         {
-            throw new ArgumentException("BaseAddress must be an absolute HTTP or HTTPS URI.");
+            throw new ArgumentException("BaseAddress must be an absolute HTTP or HTTPS URI. BaseAddress 必须是绝对 HTTP 或 HTTPS URI。");
         }
 
         if (RequestTimeout <= TimeSpan.Zero)

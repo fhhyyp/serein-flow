@@ -19,6 +19,7 @@ const UUID_GROUP_SEPARATOR = '-';
  * Returns a RFC 4122 version 4 UUID in browsers with or without
  * crypto.randomUUID(). Browser-generated IDs are editor identities only; they
  * are not used as secrets or authorization tokens.
+ * 在支持或不支持 crypto.randomUUID() 的浏览器中生成 RFC 4122 第 4 版 UUID；浏览器生成的 ID 仅作编辑器标识，不用作密钥或授权令牌。
  */
 export function createUuid(): string {
   const cryptoApi = globalThis.crypto;

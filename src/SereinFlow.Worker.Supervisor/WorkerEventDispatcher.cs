@@ -73,6 +73,7 @@ internal sealed class WorkerEventDispatcher : IAsyncDisposable
             while (await _events.Reader.WaitToReadAsync(_shutdown.Token))
             {
                 // A short coalescing window bounds latency while amortizing transactions.
+                // 使用短暂的合并窗口，在限制延迟的同时摊薄事务开销。
                 if (_events.Reader.Count < _batchSize && !_events.Reader.Completion.IsCompleted)
                 {
                     var operationResult2 = TimeSpan.FromMilliseconds(10);
@@ -92,6 +93,7 @@ internal sealed class WorkerEventDispatcher : IAsyncDisposable
                 catch
                 {
                     // A custom sink may ignore cancellation; still observe its eventual failure.
+                    // 自定义接收端可能忽略取消；仍须观察其最终失败。
                     _ = publishing.ContinueWith(static task => _ = task.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
                     throw;
                 }
@@ -125,6 +127,7 @@ internal sealed class WorkerEventDispatcher : IAsyncDisposable
         catch (WorkerProtocolException)
         {
             // The monitor reports the original failure.
+            // 监控器负责报告原始失败。
         }
         _shutdown.Dispose();
     }

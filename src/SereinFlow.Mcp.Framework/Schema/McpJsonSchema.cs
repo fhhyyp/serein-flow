@@ -60,7 +60,7 @@ public sealed record McpJsonSchema
         {
             if (!propertySnapshot.ContainsKey(name) || !requiredNames.Add(name))
             {
-                throw new ArgumentException("Required properties must be declared exactly once.", nameof(required));
+                throw new ArgumentException("Required properties must be declared exactly once. 必填属性必须且只能声明一次。", nameof(required));
             }
         }
 

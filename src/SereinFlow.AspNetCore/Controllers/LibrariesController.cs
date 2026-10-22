@@ -101,6 +101,7 @@ public sealed class LibrariesController : ApiControllerBase
     }
 
     // These singular routes are maintained as explicit attribute aliases for existing clients.
+    // 保留这些单数形式的路由，作为兼容现有客户端的显式特性别名。
     [HttpGet("/api/library")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> ListLegacy(CancellationToken cancellationToken)

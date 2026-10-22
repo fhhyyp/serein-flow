@@ -87,8 +87,10 @@ export interface FlowNodeData {
   script?: ScriptNodeData;
   runtime?: NodeRuntimeMetadata;
   /** Local editor-only debug decoration; never persisted in FlowDefinition. */
+  /** 仅用于本地编辑器的断点装饰，不持久化到 FlowDefinition。 */
   breakpoint?: boolean;
   /** Current Worker pause boundary; never persisted in FlowDefinition. */
+  /** 当前 Worker 暂停边界，不持久化到 FlowDefinition。 */
   debugPaused?: boolean;
   breakpointLocked?: boolean;
   onToggleBreakpoint?: (nodeId: string) => void;
@@ -126,6 +128,7 @@ export interface FlowNode {
   position: XYPosition;
   width?: number;
   /** Transient Vue Flow selection state; never persisted to a flow definition. */
+  /** Vue Flow 临时选择状态，不持久化到流程定义。 */
   selected?: boolean;
   class?: string | string[];
   data: FlowNodeData;
@@ -136,6 +139,7 @@ export interface FlowEdge {
   source: string;
   target: string;
   /** Transient Vue Flow selection state; never persisted to a flow definition. */
+  /** Vue Flow 临时选择状态，不持久化到流程定义。 */
   selected?: boolean;
   sourceHandle?: string | null;
   targetHandle?: string | null;

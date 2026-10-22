@@ -47,7 +47,7 @@ internal sealed class McpRunMessageTools(
             ThrowFailure(result);
         }
 
-        var response = result.Response ?? throw new McpProtocolException(McpProtocolErrorCodes.InternalError, "The message delivery response was empty.", new { code = MessageErrorCodes.Rejected });
+        var response = result.Response ?? throw new McpProtocolException(McpProtocolErrorCodes.InternalError, "The message delivery response was empty. 消息投递响应为空。", new { code = MessageErrorCodes.Rejected });
         await _mcpIdempotencyService.SaveAsync(principal.Id, Operation, idempotencyKey, response, requestPayload, cancellationToken);
         return response;
     }

@@ -11,9 +11,9 @@ internal static class McpToolCacheExtension
 {
     private const string ContextAttribute = "SereinFlow.Mcp.Framework.McpContextAttribute";
     private static readonly DiagnosticDescriptor InvalidSignature = new DiagnosticDescriptor(
-        "MCPGEN002", "Invalid MCP tool signature", "Tool '{0}': {1}", "McpGeneration", DiagnosticSeverity.Error, true);
+        "MCPGEN002", "Invalid MCP tool signature MCP 工具签名无效。", "Tool '{0}': {1}", "McpGeneration", DiagnosticSeverity.Error, true);
     private static readonly DiagnosticDescriptor InvalidConstructor = new DiagnosticDescriptor(
-        "MCPGEN003", "Invalid MCP tool constructor", "Tool class '{0}' must have exactly one accessible instance constructor", "McpGeneration", DiagnosticSeverity.Error, true);
+        "MCPGEN003", "Invalid MCP tool constructor MCP 工具构造函数无效。", "Tool class '{0}' must have exactly one accessible instance constructor 工具类必须且只能有一个可访问的实例构造函数。", "McpGeneration", DiagnosticSeverity.Error, true);
 
     internal static McpToolCache BuildCache(this IMethodSymbol method, AttributeData attribute)
     {
@@ -61,32 +61,32 @@ internal static class McpToolCacheExtension
 
     private static string? CheckSignature(IMethodSymbol method, string name)
     {
-        if (string.IsNullOrWhiteSpace(name)) return "a nonempty constant name is required";
-        if (!IsAccessible(method)) return "tool methods must be public or internal";
+        if (string.IsNullOrWhiteSpace(name)) return "a nonempty constant name is required 必须提供非空的常量名称。";
+        if (!IsAccessible(method)) return "tool methods must be public or internal 工具方法必须为 public 或 internal。";
         for (var owner = method.ContainingType; owner is not null; owner = owner.ContainingType)
         {
-            if (owner.IsGenericType || !IsAccessible(owner)) return "containing types must be accessible and nongeneric";
+            if (owner.IsGenericType || !IsAccessible(owner)) return "containing types must be accessible and nongeneric 包含类型必须可访问且非泛型。";
         }
         if (method.IsGenericMethod || method.ReturnType is not INamedTypeSymbol result
-            || result.OriginalDefinition.ToDisplayString() != "System.Threading.Tasks.Task<TResult>") return "return Task<T> from a nongeneric method";
-        if (!method.IsStatic && method.ContainingType.IsAbstract) return "instance tool classes cannot be abstract";
-        if (method.Parameters.Any(parameter => parameter.RefKind != RefKind.None)) return "ref, in and out parameters are unsupported";
-        if (method.Parameters.Where(IsContext).GroupBy(parameter => TypeName(parameter.Type)).Any(group => group.Count() > 1)) return "context parameters must be unique";
+            || result.OriginalDefinition.ToDisplayString() != "System.Threading.Tasks.Task<TResult>") return "return Task<T> from a nongeneric method 非泛型方法必须返回 Task<T>。";
+        if (!method.IsStatic && method.ContainingType.IsAbstract) return "instance tool classes cannot be abstract 实例工具类不能是抽象类。";
+        if (method.Parameters.Any(parameter => parameter.RefKind != RefKind.None)) return "ref, in and out parameters are unsupported 不支持 ref、in 和 out 参数。";
+        if (method.Parameters.Where(IsContext).GroupBy(parameter => TypeName(parameter.Type)).Any(group => group.Count() > 1)) return "context parameters must be unique 上下文参数不能重复。";
         var requests = method.Parameters.Where(parameter => !IsContext(parameter)).ToArray();
-        if (requests.Length > 1) return "accept at most one request object";
+        if (requests.Length > 1) return "accept at most one request object 最多接受一个请求对象。";
         if (requests.Length == 1)
         {
             var request = requests[0].Type;
             if (request.TypeKind != TypeKind.Class || request.SpecialType is SpecialType.System_String or SpecialType.System_Object
                 || request.IsAbstract || request.AllInterfaces.Any(item => item.SpecialType == SpecialType.System_Collections_IEnumerable))
-                return "the request must be a typed object contract; raw JsonElement arguments are unsupported";
+                return "the request must be a typed object contract; raw JsonElement arguments are unsupported 请求必须使用强类型对象契约，不支持原始 JsonElement 参数。";
             if (request.UsesPropertyBinding() && request is INamedTypeSymbol named)
             {
                 if (!named.InstanceConstructors.Any(constructor => constructor.Parameters.Length == 0 && IsAccessible(constructor)))
-                    return "McpBindProperties requests require an accessible parameterless constructor";
+                    return "McpBindProperties requests require an accessible parameterless constructor McpBindProperties 请求必须具有可访问的无参构造函数。";
                 for (var current = named; current is not null; current = current.BaseType)
                     if (current.GetMembers().OfType<IPropertySymbol>().Any(property => property.IsRequired || property.SetMethod?.IsInitOnly == true))
-                        return "McpBindProperties requests use writable set properties and McpParameter.Required";
+                        return "McpBindProperties requests use writable set properties and McpParameter.Required McpBindProperties 请求应使用可写的 set 属性和 McpParameter.Required。";
             }
         }
         return null;

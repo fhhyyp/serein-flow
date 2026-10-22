@@ -91,7 +91,7 @@ public sealed class ProjectCreationService
         ArgumentNullException.ThrowIfNull(candidate);
         if (!candidate.Validation.IsValid)
         {
-            ProjectCreationResult evaluatedValue6 = new(ProjectCreationStatus.Invalid, candidate, FlowErrorCodes.Invalid, "The initial flow definition is invalid.");
+            ProjectCreationResult evaluatedValue6 = new(ProjectCreationStatus.Invalid, candidate, FlowErrorCodes.Invalid, "The initial flow definition is invalid. 初始流程定义无效。");
             return evaluatedValue6;
         }
 

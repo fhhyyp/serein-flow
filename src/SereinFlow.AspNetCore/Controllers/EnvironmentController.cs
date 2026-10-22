@@ -106,7 +106,7 @@ public sealed class EnvironmentController : ApiControllerBase
 
         if (request is null)
         {
-            var apiProblemResult4 = ApiProblem(StatusCodes.Status400BadRequest, "An MCP API key request is required.");
+            var apiProblemResult4 = ApiProblem(StatusCodes.Status400BadRequest, "An MCP API key request is required. 必须提供 MCP API 密钥请求。");
             return apiProblemResult4;
         }
 
@@ -123,7 +123,7 @@ public sealed class EnvironmentController : ApiControllerBase
         }
         catch (ArgumentException exception)
         {
-            var apiProblemResult7 = ApiProblem(StatusCodes.Status400BadRequest, "Invalid MCP API key request.", exception.Message);
+            var apiProblemResult7 = ApiProblem(StatusCodes.Status400BadRequest, "Invalid MCP API key request. MCP API 密钥请求无效。", exception.Message);
             return apiProblemResult7;
         }
     }
@@ -226,6 +226,7 @@ public sealed class EnvironmentController : ApiControllerBase
         var isEnvironmentResult = _environment.IsEnvironment("Testing");
         // TestServer does not populate a remote address. Never apply this
         // fallback outside the isolated Testing host.
+        // TestServer 不填充远程地址；此回退逻辑仅适用于隔离的 Testing 宿主。
         return isEnvironmentResult;
     }
 }

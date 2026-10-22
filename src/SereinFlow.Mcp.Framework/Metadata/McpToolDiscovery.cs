@@ -6,7 +6,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace SereinFlow.Mcp.Framework;
 
-/// <summary>Loads a generated registry. This class never scans runtime assemblies or methods.</summary>
+/// <summary>
+/// Loads a generated registry. This class never scans runtime assemblies or methods.
+/// 加载生成的注册表，不扫描运行时程序集或方法。
+/// </summary>
 public static class McpToolDiscovery
 {
     public static IServiceCollection AddMcpToolHandlers(this IServiceCollection services, IMcpToolRegistry registry, params Type[] toolTypes)
@@ -33,7 +36,7 @@ public static class McpToolDiscovery
         foreach (var contract in contracts)
         {
             if (!byName.ContainsKey(contract.Name))
-                throw new InvalidOperationException($"MCP contract '{contract.Name}' has no generated tool method.");
+                throw new InvalidOperationException($"MCP contract '{contract.Name}' has no generated tool method. 指定 MCP 契约没有生成的工具方法。");
         }
         return new McpToolCatalog(contracts.Select(contract => byName[contract.Name])
             .Concat(tools.Where(tool => !descriptors.ContainsKey(tool.Descriptor.Name))));
@@ -51,7 +54,7 @@ public static class McpToolDiscovery
         if (!contracts.TryGetValue(tool.Metadata.Name, out var descriptor))
         {
             if (tool.RequestType == typeof(JsonElement) || string.IsNullOrWhiteSpace(tool.Metadata.Description))
-                throw new InvalidOperationException($"Tool '{tool.Metadata.Name}' requires a description and a typed request, or an explicit contract.");
+                throw new InvalidOperationException($"Tool '{tool.Metadata.Name}' requires a description and a typed request, or an explicit contract. 工具必须提供描述和强类型请求，或显式契约。");
             var schemaNode = tool.RequestType is null ? null : jsonOptions.GetJsonSchemaAsNode(tool.RequestType);
             if (schemaNode is not null) schemaNode["type"] = "object";
             if (schemaNode is not null && tool.RequiredProperties is not null)

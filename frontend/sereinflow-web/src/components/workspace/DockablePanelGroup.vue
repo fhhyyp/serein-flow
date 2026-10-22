@@ -241,6 +241,7 @@ function beginMove(event: PointerEvent, panelId = activeTab.value?.id): void {
   event.preventDefault();
   menuOpen.value = false;
   // A tab drag leaves its group in place until the drop target is known.
+  // 拖拽标签时保留其原分组，直到确定放置目标。
   moving.value = !individualTabDrag;
   emit('activate', props.group.id, panelId);
   const startX = panel.left - workspace.left;

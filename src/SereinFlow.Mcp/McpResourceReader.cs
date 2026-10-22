@@ -10,6 +10,7 @@ namespace SereinFlow.Mcp;
 /// <summary>
 /// Resolves SereinFlow resource URIs through the same scoped read handlers
 /// used by MCP tools. URI syntax belongs here, not in the backend facade.
+/// 通过 MCP 工具共用的作用域内读取处理器解析 SereinFlow 资源 URI；URI 语法由此处负责，不放入后端门面。
 /// </summary>
 public sealed class McpResourceReader
 {
@@ -33,7 +34,7 @@ public sealed class McpResourceReader
 
         if (!McpResourceUriParser.TryParse(uri, out var match) || match is null)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow resource URI is invalid.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow resource URI is invalid. SereinFlow 资源 URI 无效。");
         }
 
         await using var scope = _scopeFactory.CreateAsyncScope();
@@ -62,11 +63,11 @@ public sealed class McpResourceReader
             McpResourceId.FlowVersions => await scope.ServiceProvider.GetRequiredService<McpFlowQueries>().ReadVersionsAsync(principal, GetGuid("projectId"), GetGuid("flowId"), parameters["track"], cancellationToken),
             McpResourceId.FlowVersion => await scope.ServiceProvider.GetRequiredService<McpFlowQueries>().ReadVersionAsync(principal, GetGuid("projectId"), GetGuid("flowId"), parameters["track"], long.Parse(parameters["version"], CultureInfo.InvariantCulture), cancellationToken),
             McpResourceId.Preview => await scope.ServiceProvider.GetRequiredService<McpPreviewReader>().ReadPreviewAsync(principal, GetGuid("previewId"), cancellationToken),
-            _ => throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow resource URI is not supported.")
+            _ => throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow resource URI is not supported. 不支持此 SereinFlow 资源 URI。")
         };
         if (value is null)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The requested SereinFlow resource was not found.");
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The requested SereinFlow resource was not found. 未找到请求的 SereinFlow 资源。");
         }
 
         return new McpResourceReadResult(uri, value);

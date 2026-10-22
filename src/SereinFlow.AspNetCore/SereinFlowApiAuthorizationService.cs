@@ -17,6 +17,7 @@ public sealed record SereinFlowApiAuthorizationResult(bool IsAllowed, int Status
 /// <summary>
 /// Reuses the MCP API-key verifier for the client-facing REST execution
 /// surface without coupling the SDK or REST controllers to MCP transport.
+/// 为面向客户端的 REST 执行接口复用 MCP API 密钥校验器，使 SDK 和 REST 控制器不依赖 MCP 传输。
 /// </summary>
 public sealed class SereinFlowApiAuthorizationService
 {

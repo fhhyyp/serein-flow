@@ -154,6 +154,7 @@ public sealed class ScriptArtifactStore
         Directory.CreateDirectory(nodeDirectory);
         var operationResult12 = Path.Combine(nodeDirectory, node.ArtifactFingerprint + ".lock");
         // Deduplicate compilation across Worker processes as well as threads.
+        // 在 Worker 进程之间和线程之间共用编译去重机制。
         using var buildLock = AcquireBuildLock(operationResult12);
         if (TryLoad(projectId, node, out _, out _))
         {
@@ -175,6 +176,7 @@ public sealed class ScriptArtifactStore
             var operationResult11 = JsonSerializer.Serialize(manifest, JsonOptions);
             File.WriteAllText(operationResult10, operationResult11);
             // Only an unreadable/corrupt fingerprint reaches this repair path.
+            // 只有无法读取或损坏的指纹才会进入此修复路径。
             if (Directory.Exists(artifactDirectory))
             {
                 DeleteOwnedDirectory(artifactDirectory);

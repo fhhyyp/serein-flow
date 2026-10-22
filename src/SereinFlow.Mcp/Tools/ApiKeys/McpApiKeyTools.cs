@@ -35,12 +35,12 @@ internal sealed class McpApiKeyTools(
             var project = await projects.FindAsync(request.ProjectId.Value, cancellationToken);
             if (project is null)
             {
-                throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The API key project was not found.");
+                throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The API key project was not found. 未找到 API 密钥所属项目。");
             }
 
             if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
             {
-                throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "An API key cannot be bound to an archived project.");
+                throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "An API key cannot be bound to an archived project. API 密钥不能绑定到已归档的项目。");
             }
         }
 
@@ -49,7 +49,7 @@ internal sealed class McpApiKeyTools(
         var replay = await idempotency.FindAsync(principal.Id, "mcp.key.create", idempotencyKey, requestPayload, cancellationToken);
         if (replay is not null)
         {
-            var key = JsonSerializer.Deserialize<McpApiKeyDto>(replay.ResponseJson, ContractJsonOptions) ?? throw new McpProtocolException(McpProtocolErrorCodes.InternalError, "The stored API key idempotency response is invalid.");
+            var key = JsonSerializer.Deserialize<McpApiKeyDto>(replay.ResponseJson, ContractJsonOptions) ?? throw new McpProtocolException(McpProtocolErrorCodes.InternalError, "The stored API key idempotency response is invalid. 存储的 API 密钥幂等响应无效。");
             return new
             {
                 key,
@@ -81,7 +81,7 @@ internal sealed class McpApiKeyTools(
             return DeserializeStoredResponse(replay.ResponseJson);
         }
 
-        var entry = await store.FindAsync(keyId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The MCP API key was not found.");
+        var entry = await store.FindAsync(keyId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The MCP API key was not found. 未找到 MCP API 密钥。");
         var revoked = entry with
         {
             RevokedAt = DateTimeOffset.UtcNow
@@ -106,7 +106,7 @@ internal sealed class McpApiKeyTools(
         var replay = await idempotency.FindAsync(principal.Id, "mcp.key.rotate", idempotencyKey, requestPayload, cancellationToken);
         if (replay is not null)
         {
-            var replayed = JsonSerializer.Deserialize<RotatedMcpApiKeyDto>(replay.ResponseJson, ContractJsonOptions) ?? throw new McpProtocolException(McpProtocolErrorCodes.InternalError, "The stored API key rotation response is invalid.");
+            var replayed = JsonSerializer.Deserialize<RotatedMcpApiKeyDto>(replay.ResponseJson, ContractJsonOptions) ?? throw new McpProtocolException(McpProtocolErrorCodes.InternalError, "The stored API key rotation response is invalid. 存储的 API 密钥轮换响应无效。");
             return replayed with
             {
                 Secret = null,
@@ -114,10 +114,10 @@ internal sealed class McpApiKeyTools(
             };
         }
 
-        var existing = await store.FindAsync(keyId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The MCP API key was not found.");
+        var existing = await store.FindAsync(keyId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The MCP API key was not found. 未找到 MCP API 密钥。");
         if (existing.RevokedAt is not null)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The MCP API key has already been revoked.");
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The MCP API key has already been revoked. MCP API 密钥已撤销。");
         }
 
         var replacement = McpSecurityService.RotateKeyWithEntry(existing);

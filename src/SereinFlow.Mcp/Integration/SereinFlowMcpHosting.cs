@@ -9,7 +9,10 @@ using SereinFlow.Mcp.Support;
 
 namespace SereinFlow.Mcp;
 
-/// <summary>Business configuration hooks for generated host entry points.</summary>
+/// <summary>
+/// Business configuration hooks for generated host entry points.
+/// 生成的宿主入口使用的业务配置钩子。
+/// </summary>
 [McpHost("AddSereinFlowMcpTools")]
 public static partial class SereinFlowMcpHosting
 {
@@ -37,7 +40,7 @@ public static partial class SereinFlowMcpHosting
         foreach (var tool in catalog.Tools)
         {
             if (tool.Metadata is not ISereinFlowMcpToolMetadata metadata || metadata.Permissions.Length == 0)
-                throw new InvalidOperationException($"SereinFlow tool '{tool.Descriptor.Name}' requires a permission policy.");
+                throw new InvalidOperationException($"SereinFlow tool '{tool.Descriptor.Name}' requires a permission policy. SereinFlow 工具必须配置权限策略。");
         }
     }
 }

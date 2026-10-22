@@ -82,7 +82,7 @@ internal sealed class McpLibraryQueries(
             var referenced = await _projectLibraryReferenceRepository.IsReferencedAsync(principal!.ProjectId!.Value, library.Id, cancellationToken);
             if (!referenced)
             {
-                throw new McpSecurityException(McpErrorCodes.LibraryAccessDenied, "The MCP caller cannot access this library artifact.", StatusCodes.Status403Forbidden);
+                throw new McpSecurityException(McpErrorCodes.LibraryAccessDenied, "The MCP caller cannot access this library artifact. MCP 调用方无权访问此类库制品。", StatusCodes.Status403Forbidden);
             }
         }
 
@@ -169,7 +169,7 @@ internal sealed class McpLibraryQueries(
         var result = await _projectLibraryService.ListAsync(projectId, cancellationToken);
         if (!result.IsSuccess)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, result.Message ?? "The project was not found.", new { code = result.Code });
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, result.Message ?? "The project was not found. 未找到项目。", new { code = result.Code });
         }
 
         var normalized = options.Normalize();
@@ -192,7 +192,7 @@ internal sealed class McpLibraryQueries(
         var result = await _libraryUpgradeService.GetPlanAsync(projectId, upgradeId, cancellationToken);
         if (!result.IsSuccess || result.Value is null)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, result.Message ?? "The library upgrade preview was not found.", new { code = result.Code });
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, result.Message ?? "The library upgrade preview was not found. 未找到类库升级预览。", new { code = result.Code });
         }
 
         return result.Value;

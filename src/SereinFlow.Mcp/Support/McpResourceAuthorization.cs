@@ -14,10 +14,10 @@ internal sealed class McpResourceAuthorization(IProjectRepository _projectReposi
         CancellationToken cancellationToken)
     {
         security.Require(principal, permission, projectId);
-        var project = await _projectRepository.FindAsync(projectId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The project was not found.");
+        var project = await _projectRepository.FindAsync(projectId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The project was not found. 未找到项目。");
         if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "Archived projects cannot be changed by this MCP operation.", new { code = ProjectErrorCodes.Archived });
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "Archived projects cannot be changed by this MCP operation. 此 MCP 操作不能更改已归档的项目。", new { code = ProjectErrorCodes.Archived });
         }
 
         return project;

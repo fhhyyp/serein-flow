@@ -104,6 +104,7 @@ public sealed class McpSecurityService
             catch
             {
                 // Authentication remains successful when usage telemetry fails.
+                // 使用情况遥测失败不影响身份验证成功结果。
             }
 
             var toHashSetResult = entry.Permissions.ToHashSet();
@@ -125,17 +126,17 @@ public sealed class McpSecurityService
     {
         if (principal is null)
         {
-            throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required.", StatusCodes.Status401Unauthorized);
+            throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required. 需要进行 MCP 身份验证。", StatusCodes.Status401Unauthorized);
         }
 
         if (!principal.Has(permission))
         {
-            throw new McpSecurityException(McpErrorCodes.PermissionDenied, "The MCP caller does not have the required permission.", StatusCodes.Status403Forbidden);
+            throw new McpSecurityException(McpErrorCodes.PermissionDenied, "The MCP caller does not have the required permission. MCP 调用方不具备所需权限。", StatusCodes.Status403Forbidden);
         }
 
         if (projectId is not null && !principal.CanAccess(projectId.Value))
         {
-            throw new McpSecurityException(McpErrorCodes.ProjectAccessDenied, "The MCP caller cannot access this project.", StatusCodes.Status403Forbidden);
+            throw new McpSecurityException(McpErrorCodes.ProjectAccessDenied, "The MCP caller cannot access this project. MCP 调用方无权访问此项目。", StatusCodes.Status403Forbidden);
         }
     }
 
@@ -143,17 +144,17 @@ public sealed class McpSecurityService
     {
         if (principal is null)
         {
-            throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required.", StatusCodes.Status401Unauthorized);
+            throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required. 需要进行 MCP 身份验证。", StatusCodes.Status401Unauthorized);
         }
 
         if (permissions is null || permissions.Length == 0 || !permissions.Any(principal.Has))
         {
-            throw new McpSecurityException(McpErrorCodes.PermissionDenied, "The MCP caller does not have the required permission.", StatusCodes.Status403Forbidden);
+            throw new McpSecurityException(McpErrorCodes.PermissionDenied, "The MCP caller does not have the required permission. MCP 调用方不具备所需权限。", StatusCodes.Status403Forbidden);
         }
 
         if (projectId is not null && !principal.CanAccess(projectId.Value))
         {
-            throw new McpSecurityException(McpErrorCodes.ProjectAccessDenied, "The MCP caller cannot access this project.", StatusCodes.Status403Forbidden);
+            throw new McpSecurityException(McpErrorCodes.ProjectAccessDenied, "The MCP caller cannot access this project. MCP 调用方无权访问此项目。", StatusCodes.Status403Forbidden);
         }
     }
 
@@ -161,12 +162,12 @@ public sealed class McpSecurityService
     {
         if (principal is null)
         {
-            throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required.", StatusCodes.Status401Unauthorized);
+            throw new McpSecurityException(McpErrorCodes.Unauthenticated, "MCP authentication is required. 需要进行 MCP 身份验证。", StatusCodes.Status401Unauthorized);
         }
 
         if (!principal.IsLocal && !principal.IsAdministrator)
         {
-            throw new McpSecurityException(McpErrorCodes.AdministratorRequired, "Administrator permission is required for this MCP operation.", StatusCodes.Status403Forbidden);
+            throw new McpSecurityException(McpErrorCodes.AdministratorRequired, "Administrator permission is required for this MCP operation. 此 MCP 操作需要管理员权限。", StatusCodes.Status403Forbidden);
         }
     }
 
@@ -181,23 +182,23 @@ public sealed class McpSecurityService
         ArgumentNullException.ThrowIfNull(request);
         if (string.IsNullOrWhiteSpace(request.Name))
         {
-            throw new ArgumentException("The MCP API key name is required.", nameof(request));
+            throw new ArgumentException("The MCP API key name is required. 必须提供 MCP API 密钥名称。", nameof(request));
         }
 
         ArgumentNullException.ThrowIfNull(request.Permissions);
         if (request.ExpiresAt is not null && request.ExpiresAt <= DateTimeOffset.UtcNow)
         {
-            throw new ArgumentException("The MCP API key expiration must be in the future.", nameof(request));
+            throw new ArgumentException("The MCP API key expiration must be in the future. MCP API 密钥的过期时间必须晚于当前时间。", nameof(request));
         }
 
         if (request.IsAdministrator && request.ProjectId is not null)
         {
-            throw new ArgumentException("Administrator API keys cannot be project-scoped.", nameof(request));
+            throw new ArgumentException("Administrator API keys cannot be project-scoped. 管理员 API 密钥不能限定为项目范围。", nameof(request));
         }
 
         if (!request.IsAdministrator && request.ProjectId is null)
         {
-            throw new ArgumentException("A non-administrator API key must be bound to a project.", nameof(request));
+            throw new ArgumentException("A non-administrator API key must be bound to a project. 非管理员 API 密钥必须绑定到项目。", nameof(request));
         }
 
         var secret = $"sfk_{resolveToLowerInvariantResult()}";

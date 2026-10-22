@@ -90,6 +90,7 @@ public static class FlowDefinitionMapper
             });
             var createResult9 = ScriptNodeDefinition.Create(dto.Script.NodeId, dto.Script.Source, dto.Script.LanguageVersion, // SourceHash is presentation/cache metadata. The Worker derives
  // it from the immutable source instead of rejecting older DTOs.
+            // SourceHash 是展示与缓存元数据；Worker 根据不可变源码推导该值，不因此拒绝旧版 DTO。
             null, selectResult7, selectResult8);
             return createResult9;
         }

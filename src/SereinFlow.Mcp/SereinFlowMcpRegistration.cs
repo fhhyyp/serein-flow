@@ -221,7 +221,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                 }
                 else if (string.IsNullOrWhiteSpace(sessionId) || !sessions.Validate(sessionId, principal.Id))
                 {
-                    return Results.Json(new { error = new { code = McpErrorCodes.SessionRequired, message = "A valid Mcp-Session-Id is required." } }, statusCode: StatusCodes.Status400BadRequest);
+                    return Results.Json(new { error = new { code = McpErrorCodes.SessionRequired, message = "A valid Mcp-Session-Id is required. 必须提供有效的 Mcp-Session-Id。" } }, statusCode: StatusCodes.Status400BadRequest);
                 }
 
                 principalAccessor.Current = principal;
@@ -251,8 +251,8 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
                     var diagnosticId = Guid.NewGuid().ToString("N");
-                    Console.Error.WriteLine($"MCP request exceeded its execution time limit; diagnosticId={diagnosticId}.");
-                    return Results.Json(new { error = new { code = McpErrorCodes.ToolTimeout, message = "The MCP tool exceeded the configured execution time limit.", data = new { code = McpErrorCodes.ToolTimeout, diagnosticId } } }, statusCode: StatusCodes.Status504GatewayTimeout);
+                    Console.Error.WriteLine($"MCP request exceeded its execution time limit; diagnosticId={diagnosticId}. MCP 请求超过执行时间限制，诊断标识见上述 diagnosticId。");
+                    return Results.Json(new { error = new { code = McpErrorCodes.ToolTimeout, message = "The MCP tool exceeded the configured execution time limit. MCP 工具超过配置的执行时间限制。", data = new { code = McpErrorCodes.ToolTimeout, diagnosticId } } }, statusCode: StatusCodes.Status504GatewayTimeout);
                 }
                 finally
                 {
@@ -280,7 +280,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
     private static IResult Unauthorized(HttpContext context)
     {
         context.Response.Headers.WWWAuthenticate = "Bearer";
-        return Results.Json(new { error = new { code = McpErrorCodes.Unauthenticated, message = "MCP authentication is required." } }, statusCode: StatusCodes.Status401Unauthorized);
+        return Results.Json(new { error = new { code = McpErrorCodes.Unauthenticated, message = "MCP authentication is required. 需要进行 MCP 身份验证。" } }, statusCode: StatusCodes.Status401Unauthorized);
     }
 
     private static async Task<string> ReadBodyAsync(Stream body, long maxBytes, CancellationToken cancellationToken)
@@ -299,7 +299,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
             total += read;
             if (total > maxBytes)
             {
-                throw new InvalidOperationException("The MCP request body is too large.");
+                throw new InvalidOperationException("The MCP request body is too large. MCP 请求体过大。");
             }
 
             await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken);

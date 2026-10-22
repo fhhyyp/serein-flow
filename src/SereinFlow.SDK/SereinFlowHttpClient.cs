@@ -35,7 +35,7 @@ internal sealed class SereinFlowHttpClient
         await ensureSuccessAsyncResult.ConfigureAwait(false);
         var readAsStringAsyncResult = response.Content.ReadAsStringAsync(cancellationToken);
         var content = await readAsStringAsyncResult.ConfigureAwait(false);
-        var evaluatedValue1 = JsonSerializer.Deserialize<T>(content, JsonOptions) ?? throw new JsonException($"The SereinFlow response at '{response.RequestMessage?.RequestUri}' was empty.");
+        var evaluatedValue1 = JsonSerializer.Deserialize<T>(content, JsonOptions) ?? throw new JsonException($"The SereinFlow response at '{response.RequestMessage?.RequestUri}' was empty. SereinFlow 响应为空，地址见上述信息。");
         return evaluatedValue1;
     }
 
@@ -110,7 +110,7 @@ internal sealed class SereinFlowHttpClient
             return response!;
         }
 
-        throw new InvalidOperationException("The SereinFlow HTTP retry loop ended without a response.");
+        throw new InvalidOperationException("The SereinFlow HTTP retry loop ended without a response. SereinFlow HTTP 重试循环结束时仍未获得响应。");
     }
 
     private HttpRequestMessage CreateRequest(HttpMethod method, string relativePath, string? payload, IReadOnlyDictionary<string, string?>? headers)

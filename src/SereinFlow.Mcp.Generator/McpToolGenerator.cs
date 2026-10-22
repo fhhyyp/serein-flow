@@ -4,7 +4,10 @@ using SereinFlow.Mcp.Generator.Extensions;
 
 namespace SereinFlow.Mcp.Generator;
 
-/// <summary>Declares tool aggregation and host output; the framework owns discovery and result routing.</summary>
+/// <summary>
+/// Declares tool aggregation and host output; the framework owns discovery and result routing.
+/// 声明工具聚合及宿主输出；框架负责发现和结果路由。
+/// </summary>
 [Generator]
 public sealed partial class McpToolGenerator : FrameworkGenerator
 {

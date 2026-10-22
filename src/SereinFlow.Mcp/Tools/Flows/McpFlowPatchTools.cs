@@ -32,11 +32,11 @@ internal sealed class McpFlowPatchTools(
         var request = normalized.Request;
         if (request.ProjectId == Guid.Empty || request.FlowId == Guid.Empty || request.ExpectedDevelopmentVersion < 1)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow patch request is invalid.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow patch request is invalid. 流程补丁请求无效。");
         }
 
         await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, McpPermissionDto.FlowWrite, cancellationToken);
-        var current = await _flowDefinitionRepository.FindAsync(request.ProjectId, request.FlowId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found.");
+        var current = await _flowDefinitionRepository.FindAsync(request.ProjectId, request.FlowId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found. 未找到流程定义。");
         if (current.Version != request.ExpectedDevelopmentVersion)
         {
             throw VersionConflict(current.Version);
@@ -66,12 +66,12 @@ internal sealed class McpFlowPatchTools(
                 fieldPath = "$.operations",
                 expected = "a valid operation sequence for the current flow",
                 schemaVersion = FlowPatchContract.CurrentSchemaVersion,
-                remediation = "Read the current flow edit model and create a new typed patch."
+                remediation = "Read the current flow edit model and create a new typed patch. 请读取当前流程编辑模型并创建新的强类型补丁。"
             };
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow patch references are invalid.", value);
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The flow patch references are invalid. 流程补丁引用无效。", value);
         }
 
-        var preparation = await _flowDefinitionWriteService.PrepareAsync(request.ProjectId, request.FlowId, candidate, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found.");
+        var preparation = await _flowDefinitionWriteService.PrepareAsync(request.ProjectId, request.FlowId, candidate, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found. 未找到流程定义。");
         var compare = _flowDiffService.Compare(preparation.Current, preparation.Candidate);
         var stored = new StoredFlowPatchPreview(normalized.LegacyRequest, preparation.Candidate, preparation.Validation, compare, normalized.Request, normalized.Warnings);
         var preview = await _mcpPreviewService.CreateAsync(FlowErrorCodes.Patch, principal, request.ProjectId, request.FlowId, request.ExpectedDevelopmentVersion, stored, cancellationToken);
@@ -97,17 +97,17 @@ internal sealed class McpFlowPatchTools(
         var entry = await _mcpPreviewService.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, FlowErrorCodes.Patch, StringComparison.Ordinal))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a flow patch.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a flow patch. 此预览不是流程补丁预览。");
         }
 
         var stored = McpPreviewService.Deserialize<StoredFlowPatchPreview>(entry);
         await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, stored.Request.ProjectId, McpPermissionDto.FlowWrite, cancellationToken);
         if (!stored.Validation.IsValid || stored.Diff.Changes.Count == 0)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The flow patch preview cannot be applied.");
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The flow patch preview cannot be applied. 无法应用此流程补丁预览。");
         }
 
-        var current = await _flowDefinitionRepository.FindAsync(stored.Request.ProjectId, stored.Request.FlowId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found.");
+        var current = await _flowDefinitionRepository.FindAsync(stored.Request.ProjectId, stored.Request.FlowId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The flow definition was not found. 未找到流程定义。");
         if (current.Version != stored.Request.ExpectedDevelopmentVersion)
         {
             throw VersionConflict(current.Version);
@@ -127,12 +127,12 @@ internal sealed class McpFlowPatchTools(
 
         if (write.Status == FlowDefinitionWriteStatus.Archived)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "Archived projects cannot save flow definitions.");
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "Archived projects cannot save flow definitions. 已归档的项目不能保存流程定义。");
         }
 
         if (write.Status != FlowDefinitionWriteStatus.Saved || write.Saved is null)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The flow patch preview cannot be applied.");
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The flow patch preview cannot be applied. 无法应用此流程补丁预览。");
         }
 
         var saved = write.Saved;
@@ -142,7 +142,7 @@ internal sealed class McpFlowPatchTools(
             || !string.Equals(persisted.Checksum, saved.Checksum, StringComparison.Ordinal)
             || !string.Equals(persisted.Checksum, FlowDiffService.GetChecksum(persisted), StringComparison.Ordinal))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InternalError, "The flow patch was committed but authoritative verification failed.", new { code = McpErrorCodes.PostApplyVerificationFailed });
+            throw new McpProtocolException(McpProtocolErrorCodes.InternalError, "The flow patch was committed but authoritative verification failed. 流程补丁已提交，但权威校验失败。", new { code = McpErrorCodes.PostApplyVerificationFailed });
         }
 
         var response = FlowDiffService.RedactSensitive(persisted);

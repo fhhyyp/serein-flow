@@ -10,6 +10,7 @@ public sealed record McpResourceMatch(McpResourceId Id, IReadOnlyDictionary<stri
 /// <summary>
 /// Parses canonical MCP resource URIs into internal resource identities. It
 /// intentionally does not invoke handlers or create dependency scopes.
+/// 将规范的 MCP 资源 URI 解析为内部资源标识；不调用处理器，也不创建依赖作用域。
 /// </summary>
 public static class McpResourceUriParser
 {

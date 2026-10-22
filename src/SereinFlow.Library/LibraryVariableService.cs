@@ -95,7 +95,7 @@ public sealed class LibraryVariableService
 
             if (stored is null && default(T)is not null)
             {
-                throw new InvalidCastException($"Variable '{name}' is null and cannot be cast to '{typeof(T).FullName}'.");
+                throw new InvalidCastException($"Variable '{name}' is null and cannot be cast to '{typeof(T).FullName}'. 变量为 null，无法转换为目标类型。");
             }
 
             value = (T? )stored;

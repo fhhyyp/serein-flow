@@ -22,12 +22,12 @@ public sealed class BuiltinNodeTemplateService
         ArgumentNullException.ThrowIfNull(request);
         if (string.IsNullOrWhiteSpace(request.BuiltinNodeId))
         {
-            throw Invalid(McpErrorCodes.BuiltinNodeTemplateIdInvalid, "$.builtinNodeId", "a built-in node ID from the flow edit model", "Use a builtinNodes.nodes[].id value from sereinflow_get_flow_edit_model.");
+            throw Invalid(McpErrorCodes.BuiltinNodeTemplateIdInvalid, "$.builtinNodeId", "a built-in node ID from the flow edit model", "Use a builtinNodes.nodes[].id value from sereinflow_get_flow_edit_model. 请使用 sereinflow_get_flow_edit_model 返回的 builtinNodes.nodes[].id 值。");
         }
 
         if (!double.IsFinite(request.Position.X) || !double.IsFinite(request.Position.Y))
         {
-            throw Invalid(McpErrorCodes.BuiltinNodeTemplatePositionInvalid, "$.position", "finite x and y values", "Provide a finite canvas position.");
+            throw Invalid(McpErrorCodes.BuiltinNodeTemplatePositionInvalid, "$.position", "finite x and y values", "Provide a finite canvas position. 请提供有限数值的画布坐标。");
         }
 
         var builtinNodeId = request.BuiltinNodeId.Trim();
@@ -39,7 +39,7 @@ public sealed class BuiltinNodeTemplateService
         });
         if (descriptor is null)
         {
-            throw Invalid(McpErrorCodes.BuiltinNodeTemplateNotFound, "$.builtinNodeId", "a built-in node ID from the flow edit model", "Read the current flow edit model and select a built-in node descriptor.", StatusCodes.Status404NotFound);
+            throw Invalid(McpErrorCodes.BuiltinNodeTemplateNotFound, "$.builtinNodeId", "a built-in node ID from the flow edit model", "Read the current flow edit model and select a built-in node descriptor. 请读取当前流程编辑模型并选择内置节点描述。", StatusCodes.Status404NotFound);
         }
 
         var nodeId = $"node-{Guid.NewGuid():N}";
@@ -80,7 +80,7 @@ public sealed class BuiltinNodeTemplateService
     }
 }
 
-public sealed class BuiltinNodeTemplateException(string code, string fieldPath, string expected, string remediation, int statusCode) : Exception("The built-in node template request is invalid.")
+public sealed class BuiltinNodeTemplateException(string code, string fieldPath, string expected, string remediation, int statusCode) : Exception("The built-in node template request is invalid. 内置节点模板请求无效。")
 {
     public string Code { get; } = code;
     public string FieldPath { get; } = fieldPath;

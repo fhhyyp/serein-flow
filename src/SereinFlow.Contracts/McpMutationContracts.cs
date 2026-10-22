@@ -127,7 +127,7 @@ public static class McpPermissionNames
     };
     public static string ToName(McpPermissionDto permission)
     {
-        string evaluatedValue = Names.TryGetValue(permission, out var name) ? name : throw new ArgumentOutOfRangeException(nameof(permission), permission, "The MCP permission is not defined.");
+        string evaluatedValue = Names.TryGetValue(permission, out var name) ? name : throw new ArgumentOutOfRangeException(nameof(permission), permission, "The MCP permission is not defined. 未定义该 MCP 权限。");
         return evaluatedValue;
     }
 
@@ -172,7 +172,7 @@ public sealed class McpPermissionJsonConverter : JsonConverter<McpPermissionDto>
             return (McpPermissionDto)numeric;
         }
 
-        throw new JsonException("The MCP permission is invalid.");
+        throw new JsonException("The MCP permission is invalid. MCP 权限无效。");
     }
 
     public override void Write(Utf8JsonWriter writer, McpPermissionDto value, JsonSerializerOptions options)
@@ -306,6 +306,7 @@ public sealed record FlowPatchRequestDto(Guid ProjectId, Guid FlowId, long Expec
 /// <summary>
 /// Public flow-patch wire contract versions. Version 1 remains input-only
 /// compatibility for previews persisted or produced before the typed v2 union.
+/// 公开的流程补丁传输契约版本；v1 仅兼容强类型 v2 联合模型出现前生成或持久化的预览输入。
 /// </summary>
 public static class FlowPatchContract
 {
@@ -317,6 +318,7 @@ public static class FlowPatchContract
 /// <summary>
 /// Canonical v2 flow operation. The normalizer constructs only the fields
 /// allowed by the selected <see cref = "Op"/> discriminator.
+/// 规范的 v2 流程操作；规范化器只构造所选 Op 判别值允许的字段。
 /// </summary>
 public sealed record FlowPatchCanonicalOperationDto(string Op, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? CanvasId = null, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? NodeId = null, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ConnectionId = null, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ParameterId = null, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CanvasDto? Canvas = null, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] NodeDto? Node = null, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] NodeParameterDto? Parameter = null, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ConnectionDto? Connection = null, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? EntryNodeId = null, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FlowRunPolicyDto? RunPolicy = null, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Source = null);
 /// <summary>
@@ -495,6 +497,7 @@ public sealed record RotatedMcpApiKeyDto(string RevokedKeyId, McpApiKeyDto Key, 
 /// <summary>
 /// MCP-only start contract. The HTTP API keeps using
 /// <see cref = "StartFlowDebugSessionRequestDto"/> without an idempotency key.
+/// 仅用于 MCP 的启动契约；HTTP API 继续使用不含幂等键的 StartFlowDebugSessionRequestDto。
 /// </summary>
 public sealed record McpStartFlowDebugSessionRequestDto(Guid ProjectId, Guid FlowId, IReadOnlyList<string>? BreakpointNodeIds, IReadOnlyDictionary<string, JsonElement>? ProjectInputs = null, int? TimeoutSeconds = null, int? MaxSteps = null, int? MaxNodeVisits = null, long? ExpectedFlowVersion = null, int? MaxQueuedFlipflopTriggers = null, string? IdempotencyKey = null);
 /// <summary>

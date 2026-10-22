@@ -7,13 +7,14 @@ namespace SereinFlow.Application;
 /// Converts the public flow-patch wire formats into one strongly typed v2
 /// model before a patch reaches the definition service. Version 1 is retained
 /// only to read existing callers and persisted preview payloads.
+/// 在补丁进入定义服务前，将公开的流程补丁传输格式转换为统一的强类型 v2 模型；v1 仅用于读取既有调用和持久化预览。
 /// </summary>
 public sealed class FlowPatchContractNormalizer
 {
     private static readonly JsonSerializerOptions JsonOptions = SereinJsonSerialization.CreateContractOptions();
     public NormalizedFlowPatchRequest Normalize(JsonElement arguments)
     {
-        RequireObject(arguments, "$", "MCP tool arguments must be a JSON object.");
+        RequireObject(arguments, "$", "MCP tool arguments must be a JSON object. MCP 工具参数必须是 JSON 对象。");
         var isV2 = ReadSchemaVersion(arguments, out var schemaVersion, out var warnings);
         if (isV2)
         {
@@ -27,12 +28,12 @@ public sealed class FlowPatchContractNormalizer
         var operationElement = RequireProperty(arguments, "operations", "$.operations");
         if (operationElement.ValueKind != JsonValueKind.Array)
         {
-            throw Invalid(McpErrorCodes.FlowPatchOperationsInvalid, "$.operations", "an array", "Provide a typed operations array.");
+            throw Invalid(McpErrorCodes.FlowPatchOperationsInvalid, "$.operations", "an array", "Provide a typed operations array. 请提供强类型操作数组。");
         }
 
         if (isV2 && operationElement.GetArrayLength() == 0)
         {
-            throw Invalid(McpErrorCodes.FlowPatchOperationRequired, "$.operations", "at least one typed operation", "Add an operation or omit the preview request.");
+            throw Invalid(McpErrorCodes.FlowPatchOperationRequired, "$.operations", "at least one typed operation", "Add an operation or omit the preview request. 请添加操作，或省略预览请求。");
         }
 
         var getArrayLengthResult = operationElement.GetArrayLength();
@@ -63,7 +64,7 @@ public sealed class FlowPatchContractNormalizer
             })
             .ToArray();
         var canonical = new FlowPatchCanonicalRequestDto(request.ProjectId, request.FlowId, request.ExpectedDevelopmentVersion, FlowPatchContract.CurrentSchemaVersion, operations, request.Remark);
-        IReadOnlyList<FlowPatchNormalizationWarningDto> evaluatedValue1 = [new FlowPatchNormalizationWarningDto(McpErrorCodes.FlowPatchLegacyInput, "$.operations", "The stored preview uses the legacy flow-patch representation and was normalized to schema 2.0.")];
+        IReadOnlyList<FlowPatchNormalizationWarningDto> evaluatedValue1 = [new FlowPatchNormalizationWarningDto(McpErrorCodes.FlowPatchLegacyInput, "$.operations", "The stored preview uses the legacy flow-patch representation and was normalized to schema 2.0. 已存储的预览使用旧版流程补丁表示，现已规范化为架构 2.0。")];
         var normalizedFlowPatchRequest2 = new NormalizedFlowPatchRequest(canonical, request, evaluatedValue1);
         return normalizedFlowPatchRequest2;
     }
@@ -86,6 +87,7 @@ public sealed class FlowPatchContractNormalizer
     /// without invoking the legacy mutation implementation. The MCP boundary
     /// calls this after wire normalization and before FlowPatchService so
     /// duplicate IDs and unresolved references receive contract diagnostics.
+    /// 对照当前流程校验标识符和端点引用，不调用旧版修改实现；MCP 在传输规范化之后、FlowPatchService 之前调用此方法，为重复 ID 和未解析引用返回契约诊断。
     /// </summary>
     public void ValidateReferences(FlowDefinitionDto definition, IReadOnlyList<FlowPatchCanonicalOperationDto> operations)
     {
@@ -127,7 +129,7 @@ public sealed class FlowPatchContractNormalizer
             "setEntryNode" => Legacy(FlowPatchOperationKindDto.SetEntryNode, value: operation.EntryNodeId),
             "setRunPolicy" => Legacy(FlowPatchOperationKindDto.SetRunPolicy, value: operation.RunPolicy),
             "replaceScriptSource" => Legacy(FlowPatchOperationKindDto.ReplaceScriptSource, operation.CanvasId, operation.NodeId, value: operation.Source),
-            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, "$.operations", "a supported schema 2.0 operation", "Use the operation names published by sereinflow_preview_flow_patch.")
+            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, "$.operations", "a supported schema 2.0 operation", "Use the operation names published by sereinflow_preview_flow_patch. 请使用 sereinflow_preview_flow_patch 公布的操作名称。")
         };
         return evaluatedValue8;
     }
@@ -144,13 +146,13 @@ public sealed class FlowPatchContractNormalizer
         if (!arguments.TryGetProperty("schemaVersion", out var value))
         {
             schemaVersion = FlowPatchContract.CurrentSchemaVersion;
-            warnings = [new FlowPatchNormalizationWarningDto(McpErrorCodes.FlowPatchLegacyInput, "$.schemaVersion", "Schema version 1.0 was inferred because schemaVersion was omitted.")];
+            warnings = [new FlowPatchNormalizationWarningDto(McpErrorCodes.FlowPatchLegacyInput, "$.schemaVersion", "Schema version 1.0 was inferred because schemaVersion was omitted. 未提供 schemaVersion，已推断为架构版本 1.0。")];
             return false;
         }
 
         if (value.ValueKind != JsonValueKind.String)
         {
-            throw Invalid(McpErrorCodes.FlowPatchSchemaVersionInvalid, "$.schemaVersion", $"'{FlowPatchContract.LegacySchemaVersion}' or '{FlowPatchContract.CurrentSchemaVersion}'", $"Use schemaVersion '{FlowPatchContract.CurrentSchemaVersion}' for new requests.");
+            throw Invalid(McpErrorCodes.FlowPatchSchemaVersionInvalid, "$.schemaVersion", $"'{FlowPatchContract.LegacySchemaVersion}' or '{FlowPatchContract.CurrentSchemaVersion}'", $"Use schemaVersion '{FlowPatchContract.CurrentSchemaVersion}' for new requests. 新请求请使用上述 schemaVersion 版本。");
         }
 
         var supplied = value.GetString();
@@ -164,16 +166,16 @@ public sealed class FlowPatchContractNormalizer
         if (string.Equals(supplied, FlowPatchContract.LegacySchemaVersion, StringComparison.Ordinal))
         {
             schemaVersion = FlowPatchContract.CurrentSchemaVersion;
-            warnings = [new FlowPatchNormalizationWarningDto(McpErrorCodes.FlowPatchLegacyInput, "$.schemaVersion", "Schema version 1.0 is deprecated; the preview response uses schema 2.0.")];
+            warnings = [new FlowPatchNormalizationWarningDto(McpErrorCodes.FlowPatchLegacyInput, "$.schemaVersion", "Schema version 1.0 is deprecated; the preview response uses schema 2.0. 架构版本 1.0 已弃用；预览响应使用架构 2.0。")];
             return false;
         }
 
-        throw Invalid(McpErrorCodes.FlowPatchSchemaVersionUnsupported, "$.schemaVersion", $"'{FlowPatchContract.LegacySchemaVersion}' or '{FlowPatchContract.CurrentSchemaVersion}'", $"Upgrade the request to schemaVersion '{FlowPatchContract.CurrentSchemaVersion}'.");
+        throw Invalid(McpErrorCodes.FlowPatchSchemaVersionUnsupported, "$.schemaVersion", $"'{FlowPatchContract.LegacySchemaVersion}' or '{FlowPatchContract.CurrentSchemaVersion}'", $"Upgrade the request to schemaVersion '{FlowPatchContract.CurrentSchemaVersion}'. 请将请求升级到上述 schemaVersion 版本。");
     }
 
     private static FlowPatchCanonicalOperationDto ReadV2Operation(JsonElement operation, string path)
     {
-        RequireObject(operation, path, "Each operation must be an object.");
+        RequireObject(operation, path, "Each operation must be an object. 每项操作必须是对象。");
         var op = ReadRequiredString(operation, "op", $"{path}.op");
         FlowPatchCanonicalOperationDto evaluatedValue43 = op switch
         {
@@ -192,7 +194,7 @@ public sealed class FlowPatchContractNormalizer
             "setEntryNode" => ReadV2SetEntryNode(operation, path, op),
             "setRunPolicy" => resolveevaluatedValue41(),
             "replaceScriptSource" => ReadV2ReplaceScriptSource(operation, path, op),
-            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.op", "one of the 15 schema 2.0 operation names", "Use the operation names exposed by sereinflow_preview_flow_patch.")
+            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.op", "one of the 15 schema 2.0 operation names", "Use the operation names exposed by sereinflow_preview_flow_patch. 请使用 sereinflow_preview_flow_patch 公开的操作名称。")
         };
         return evaluatedValue43;
         FlowPatchCanonicalOperationDto resolveevaluatedValue()
@@ -327,7 +329,7 @@ public sealed class FlowPatchContractNormalizer
 
     private static FlowPatchCanonicalOperationDto ReadV1Operation(JsonElement operation, string path)
     {
-        RequireObject(operation, path, "Each operation must be an object.");
+        RequireObject(operation, path, "Each operation must be an object. 每项操作必须是对象。");
         var requirePropertyResult = RequireProperty(operation, "operation", $"{path}.operation");
         var op = ReadLegacyOperationName(requirePropertyResult, $"{path}.operation");
         FlowPatchCanonicalOperationDto evaluatedValue124 = op switch
@@ -347,7 +349,7 @@ public sealed class FlowPatchContractNormalizer
             "setEntryNode" => resolveevaluatedValue113(),
             "setRunPolicy" => resolveevaluatedValue116(),
             "replaceScriptSource" => resolveevaluatedValue119(),
-            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.operation", "a supported legacy operation name", "Use schemaVersion 2.0 and the canonical op names.")
+            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.operation", "a supported legacy operation name", "Use schemaVersion 2.0 and the canonical op names. 请使用 schemaVersion 2.0 和规范的 op 名称。")
         };
         return evaluatedValue124;
         FlowPatchCanonicalOperationDto resolveevaluatedValue62()
@@ -497,7 +499,7 @@ public sealed class FlowPatchContractNormalizer
             FlowPatchOperationKindDto.SetEntryNode => resolveevaluatedValue177(),
             FlowPatchOperationKindDto.SetRunPolicy => resolveevaluatedValue180(),
             FlowPatchOperationKindDto.ReplaceScriptSource => resolveevaluatedValue183(),
-            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a supported legacy operation", "Create a new schema 2.0 preview.")
+            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a supported legacy operation", "Create a new schema 2.0 preview. 请创建新的架构 2.0 预览。")
         };
         return evaluatedValue188;
         FlowPatchCanonicalOperationDto resolveevaluatedValue125()
@@ -637,7 +639,7 @@ public sealed class FlowPatchContractNormalizer
     {
         if (value is not { } payload)
         {
-            throw Invalid(McpErrorCodes.FlowPatchFieldRequired, $"{path}.value", "a value", "Provide the operation payload.");
+            throw Invalid(McpErrorCodes.FlowPatchFieldRequired, $"{path}.value", "a value", "Provide the operation payload. 请提供操作载荷。");
         }
 
         var readPayloadResult190 = ReadPayload<T>(payload, $"{path}.value", legacyEnums);
@@ -694,16 +696,16 @@ public sealed class FlowPatchContractNormalizer
         ValidatePayload<T>(payload, path, legacyEnums);
         try
         {
-            var evaluatedValue202 = payload.Deserialize<T>(JsonOptions) ?? throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, typeof(T).Name, "Provide a valid typed payload.");
+            var evaluatedValue202 = payload.Deserialize<T>(JsonOptions) ?? throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, typeof(T).Name, "Provide a valid typed payload. 请提供有效的强类型载荷。");
             return evaluatedValue202;
         }
         catch (JsonException)
         {
-            throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, typeof(T).Name, "Provide a valid typed payload.");
+            throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, typeof(T).Name, "Provide a valid typed payload. 请提供有效的强类型载荷。");
         }
         catch (NotSupportedException)
         {
-            throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, typeof(T).Name, "Provide a supported typed payload.");
+            throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, typeof(T).Name, "Provide a supported typed payload. 请提供受支持的强类型载荷。");
         }
     }
 
@@ -733,7 +735,7 @@ public sealed class FlowPatchContractNormalizer
 
     private static void ValidateCanvasPayload(JsonElement payload, string path, bool legacyEnums)
     {
-        RequireObject(payload, path, "Canvas payload must be an object.");
+        RequireObject(payload, path, "Canvas payload must be an object. 画布载荷必须是对象。");
         if (!legacyEnums)
         {
             EnsureKnownProperties(payload, path, ["id", "lifecycle", "nodes", "connections", "name"]);
@@ -761,7 +763,7 @@ public sealed class FlowPatchContractNormalizer
 
     private static void ValidateNodePayload(JsonElement payload, string path, bool legacyEnums)
     {
-        RequireObject(payload, path, "Node payload must be an object.");
+        RequireObject(payload, path, "Node payload must be an object. 节点载荷必须是对象。");
         if (!legacyEnums)
         {
             EnsureKnownProperties(payload, path, ["id", "type", "displayName", "x", "y", "ports", "parameters", "script", "ui"]);
@@ -786,14 +788,14 @@ public sealed class FlowPatchContractNormalizer
         var portIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var port in ports.EnumerateArray())
         {
-            RequireObject(port, $"{path}.ports[{index}]", "Port payload must be an object.");
+            RequireObject(port, $"{path}.ports[{index}]", "Port payload must be an object. 端口载荷必须是对象。");
             if (!legacyEnums)
             {
                 EnsureKnownProperties(port, $"{path}.ports[{index}]", ["id", "name", "direction", "required"]);
                 var portId = ReadRequiredString(port, "id", $"{path}.ports[{index}].id");
                 if (!portIds.Add(portId))
                 {
-                    throw Invalid(McpErrorCodes.FlowPatchDuplicateId, $"{path}.ports[{index}].id", "a unique port ID", "Use a unique port ID on the node.");
+                    throw Invalid(McpErrorCodes.FlowPatchDuplicateId, $"{path}.ports[{index}].id", "a unique port ID", "Use a unique port ID on the node. 请在节点上使用唯一的端口 ID。");
                 }
 
                 _ = ReadRequiredString(port, "name", $"{path}.ports[{index}].name");
@@ -815,13 +817,13 @@ public sealed class FlowPatchContractNormalizer
                 var parameterUi = RequireProperty(parameter, "ui", parameterPath);
                 if (parameterUi.ValueKind == JsonValueKind.Null)
                 {
-                    throw Invalid(McpErrorCodes.FlowPatchFieldRequired, parameterPath, "parameter UI metadata", "Provide the parameter contract ID in ui.id.");
+                    throw Invalid(McpErrorCodes.FlowPatchFieldRequired, parameterPath, "parameter UI metadata", "Provide the parameter contract ID in ui.id. 请在 ui.id 中提供参数契约 ID。");
                 }
 
                 var parameterId = ReadRequiredString(parameterUi, "id", $"{parameterPath}.id");
                 if (!parameterIds.Add(parameterId))
                 {
-                    throw Invalid(McpErrorCodes.FlowPatchDuplicateId, $"{parameterPath}.id", "a unique parameter ID", "Use a unique parameter ID on the node.");
+                    throw Invalid(McpErrorCodes.FlowPatchDuplicateId, $"{parameterPath}.id", "a unique parameter ID", "Use a unique parameter ID on the node. 请在节点上使用唯一的参数 ID。");
                 }
             }
         }
@@ -831,13 +833,13 @@ public sealed class FlowPatchContractNormalizer
         {
             if (!hasScript)
             {
-                throw Invalid(McpErrorCodes.FlowPatchFieldRequired, $"{path}.script", "a script payload for a script node", "Provide the script contract for a script node.");
+                throw Invalid(McpErrorCodes.FlowPatchFieldRequired, $"{path}.script", "a script payload for a script node", "Provide the script contract for a script node. 请为脚本节点提供脚本契约。");
             }
 
             ValidateScriptPayload(script, $"{path}.script", legacyEnums);
             if (!legacyEnums && !resolveEqualsResult())
             {
-                throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.script.nodeId", $"the node ID '{nodeId}'", "Make script.nodeId match node.id.");
+                throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.script.nodeId", $"the node ID '{nodeId}'", "Make script.nodeId match node.id. 请确保 script.nodeId 与 node.id 一致。");
             }
 
             bool resolveEqualsResult()
@@ -849,7 +851,7 @@ public sealed class FlowPatchContractNormalizer
         }
         else if (hasScript)
         {
-            throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, $"{path}.script", "null for action, flipflop, or flowCall nodes", "Remove the script payload or use a script node type.");
+            throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, $"{path}.script", "null for action, flipflop, or flowCall nodes", "Remove the script payload or use a script node type. 请移除脚本载荷，或使用 script 节点类型。");
         }
 
         if (payload.TryGetProperty("ui", out var ui) && ui.ValueKind != JsonValueKind.Null)
@@ -860,7 +862,7 @@ public sealed class FlowPatchContractNormalizer
 
     private static void ValidateParameterPayload(JsonElement payload, string path, bool legacyEnums)
     {
-        RequireObject(payload, path, "Parameter payload must be an object.");
+        RequireObject(payload, path, "Parameter payload must be an object. 参数载荷必须是对象。");
         if (!legacyEnums)
         {
             EnsureKnownProperties(payload, path, ["name", "valueJson", "source", "required", "ui"]);
@@ -879,7 +881,7 @@ public sealed class FlowPatchContractNormalizer
 
     private static void ValidateConnectionPayload(JsonElement payload, string path, bool legacyEnums)
     {
-        RequireObject(payload, path, "Connection payload must be an object.");
+        RequireObject(payload, path, "Connection payload must be an object. 连接载荷必须是对象。");
         if (!legacyEnums)
         {
             EnsureKnownProperties(payload, path, ["id", "fromNodeId", "fromPortId", "toNodeId", "toPortId", "kind", "branch", "dataSource", "priority"]);
@@ -908,7 +910,7 @@ public sealed class FlowPatchContractNormalizer
 
     private static void ValidateRunPolicyPayload(JsonElement payload, string path, bool legacyEnums)
     {
-        RequireObject(payload, path, "Run policy payload must be an object.");
+        RequireObject(payload, path, "Run policy payload must be an object. 运行策略载荷必须是对象。");
         if (!legacyEnums)
         {
             EnsureKnownProperties(payload, path, ["concurrencyMode"]);
@@ -920,7 +922,7 @@ public sealed class FlowPatchContractNormalizer
 
     private static void ValidateScriptPayload(JsonElement payload, string path, bool legacyEnums)
     {
-        RequireObject(payload, path, "Script payload must be an object.");
+        RequireObject(payload, path, "Script payload must be an object. 脚本载荷必须是对象。");
         if (!legacyEnums)
         {
             EnsureKnownProperties(payload, path, ["nodeId", "source", "languageVersion", "sourceHash", "inputs", "outputs"]);
@@ -942,7 +944,7 @@ public sealed class FlowPatchContractNormalizer
         var index = 0;
         foreach (var value in values.EnumerateArray())
         {
-            RequireObject(value, $"{path}[{index}]", "Script value must be an object.");
+            RequireObject(value, $"{path}[{index}]", "Script value must be an object. 脚本值必须是对象。");
             if (!legacyEnums)
             {
                 EnsureKnownProperties(value, $"{path}[{index}]", ["name", "valueKind", "required", "id", "description"]);
@@ -957,7 +959,7 @@ public sealed class FlowPatchContractNormalizer
 
     private static void ValidateNodeUiPayload(JsonElement payload, string path, bool legacyEnums, string nodeType)
     {
-        RequireObject(payload, path, "Node UI payload must be an object.");
+        RequireObject(payload, path, "Node UI payload must be an object. 节点 UI 载荷必须是对象。");
         if (!legacyEnums)
         {
             EnsureKnownProperties(payload, path, ["kind", "titleKey", "subtitleKey", "description", "status", "hasDataOutput", "width", "category", "libraryId", "className", "methodName", "dllName", "dllVersion", "returnType", "targetNodeId", "targetFlowId", "isAwaitable", "staticReturnType", "isDynamicReturnType", "targetCanvasId", "isPublic", "flowCallParameterBindings", "libraryNodeContractId", "flowLibraryName"]);
@@ -998,12 +1000,12 @@ public sealed class FlowPatchContractNormalizer
             };
             if (nodeType != "flowCall" && HasAnyProperty(payload, flowCallFields))
             {
-                throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, path, "flow-call metadata only on a flowCall node", "Remove flow-call metadata or use a flowCall node type.");
+                throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, path, "flow-call metadata only on a flowCall node", "Remove flow-call metadata or use a flowCall node type. 请移除流程调用元数据，或使用 flowCall 节点类型。");
             }
 
             if (nodeType is not ("action" or "flipflop") && HasAnyProperty(payload, libraryFields))
             {
-                throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, path, "library runtime metadata only on an action or flipflop node", "Remove library metadata or use an action or flipflop node type.");
+                throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, path, "library runtime metadata only on an action or flipflop node", "Remove library metadata or use an action or flipflop node type. 请移除类库元数据，或使用 action 或 flipflop 节点类型。");
             }
         }
 
@@ -1013,7 +1015,7 @@ public sealed class FlowPatchContractNormalizer
             var index = 0;
             foreach (var binding in bindings.EnumerateArray())
             {
-                RequireObject(binding, $"{path}.flowCallParameterBindings[{index}]", "Flow call binding must be an object.");
+                RequireObject(binding, $"{path}.flowCallParameterBindings[{index}]", "Flow call binding must be an object. 流程调用绑定必须是对象。");
                 if (!legacyEnums)
                 {
                     EnsureKnownProperties(binding, $"{path}.flowCallParameterBindings[{index}]", ["callParameterId", "targetParameterId"]);
@@ -1028,7 +1030,7 @@ public sealed class FlowPatchContractNormalizer
 
     private static void ValidateParameterUiPayload(JsonElement payload, string path, bool legacyEnums)
     {
-        RequireObject(payload, path, "Parameter UI payload must be an object.");
+        RequireObject(payload, path, "Parameter UI payload must be an object. 参数 UI 载荷必须是对象。");
         if (!legacyEnums)
         {
             EnsureKnownProperties(payload, path, ["id", "nameKey", "valueKind", "literalValue", "projectInputKey", "expression", "sourceNodeId", "sourcePortId", "type", "description", "inputMode", "isVariadic", "variadicGroupId", "elementType", "variadicMode", "enumMetadata"]);
@@ -1045,7 +1047,7 @@ public sealed class FlowPatchContractNormalizer
 
     private static void ValidateEnumMetadata(JsonElement payload, string path, bool legacyEnums)
     {
-        RequireObject(payload, path, "Enum metadata must be an object.");
+        RequireObject(payload, path, "Enum metadata must be an object. 枚举元数据必须是对象。");
         if (!legacyEnums)
         {
             EnsureKnownProperties(payload, path, ["typeName", "isFlags", "underlyingType", "options"]);
@@ -1059,7 +1061,7 @@ public sealed class FlowPatchContractNormalizer
         var index = 0;
         foreach (var option in options.EnumerateArray())
         {
-            RequireObject(option, $"{path}.options[{index}]", "Enum option must be an object.");
+            RequireObject(option, $"{path}.options[{index}]", "Enum option must be an object. 枚举选项必须是对象。");
             if (!legacyEnums)
             {
                 EnsureKnownProperties(option, $"{path}.options[{index}]", ["name", "numericValue"]);
@@ -1106,7 +1108,7 @@ public sealed class FlowPatchContractNormalizer
 
         var selectResult213 = allowed.Select(static item => $"'{item.Canonical}'");
         var expected = string.Join(", ", selectResult213);
-        throw Invalid(McpErrorCodes.FlowPatchEnumEncodingInvalid, path, expected, $"Use canonical {FlowPatchContract.EnumEncoding} enum strings for schema {FlowPatchContract.CurrentSchemaVersion}.");
+        throw Invalid(McpErrorCodes.FlowPatchEnumEncodingInvalid, path, expected, $"Use canonical {FlowPatchContract.EnumEncoding} enum strings for schema {FlowPatchContract.CurrentSchemaVersion}. 请按上述架构版本使用规范的枚举字符串编码。");
     }
 
     private static void RequireNullableEnum(JsonElement source, string name, string path, bool legacyEnums, EnumValue[] allowed)
@@ -1139,14 +1141,14 @@ public sealed class FlowPatchContractNormalizer
                 12 => "replaceScriptSource",
                 13 => "addNodeParameter",
                 14 => "removeNodeParameter",
-                _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a known legacy operation number", "Use a schema 2.0 op string.")
+                _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a known legacy operation number", "Use a schema 2.0 op string. 请使用架构 2.0 的 op 字符串。")
             };
             return evaluatedValue214;
         }
 
         if (value.ValueKind != JsonValueKind.String)
         {
-            throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a legacy operation string", "Use a schema 2.0 op string.");
+            throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a legacy operation string", "Use a schema 2.0 op string. 请使用架构 2.0 的 op 字符串。");
         }
 
         string evaluatedValue215 = value.GetString() switch
@@ -1166,7 +1168,7 @@ public sealed class FlowPatchContractNormalizer
             "setEntryNode" or "SetEntryNode" or "set_entry_node" => "setEntryNode",
             "setRunPolicy" or "SetRunPolicy" or "set_run_policy" => "setRunPolicy",
             "replaceScriptSource" or "ReplaceScriptSource" or "replace_script_source" => "replaceScriptSource",
-            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a supported legacy operation name", "Use a schema 2.0 op string.")
+            _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a supported legacy operation name", "Use a schema 2.0 op string. 请使用架构 2.0 的 op 字符串。")
         };
         return evaluatedValue215;
     }
@@ -1183,7 +1185,7 @@ public sealed class FlowPatchContractNormalizer
             }
         }
 
-        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a non-empty GUID", "Provide the project or flow ID from the read model.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a non-empty GUID", "Provide the project or flow ID from the read model. 请提供读取模型中的项目或流程 ID。");
     }
 
     private static long ReadPositiveLong(JsonElement source, string name, string path)
@@ -1194,7 +1196,7 @@ public sealed class FlowPatchContractNormalizer
             return parsed;
         }
 
-        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a positive integer", "Use the latest development version from the flow read model.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a positive integer", "Use the latest development version from the flow read model. 请使用流程读取模型中的最新开发版本。");
     }
 
     private static string? ReadOptionalString(JsonElement source, string name, string path)
@@ -1210,7 +1212,7 @@ public sealed class FlowPatchContractNormalizer
             return getStringResult;
         }
 
-        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a string or null", "Use a string value for this field.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a string or null", "Use a string value for this field. 此字段请使用字符串值。");
     }
 
     private static string ReadLegacyIdentifier(JsonElement source, string name, string path)
@@ -1229,7 +1231,7 @@ public sealed class FlowPatchContractNormalizer
             return trimResult;
         }
 
-        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a non-empty string", "Provide the required field value.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a non-empty string", "Provide the required field value. 请提供必填字段的值。");
         bool resolveIsNullOrWhiteSpaceResult()
         {
             var getStringResult218 = value.GetString();
@@ -1246,7 +1248,7 @@ public sealed class FlowPatchContractNormalizer
             return;
         }
 
-        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a string or null", "Provide a string value or null.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a string or null", "Provide a string value or null. 请提供字符串值或 null。");
     }
 
     private static void RequireBoolean(JsonElement source, string name, string path)
@@ -1257,7 +1259,7 @@ public sealed class FlowPatchContractNormalizer
             return;
         }
 
-        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a boolean", "Provide true or false.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a boolean", "Provide true or false. 请提供 true 或 false。");
     }
 
     private static void RequireInteger(JsonElement source, string name, string path)
@@ -1268,7 +1270,7 @@ public sealed class FlowPatchContractNormalizer
             return;
         }
 
-        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "an integer", "Provide an integer value.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "an integer", "Provide an integer value. 请提供整数值。");
     }
 
     private static void RequireFiniteNumber(JsonElement source, string name, string path)
@@ -1279,7 +1281,7 @@ public sealed class FlowPatchContractNormalizer
             return;
         }
 
-        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a finite number", "Provide a finite numeric value.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a finite number", "Provide a finite numeric value. 请提供有限数值。");
     }
 
     private static void RequireNullableFiniteNumber(JsonElement source, string name, string path)
@@ -1295,7 +1297,7 @@ public sealed class FlowPatchContractNormalizer
             return;
         }
 
-        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a finite number or null", "Provide a finite numeric value or null.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a finite number or null", "Provide a finite numeric value or null. 请提供有限数值或 null。");
     }
 
     private static bool HasAnyProperty(JsonElement source, IReadOnlyCollection<string> names)
@@ -1317,7 +1319,7 @@ public sealed class FlowPatchContractNormalizer
             return trimResult220;
         }
 
-        throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, "a non-empty string", "Provide the required field value.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, "a non-empty string", "Provide the required field value. 请提供必填字段的值。");
     }
 
     private static JsonElement RequireProperty(JsonElement source, string name, string path)
@@ -1327,7 +1329,7 @@ public sealed class FlowPatchContractNormalizer
             return value;
         }
 
-        throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, $"required property '{name}'", "Provide the required field.");
+        throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, $"required property '{name}'", "Provide the required field. 请提供必填字段。");
     }
 
     private static void EnsureKnownProperties(JsonElement source, string path, IReadOnlyCollection<string> allowed)
@@ -1338,7 +1340,7 @@ public sealed class FlowPatchContractNormalizer
             {
                 var selectResult221 = allowed.Select(static item => $"'{item}'");
                 var joinResult = string.Join(", ", selectResult221);
-                throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, $"{path}.{property.Name}", joinResult, "Remove fields that are not defined by this operation schema.");
+                throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, $"{path}.{property.Name}", joinResult, "Remove fields that are not defined by this operation schema. 请移除此操作架构未定义的字段。");
             }
         }
     }
@@ -1355,7 +1357,7 @@ public sealed class FlowPatchContractNormalizer
     {
         if (value.ValueKind != JsonValueKind.Array)
         {
-            throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, "an array", "Provide an array value.");
+            throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, "an array", "Provide an array value. 请提供数组值。");
         }
     }
 
@@ -1380,7 +1382,7 @@ public sealed class FlowPatchContractNormalizer
             {
                 if (!resolveTryAddResult())
                 {
-                    throw Invalid(McpErrorCodes.FlowPatchDuplicateId, "$.current.canvases", "unique canvas IDs", "Repair the current flow before submitting a patch.");
+                    throw Invalid(McpErrorCodes.FlowPatchDuplicateId, "$.current.canvases", "unique canvas IDs", "Repair the current flow before submitting a patch. 请先修复当前流程，再提交补丁。");
                 }
 
                 bool resolveTryAddResult()
@@ -1436,7 +1438,7 @@ public sealed class FlowPatchContractNormalizer
                         var canvas = RequireCanvas(canvasId, $"{path}.canvasId");
                         if (canvas.Nodes.Count != 0 || canvas.Connections.Count != 0)
                         {
-                            throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.canvasId", "an empty canvas", "Remove the canvas connections and nodes before removing the canvas.");
+                            throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.canvasId", "an empty canvas", "Remove the canvas connections and nodes before removing the canvas. 请先移除画布上的连接和节点，再移除画布。");
                         }
 
                         _canvases.Remove(canvasId);
@@ -1491,7 +1493,7 @@ public sealed class FlowPatchContractNormalizer
 
                         if (canvas.Connections.Values.Any(connection => connection.FromNodeId == nodeId || connection.ToNodeId == nodeId))
                         {
-                            throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.nodeId", "a node without connections", "Remove the node connections before removing the node.");
+                            throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.nodeId", "a node without connections", "Remove the node connections before removing the node. 请先移除节点的连接，再移除节点。");
                         }
 
                         canvas.Nodes.Remove(nodeId);
@@ -1546,7 +1548,7 @@ public sealed class FlowPatchContractNormalizer
 
                         if (canvas.Connections.Values.Any(connection => connection.Kind == ConnectionKindDto.Data && connection.ToNodeId == nodeId && connection.ToPortId == parameterId))
                         {
-                            throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.parameterId", "a parameter without incoming data connections", "Remove the parameter's data connections before removing the parameter.");
+                            throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.parameterId", "a parameter without incoming data connections", "Remove the parameter's data connections before removing the parameter. 请先移除参数的数据连接，再移除参数。");
                         }
 
                         node.ParameterIds.Remove(parameterId);
@@ -1624,14 +1626,14 @@ public sealed class FlowPatchContractNormalizer
                         var node = RequireNode(canvas, requireIdResult239, $"{path}.nodeId");
                         if (!node.HasScript)
                         {
-                            throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.nodeId", "an existing script node", "Use replaceScriptSource only with a script node.");
+                            throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.nodeId", "an existing script node", "Use replaceScriptSource only with a script node. replaceScriptSource 仅适用于 script 节点。");
                         }
 
                         return;
                     }
 
                 default:
-                    throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.op", "one of the 15 schema 2.0 operation names", "Use the operation names exposed by sereinflow_preview_flow_patch.");
+                    throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.op", "one of the 15 schema 2.0 operation names", "Use the operation names exposed by sereinflow_preview_flow_patch. 请使用 sereinflow_preview_flow_patch 公开的操作名称。");
             }
         }
 
@@ -1683,13 +1685,13 @@ public sealed class FlowPatchContractNormalizer
         private static T RequireValue<T>(T? value, string path)
             where T : class
         {
-            var evaluatedValue242 = value ?? throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, "the operation payload", "Provide the payload required by the selected operation.");
+            var evaluatedValue242 = value ?? throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, "the operation payload", "Provide the payload required by the selected operation. 请提供所选操作要求的载荷。");
             return evaluatedValue242;
         }
 
         private static string RequireId(string? value, string path)
         {
-            string evaluatedValue243 = string.IsNullOrWhiteSpace(value) ? throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, "a non-empty ID", "Provide an ID from the flow edit model.") : value.Trim();
+            string evaluatedValue243 = string.IsNullOrWhiteSpace(value) ? throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, "a non-empty ID", "Provide an ID from the flow edit model. 请提供流程编辑模型中的 ID。") : value.Trim();
             return evaluatedValue243;
         }
 
@@ -1697,19 +1699,19 @@ public sealed class FlowPatchContractNormalizer
         {
             if (!string.Equals(expected, actual, StringComparison.Ordinal))
             {
-                throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, path, $"the ID '{expected}'", "Make the payload ID match the operation target ID.");
+                throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, path, $"the ID '{expected}'", "Make the payload ID match the operation target ID. 请确保载荷 ID 与操作目标 ID 一致。");
             }
         }
 
         private static FlowPatchContractException Duplicate(string path, string kind)
         {
-            var invalidResult = Invalid(McpErrorCodes.FlowPatchDuplicateId, path, $"a unique {kind}", "Use an ID that is not already present in the target canvas.");
+            var invalidResult = Invalid(McpErrorCodes.FlowPatchDuplicateId, path, $"a unique {kind}", "Use an ID that is not already present in the target canvas. 请使用目标画布中尚不存在的 ID。");
             return invalidResult;
         }
 
         private static FlowPatchContractException ReferenceInvalid(string path, string expected)
         {
-            var invalidResult244 = Invalid(McpErrorCodes.FlowPatchReferenceInvalid, path, expected, "Read the current flow edit model and use an existing ID and port.");
+            var invalidResult244 = Invalid(McpErrorCodes.FlowPatchReferenceInvalid, path, expected, "Read the current flow edit model and use an existing ID and port. 请读取当前流程编辑模型，并使用已有的 ID 和端口。");
             return invalidResult244;
         }
 
@@ -1810,7 +1812,7 @@ public sealed class FlowPatchContractNormalizer
 /// 承载规范化流程Patch操作的请求数据。
 /// </summary>
 public sealed record NormalizedFlowPatchRequest(FlowPatchCanonicalRequestDto Request, FlowPatchRequestDto LegacyRequest, IReadOnlyList<FlowPatchNormalizationWarningDto> Warnings);
-public sealed class FlowPatchContractException(string code, string fieldPath, string expected, string remediation) : Exception("The flow patch contract is invalid.")
+public sealed class FlowPatchContractException(string code, string fieldPath, string expected, string remediation) : Exception("The flow patch contract is invalid. 流程补丁契约无效。")
 {
     public string Code { get; } = code;
     public string FieldPath { get; } = fieldPath;

@@ -11,20 +11,20 @@ internal sealed class McpPreviewReader(IMcpPreviewStore _mcpPreviewStore, McpSec
 {
     internal async Task<object> ReadPreviewAsync(McpPrincipal? principal, Guid previewId, CancellationToken cancellationToken)
     {
-        var entry = await _mcpPreviewStore.FindAsync(previewId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The MCP preview was not found.");
+        var entry = await _mcpPreviewStore.FindAsync(previewId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The MCP preview was not found. 未找到 MCP 预览。");
         if (principal is not null && !principal.IsLocal && !principal.IsAdministrator && !string.Equals(entry.PrincipalId, principal.Id, StringComparison.Ordinal))
         {
-            throw new McpSecurityException(McpErrorCodes.PreviewOwnerMismatch, "The MCP preview belongs to another caller.", StatusCodes.Status403Forbidden);
+            throw new McpSecurityException(McpErrorCodes.PreviewOwnerMismatch, "The MCP preview belongs to another caller. 该 MCP 预览属于其他调用方。", StatusCodes.Status403Forbidden);
         }
 
         if (entry.ProjectId is null && principal is not null && !principal.IsLocal && !principal.IsAdministrator)
         {
-            throw new McpSecurityException(McpErrorCodes.PreviewAccessDenied, "The MCP caller cannot access this global preview.", StatusCodes.Status403Forbidden);
+            throw new McpSecurityException(McpErrorCodes.PreviewAccessDenied, "The MCP caller cannot access this global preview. MCP 调用方无权访问此全局预览。", StatusCodes.Status403Forbidden);
         }
 
         if (entry.ProjectId is not null && principal is not null && !principal.CanAccess(entry.ProjectId.Value))
         {
-            throw new McpSecurityException(McpErrorCodes.ProjectAccessDenied, "The MCP caller cannot access this preview.", StatusCodes.Status403Forbidden);
+            throw new McpSecurityException(McpErrorCodes.ProjectAccessDenied, "The MCP caller cannot access this preview. MCP 调用方无权访问此预览。", StatusCodes.Status403Forbidden);
         }
 
         RequirePreviewPermission(security, principal, entry);

@@ -20,6 +20,7 @@ internal static class McpResourceSegments
 /// <summary>
 /// Canonical MCP resource URI vocabulary. These values are part of the wire
 /// contract and must not be changed without a compatibility decision.
+/// 规范的 MCP 资源 URI 集合；这些值属于传输契约，未经兼容性决策不得更改。
 /// </summary>
 public static class McpResourceUris
 {
@@ -88,6 +89,7 @@ public static class McpResourceUris
 /// <summary>
 /// Internal identity for a parsed MCP resource. The enum is deliberately not
 /// serialized; clients always see the URI strings above.
+/// 解析后的 MCP 资源内部标识；该枚举不参与序列化，客户端始终看到上述 URI 字符串。
 /// </summary>
 public enum McpResourceId
 {
@@ -216,7 +218,7 @@ public sealed record McpResourceDefinition(McpResourceId Id, string UriTemplate,
             var end = template.IndexOf('}', start + 1);
             if (end <= start + 1)
             {
-                throw new InvalidOperationException($"Invalid MCP resource URI template '{template}'.");
+                throw new InvalidOperationException($"Invalid MCP resource URI template '{template}'. MCP 资源 URI 模板无效。");
             }
 
             names.Add(template[(start + 1)..end]);
@@ -268,12 +270,12 @@ public static class McpResourceCatalog
     {
         if (AllDefinitions.Select(static definition => definition.UriTemplate).Distinct(StringComparer.Ordinal).Count() != AllDefinitions.Count)
         {
-            throw new InvalidOperationException("MCP resource URI templates must be unique.");
+            throw new InvalidOperationException("MCP resource URI templates must be unique. MCP 资源 URI 模板不能重复。");
         }
 
         if (AllDefinitions.Any(static definition => definition.IsTemplate != (definition.ParameterNames.Count > 0)))
         {
-            throw new InvalidOperationException("MCP resource direct/template metadata is inconsistent.");
+            throw new InvalidOperationException("MCP resource direct/template metadata is inconsistent. MCP 资源的直接注册与模板元数据不一致。");
         }
     }
 

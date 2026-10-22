@@ -7,7 +7,7 @@ namespace SereinFlow.Mcp.Generator.Extensions;
 internal static class McpHostExtension
 {
     internal static readonly DiagnosticDescriptor InvalidHost = new DiagnosticDescriptor(
-        "MCPGEN004", "Invalid MCP host declaration", "Host '{0}': {1}", "McpGeneration", DiagnosticSeverity.Error, true);
+        "MCPGEN004", "Invalid MCP host declaration MCP 宿主声明无效。", "Host '{0}': {1}", "McpGeneration", DiagnosticSeverity.Error, true);
 
     internal static string GenerateCode(this McpHostCache cache, GenerationContext context)
     {

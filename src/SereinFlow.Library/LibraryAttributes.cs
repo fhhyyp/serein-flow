@@ -156,7 +156,7 @@ public sealed class NativeLibraryDirectoryAttribute : Attribute
     /// </param>
     public NativeLibraryDirectoryAttribute(string relativePath)
     {
-        RelativePath = string.IsNullOrWhiteSpace(relativePath) ? throw new ArgumentException("A native library directory is required.", nameof(relativePath)) : relativePath;
+        RelativePath = string.IsNullOrWhiteSpace(relativePath) ? throw new ArgumentException("A native library directory is required. 必须提供本机类库目录。", nameof(relativePath)) : relativePath;
     }
 
     /// <summary>

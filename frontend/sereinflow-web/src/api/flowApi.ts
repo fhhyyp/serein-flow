@@ -662,6 +662,7 @@ export function subscribeFlowRunEvents(runId: string, onEvent: (event: FlowRunEv
     // EventSource reconnects natively, but the API may have committed events
     // while the connection was down. Replay from the last sequence on every
     // reconnect/open event to close that gap.
+    // EventSource 原生支持重连，但断线期间 API 仍可能提交事件；每次连接建立时从最后序号开始回放，补齐缺口。
     source.onopen = () => {
       void replay();
     };
@@ -670,6 +671,7 @@ export function subscribeFlowRunEvents(runId: string, onEvent: (event: FlowRunEv
       // Keep the EventSource alive so its built-in retry can recover. A
       // replay is harmless when the stream is still unavailable and will be
       // de-duplicated by sequence when it comes back.
+      // 保持 EventSource 存活，以便内置重试恢复连接；流尚不可用时回放不会产生副作用，恢复后按序号去重。
       void replay();
     };
     sseCleanup = () => {
@@ -770,6 +772,7 @@ export function subscribeFlowRunEvents(runId: string, onEvent: (event: FlowRunEv
   // Replay persisted events before subscribing to the live hub. Sequence
   // de-duplication closes the small gap between the replay query and the hub
   // handshake.
+  // 订阅实时 Hub 前先回放持久化事件，再按序号去重，衔接回放查询与 Hub 握手之间的间隙。
   void replay();
   startSignalR();
   return () => {

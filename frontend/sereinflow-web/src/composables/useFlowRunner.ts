@@ -102,6 +102,7 @@ export function useFlowRunner(options: UseFlowRunnerOptions) {
           // A 409 means the worker may have completed between the status
           // check and the cancel request. Polling below will reconcile the
           // final state and reset the button.
+          // 409 表示 Worker 可能在状态检查与取消请求之间完成；下方轮询会同步最终状态并重置按钮。
           options.notice.value = t('canvas.runCancelFailed');
         }
         if (activeRunId) {

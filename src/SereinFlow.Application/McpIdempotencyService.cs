@@ -46,7 +46,7 @@ public sealed class McpIdempotencyService
         var entry = await _store.FindAsync(principalId, operation, hashKeyResult, cancellationToken);
         if (entry is not null && !string.IsNullOrWhiteSpace(entry.RequestHash) && requestPayload is not null && !resolveEqualsResult())
         {
-            throw new McpSecurityException(McpErrorCodes.IdempotencyConflict, "The idempotency key was already used for a different MCP request.", StatusCodes.Status409Conflict);
+            throw new McpSecurityException(McpErrorCodes.IdempotencyConflict, "The idempotency key was already used for a different MCP request. 该幂等键已用于另一个不同的 MCP 请求。", StatusCodes.Status409Conflict);
         }
 
         return entry;

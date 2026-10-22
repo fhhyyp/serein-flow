@@ -86,6 +86,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     // The catalog is scoped because it consumes scoped repository services,
     // while uploads must still be serialized across concurrent HTTP requests.
     // Keep the gate process-wide instead of tying it to one request scope.
+    // 目录服务使用有作用域的仓储，但并发 HTTP 上传仍须串行处理；因此使用进程级门控，而非请求级门控。
     private static readonly SemaphoreSlim UploadGate = new(1, 1);
     public SqliteLibraryCatalogService(SqliteDatabase database, LibraryCatalogOptions options, IFileUploadSettings? fileUploadSettings = null)
     {
@@ -219,7 +220,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             (long size, string sha256) = await CopyToTemporaryFileAsync(package, temporaryPath, cancellationToken);
             if (expectedSha256 is not null && (size != declaredLength || !string.Equals(sha256, expectedSha256, StringComparison.OrdinalIgnoreCase)))
             {
-                throw new LibraryUploadException("The staged library package changed after preview.", 409);
+                throw new LibraryUploadException("The staged library package changed after preview. 暂存的类库包在预览后发生了变化。", 409);
             }
 
             var existing = await FindAsyncCore(sha256, cancellationToken);
@@ -1126,6 +1127,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         // UploadGate is process-wide and intentionally lives for the host
         // lifetime; scoped instances must not dispose it underneath another
         // request.
+        // UploadGate 贯穿宿主生命周期；作用域实例不得在其他请求使用期间将其释放。
     }
 
     private static Action<ILogger, string, Exception?> CreateReindexSkippedLogInitialValue()
@@ -1931,6 +1933,7 @@ internal static class LibraryMetadataScanner
     {
         var evaluatedValue179 = string.Equals(returnType, "System.Threading.Tasks.Task", StringComparison.Ordinal) || returnType.StartsWith("System.Threading.Tasks.Task<", StringComparison.Ordinal) // Metadata signatures preserve the CLR arity suffix (Task`1<T>)
                                                                                                                                                                                                       // while reflection exposes the same type as Task<T>.
+        // 元数据签名保留 CLR 泛型元数后缀（Task`1<T>），而反射将同一类型表示为 Task<T>。
         || returnType.StartsWith("System.Threading.Tasks.Task`1<", StringComparison.Ordinal);
         return evaluatedValue179;
     }

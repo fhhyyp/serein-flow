@@ -11,7 +11,7 @@ internal class McpFlowTopologyRequest : McpReadOptionsRequest
     [McpParameter(Required = true)]
     public Guid FlowId { get; set; }
 
-    [McpParameter(IgnoreWhitespace = true, AllowNumericEnum = true, ErrorMessage = "The flow version track must be development or production.")]
+    [McpParameter(IgnoreWhitespace = true, AllowNumericEnum = true, ErrorMessage = "The flow version track must be development or production. 流程版本轨道必须为 development 或 production。")]
     public FlowVersionTrackDto Track { get; set; } = FlowVersionTrackDto.Development;
     public long? Version { get; set; }
 }
@@ -35,7 +35,7 @@ internal class McpCompareFlowVersionsRequest
     [McpParameter(Required = true)]
     public Guid FlowId { get; set; }
 
-    [McpParameter(Required = true, AllowNumericEnum = true, ErrorMessage = "The flow version track must be development or production.")]
+    [McpParameter(Required = true, AllowNumericEnum = true, ErrorMessage = "The flow version track must be development or production. 流程版本轨道必须为 development 或 production。")]
     public FlowVersionTrackDto Track { get; set; }
 
     [McpParameter(Required = true)]

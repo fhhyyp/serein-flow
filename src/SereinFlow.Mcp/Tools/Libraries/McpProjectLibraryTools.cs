@@ -57,7 +57,7 @@ internal sealed class McpProjectLibraryTools(
         var entry = await _mcpPreviewService.RequireAsync(request.PreviewId, request.PreviewFingerprint, principal, cancellationToken);
         if (!string.Equals(entry.Operation, ProjectErrorCodes.LibraryAttach, StringComparison.Ordinal))
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a project library attachment.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a project library attachment. 此预览不是项目类库关联预览。");
         }
 
         var stored = McpPreviewService.Deserialize<StoredProjectLibraryAttachPreview>(entry);
@@ -65,13 +65,13 @@ internal sealed class McpProjectLibraryTools(
         var currentDiagnostics = await ValidateProjectLibraryAttachAsync(stored.Request, cancellationToken);
         if (currentDiagnostics.Count > 0)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The project library attachment is no longer valid. Create a new preview and review it again.", new { code = McpErrorCodes.ValidationFailed, diagnostics = currentDiagnostics });
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, "The project library attachment is no longer valid. Create a new preview and review it again. 项目类库关联已失效，请创建新预览并重新审阅。", new { code = McpErrorCodes.ValidationFailed, diagnostics = currentDiagnostics });
         }
 
         var result = await _projectLibraryService.AddAsync(stored.Request.ProjectId, stored.Request.LibraryId, cancellationToken, origin: "mcp");
         if (!result.IsSuccess)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, result.Message ?? "The project library attachment failed.", result.Code);
+            throw new McpProtocolException(McpProtocolErrorCodes.OperationRejected, result.Message ?? "The project library attachment failed. 项目类库关联失败。", result.Code);
         }
 
         await MarkPreviewAppliedAsync(_mcpPreviewService, entry, cancellationToken);

@@ -236,7 +236,7 @@ async function copySecret(): Promise<void> {
       document.body.appendChild(fallbackInput);
       fallbackInput.select();
       if (!document.execCommand('copy')) {
-        throw new Error('Clipboard access is unavailable.');
+        throw new Error('Clipboard access is unavailable. 无法访问剪贴板。');
       }
     }
   }

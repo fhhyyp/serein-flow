@@ -3,6 +3,7 @@ namespace SereinFlow.Application;
 /// Shared limits for library packages uploaded through the API or MCP.
 /// The value represents decoded package bytes; transport overhead is handled
 /// separately for multipart and base64 encoded requests.
+/// API 和 MCP 共用的类库包上传限制，以解码后的包字节数计；multipart 和 base64 传输开销另行处理。
 /// </summary>
 public static class FileUploadLimits
 {
@@ -45,6 +46,7 @@ public static class FileUploadLimits
 
 /// <summary>
 /// Process-local live value shared by API, MCP and library package validation.
+/// API、MCP 与类库包校验共用的进程内实时配置值。
 /// </summary>
 public interface IFileUploadSettings
 {

@@ -2,7 +2,10 @@ using System;
 
 namespace SereinFlow.Mcp.Generator.Models;
 
-/// <summary>Immutable host registration model; semantic symbols remain inside analysis.</summary>
+/// <summary>
+/// Immutable host registration model; semantic symbols remain inside analysis.
+/// 不可变的宿主注册模型；语义符号仅保留在分析阶段。
+/// </summary>
 internal sealed class McpHostCache(string @namespace, string className, string accessibility,
     string registrationMethodName, string registryTypeName) : IEquatable<McpHostCache>
 {

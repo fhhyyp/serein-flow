@@ -28,7 +28,7 @@ public sealed class RunVariableService(IFlowRunStore runs, IWorkerVariableRunCli
 
         if (request.ProtocolVersion != WorkerProtocol.Version || request.Operation is not (ListOperation or GetOperation or SetOperation) || request.Offset < 0 || request.Take is < 1 or > MaximumVariablePageSize || (request.Operation != ListOperation && (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > MaximumVariableNameLength)))
         {
-            var failureResult1 = Failure(request.RunId, StatusCodes.Status400BadRequest, VariableErrorCodes.InvalidRequest, "Invalid variable operation, name or page.");
+            var failureResult1 = Failure(request.RunId, StatusCodes.Status400BadRequest, VariableErrorCodes.InvalidRequest, "Invalid variable operation, name or page. 变量操作、名称或分页参数无效。");
             return failureResult1;
         }
 
@@ -43,19 +43,19 @@ public sealed class RunVariableService(IFlowRunStore runs, IWorkerVariableRunCli
             var value = request.Value;
             if (value.ValueKind == JsonValueKind.Undefined)
             {
-                var failureResult3 = Failure(request.RunId, StatusCodes.Status400BadRequest, VariableErrorCodes.ValueInvalid, "An explicit JSON value is required.");
+                var failureResult3 = Failure(request.RunId, StatusCodes.Status400BadRequest, VariableErrorCodes.ValueInvalid, "An explicit JSON value is required. 必须显式提供 JSON 值。");
                 return failureResult3;
             }
 
             if (request.ValueType is not ("null" or "boolean" or "string" or "int32" or "int64" or "double" or "decimal" or "json"))
             {
-                var failureResult4 = Failure(request.RunId, StatusCodes.Status400BadRequest, VariableErrorCodes.TypeInvalid, "Unsupported variable valueType.");
+                var failureResult4 = Failure(request.RunId, StatusCodes.Status400BadRequest, VariableErrorCodes.TypeInvalid, "Unsupported variable valueType. 不支持指定的变量 valueType。");
                 return failureResult4;
             }
 
             if (resolveGetByteCountResult() > 16_384)
             {
-                var failureResult5 = Failure(request.RunId, 413, VariableErrorCodes.TooLarge, "Variable values are limited to 16384 JSON bytes.");
+                var failureResult5 = Failure(request.RunId, 413, VariableErrorCodes.TooLarge, "Variable values are limited to 16384 JSON bytes. 变量值的 JSON 大小不能超过 16384 字节。");
                 return failureResult5;
             }
 
@@ -130,6 +130,7 @@ public sealed class RunVariableService(IFlowRunStore runs, IWorkerVariableRunCli
             catch (JsonException)
             {
                 // Legacy or malformed terminal events do not contain a recoverable snapshot.
+                // 旧版或格式错误的终止事件不包含可恢复的快照。
             }
         }
 

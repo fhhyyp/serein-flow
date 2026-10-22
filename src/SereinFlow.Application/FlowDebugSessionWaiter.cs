@@ -36,6 +36,7 @@ public static class FlowDebugSessionWaiter
 
             // Interactive control needs the next boundary where another command
             // can be issued. Node telemetry can advance the revision while running.
+            // 交互控制需要等待可继续发出命令的下一个边界；节点遥测也可能在运行期间推进修订号。
             var observableChange = session.StateRevision > afterRevision
                 && (!waitForPauseOrCompletion || session.Status == FlowDebugSessionStatus.Paused);
             if (observableChange || session.IsTerminal)

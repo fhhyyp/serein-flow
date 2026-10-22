@@ -20,7 +20,10 @@ public sealed record McpToolCompletion(McpToolExecutionContext Context, object? 
     public string? Summary => Failure?.Summary;
 }
 
-/// <summary>Owns policy execution, mutation leases, timing and isolated completion recording.</summary>
+/// <summary>
+/// Owns policy execution, mutation leases, timing and isolated completion recording.
+/// 负责策略执行、修改租约、计时及隔离的完成记录。
+/// </summary>
 public abstract class McpToolPolicy(McpToolMutationGate mutationGate) : IMcpToolMiddleware
 {
     public async Task<object?> InvokeAsync(McpToolExecutionContext context, McpToolExecutionDelegate next, CancellationToken cancellationToken)
@@ -55,6 +58,7 @@ public abstract class McpToolPolicy(McpToolMutationGate mutationGate) : IMcpTool
             catch
             {
                 // Completion recording must never replace a tool result or its original failure.
+                // 完成记录不得覆盖工具结果或其原始失败。
             }
         }
     }

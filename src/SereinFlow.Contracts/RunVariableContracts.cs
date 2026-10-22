@@ -15,14 +15,20 @@ public static class VariableErrorCodes
     public const string SnapshotUnavailable = "variable.snapshot_unavailable";
 }
 
-/// <summary>A JSON projection of one variable; arbitrary CLR objects remain in the Worker.</summary>
+/// <summary>
+/// A JSON projection of one variable; arbitrary CLR objects remain in the Worker.
+/// 单个变量的 JSON 投影；任意 CLR 对象保留在 Worker 内。
+/// </summary>
 public sealed record RunVariableDto(string Name, string? ClrType, bool ValueAvailable, JsonElement? Value, string? UnavailableReason = null, string? ValueJson = null);
 /// <summary>
 /// Defines the API data contract for run variable snapshot.
 /// 定义运行变量快照的 API 数据契约。
 /// </summary>
 public sealed record RunVariableSnapshotDto(Guid RunId, IReadOnlyList<RunVariableDto> Variables, int TotalCount, int Offset, bool HasMore, DateTimeOffset CapturedAt, bool IsFinal = false, bool IsTruncated = false);
-/// <summary>Writes accept only explicit built-in types, never assembly-qualified type names.</summary>
+/// <summary>
+/// Writes accept only explicit built-in types, never assembly-qualified type names.
+/// 写入只接受显式的内置类型，不接受程序集限定类型名。
+/// </summary>
 public sealed record RunVariableSetRequestDto(JsonElement Value, string ValueType);
 /// <summary>
 /// Carries request data for worker variable operations.

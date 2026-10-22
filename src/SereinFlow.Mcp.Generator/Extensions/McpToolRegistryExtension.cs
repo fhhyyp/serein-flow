@@ -11,7 +11,7 @@ namespace SereinFlow.Mcp.Generator.Extensions;
 internal static class McpToolRegistryExtension
 {
     internal static readonly DiagnosticDescriptor Duplicate = new DiagnosticDescriptor(
-        "MCPGEN001", "Duplicate MCP tool", "Tool name '{0}' is declared more than once", "McpGeneration", DiagnosticSeverity.Error, true);
+        "MCPGEN001", "Duplicate MCP tool MCP 工具重复。", "Tool name '{0}' is declared more than once 工具名称被重复声明。", "McpGeneration", DiagnosticSeverity.Error, true);
 
     internal static string GenerateRegistry(this IEnumerable<McpToolAnalysis> analyses, string assemblyName, GenerationContext context)
     {

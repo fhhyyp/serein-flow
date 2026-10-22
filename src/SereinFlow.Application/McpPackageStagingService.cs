@@ -20,7 +20,7 @@ public sealed class McpPackageStagingService : IDisposable
     {
         if (string.IsNullOrWhiteSpace(rootPath))
         {
-            throw new ArgumentException("The MCP package staging root is required.", nameof(rootPath));
+            throw new ArgumentException("The MCP package staging root is required. 必须提供 MCP 包暂存根目录。", nameof(rootPath));
         }
 
         ArgumentOutOfRangeException.ThrowIfLessThan(maxBytes, 1);
@@ -61,7 +61,7 @@ public sealed class McpPackageStagingService : IDisposable
                 size += read;
                 if (size > maxBytes)
                 {
-                    throw new InvalidOperationException("The staged MCP package exceeds the configured size limit.");
+                    throw new InvalidOperationException("The staged MCP package exceeds the configured size limit. 暂存的 MCP 包超过配置的大小限制。");
                 }
 
                 var asMemoryResult1 = buffer.AsMemory(0, read);
@@ -83,7 +83,7 @@ public sealed class McpPackageStagingService : IDisposable
     {
         if (!IsOwnedPath(path) || !File.Exists(path))
         {
-            throw new FileNotFoundException("The staged MCP package is no longer available.");
+            throw new FileNotFoundException("The staged MCP package is no longer available. 暂存的 MCP 包已不可用。");
         }
 
         var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.SequentialScan);

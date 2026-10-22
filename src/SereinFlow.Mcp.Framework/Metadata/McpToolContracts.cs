@@ -8,13 +8,19 @@ namespace SereinFlow.Mcp.Framework;
 /// </summary>
 public sealed record McpToolDescriptor(string Name, string Description, JsonElement InputSchema);
 
-/// <summary>Host JSON configuration, snapshotted when the generated registry is loaded.</summary>
+/// <summary>
+/// Host JSON configuration, snapshotted when the generated registry is loaded.
+/// 宿主 JSON 配置，在加载生成的注册表时创建快照。
+/// </summary>
 public sealed class McpToolDiscoveryOptions
 {
     public JsonSerializerOptions JsonOptions { get; init; } = new(JsonSerializerDefaults.Web) { RespectRequiredConstructorParameters = true };
 }
 
-/// <summary>The host owns this service scope and any supplied invocation context values.</summary>
+/// <summary>
+/// The host owns this service scope and any supplied invocation context values.
+/// 宿主拥有此服务作用域及所提供的调用上下文值。
+/// </summary>
 public sealed class McpToolCallContext(IServiceProvider services, IReadOnlyDictionary<Type, object>? values = null)
 {
     private readonly Dictionary<Type, object> _values = values is null ? [] : new(values);
@@ -22,7 +28,7 @@ public sealed class McpToolCallContext(IServiceProvider services, IReadOnlyDicti
 
     public T GetValue<T>() => _values.TryGetValue(typeof(T), out var value)
         ? (T)value
-        : throw new InvalidOperationException($"No invocation context was provided for '{typeof(T)}'.");
+        : throw new InvalidOperationException($"No invocation context was provided for '{typeof(T)}'. 未提供指定类型的调用上下文。");
 
     public void SetValue<T>(T value) where T : notnull => _values[typeof(T)] = value;
 
@@ -53,7 +59,7 @@ public sealed class McpToolDefinition
         Metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
         _execute = execute ?? throw new ArgumentNullException(nameof(execute));
         if (metadata.RequiresIdempotencyKey && metadata.ExecutionKind != McpToolExecutionKind.Mutation)
-            throw new ArgumentException("Only mutation tools can require an idempotency key.", nameof(metadata));
+            throw new ArgumentException("Only mutation tools can require an idempotency key. 只有修改类工具才能要求幂等键。", nameof(metadata));
     }
 
     public McpToolDescriptor Descriptor { get; }
@@ -63,7 +69,7 @@ public sealed class McpToolDefinition
     {
         if (arguments.ValueKind is not (JsonValueKind.Object or JsonValueKind.Undefined))
         {
-            throw new McpParameterBindingException("MCP tool arguments must be a JSON object.", "$");
+            throw new McpParameterBindingException("MCP tool arguments must be a JSON object. MCP 工具参数必须是 JSON 对象。", "$");
         }
         return _execute(context, arguments, cancellationToken);
     }
@@ -81,7 +87,7 @@ public sealed class McpToolCatalog
         {
             if (tool is null || string.IsNullOrWhiteSpace(tool.Descriptor.Name) || !_byName.TryAdd(tool.Descriptor.Name, tool))
             {
-                throw new ArgumentException("Tool names must be nonempty and unique.", nameof(tools));
+                throw new ArgumentException("Tool names must be nonempty and unique. 工具名称必须非空且唯一。", nameof(tools));
             }
         }
         Tools = Array.AsReadOnly(entries);

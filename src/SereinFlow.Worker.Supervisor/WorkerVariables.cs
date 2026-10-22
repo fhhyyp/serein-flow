@@ -43,6 +43,7 @@ internal sealed partial class WorkerMessageSession
         try
         {
             // Completion may race registration; avoid waiting for a response from an exited Worker.
+            // 运行完成可能与注册并发发生；避免等待已经退出的 Worker 返回响应。
             if (Volatile.Read(ref _completed) == 1)
             {
                 var variablesInactiveResult2 = VariablesInactive();
@@ -76,7 +77,7 @@ internal sealed partial class WorkerMessageSession
         var response = WorkerProtocolCodec.DeserializePayload<WorkerVariableResponseDto>(message);
         if (response.RunId != _request.RunId || response.ProtocolVersion != WorkerProtocolConstants.Version)
         {
-            throw new WorkerProtocolException(VariableErrorCodes.InvalidRequest, "Invalid variable response identity.");
+            throw new WorkerProtocolException(VariableErrorCodes.InvalidRequest, "Invalid variable response identity. 变量响应标识无效。");
         }
 
         if (_variableRequests.TryGetValue(message.RequestId, out var pending))

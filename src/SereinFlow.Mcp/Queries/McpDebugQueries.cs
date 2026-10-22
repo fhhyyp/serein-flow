@@ -18,12 +18,12 @@ internal sealed class McpDebugQueries(AiReadModelService service, McpSecuritySer
         var timeoutSeconds = arguments.TimeoutSeconds;
         if (afterRevision < 0)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'afterRevision' cannot be negative.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'afterRevision' cannot be negative. MCP 参数 afterRevision 不能为负数。");
         }
 
         if (timeoutSeconds is < 0 or > 60)
         {
-            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'timeoutSeconds' must be between 0 and 60.");
+            throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "MCP parameter 'timeoutSeconds' must be between 0 and 60. MCP 参数 timeoutSeconds 必须介于 0 到 60 之间。");
         }
 
         var sessionId = arguments.SessionId;

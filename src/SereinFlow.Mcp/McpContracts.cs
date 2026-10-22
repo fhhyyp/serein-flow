@@ -15,6 +15,7 @@ public static class McpProtocolConstants
 /// JSON-RPC error codes emitted by the SereinFlow MCP server.
 /// The wire format remains numeric, but call sites use named constants instead
 /// of repeating protocol magic numbers.
+/// SereinFlow MCP 服务返回的 JSON-RPC 错误码；传输格式仍为数值，调用处使用具名常量避免重复协议魔法数。
 /// </summary>
 public static class McpProtocolErrorCodes
 {

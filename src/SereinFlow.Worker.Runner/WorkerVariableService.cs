@@ -7,7 +7,10 @@ using SereinFlow.Library;
 using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Worker.Runner;
-/// <summary>Projects run variables without invoking arbitrary user-object getters or converters.</summary>
+/// <summary>
+/// Projects run variables without invoking arbitrary user-object getters or converters.
+/// 投影运行变量，不调用任意用户对象的 getter 或转换器。
+/// </summary>
 public static class WorkerVariableService
 {
     public const int MaxValueBytes = 16_384;
@@ -18,7 +21,10 @@ public static class WorkerVariableService
     {
         MaxDepth = 16
     };
-    /// <summary>Captures bounded, JSON-safe values once, before the Worker exits.</summary>
+    /// <summary>
+    /// Captures bounded, JSON-safe values once, before the Worker exits.
+    /// 在 Worker 退出前一次性捕获有界且可安全表示为 JSON 的变量值。
+    /// </summary>
     public static RunVariableSnapshotDto CaptureFinal(Guid runId, LibraryVariableService variables)
     {
         var values = variables.Snapshot();
@@ -82,13 +88,13 @@ public static class WorkerVariableService
     {
         if (request.ProtocolVersion != WorkerProtocolConstants.Version || request.RunId != runId)
         {
-            var failureResult = Failure(runId, VariableErrorCodes.InvalidRequest, "Variable request does not match this run.");
+            var failureResult = Failure(runId, VariableErrorCodes.InvalidRequest, "Variable request does not match this run. 变量请求与当前运行不匹配。");
             return failureResult;
         }
 
         if (request.Operation is not ("list" or "get" or "set") || request.Offset < 0 || request.Take is < 1 or > 200 || (request.Operation != "list" && (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 256)))
         {
-            var failureResult4 = Failure(runId, VariableErrorCodes.InvalidRequest, "Invalid variable operation, name or page.");
+            var failureResult4 = Failure(runId, VariableErrorCodes.InvalidRequest, "Invalid variable operation, name or page. 变量操作、名称或分页参数无效。");
             return failureResult4;
         }
 
@@ -98,13 +104,13 @@ public static class WorkerVariableService
             var input = request.Value;
             if (input.ValueKind == JsonValueKind.Undefined)
             {
-                var failureResult5 = Failure(runId, VariableErrorCodes.ValueInvalid, "A JSON value is required, including explicit null.");
+                var failureResult5 = Failure(runId, VariableErrorCodes.ValueInvalid, "A JSON value is required, including explicit null. 必须提供 JSON 值，允许显式 null。");
                 return failureResult5;
             }
 
             if (resolveGetByteCountResult9() > MaxValueBytes)
             {
-                var failureResult6 = Failure(runId, VariableErrorCodes.TooLarge, "Variable values are limited to 16384 JSON bytes.", 413);
+                var failureResult6 = Failure(runId, VariableErrorCodes.TooLarge, "Variable values are limited to 16384 JSON bytes. 变量值的 JSON 大小不能超过 16384 字节。", 413);
                 return failureResult6;
             }
 
@@ -115,12 +121,12 @@ public static class WorkerVariableService
             }
             catch (NotSupportedException)
             {
-                var failureResult7 = Failure(runId, VariableErrorCodes.TypeInvalid, "Use null, boolean, string, int32, int64, double, decimal or json.");
+                var failureResult7 = Failure(runId, VariableErrorCodes.TypeInvalid, "Use null, boolean, string, int32, int64, double, decimal or json. 请使用 null、boolean、string、int32、int64、double、decimal 或 json。");
                 return failureResult7;
             }
             catch (Exception exception) when (exception is InvalidOperationException or FormatException or OverflowException or JsonException)
             {
-                var failureResult8 = Failure(runId, VariableErrorCodes.ValueInvalid, "The JSON value does not match valueType.");
+                var failureResult8 = Failure(runId, VariableErrorCodes.ValueInvalid, "The JSON value does not match valueType. JSON 值与 valueType 不匹配。");
                 return failureResult8;
             }
 
@@ -166,6 +172,7 @@ public static class WorkerVariableService
         }
 
         // Drop large value projections while retaining names/types and paging metadata.
+        // 丢弃过大的值投影，同时保留名称、类型及分页元数据。
         if (resolveGetByteCountResult20() > MaxResponseBytes)
         {
             if (response.Snapshot is { } snapshot)
@@ -188,7 +195,7 @@ public static class WorkerVariableService
 
             if (resolveGetByteCountResult17() > MaxResponseBytes)
             {
-                var failureResult16 = Failure(runId, VariableErrorCodes.TooLarge, "Variable metadata exceeds the response limit; request a smaller page.", 413);
+                var failureResult16 = Failure(runId, VariableErrorCodes.TooLarge, "Variable metadata exceeds the response limit; request a smaller page. 变量元数据超过响应大小限制，请减小分页大小。", 413);
                 return failureResult16;
             }
 

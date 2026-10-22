@@ -64,6 +64,7 @@ function loadModeLayouts(size: WorkspaceSize): LoadedModeLayouts {
               ? migrateEditLayoutForCollapsedDiagnostics(editLayout)
               : editLayout,
             // Version 3 is the first cache version with the corrected 50/50 debug split.
+            // 缓存版本 3 首次修正了调试布局的 50/50 分栏比例。
             debug: debugLayout,
           },
           geometryCustomized: stored.storageVersion === storageVersion

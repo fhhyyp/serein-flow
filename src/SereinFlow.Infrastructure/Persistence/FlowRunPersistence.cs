@@ -333,6 +333,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         // not translate every expression shape identically.  Filtering the
         // small, run-scoped table after materialization also keeps this
         // adapter compatible with the existing SQLite schema.
+        // 查询不依赖具体提供程序的表达式翻译能力；对运行级小表先物化再筛选，保证快照读取可靠，并兼容现有 SQLite 架构。
         var runKey = runId.ToString("D");
         var listAsyncResult = _definitions.ListAsync();
         var getAwaiterResult17 = listAsyncResult.GetAwaiter();

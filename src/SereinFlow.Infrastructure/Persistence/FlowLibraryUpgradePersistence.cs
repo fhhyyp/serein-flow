@@ -277,6 +277,7 @@ public sealed class SqlSugarFlowLibraryUpgradeStore : IFlowLibraryUpgradeStore
             catch (JsonException)
             {
                 // An unreadable current definition cannot safely be treated as unused.
+                // 无法读取当前定义时，不能将其视为未使用该类库。
                 return;
             }
 

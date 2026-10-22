@@ -5,10 +5,19 @@ namespace SereinFlow.Library;
 /// </summary>
 public static class FlowWorkpieceContentTypes
 {
-    /// <summary>PNG image content type.</summary>
+    /// <summary>
+    /// PNG image content type.
+    /// PNG 图像内容类型。
+    /// </summary>
     public const string Png = "image/png";
-    /// <summary>JSON content type.</summary>
+    /// <summary>
+    /// JSON content type.
+    /// JSON 内容类型。
+    /// </summary>
     public const string Json = "application/json";
-    /// <summary>UTF-8 plain text content type.</summary>
+    /// <summary>
+    /// UTF-8 plain text content type.
+    /// UTF-8 纯文本内容类型。
+    /// </summary>
     public const string Text = "text/plain; charset=utf-8";
 }

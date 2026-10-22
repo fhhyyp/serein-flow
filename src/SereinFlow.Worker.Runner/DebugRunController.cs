@@ -75,6 +75,7 @@ internal sealed class DebugRunController
 
             // A listener may be blocked in WaitForTriggerAsync and have no
             // current boundary. Stop still needs to cancel that wait.
+            // 监听器可能阻塞在 WaitForTriggerAsync，且没有当前执行边界；停止命令仍须取消该等待。
             _gate?.TryCancel();
             _lastCommandSequence = command.CommandSequence;
             return true;

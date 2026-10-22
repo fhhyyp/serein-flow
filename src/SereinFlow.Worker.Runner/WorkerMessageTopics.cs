@@ -283,7 +283,7 @@ public sealed partial class WorkerMessageService
             MessageOverflowStrategy.Reject => BoundedChannelFullMode.Wait,
             MessageOverflowStrategy.DropOldest => BoundedChannelFullMode.DropOldest,
             MessageOverflowStrategy.DropNewest => BoundedChannelFullMode.DropWrite,
-            _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, "Unsupported message overflow strategy.")};
+            _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, "Unsupported message overflow strategy. 不支持此消息溢出策略。")};
         return evaluatedValue7;
     }
 }

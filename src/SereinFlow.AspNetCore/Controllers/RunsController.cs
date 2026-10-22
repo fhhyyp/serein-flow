@@ -444,6 +444,7 @@ public sealed class RunsController : ApiControllerBase
         HttpContext.Response.Headers.CacheControl = "no-cache";
         var lastEventId = HttpContext.Request.Headers.TryGetValue("Last-Event-ID", out var value) && long.TryParse(value, out var parsed) ? parsed : 0;
         // Active runs subscribe before replay so committed events cannot be missed.
+        // 活动运行先订阅再回放，避免遗漏已提交的事件。
         var reader = run.IsTerminal ? null : _eventBroadcaster.Subscribe(runId, HttpContext.RequestAborted);
         foreach (var item in await _events.GetAfterAsync(runId, lastEventId, cancellationToken))
         {
