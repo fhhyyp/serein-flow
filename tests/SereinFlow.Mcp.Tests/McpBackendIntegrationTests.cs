@@ -1320,6 +1320,73 @@ public sealed class McpBackendIntegrationTests
         Assert.Equal(McpErrorCodes.PreviewOwnerMismatch, exception.Code);
     }
 
+    [Theory]
+    [InlineData("found")]
+    [InlineData("missing")]
+    [InlineData("cancelled")]
+    public async Task ResourceReadsReleaseAsyncDependenciesAfterSuccessFailureAndCancellation(string outcome)
+    {
+        var stores = new List<AsyncPreviewStore>();
+        using var host = CreateHost(services => services.AddScoped<IMcpPreviewStore>(_ =>
+        {
+            var store = new AsyncPreviewStore(outcome);
+            stores.Add(store);
+            return store;
+        }));
+        host.Services.GetRequiredService<IMcpPrincipalAccessor>().Current = new McpPrincipal(
+            "resource-scope", null, Enum.GetValues<McpPermissionDto>().ToHashSet(), IsAdministrator: true);
+        var backend = host.Services.GetRequiredService<SereinFlowMcpBackend>();
+        using var cancellation = new CancellationTokenSource();
+        if (outcome == "cancelled") cancellation.Cancel();
+
+        for (var index = 0; index < 2; index++)
+        {
+            var uri = $"sereinflow://mcp-previews/{Guid.NewGuid():D}";
+            if (outcome == "missing")
+            {
+                var exception = await Assert.ThrowsAsync<McpProtocolException>(
+                    () => backend.ReadResourceAsync(uri, cancellation.Token));
+                Assert.Equal(McpProtocolErrorCodes.ResourceNotFound, exception.Code);
+            }
+            else if (outcome == "cancelled")
+            {
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                    () => backend.ReadResourceAsync(uri, cancellation.Token));
+            }
+            else
+            {
+                var result = await backend.ReadResourceAsync(uri, cancellation.Token);
+                Assert.IsType<McpPreviewDescriptorDto>(result.Value);
+            }
+
+            Assert.Equal(index + 1, stores.Count);
+            Assert.All(stores, store => Assert.True(store.Disposed));
+        }
+        Assert.NotSame(stores[0], stores[1]);
+    }
+
+    private sealed class AsyncPreviewStore(string outcome) : IMcpPreviewStore, IAsyncDisposable
+    {
+        public bool Disposed { get; private set; }
+
+        public Task<McpPreviewEntry?> FindAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<McpPreviewEntry?>(outcome == "missing" ? null : new McpPreviewEntry(
+                id, "scope.test", "resource-scope", null, null, null, "{}", "fingerprint",
+                McpMutationPreviewStatusDto.Pending, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(1), null));
+        }
+
+        public Task AddAsync(McpPreviewEntry entry, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> UpdateAsync(McpPreviewEntry entry, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public async ValueTask DisposeAsync()
+        {
+            await Task.Yield();
+            Disposed = true;
+        }
+    }
+
     private static TestHost CreateHost(Action<IServiceCollection>? configureServices = null)
     {
         var getTempPathResult = Path.GetTempPath();

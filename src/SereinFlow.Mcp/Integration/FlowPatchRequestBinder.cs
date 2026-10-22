@@ -1,6 +1,5 @@
 using System.Text.Json;
 using SereinFlow.Application;
-using SereinFlow.Mcp.Tools;
 
 namespace SereinFlow.Mcp.Integration;
 
@@ -10,6 +9,6 @@ internal sealed class FlowPatchRequestBinder(FlowPatchContractNormalizer normali
     public NormalizedFlowPatchRequest Bind(JsonElement arguments, JsonSerializerOptions options)
     {
         try { return normalizer.Normalize(arguments); }
-        catch (FlowPatchContractException exception) { throw McpToolSupport.InvalidFlowPatchContract(exception); }
+        catch (FlowPatchContractException exception) { throw Support.McpErrors.InvalidFlowPatchContract(exception); }
     }
 }

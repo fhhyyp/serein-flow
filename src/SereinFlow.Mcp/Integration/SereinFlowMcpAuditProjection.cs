@@ -3,7 +3,6 @@ using System.Text.Json;
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
-using SereinFlow.Mcp.Tools;
 using Arguments = SereinFlow.Mcp.Framework.McpArgumentReader;
 
 namespace SereinFlow.Mcp.Integration;
@@ -20,7 +19,7 @@ public sealed class SereinFlowMcpAuditProjection(IMcpAuditStore auditStore, IMcp
         var idempotencyKey = Arguments.TryString(arguments, "idempotencyKey");
         var inputHash = McpIdempotencyService.HashKey(string.IsNullOrWhiteSpace(idempotencyKey) ? rawArguments : idempotencyKey);
         var inputBytes = Encoding.UTF8.GetByteCount(rawArguments);
-        var outputBytes = completion.Value is null ? 0 : Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(completion.Value, McpToolSupport.ContractJsonOptions));
+        var outputBytes = completion.Value is null ? 0 : Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(completion.Value, Support.McpJson.ContractJsonOptions));
         var previewId = Arguments.TryGuid(arguments, "previewId");
         var preview = previewId is null ? null : await (previewStore
             ?? throw new InvalidOperationException("A preview store is required for preview audit projection.")).FindAsync(previewId.Value, CancellationToken.None);

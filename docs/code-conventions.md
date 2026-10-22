@@ -2,6 +2,8 @@
 
 适用于仓库内的自有 Vue、TypeScript、C# 和 CSS，包括测试、示例、文档站及检查工具。第三方源码、生成文件、依赖与构建产物不纳入调整。
 
+`SereinFlow.Mcp`、`SereinFlow.Mcp.Framework`、`SereinFlow.Mcp.Generator` 及其三个对应测试项目不适用本文的自定义规则，也不进入 C# 规范检查器。它们使用自然的 C# 表达方式，包括直接返回、表达式体、嵌套调用和完整 LINQ 查询；仍遵守基本 EditorConfig、编译检查及行为兼容要求。其他项目和前端的检查保持不变。
+
 安装 `frontend/sereinflow-web` 的依赖后，从仓库根目录运行：
 
 ```powershell

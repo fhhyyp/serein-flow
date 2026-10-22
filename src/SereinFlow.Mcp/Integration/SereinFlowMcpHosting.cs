@@ -3,7 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SereinFlow.Application;
 using SereinFlow.Mcp.Integration;
-using SereinFlow.Mcp.Tools;
+using SereinFlow.Mcp.Queries;
+using SereinFlow.Mcp.Previews;
+using SereinFlow.Mcp.Support;
 
 namespace SereinFlow.Mcp;
 
@@ -15,12 +17,20 @@ public static partial class SereinFlowMcpHosting
     {
         services.TryAddSingleton<IMcpPrincipalAccessor, McpPrincipalAccessor>();
         services.TryAddScoped<SereinFlowMcpAuditProjection>();
+        services.TryAddScoped<McpProjectQueries>();
+        services.TryAddScoped<McpFlowQueries>();
+        services.TryAddScoped<McpLibraryQueries>();
+        services.TryAddScoped<McpRunQueries>();
+        services.TryAddScoped<McpDebugQueries>();
+        services.TryAddScoped<McpPreviewReader>();
+        services.TryAddScoped<McpResourceAuthorization>();
+        services.TryAddScoped<McpFlowValidation>();
         services.TryAddScoped<IMcpRequestBinder<NormalizedFlowPatchRequest>, FlowPatchRequestBinder>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IMcpToolMiddleware, SereinFlowMcpPolicy>());
     }
 
     static partial void ConfigureJsonOptions(ref JsonSerializerOptions options)
-        => options = McpToolSupport.ContractJsonOptions;
+        => options = Support.McpJson.ContractJsonOptions;
 
     static partial void ConfigureCatalog(McpToolCatalog catalog)
     {

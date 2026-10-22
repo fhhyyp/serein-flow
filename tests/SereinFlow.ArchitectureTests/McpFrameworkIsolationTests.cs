@@ -16,6 +16,25 @@ public sealed class McpFrameworkIsolationTests
             .Where(method => method.GetCustomAttributes().OfType<ISereinFlowMcpToolMetadata>().Any()).ToArray();
         Assert.Equal(50, methods.Length);
         Assert.All(methods, method => Assert.DoesNotContain(method.GetParameters(), parameter => parameter.ParameterType == typeof(JsonElement)));
+        Assert.All(methods, method =>
+        {
+            Assert.False(method.IsStatic);
+            var parameterTypes = method.GetParameters().Select(static parameter => parameter.ParameterType);
+            Assert.DoesNotContain(typeof(IServiceProvider), parameterTypes);
+            Assert.DoesNotContain(typeof(Microsoft.Extensions.DependencyInjection.IServiceScope), parameterTypes);
+            Assert.DoesNotContain(typeof(SereinFlowMcpToolContext), parameterTypes);
+        });
+        var handlers = methods.Select(static method => method.DeclaringType!).Distinct();
+        Assert.All(handlers, handler =>
+        {
+            var constructors = handler.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var constructor = Assert.Single(constructors);
+            var parameterTypes = constructor.GetParameters().Select(static parameter => parameter.ParameterType).ToArray();
+            Assert.NotEmpty(parameterTypes);
+            Assert.DoesNotContain(typeof(IServiceProvider), parameterTypes);
+            Assert.DoesNotContain(typeof(Microsoft.Extensions.DependencyInjection.IServiceScope), parameterTypes);
+            Assert.DoesNotContain(typeof(SereinFlowMcpToolContext), parameterTypes);
+        });
     }
 
     [Fact]

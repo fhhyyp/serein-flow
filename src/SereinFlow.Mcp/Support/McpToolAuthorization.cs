@@ -1,12 +1,17 @@
 using SereinFlow.Application;
 using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
-using static SereinFlow.Mcp.Tools.McpToolSupport;
 
-namespace SereinFlow.Mcp.Tools;
+namespace SereinFlow.Mcp.Support;
+
 internal static class McpToolAuthorization
 {
-    internal static void RequireSensitiveRead(McpSecurityService security, McpPrincipal? principal, Guid projectId, AiReadModelOptions? options)
+    internal static bool IsProjectScoped(McpPrincipal? principal) => principal?.ProjectId is not null && !principal.IsLocal && !principal.IsAdministrator;
+    internal static void RequireSensitiveRead(
+        McpSecurityService security,
+        McpPrincipal? principal,
+        Guid projectId,
+        AiReadModelOptions? options)
     {
         if (options is null || (!options.IncludeFlowLiteralValues && !options.IncludeScriptSource))
         {
@@ -47,10 +52,4 @@ internal static class McpToolAuthorization
         security.Require(principal, permission, entry.ProjectId);
     }
 
-    internal static AiReadModelOptions ReadAuthorizedOptions(McpReadOptionsRequest arguments, McpSecurityService security, McpPrincipal? principal, Guid projectId)
-    {
-        var options = ReadOptions(arguments);
-        RequireSensitiveRead(security, principal, projectId, options);
-        return options;
-    }
 }

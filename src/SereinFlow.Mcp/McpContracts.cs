@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 
 namespace SereinFlow.Mcp;
+
 public static class McpProtocolConstants
 {
     public const string JsonRpcVersion = "2.0";

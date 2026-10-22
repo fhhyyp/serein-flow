@@ -28,17 +28,7 @@ internal static class McpToolCacheExtension
             cache.Diagnostics.Add(Diagnostic.Create(InvalidSignature, cache.Location, cache.Name, error));
             return cache;
         }
-        if (!method.IsStatic)
-        {
-            var constructors = method.ContainingType.InstanceConstructors.Where(IsAccessible).ToArray();
-            if (constructors.Length != 1 || constructors[0].Parameters.Any(parameter => parameter.RefKind != RefKind.None))
-            {
-                cache.Diagnostics.Add(Diagnostic.Create(InvalidConstructor, cache.Location, method.ContainingType.Name));
-                return cache;
-            }
-            cache.ConstructorArguments = string.Join(", ", constructors[0].Parameters.Select(parameter =>
-                $"global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<{TypeName(parameter.Type)}>(provider)"));
-        }
+        if (!ConfigureConstructor(method, cache)) return cache;
         var request = method.Parameters.SingleOrDefault(parameter => !IsContext(parameter));
         cache.HandlerTypeName = TypeName(method.ContainingType);
         cache.MethodName = Escape(method.Name);
@@ -46,11 +36,28 @@ internal static class McpToolCacheExtension
         cache.RequestTypeName = request is null ? null : TypeName(request.Type);
         cache.RequestType = request?.Type;
         cache.MetadataExpression = CSharpLiteral.RenderAttribute(attribute);
-        cache.InvocationArguments = string.Join(", ", method.Parameters.Select(parameter =>
-            IsCancellation(parameter.Type) ? "cancellationToken"
-            : IsContext(parameter) ? $"context.GetValue<{TypeName(parameter.Type)}>()" : "request"));
+        cache.InvocationArguments = string.Join(", ", method.Parameters.Select(InvocationArgument));
         return cache;
     }
+
+    private static bool ConfigureConstructor(IMethodSymbol method, McpToolCache cache)
+    {
+        if (method.IsStatic) return true;
+        var constructors = method.ContainingType.InstanceConstructors.Where(IsAccessible).ToArray();
+        if (constructors.Length != 1 || constructors[0].Parameters.Any(parameter => parameter.RefKind != RefKind.None))
+        {
+            cache.Diagnostics.Add(Diagnostic.Create(InvalidConstructor, cache.Location, method.ContainingType.Name));
+            return false;
+        }
+
+        cache.ConstructorArguments = string.Join(", ", constructors[0].Parameters.Select(parameter =>
+            $"global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<{TypeName(parameter.Type)}>(provider)"));
+        return true;
+    }
+
+    private static string InvocationArgument(IParameterSymbol parameter)
+        => IsCancellation(parameter.Type) ? "cancellationToken"
+            : IsContext(parameter) ? $"context.GetValue<{TypeName(parameter.Type)}>()" : "request";
 
     private static string? CheckSignature(IMethodSymbol method, string name)
     {

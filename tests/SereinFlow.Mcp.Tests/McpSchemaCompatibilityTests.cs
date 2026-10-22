@@ -28,7 +28,7 @@ public sealed class McpSchemaCompatibilityTests
     [Fact]
     public void ObjectSchemasRejectUndeclaredAndDuplicateRequiredProperties()
     {
-        var stringSchema = McpToolSupport.StringSchema();
+        var stringSchema = SereinFlow.Mcp.Support.McpSchemaBuilder.StringSchema();
         var properties = new Dictionary<string, McpJsonSchema>(StringComparer.Ordinal)
         {
             { "name", stringSchema }
@@ -48,7 +48,7 @@ public sealed class McpSchemaCompatibilityTests
     [Fact]
     public void ObjectSchemaCapturesItsPropertiesAndRequiredNames()
     {
-        var stringSchema = McpToolSupport.StringSchema();
+        var stringSchema = SereinFlow.Mcp.Support.McpSchemaBuilder.StringSchema();
         var properties = new Dictionary<string, McpJsonSchema>(StringComparer.Ordinal)
         {
             { "name", stringSchema }

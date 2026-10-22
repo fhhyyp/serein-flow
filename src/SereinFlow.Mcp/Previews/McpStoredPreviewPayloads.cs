@@ -1,7 +1,7 @@
 using SereinFlow.Application;
 using SereinFlow.Contracts;
 
-namespace SereinFlow.Mcp.Tools;
+namespace SereinFlow.Mcp.Previews;
 // Persisted payloads are shared by preview-producing tools and preview reads.
 // They intentionally remain internal to avoid extending the public MCP model.
 internal sealed record StoredProjectCreatePreview(CreateProjectMcpRequestDto Request, Guid ProjectId, Guid FlowId, DateTimeOffset CreatedAt, FlowDefinitionDto Definition, FlowValidationResultDto Validation);

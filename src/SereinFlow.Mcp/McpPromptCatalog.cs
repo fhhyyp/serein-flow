@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 namespace SereinFlow.Mcp;
+
 internal static class McpPromptCatalog
 {
     private const int MaxRequestLength = 4_000;

@@ -1,0 +1,200 @@
+using Microsoft.AspNetCore.Http;
+using SereinFlow.Application;
+using SereinFlow.Application.Persistence;
+using SereinFlow.Contracts;
+using static SereinFlow.Mcp.Support.McpToolAuthorization;
+
+namespace SereinFlow.Mcp.Queries;
+
+internal sealed class McpLibraryQueries(
+    AiReadModelService service,
+    ILibraryCatalogService _libraryCatalogService,
+    IProjectLibraryReferenceRepository _projectLibraryReferenceRepository,
+    LibraryUpgradeService _libraryUpgradeService,
+    McpSecurityService security,
+    ProjectLibraryService _projectLibraryService)
+{
+    internal async Task<AiPageDto<AiLibrarySummaryDto>> ReadLibrariesAsync(
+        McpPrincipal? principal,
+        CancellationToken cancellationToken,
+        LibraryListScope listScope = LibraryListScope.Active,
+        AiReadModelOptions? options = null)
+    {
+        security.Require(principal, McpPermissionDto.LibraryRead);
+        if (!IsProjectScoped(principal))
+        {
+            return listScope == LibraryListScope.Archived
+                ? await service.ListArchivedLibrariesAsync(options, cancellationToken)
+                : await service.ListLibrariesAsync(listScope == LibraryListScope.All, options, cancellationToken);
+        }
+
+        var references = await _projectLibraryReferenceRepository.ListByProjectAsync(principal!.ProjectId!.Value, cancellationToken);
+        var maxItems = (options ?? new()).Normalize().MaxItems;
+        var items = new List<AiLibrarySummaryDto>(maxItems + 1);
+        var libraryIds = references
+            .Select(static item => item.LibraryId)
+            .Where(static id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static id => id, StringComparer.Ordinal);
+        foreach (var libraryId in libraryIds)
+        {
+            var library = await service.GetLibraryAsync(libraryId, cancellationToken);
+            if (library is null || !MatchesScope(library, listScope))
+            {
+                continue;
+            }
+
+            items.Add(library with { Nodes = null });
+            if (items.Count > maxItems)
+            {
+                break;
+            }
+        }
+
+        var hasMore = items.Count > maxItems;
+        var visible = hasMore ? items.Take(maxItems).ToArray() : items.ToArray();
+        return new AiPageDto<AiLibrarySummaryDto>(AiReadModelContract.SchemaVersion, visible, hasMore, hasMore && visible.Length > 0 ? visible[^1].Id : null);
+    }
+
+    private static bool MatchesScope(AiLibrarySummaryDto library, LibraryListScope listScope) => listScope switch
+    {
+        LibraryListScope.Active => string.Equals(library.Lifecycle, LibraryLifecycleDto.Available.ToString(), StringComparison.OrdinalIgnoreCase),
+        LibraryListScope.Archived => string.Equals(library.Lifecycle, LibraryLifecycleDto.Archived.ToString(), StringComparison.OrdinalIgnoreCase),
+        _ => true,
+    };
+
+    internal enum LibraryListScope
+    {
+        Active,
+        Archived,
+        All,
+    }
+
+    internal async Task<AiLibrarySummaryDto?> ReadLibraryAsync(
+        McpPrincipal? principal,
+        string libraryId,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.LibraryRead);
+        var library = await service.GetLibraryAsync(libraryId, cancellationToken);
+        if (library is not null && IsProjectScoped(principal))
+        {
+            var referenced = await _projectLibraryReferenceRepository.IsReferencedAsync(principal!.ProjectId!.Value, library.Id, cancellationToken);
+            if (!referenced)
+            {
+                throw new McpSecurityException(McpErrorCodes.LibraryAccessDenied, "The MCP caller cannot access this library artifact.", StatusCodes.Status403Forbidden);
+            }
+        }
+
+        return library;
+    }
+
+    internal async Task<AiPageDto<LibraryFamilyDto>> ReadLibraryFamiliesAsync(
+        McpPrincipal? principal,
+        bool includeArchivedArtifacts,
+        AiReadModelOptions options,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.LibraryRead);
+        var normalized = options.Normalize();
+        var families = await _libraryCatalogService.ListFamiliesAsync(includeArchivedArtifacts, cancellationToken);
+        var visibleFamilies = IsProjectScoped(principal)
+            ? await ProjectVisibleFamiliesAsync(principal!.ProjectId!.Value, families, cancellationToken)
+            : families;
+        var items = visibleFamilies.Take(normalized.MaxItems + 1).ToArray();
+        var hasMore = items.Length > normalized.MaxItems;
+        var visible = hasMore ? items.Take(normalized.MaxItems).ToArray() : items;
+        return new AiPageDto<LibraryFamilyDto>(AiReadModelContract.SchemaVersion, visible, hasMore, hasMore && visible.Length > 0 ? visible[^1].Id : null);
+    }
+
+    internal async Task<LibraryFamilyDto?> ReadLibraryFamilyAsync(
+        McpPrincipal? principal,
+        string familyId,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.LibraryRead);
+        var families = await _libraryCatalogService.ListFamiliesAsync(includeArchivedArtifacts: true, cancellationToken: cancellationToken);
+        var visible = IsProjectScoped(principal) ? await ProjectVisibleFamiliesAsync(principal!.ProjectId!.Value, families, cancellationToken) : families;
+        return visible.SingleOrDefault(item => string.Equals(item.Id, familyId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task<IReadOnlyList<LibraryFamilyDto>> ProjectVisibleFamiliesAsync(
+        Guid projectId,
+        IReadOnlyList<LibraryFamilyDto> families,
+        CancellationToken cancellationToken)
+    {
+        var references = await _projectLibraryReferenceRepository.ListByProjectAsync(projectId, cancellationToken);
+        var referencedArtifactIds = references
+            .Select(static reference => reference.LibraryId)
+            .Where(static id => !string.IsNullOrWhiteSpace(id))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return families
+            .Select(family => ProjectVisibleFamily(family, referencedArtifactIds))
+            .Where(static family => family is not null)
+            .Select(static family => family!)
+            .ToArray();
+    }
+
+    private static LibraryFamilyDto? ProjectVisibleFamily(LibraryFamilyDto family, HashSet<string> referencedArtifactIds)
+    {
+        var artifacts = (family.Artifacts ?? [])
+            .Where(artifact => referencedArtifactIds.Contains(artifact.Id))
+            .OrderByDescending(artifact => ParseSemanticVersion(artifact.SemanticVersion ?? artifact.Version))
+            .ThenByDescending(static artifact => artifact.UploadedAt)
+            .ThenBy(static artifact => artifact.Id, StringComparer.Ordinal)
+            .ToArray();
+        if (artifacts.Length == 0)
+        {
+            return null;
+        }
+
+        var latestArtifactId = artifacts.FirstOrDefault(static artifact => artifact.Lifecycle == LibraryLifecycleDto.Available)?.Id;
+        return family with
+        {
+            LatestArtifactId = latestArtifactId,
+            Artifacts = artifacts,
+        };
+    }
+
+    private static Version ParseSemanticVersion(string value)
+        => Version.TryParse(value?.Trim().TrimStart('v', 'V'), out var version) ? version : new Version(0, 0);
+
+    internal async Task<AiPageDto<ProjectLibraryReferenceDto>> ReadProjectLibrariesAsync(
+        McpPrincipal? principal,
+        Guid projectId,
+        AiReadModelOptions options,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.LibraryRead, projectId);
+        var result = await _projectLibraryService.ListAsync(projectId, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, result.Message ?? "The project was not found.", new { code = result.Code });
+        }
+
+        var normalized = options.Normalize();
+        var items = (result.References ?? [])
+            .OrderBy(static reference => reference.LibraryId, StringComparer.Ordinal)
+            .Take(normalized.MaxItems + 1)
+            .ToArray();
+        var hasMore = items.Length > normalized.MaxItems;
+        var visible = hasMore ? items.Take(normalized.MaxItems).ToArray() : items;
+        return new AiPageDto<ProjectLibraryReferenceDto>(AiReadModelContract.SchemaVersion, visible, hasMore, hasMore && visible.Length > 0 ? visible[^1].LibraryId : null);
+    }
+
+    internal async Task<LibraryUpgradePlanDto> ReadLibraryUpgradeAsync(
+        McpPrincipal? principal,
+        Guid projectId,
+        Guid upgradeId,
+        CancellationToken cancellationToken)
+    {
+        security.Require(principal, McpPermissionDto.LibraryRead, projectId);
+        var result = await _libraryUpgradeService.GetPlanAsync(projectId, upgradeId, cancellationToken);
+        if (!result.IsSuccess || result.Value is null)
+        {
+            throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, result.Message ?? "The library upgrade preview was not found.", new { code = result.Code });
+        }
+
+        return result.Value;
+    }
+}

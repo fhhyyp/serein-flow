@@ -1,10 +1,10 @@
-using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
 using SereinFlow.Application;
 using SereinFlow.Contracts;
 using SereinFlow.Mcp.Integration;
-using SereinFlow.Mcp.Tools;
+using SereinFlow.Mcp.Queries;
+using SereinFlow.Mcp.Previews;
 
 namespace SereinFlow.Mcp;
 /// <summary>
@@ -36,32 +36,32 @@ public sealed class McpResourceReader
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow resource URI is invalid.");
         }
 
-        using var scope = _scopeFactory.CreateScope();
-        var security = scope.ServiceProvider.GetRequiredService<McpSecurityService>();
-        var context = new SereinFlowMcpToolContext(scope, security, _principalAccessor.Current);
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var principal = _principalAccessor.Current;
+        var caller = new SereinFlowMcpCaller(principal);
         var parameters = match.Parameters;
         object? value = match.Id switch
         {
-            McpResourceId.Projects => await McpReadModelToolHandlers.ReadProjectsResourceAsync(context, cancellationToken),
-            McpResourceId.ArchivedProjects => await McpReadModelToolHandlers.ReadArchivedProjectsResourceAsync(context, cancellationToken),
-            McpResourceId.Project => await McpReadModelToolHandlers.ReadProjectResourceAsync(context, GetGuid("projectId"), cancellationToken),
-            McpResourceId.FlowTopology => await McpReadModelToolHandlers.ReadTopologyResourceAsync(context, GetGuid("projectId"), GetGuid("flowId"), cancellationToken),
-            McpResourceId.Libraries => await McpReadModelToolHandlers.ReadLibrariesResourceAsync(context, cancellationToken),
-            McpResourceId.ArchivedLibraries => await McpReadModelToolHandlers.ReadArchivedLibrariesResourceAsync(context, cancellationToken),
-            McpResourceId.Library => await McpReadModelToolHandlers.ReadLibraryResourceAsync(context, parameters["libraryId"], cancellationToken),
-            McpResourceId.LibraryFamilies => await McpReadModelToolHandlers.ReadLibraryFamiliesResourceAsync(context, cancellationToken),
-            McpResourceId.LibraryFamily => await McpReadModelToolHandlers.ReadLibraryFamilyResourceAsync(context, parameters["familyId"], cancellationToken),
-            McpResourceId.ProjectLibraries => await McpReadModelToolHandlers.ReadProjectLibrariesResourceAsync(context, GetGuid("projectId"), cancellationToken),
-            McpResourceId.LibraryUpgrade => await McpReadModelToolHandlers.ReadLibraryUpgradeResourceAsync(context, GetGuid("projectId"), GetGuid("upgradeId"), cancellationToken),
-            McpResourceId.Runs => await McpDebugToolHandlers.ReadRunsResourceAsync(context, cancellationToken),
-            McpResourceId.Run => await McpReadModelToolHandlers.ReadRunResourceAsync(context, GetGuid("runId"), cancellationToken),
-            McpResourceId.RunWorkpieces => await McpReadModelToolHandlers.ReadRunWorkpiecesResourceAsync(context, GetGuid("runId"), cancellationToken),
-            McpResourceId.RunWorkpiece => await McpReadModelToolHandlers.ReadRunWorkpieceResourceAsync(context, GetGuid("runId"), parameters["workpieceId"], cancellationToken),
-            McpResourceId.DebugSessions => await McpDebugToolHandlers.ReadDebugSessionsResourceAsync(context, cancellationToken),
-            McpResourceId.DebugSession => await McpReadModelToolHandlers.ReadDebugResourceAsync(context, GetGuid("sessionId"), cancellationToken),
-            McpResourceId.FlowVersions => await McpReadModelToolHandlers.ReadVersionsResourceAsync(context, GetGuid("projectId"), GetGuid("flowId"), parameters["track"], cancellationToken),
-            McpResourceId.FlowVersion => await McpReadModelToolHandlers.ReadVersionResourceAsync(context, GetGuid("projectId"), GetGuid("flowId"), parameters["track"], long.Parse(parameters["version"], CultureInfo.InvariantCulture), cancellationToken),
-            McpResourceId.Preview => await McpReadModelToolHandlers.ReadPreviewResourceAsync(context, GetGuid("previewId"), cancellationToken),
+            McpResourceId.Projects => await scope.ServiceProvider.GetRequiredService<McpProjectQueries>().ReadProjectsAsync(principal, false, cancellationToken),
+            McpResourceId.ArchivedProjects => await scope.ServiceProvider.GetRequiredService<McpProjectQueries>().ReadProjectsAsync(principal, true, cancellationToken),
+            McpResourceId.Project => await scope.ServiceProvider.GetRequiredService<McpProjectQueries>().ReadProjectAsync(principal, GetGuid("projectId"), cancellationToken),
+            McpResourceId.FlowTopology => await scope.ServiceProvider.GetRequiredService<McpFlowQueries>().ReadFlowTopologyAsync(principal, GetGuid("projectId"), GetGuid("flowId"), FlowVersionTrackDto.Development, null, null, cancellationToken),
+            McpResourceId.Libraries => await scope.ServiceProvider.GetRequiredService<McpLibraryQueries>().ReadLibrariesAsync(principal, cancellationToken),
+            McpResourceId.ArchivedLibraries => await scope.ServiceProvider.GetRequiredService<McpLibraryQueries>().ReadLibrariesAsync(principal, cancellationToken, McpLibraryQueries.LibraryListScope.Archived),
+            McpResourceId.Library => await scope.ServiceProvider.GetRequiredService<McpLibraryQueries>().ReadLibraryAsync(principal, parameters["libraryId"], cancellationToken),
+            McpResourceId.LibraryFamilies => await scope.ServiceProvider.GetRequiredService<McpLibraryQueries>().ReadLibraryFamiliesAsync(principal, true, new AiReadModelOptions(), cancellationToken),
+            McpResourceId.LibraryFamily => await scope.ServiceProvider.GetRequiredService<McpLibraryQueries>().ReadLibraryFamilyAsync(principal, parameters["familyId"], cancellationToken),
+            McpResourceId.ProjectLibraries => await scope.ServiceProvider.GetRequiredService<McpLibraryQueries>().ReadProjectLibrariesAsync(principal, GetGuid("projectId"), new AiReadModelOptions(), cancellationToken),
+            McpResourceId.LibraryUpgrade => await scope.ServiceProvider.GetRequiredService<McpLibraryQueries>().ReadLibraryUpgradeAsync(principal, GetGuid("projectId"), GetGuid("upgradeId"), cancellationToken),
+            McpResourceId.Runs => await scope.ServiceProvider.GetRequiredService<McpRunQueries>().ListRunsAsync(caller, new McpListRunsRequest(), cancellationToken),
+            McpResourceId.Run => await scope.ServiceProvider.GetRequiredService<McpRunQueries>().ReadRunAsync(principal, GetGuid("runId"), cancellationToken),
+            McpResourceId.RunWorkpieces => await scope.ServiceProvider.GetRequiredService<McpRunQueries>().ListRunWorkpiecesAsync(principal, GetGuid("runId"), cancellationToken),
+            McpResourceId.RunWorkpiece => await scope.ServiceProvider.GetRequiredService<McpRunQueries>().GetRunWorkpieceAsync(principal, GetGuid("runId"), parameters["workpieceId"].Trim(), cancellationToken),
+            McpResourceId.DebugSessions => await scope.ServiceProvider.GetRequiredService<McpDebugQueries>().ListDebugSessionsAsync(caller, new McpListDebugSessionsRequest(), cancellationToken),
+            McpResourceId.DebugSession => await scope.ServiceProvider.GetRequiredService<McpDebugQueries>().ReadDebugAsync(principal, GetGuid("sessionId"), cancellationToken),
+            McpResourceId.FlowVersions => await scope.ServiceProvider.GetRequiredService<McpFlowQueries>().ReadVersionsAsync(principal, GetGuid("projectId"), GetGuid("flowId"), parameters["track"], cancellationToken),
+            McpResourceId.FlowVersion => await scope.ServiceProvider.GetRequiredService<McpFlowQueries>().ReadVersionAsync(principal, GetGuid("projectId"), GetGuid("flowId"), parameters["track"], long.Parse(parameters["version"], CultureInfo.InvariantCulture), cancellationToken),
+            McpResourceId.Preview => await scope.ServiceProvider.GetRequiredService<McpPreviewReader>().ReadPreviewAsync(principal, GetGuid("previewId"), cancellationToken),
             _ => throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The SereinFlow resource URI is not supported.")
         };
         if (value is null)

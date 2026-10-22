@@ -4,6 +4,13 @@ Independent .NET 10 tool hosting primitives: generated tool registries, JSON req
 schema generation, DataAnnotations validation, direct invocation and scoped DI activation.
 There are no references to SereinFlow business assemblies or ASP.NET Core.
 
+Sources are grouped into `Hosting` (execution, policies and mutation leases),
+`Binding` (request binding and validation), `Metadata` (registries, catalogs and discovery),
+and `Schema`. Public types keep the `SereinFlow.Mcp.Framework` namespace.
+Tool dependencies can be declared through the single accessible constructor;
+generated factories register instance handlers as scoped services. Host caller context
+is a separate method parameter and should not be used as a service locator.
+
 Add `SereinFlow.Mcp.Generator` as an analyzer (`OutputItemType="Analyzer"`,
 `ReferenceOutputAssembly="false"`) to each assembly declaring tools. The generator emits
 `<AssemblyName>.Generated.McpToolRegistry`. The example below assumes assembly name `ExampleHost`.

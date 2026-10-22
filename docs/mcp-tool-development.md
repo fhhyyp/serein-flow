@@ -18,6 +18,13 @@
 业务 JSON 配置和调用者上下文由宿主传入，框架不认识项目 ID、API Key 或业务权限。
 通用手工 Schema 模型 `McpJsonSchema` 也由框架提供，业务只保留实际工具的 Schema 定义。
 
+业务宿主按领域组织 `Tools`：Projects、Flows、Libraries、Runs、Debugging、ApiKeys、NodeTemplates 和 Scripts。
+工具类均为实例类，依赖通过构造函数声明；方法接收强类型请求、`SereinFlowMcpCaller` 和取消令牌。
+`Queries` 中的五类 Scoped 授权查询服务同时供工具和 Resources 使用，负责项目范围、库可见性和敏感读取权限。
+`Previews` 独立负责预览读取、所有权校验、持久化载荷及结果投影；`Support` 按序列化、协议错误、Schema、资源授权和流程校验划分职责。
+资源读取在边界创建异步作用域并调用查询服务，不调用工具入口，也不经过工具中间件；因此查询服务仍执行资源级授权。
+写入工具直接编排既有应用服务，保留各操作的幂等回放、预览、版本检查和写入后校验顺序。
+
 `McpToolAttribute`、`McpContextAttribute`、`McpBindPropertiesAttribute`、`McpParameterAttribute`、`McpHostAttribute`
 由生成器在 `RegisterPostInitializationOutput` 中输出为 `McpToolkits.g.cs`，供同一次编译的语义分析使用。
 这些类型都是当前程序集的 internal 声明；框架运行时只依赖 `IMcpToolMetadata` 和 `McpParameterOptions`，
@@ -127,8 +134,13 @@ Schema 采用序列化合同；DataAnnotations 是运行时校验规则，不保
 旧工具继续使用已经发布的显式 Schema，保持描述、字段、必填列表和工具顺序。
 现有 50 个工具已全部使用强类型参数，通过同一框架管线执行；上下文优先使用
 不暴露服务容器的 `SereinFlowMcpCaller`。`SereinFlowMcpToolContext` 继承调用者身份，并补充业务服务访问。
-现有完整范例为 `McpProjectQueryTools`，
-带幂等的强类型写入范例为 `McpApiKeyToolHandlers.RevokeAsync`。
+`SereinFlowMcpToolContext` 及其宿主供值仅为公开 API 兼容保留，内置工具不再访问服务容器或作用域。
+现有完整查询范例为 `Tools/Projects/McpProjectQueryTools` 与 `Queries/McpProjectQueries`，
+带幂等的写入范例为 `Tools/ApiKeys/McpApiKeyTools.RevokeAsync`。确定结构的查询和预览使用具体返回类型；
+多态预览、变量查询和已存储的 JSON 回放保留动态结果边界，不增加协议响应包装。
+
+三个 MCP 项目及对应测试已解除仓库自定义表达式拆分规则，可直接返回、使用表达式体和完整 LINQ 查询。
+基本 EditorConfig、编译与兼容性测试继续适用；其他项目的规范和 CI 检查不变。
 
 `McpToolDiscovery.CreateCatalog` 使用生成的 `IMcpToolRegistry`，并可按处理器类型筛选，便于独立测试。
 业务宿主通过 `SereinFlowMcpHosting` 配置框架，默认使用 `SereinFlow.Mcp.Generated.McpToolRegistry`；独立宿主通过

@@ -53,7 +53,7 @@ var violationCount = EmptyPosition;
 var fileCount = EmptyPosition;
 foreach (var file in paths.Distinct(StringComparer.Ordinal))
 {
-    if (!file.EndsWith(".cs", StringComparison.Ordinal) || file.StartsWith("src/ThirdParty/", StringComparison.Ordinal))
+    if (!ConventionSources.ShouldCheck(file))
     {
         continue;
     }
@@ -78,6 +78,31 @@ Console.WriteLine($"C# conventions: {fileCount} files, {violationCount} violatio
 return violationCount == EmptyPosition ? SuccessExitCode : ViolationExitCode;
 internal sealed record ConventionException(string File, string Expression, string Reason);
 internal sealed record ConventionDiagnostic(string Rule, int Line, int Column, string Message);
+internal static class ConventionSources
+{
+    private static readonly string[] ExcludedDirectories =
+    [
+        "src/ThirdParty/",
+        "src/SereinFlow.Mcp/",
+        "src/SereinFlow.Mcp.Framework/",
+        "src/SereinFlow.Mcp.Generator/",
+        "tests/SereinFlow.Mcp.Tests/",
+        "tests/SereinFlow.Mcp.Framework.Tests/",
+        "tests/SereinFlow.Mcp.Generator.Tests/"
+    ];
+
+    internal static bool ShouldCheck(string path)
+    {
+        var normalized = path.Replace('\\', '/');
+        var isCSharp = normalized.EndsWith(".cs", StringComparison.Ordinal);
+        var excluded = ExcludedDirectories.Any(directory =>
+        {
+            var matches = normalized.StartsWith(directory, StringComparison.Ordinal);
+            return matches;
+        });
+        return isCSharp && !excluded;
+    }
+}
 internal static class CSharpRules
 {
     private const int PositionOffset = 1;
@@ -287,6 +312,34 @@ internal static class ConventionTests
     private const int SuccessExitCode = 0;
     public static int Run()
     {
+        var excludedSources = new[]
+        {
+            "src/SereinFlow.Mcp/Tools/Example.cs",
+            "src/SereinFlow.Mcp.Framework/Hosting/Example.cs",
+            "src/SereinFlow.Mcp.Generator/Models/Example.cs",
+            "tests/SereinFlow.Mcp.Tests/Example.cs",
+            "tests/SereinFlow.Mcp.Framework.Tests/Example.cs",
+            "tests\\SereinFlow.Mcp.Generator.Tests\\Example.cs"
+        };
+        var checkedSources = new[]
+        {
+            "src/SereinFlow.Mcp.Other/Example.cs",
+            "tests/SereinFlow.Mcp.Tests.Other/Example.cs",
+            "src/SereinFlow.Application/Example.cs",
+            "tests/SereinFlow.ArchitectureTests/Example.cs"
+        };
+        var excludedWereChecked = excludedSources.Any(ConventionSources.ShouldCheck);
+        var includedWereSkipped = checkedSources.Any(path =>
+        {
+            var checkedSource = ConventionSources.ShouldCheck(path);
+            return !checkedSource;
+        });
+        if (excludedWereChecked || includedWereSkipped)
+        {
+            Console.Error.WriteLine("MCP convention exclusions must match complete source and test directories.");
+            return FailureExitCode;
+        }
+
         var invalidCases = new Dictionary<string, string>
         {
             ["PARSE001"] = "class C { void M() { var value = ; } }",

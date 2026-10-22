@@ -229,18 +229,18 @@ public sealed class ApiIsolationTests
         var toolsRoot = Path.Combine(mcpRoot, "Tools");
         var toolFiles = new[]
         {
-            "McpApiKeyToolHandlers.cs",
-            "McpFlowToolHandlers.cs",
-            "McpLibraryToolHandlers.cs",
-            "McpProjectToolHandlers.cs",
-            "McpReadModelToolHandlers.cs",
-            "McpPreviewPayloadReaders.cs",
-            "McpStoredPreviewPayloads.cs",
-            "McpDebugToolHandlers.cs",
-            "McpToolAuthorization.cs",
-            "McpToolSchemas.cs",
-            "McpToolSupport.cs",
-            "SereinFlowMcpToolCatalogFactory.cs"
+            "ApiKeys/McpApiKeyTools.cs",
+            "Projects/McpProjectQueryTools.cs",
+            "Projects/McpProjectCommandTools.cs",
+            "Flows/McpFlowQueryTools.cs",
+            "Flows/McpFlowPatchTools.cs",
+            "Flows/McpFlowReleaseTools.cs",
+            "Libraries/McpLibraryQueryTools.cs",
+            "Libraries/McpLibraryPackageTools.cs",
+            "Runs/McpRunQueryTools.cs",
+            "Debugging/McpDebugControlTools.cs",
+            "NodeTemplates/McpNodeTemplateTools.cs",
+            "Scripts/McpScriptTools.cs"
         };
         Assert.All(toolFiles, fileName =>
         {

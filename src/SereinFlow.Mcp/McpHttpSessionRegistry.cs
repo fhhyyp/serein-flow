@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 
 namespace SereinFlow.Mcp;
+
 public sealed class McpHttpSessionRegistry
 {
     private readonly ConcurrentDictionary<string, string> _sessions = new(StringComparer.Ordinal);
