@@ -5,6 +5,7 @@ using SereinFlow.Infrastructure.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Security.ApiKeys;
+
 public sealed class ApiKeyStore : IApiKeyStore
 {
     private readonly IRepository<ApiKeyRecord> _records;
@@ -17,8 +18,7 @@ public sealed class ApiKeyStore : IApiKeyStore
 
     public async Task<IReadOnlyList<ApiKeyEntry>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var toArrayResult = (await _records.ListAsync(cancellationToken: cancellationToken)).Select(Map).ToArray();
-        return toArrayResult;
+        return (await _records.ListAsync(cancellationToken: cancellationToken)).Select(Map).ToArray();
     }
 
     public async Task<ApiKeyEntry?> FindAsync(string id, CancellationToken cancellationToken = default)
@@ -29,50 +29,48 @@ public sealed class ApiKeyStore : IApiKeyStore
         }
 
         var record = await _records.GetByIdAsync(id, cancellationToken);
-        ApiKeyEntry? evaluatedValue1 = record is null ? null : Map(record);
-        return evaluatedValue1;
+        return record is null ? null : Map(record);
     }
 
     public Task AddAsync(ApiKeyEntry entry, CancellationToken cancellationToken = default)
     {
-        var mapResult = Map(entry);
-        var addAsyncResult = _records.AddAsync(mapResult, cancellationToken);
-        return addAsyncResult;
+        var entity = Map(entry);
+        return _records.AddAsync(entity, cancellationToken);
     }
 
     public Task<bool> UpdateAsync(ApiKeyEntry entry, CancellationToken cancellationToken = default)
     {
-        var mapResult2 = Map(entry);
-        var updateAsyncResult = _records.UpdateAsync(mapResult2, cancellationToken);
-        return updateAsyncResult;
+        var entity = Map(entry);
+        return _records.UpdateAsync(entity, cancellationToken);
     }
 
     public async Task<bool> UpdateLastUsedAsync(string id, DateTimeOffset lastUsedAt, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var timestamp = lastUsedAt.ToString("O");
-        var update = _database.Updateable<ApiKeyRecord>().SetColumns(record => record.LastUsedAt == timestamp).Where(record => record.Id == id);
+        var update = _database
+            .Updateable<ApiKeyRecord>()
+            .SetColumns(record => record.LastUsedAt == timestamp)
+            .Where(record => record.Id == id);
         {
-            var result1 = await update.ExecuteCommandAsync(cancellationToken) > 0;
-            return result1;
+            return await update.ExecuteCommandAsync(cancellationToken) > 0;
         }
     }
 
     private static ApiKeyEntry Map(ApiKeyRecord record)
     {
-        Guid? evaluatedValue3 = Guid.TryParse(record.ProjectId, out var projectId) ? projectId : null;
-        var deserializePermissionsResult = DeserializePermissions(record.PermissionsJson);
-        var parseDateResult = ParseDate(record.CreatedAt);
-        var parseNullableDateResult = ParseNullableDate(record.ExpiresAt);
-        var parseNullableDateResult4 = ParseNullableDate(record.RevokedAt);
-        var parseNullableDateResult5 = ParseNullableDate(record.LastUsedAt);
-        ApiKeyEntry evaluatedValue6 = new(record.Id, evaluatedValue3, record.Name, record.KeyPrefix, record.SecretHash, record.Salt, deserializePermissionsResult, parseDateResult, parseNullableDateResult, parseNullableDateResult4, parseNullableDateResult5, record.IsAdministrator);
-        return evaluatedValue6;
+        Guid? parsedProjectId = Guid.TryParse(record.ProjectId, out var projectId) ? projectId : null;
+        var permissions = DeserializePermissions(record.PermissionsJson);
+        var createdAt = ParseDate(record.CreatedAt);
+        var expiresAt = ParseNullableDate(record.ExpiresAt);
+        var revokedAt = ParseNullableDate(record.RevokedAt);
+        var lastUsedAt = ParseNullableDate(record.LastUsedAt);
+        return new(record.Id, parsedProjectId, record.Name, record.KeyPrefix, record.SecretHash, record.Salt, permissions, createdAt, expiresAt, revokedAt, lastUsedAt, record.IsAdministrator);
     }
 
     private static ApiKeyRecord Map(ApiKeyEntry entry)
     {
-        ApiKeyRecord evaluatedValue7 = new()
+        return new()
         {
             Id = entry.Id,
             ProjectId = entry.ProjectId?.ToString("D"),
@@ -87,14 +85,15 @@ public sealed class ApiKeyStore : IApiKeyStore
             LastUsedAt = entry.LastUsedAt?.ToString("O"),
             IsAdministrator = entry.IsAdministrator
         };
-        return evaluatedValue7;
     }
 
     private static SereinFlowPermission[] DeserializePermissions(string json)
     {
         using var document = JsonDocument.Parse(json);
         {
-            var result3 = document.RootElement.EnumerateArray().Select(value =>
+            return document.RootElement
+                .EnumerateArray()
+                .Select(value =>
             {
                 if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number) && Enum.IsDefined((SereinFlowPermission)number))
                 {
@@ -113,23 +112,20 @@ public sealed class ApiKeyStore : IApiKeyStore
                 }
 
                 {
-                    var result2 = SereinFlowOperationNames.TryParse(name, out var permission) ? permission : throw new JsonException("Unknown stored API key permission.");
-                    return result2;
+                    return SereinFlowOperationNames.TryParse(name, out var permission) ? permission : throw new JsonException("Unknown stored API key permission.");
                 }
-            }).ToArray();
-            return result3;
+            })
+                .ToArray();
         }
     }
 
     private static DateTimeOffset ParseDate(string value)
     {
-        DateTimeOffset evaluatedValue9 = DateTimeOffset.TryParse(value, out var parsed) ? parsed : DateTimeOffset.UtcNow;
-        return evaluatedValue9;
+        return DateTimeOffset.TryParse(value, out var parsed) ? parsed : DateTimeOffset.UtcNow;
     }
 
     private static DateTimeOffset? ParseNullableDate(string? value)
     {
-        DateTimeOffset? evaluatedValue10 = DateTimeOffset.TryParse(value, out var parsed) ? parsed : null;
-        return evaluatedValue10;
+        return DateTimeOffset.TryParse(value, out var parsed) ? parsed : null;
     }
 }

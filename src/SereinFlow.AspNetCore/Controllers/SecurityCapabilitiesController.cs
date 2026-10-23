@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SereinFlow.AspNetCore;
 
 namespace SereinFlow.Api.Controllers;
+
 [ApiController]
 [Route("api/security/capabilities")]
 public sealed class SecurityCapabilitiesController(SereinFlowHttpSecurityOptions options) : ControllerBase
@@ -15,8 +16,7 @@ public sealed class SecurityCapabilitiesController(SereinFlowHttpSecurityOptions
         var initialSetupRequired = capabilities is not null && await capabilities.RequiresInitialSetupAsync(cancellationToken);
         Response.Headers.CacheControl = "no-store";
         {
-            var result1 = Ok(new { mode = options.Mode, apiKeyManagement = options.ApiKeyManagement, initialSetupRequired });
-            return result1;
+            return Ok(new { mode = options.Mode, apiKeyManagement = options.ApiKeyManagement, initialSetupRequired });
         }
     }
 }

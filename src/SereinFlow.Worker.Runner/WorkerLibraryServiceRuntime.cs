@@ -32,18 +32,14 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(libraryAssembly);
         try
         {
-            var provider = _providers.GetOrAdd(libraryAssembly, assembly =>
+            return _providers.GetOrAdd(libraryAssembly, assembly =>
             {
-                var lazy1 = new Lazy<LibraryServiceProvider>(() =>
+                return new Lazy<LibraryServiceProvider>(() =>
                 {
-                    var nativeLibraryLoaderFactoryResult = _nativeLibraryLoaderFactory(assembly);
-                    var createResult = LibraryServiceProvider.Create(assembly, _messageService, _workpiece, Variables, nativeLibraryLoaderFactoryResult);
-                    return createResult;
+                    var nativeLibraryLoader = _nativeLibraryLoaderFactory(assembly);
+                    return LibraryServiceProvider.Create(assembly, _messageService, _workpiece, Variables, nativeLibraryLoader);
                 }, LazyThreadSafetyMode.ExecutionAndPublication);
-                return lazy1;
-            });
-            var createInvocationScopeResult = provider.Value.CreateInvocationScope();
-            return createInvocationScopeResult;
+            }).Value.CreateInvocationScope();
         }
         catch (LibraryServiceException)
         {
@@ -62,8 +58,7 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
         try
         {
             LibraryServiceProvider.ValidateNodeType(nodeType);
-            var createInstanceResult = ActivatorUtilities.CreateInstance(services, nodeType);
-            return createInstanceResult;
+            return ActivatorUtilities.CreateInstance(services, nodeType);
         }
         catch (LibraryServiceException)
         {
@@ -85,8 +80,7 @@ internal sealed class WorkerLibraryServiceRuntime : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(converterType);
         try
         {
-            var getRequiredServiceResult = services.GetRequiredService(converterType);
-            return getRequiredServiceResult;
+            return services.GetRequiredService(converterType);
         }
         catch (Exception exception)
         {
@@ -137,8 +131,8 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
         services.AddSingleton(nativeLibraryLoader);
         foreach (var registration in registrations.Implementations)
         {
-            var toServiceLifetimeResult = ToServiceLifetime(registration.Value);
-            var serviceDescriptor = new ServiceDescriptor(registration.Key, registration.Key, toServiceLifetimeResult);
+            var lifetime = ToServiceLifetime(registration.Value);
+            var serviceDescriptor = new ServiceDescriptor(registration.Key, registration.Key, lifetime);
             services.Add(serviceDescriptor);
         }
 
@@ -151,13 +145,11 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                 continue;
             }
 
-            var toServiceLifetimeResult3 = ToServiceLifetime(implementation.Lifetime);
-            var serviceDescriptor4 = new ServiceDescriptor(contractType, provider =>
+            var implementationType = ToServiceLifetime(implementation.Lifetime);
+            services.Add(new ServiceDescriptor(contractType, provider =>
             {
-                var getRequiredServiceResult2 = provider.GetRequiredService(implementation.ImplementationType);
-                return getRequiredServiceResult2;
-            }, toServiceLifetimeResult3);
-            services.Add(serviceDescriptor4);
+                return provider.GetRequiredService(implementation.ImplementationType);
+            }, implementationType));
         }
 
         foreach (var converterType in DiscoverResultConverterTypes(assembly))
@@ -175,8 +167,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                 ValidateOnBuild = true,
             };
             provider = services.BuildServiceProvider(serviceProviderOptions);
-            var libraryServiceProvider = new LibraryServiceProvider(provider);
-            return libraryServiceProvider;
+            return new LibraryServiceProvider(provider);
         }
         catch (Exception exception)
         {
@@ -187,14 +178,12 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
 
     public AsyncServiceScope CreateInvocationScope()
     {
-        var createAsyncScopeResult = _provider.CreateAsyncScope();
-        return createAsyncScopeResult;
+        return _provider.CreateAsyncScope();
     }
 
     public ValueTask DisposeAsync()
     {
-        var disposeAsyncResult = _provider.DisposeAsync();
-        return disposeAsyncResult;
+        return _provider.DisposeAsync();
     }
 
     internal static void ValidateNodeType(Type nodeType)
@@ -211,29 +200,27 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
     {
         try
         {
-            var toArrayResult = assembly.GetTypes()
+            return assembly
+                .GetTypes()
                 .Where(static type =>
                 {
-                    var anyResult = type.GetCustomAttributes<FlowServiceAttribute>(inherit: false)
+                    return type.GetCustomAttributes<FlowServiceAttribute>(inherit: false)
                         .Any();
-                    return anyResult;
                 })
                 .ToArray();
-            return toArrayResult;
         }
         catch (ReflectionTypeLoadException exception)
         {
-            var selectResult = exception.LoaderExceptions
+            var details = string.Join(" ", exception.LoaderExceptions
                 .Where(static item => item is not null)
-                .Select(static item => item!.Message);
-            var details = string.Join(" ", selectResult);
-            var evaluatedValue = $"FlowService types could not be loaded from '{assembly.GetName().Name}'. {details} 无法从指定程序集中加载 FlowService 类型。";
-            throw new LibraryServiceException(LibraryErrorCodes.ServiceDiscoveryFailed, evaluatedValue, exception);
+                .Select(static item => item!.Message));
+            var message = $"FlowService types could not be loaded from '{assembly.GetName().Name}'. {details} 无法从指定程序集中加载 FlowService 类型。";
+            throw new LibraryServiceException(LibraryErrorCodes.ServiceDiscoveryFailed, message, exception);
         }
         catch (Exception exception)
         {
-            var evaluatedValue7 = $"FlowService types could not be discovered from '{assembly.GetName().Name}'. {exception.Message} 无法从指定程序集中发现 FlowService 类型。";
-            throw new LibraryServiceException(LibraryErrorCodes.ServiceDiscoveryFailed, evaluatedValue7, exception);
+            var discoveryErrorMessage = $"FlowService types could not be discovered from '{assembly.GetName().Name}'. {exception.Message} 无法从指定程序集中发现 FlowService 类型。";
+            throw new LibraryServiceException(LibraryErrorCodes.ServiceDiscoveryFailed, discoveryErrorMessage, exception);
         }
     }
 
@@ -241,45 +228,42 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
     {
         try
         {
-            var toArrayResult12 = assembly.GetTypes()
+            return assembly
+                .GetTypes()
                 .SelectMany(static type =>
                 {
-                    var getMethodsResult = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
-                    return getMethodsResult;
+                    return type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
                 })
                 .SelectMany(static method =>
                 {
-                    var getCustomAttributesResult8 = method.GetCustomAttributes<NodeResultAttribute>(inherit: false);
-                    return getCustomAttributesResult8;
+                    return method.GetCustomAttributes<NodeResultAttribute>(inherit: false);
                 })
                 .Select(static attribute => attribute.ConverterType)
                 .Distinct()
                 .ToArray();
-            return toArrayResult12;
         }
         catch (ReflectionTypeLoadException exception)
         {
-            var selectResult14 = exception.LoaderExceptions
+            var details = string.Join(" ", exception.LoaderExceptions
                 .Where(static item => item is not null)
-                .Select(static item => item!.Message);
-            var details = string.Join(" ", selectResult14);
-            var evaluatedValue15 = $"Node result converters could not be discovered from '{assembly.GetName().Name}'. 节点结果转换器无法从类库中发现。 {details}";
-            throw new LibraryServiceException(LibraryErrorCodes.ResultConverterDiscoveryFailed, evaluatedValue15, exception);
+                .Select(static item => item!.Message));
+            var message = $"Node result converters could not be discovered from '{assembly.GetName().Name}'. 节点结果转换器无法从类库中发现。 {details}";
+            throw new LibraryServiceException(LibraryErrorCodes.ResultConverterDiscoveryFailed, message, exception);
         }
         catch (Exception exception)
         {
-            var evaluatedValue16 = $"Node result converters could not be discovered from '{assembly.GetName().Name}'. 节点结果转换器无法从类库中发现。 {exception.Message}";
-            throw new LibraryServiceException(LibraryErrorCodes.ResultConverterDiscoveryFailed, evaluatedValue16, exception);
+            var discoveryErrorMessage = $"Node result converters could not be discovered from '{assembly.GetName().Name}'. 节点结果转换器无法从类库中发现。 {exception.Message}";
+            throw new LibraryServiceException(LibraryErrorCodes.ResultConverterDiscoveryFailed, discoveryErrorMessage, exception);
         }
     }
 
     private static void ValidateResultConverter(Type converterType, Assembly assembly)
     {
-        var contracts = converterType.GetInterfaces()
+        var contracts = converterType
+            .GetInterfaces()
             .Where(static item =>
             {
-                var evaluatedValue17 = item.IsGenericType && item.GetGenericTypeDefinition() == typeof(INodeResultConverter<,>);
-                return evaluatedValue17;
+                return item.IsGenericType && item.GetGenericTypeDefinition() == typeof(INodeResultConverter<,>);
             })
             .ToArray();
         if (!converterType.IsClass || converterType.IsAbstract || converterType.ContainsGenericParameters || converterType.Assembly != assembly || contracts.Length != 1)
@@ -325,9 +309,7 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
                 contracts.TryAdd(implementationType, registration);
             }
         }
-
-        var serviceRegistrations = new ServiceRegistrations(implementations, contracts);
-        return serviceRegistrations;
+        return new ServiceRegistrations(implementations, contracts);
     }
 
     private static void ValidateServiceImplementation(Type implementationType)
@@ -372,14 +354,13 @@ internal sealed class LibraryServiceProvider : IAsyncDisposable
 
     private static ServiceLifetime ToServiceLifetime(FlowServiceLifetime lifetime)
     {
-        ServiceLifetime evaluatedValue20 = lifetime switch
+        return lifetime switch
         {
             FlowServiceLifetime.Run => ServiceLifetime.Singleton,
             FlowServiceLifetime.Invocation => ServiceLifetime.Scoped,
             FlowServiceLifetime.Transient => ServiceLifetime.Transient,
             _ => throw new ArgumentOutOfRangeException(nameof(lifetime), lifetime, "Unsupported FlowService lifetime. 不支持此 FlowService 生命周期。"),
         };
-        return evaluatedValue20;
     }
 
     private sealed record ServiceRegistration(Type ImplementationType, FlowServiceLifetime Lifetime);

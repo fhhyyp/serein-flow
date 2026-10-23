@@ -119,8 +119,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     {
         get
         {
-            var combineResult = Path.Combine(_options.RootPath, "packages");
-            return combineResult;
+            return Path.Combine(_options.RootPath, "packages");
         }
     }
 
@@ -128,37 +127,29 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
     public IReadOnlyList<LibraryDto> List()
     {
-        var listAsyncResult = ListAsync(includeArchived: true, cancellationToken: CancellationToken.None);
-        var getAwaiterResult = listAsyncResult.GetAwaiter();
-        var getResultResult = getAwaiterResult.GetResult();
-        return getResultResult;
+        return ListAsync(includeArchived: true, cancellationToken: CancellationToken.None).GetAwaiter().GetResult();
     }
 
     public LibraryDto? Find(string libraryId)
     {
-        var findAsyncResult = FindAsync(libraryId, CancellationToken.None);
-        var getAwaiterResult1 = findAsyncResult.GetAwaiter();
-        var getResultResult2 = getAwaiterResult1.GetResult();
-        return getResultResult2;
+        return FindAsync(libraryId, CancellationToken.None).GetAwaiter().GetResult();
     }
 
     public async Task<IReadOnlyList<LibraryDto>> ListAsync(bool includeArchived = false, CancellationToken cancellationToken = default)
     {
         var rows = await _libraries.ListAsync(cancellationToken: cancellationToken);
         var familyNames = await GetFamilyNamesAsync(rows, cancellationToken);
-        var toArrayResult = rows
+        return rows
             .Select(row =>
             {
-                var getFamilyNameResult = GetFamilyName(row, familyNames);
-                var mapResult = Map(row, getFamilyNameResult);
-                return mapResult;
+                var familyName = GetFamilyName(row, familyNames);
+                return Map(row, familyName);
             })
             .Where(library => includeArchived || library.Lifecycle == LibraryLifecycleDto.Available)
             .OrderBy(static library => library.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(static library => library.Version, StringComparer.OrdinalIgnoreCase)
             .ThenBy(static library => library.Id, StringComparer.Ordinal)
             .ToArray();
-        return toArrayResult;
     }
 
     public async Task<LibraryDto?> FindAsync(string libraryId, CancellationToken cancellationToken = default)
@@ -176,27 +167,23 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
 
         var family = string.IsNullOrWhiteSpace(row.FamilyId) ? null : await _families.GetByIdAsync(row.FamilyId, cancellationToken);
-        var mapResult4 = Map(row, family?.Name);
-        return mapResult4;
+        return Map(row, family?.Name);
     }
 
     public async Task<LibraryUploadResultDto> UploadAsync(Stream package, string fileName, long? declaredLength = null, CancellationToken cancellationToken = default)
     {
-        var uploadAsyncResult = await UploadAsync(package, fileName, declaredLength, cancellationToken, "web");
-        return uploadAsyncResult;
+        return await UploadAsync(package, fileName, declaredLength, cancellationToken, "web");
     }
 
     public async Task<LibraryUploadResultDto> UploadAsync(Stream package, string fileName, long? declaredLength, CancellationToken cancellationToken, string origin)
     {
-        var uploadCoreAsyncResult = await UploadCoreAsync(package, fileName, declaredLength, origin, expectedSha256: null, cancellationToken);
-        return uploadCoreAsyncResult;
+        return await UploadCoreAsync(package, fileName, declaredLength, origin, expectedSha256: null, cancellationToken);
     }
 
     public Task<LibraryUploadResultDto> UploadVerifiedAsync(Stream package, string fileName, long expectedSizeBytes, string expectedSha256, string origin = "mcp", CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedSha256);
-        var uploadCoreAsyncResult5 = UploadCoreAsync(package, fileName, expectedSizeBytes, origin, expectedSha256, cancellationToken);
-        return uploadCoreAsyncResult5;
+        return UploadCoreAsync(package, fileName, expectedSizeBytes, origin, expectedSha256, cancellationToken);
     }
 
     private async Task<LibraryUploadResultDto> UploadCoreAsync(Stream package, string fileName, long? declaredLength, string origin, string? expectedSha256, CancellationToken cancellationToken)
@@ -213,8 +200,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
 
         await UploadGate.WaitAsync(cancellationToken);
-        var evaluatedValue = $".upload-{Guid.NewGuid():N}.tmp";
-        var temporaryPath = Path.Combine(_options.RootPath, evaluatedValue);
+        var uploadFileName = $".upload-{Guid.NewGuid():N}.tmp";
+        var temporaryPath = Path.Combine(_options.RootPath, uploadFileName);
         try
         {
             (long size, string sha256) = await CopyToTemporaryFileAsync(package, temporaryPath, cancellationToken);
@@ -226,8 +213,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             var existing = await FindAsyncCore(sha256, cancellationToken);
             if (existing is not null)
             {
-                var libraryUploadResultDto = new LibraryUploadResultDto(existing, true);
-                return libraryUploadResultDto;
+                return new LibraryUploadResultDto(existing, true);
             }
 
             var packageInfo = await InspectPackageAsync(temporaryPath, fileName, sha256, size, cancellationToken);
@@ -306,8 +292,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         }
 
         await UploadGate.WaitAsync(cancellationToken);
-        var evaluatedValue8 = $".inspect-{Guid.NewGuid():N}.tmp";
-        var temporaryPath = Path.Combine(_options.RootPath, evaluatedValue8);
+        var inspectionFileName = $".inspect-{Guid.NewGuid():N}.tmp";
+        var temporaryPath = Path.Combine(_options.RootPath, inspectionFileName);
         try
         {
             var (size, sha256) = await CopyToTemporaryFileAsync(package, temporaryPath, cancellationToken);
@@ -316,15 +302,13 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             {
                 var existingBaseline = await ResolveCompatibilityBaselineAsync(familyId, baselineArtifactId, cancellationToken);
                 var existingCompatibility = existingBaseline is null ? null : LibraryArtifactCompatibilityAnalyzer.Analyze(existingBaseline, existing);
-                var libraryPackageInspectionDto = new LibraryPackageInspectionDto(existing, true, existingCompatibility);
-                return libraryPackageInspectionDto;
+                return new LibraryPackageInspectionDto(existing, true, existingCompatibility);
             }
 
             var inspected = await InspectPackageAsync(temporaryPath, fileName, sha256, size, cancellationToken);
             var baseline = await ResolveCompatibilityBaselineAsync(familyId, baselineArtifactId, cancellationToken);
             var compatibility = baseline is null ? null : LibraryArtifactCompatibilityAnalyzer.Analyze(baseline, inspected);
-            var libraryPackageInspectionDto7 = new LibraryPackageInspectionDto(inspected, false, compatibility);
-            return libraryPackageInspectionDto7;
+            return new LibraryPackageInspectionDto(inspected, false, compatibility);
         }
         finally
         {
@@ -356,8 +340,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             var family = (await ListFamiliesAsync(includeArchivedArtifacts: true, cancellationToken: cancellationToken))
                 .SingleOrDefault(item =>
                 {
-                    var equalsResult = string.Equals(item.Id, normalizedFamily, StringComparison.OrdinalIgnoreCase);
-                    return equalsResult;
+                    return string.Equals(item.Id, normalizedFamily, StringComparison.OrdinalIgnoreCase);
                 });
             if (family is null)
             {
@@ -381,16 +364,12 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
     public bool Delete(string libraryId)
     {
-        var archiveAsyncResult = ArchiveAsync(libraryId, CancellationToken.None);
-        var getAwaiterResult10 = archiveAsyncResult.GetAwaiter();
-        var getResultResult11 = getAwaiterResult10.GetResult();
-        return getResultResult11;
+        return ArchiveAsync(libraryId, CancellationToken.None).GetAwaiter().GetResult();
     }
 
     public async Task<bool> ArchiveAsync(string libraryId, CancellationToken cancellationToken = default)
     {
-        var archiveAsyncResult12 = await ArchiveAsync(libraryId, cancellationToken, "web");
-        return archiveAsyncResult12;
+        return await ArchiveAsync(libraryId, cancellationToken, "web");
     }
 
     public async Task<bool> ArchiveAsync(string libraryId, CancellationToken cancellationToken, string origin)
@@ -406,15 +385,12 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         {
             return false;
         }
-
-        var setLifecycleAsyncResult = await SetLifecycleAsync(libraryId, LibraryLifecycleDto.Archived, cancellationToken, origin);
-        return setLifecycleAsyncResult;
+        return await SetLifecycleAsync(libraryId, LibraryLifecycleDto.Archived, cancellationToken, origin);
     }
 
     public async Task<bool> SetLifecycleAsync(string libraryId, LibraryLifecycleDto lifecycle, CancellationToken cancellationToken = default)
     {
-        var setLifecycleAsyncResult13 = await SetLifecycleAsync(libraryId, lifecycle, cancellationToken, "web");
-        return setLifecycleAsyncResult13;
+        return await SetLifecycleAsync(libraryId, lifecycle, cancellationToken, "web");
     }
 
     public async Task<bool> SetLifecycleAsync(string libraryId, LibraryLifecycleDto lifecycle, CancellationToken cancellationToken, string origin)
@@ -426,8 +402,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
         var updated = await _unitOfWork.ExecuteAsync(async token =>
         {
-            var trimResult = libraryId.Trim();
-            var row = await _libraries.GetByIdAsync(trimResult, token);
+            var id = libraryId.Trim();
+            var row = await _libraries.GetByIdAsync(id, token);
             if (row is null)
             {
                 return false;
@@ -470,28 +446,24 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         var artifacts = artifactRows
             .Select(row =>
             {
-                var getFamilyNameResult14 = GetFamilyName(row, familyNames);
-                var mapResult15 = Map(row, getFamilyNameResult14);
-                return mapResult15;
+                var familyName = GetFamilyName(row, familyNames);
+                return Map(row, familyName);
             })
             .Where(library => includeArchivedArtifacts || library.Lifecycle == LibraryLifecycleDto.Available)
             .ToArray();
-        var toArrayResult21 = families
+        return families
             .Select(family =>
             {
-                var mapFamilyResult = MapFamily(family, artifacts);
-                return mapFamilyResult;
+                return MapFamily(family, artifacts);
             })
             .OrderBy(static family => family.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(static family => family.Id, StringComparer.Ordinal)
             .ToArray();
-        return toArrayResult21;
     }
 
     public async Task<LibraryFamilyDto?> AssignFamilyAsync(string libraryId, AssignLibraryFamilyRequestDto request, CancellationToken cancellationToken = default)
     {
-        var assignFamilyAsyncResult = await AssignFamilyAsync(libraryId, request, cancellationToken, "web");
-        return assignFamilyAsyncResult;
+        return await AssignFamilyAsync(libraryId, request, cancellationToken, "web");
     }
 
     public async Task<LibraryFamilyDto?> AssignFamilyAsync(string libraryId, AssignLibraryFamilyRequestDto request, CancellationToken cancellationToken, string origin)
@@ -504,8 +476,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
         var result = await _unitOfWork.ExecuteAsync(async token =>
         {
-            var trimResult26 = libraryId.Trim();
-            var library = await _libraries.GetByIdAsync(trimResult26, token);
+            var id = libraryId.Trim();
+            var library = await _libraries.GetByIdAsync(id, token);
             if (library is null)
             {
                 return null;
@@ -515,8 +487,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             LibraryFamilyRecord? family;
             if (!string.IsNullOrWhiteSpace(request.FamilyId))
             {
-                var trimResult22 = request.FamilyId.Trim();
-                family = await _families.GetByIdAsync(trimResult22, token);
+                var mappedId = request.FamilyId.Trim();
+                family = await _families.GetByIdAsync(mappedId, token);
                 if (family is null)
                 {
                     throw new ArgumentException("The requested library family does not exist. 指定的类库族不存在。", nameof(request));
@@ -525,30 +497,23 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             else
             {
                 var name = NormalizeFamilyName(request.Name);
-                var evaluatedValue24 = (await _families.ListAsync(cancellationToken: token));
-                family = evaluatedValue24.SingleOrDefault(item =>
+                var storedFamilies = (await _families.ListAsync(cancellationToken: token));
+                family = storedFamilies.SingleOrDefault(item =>
                 {
-                    var equalsResult23 = string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase);
-                    return equalsResult23;
+                    return string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase);
                 });
                 if (family is null)
                 {
                     var now = DateTimeOffset.UtcNow;
                     family = new LibraryFamilyRecord
                     {
-                        Id = resolveToStringResult(),
+                        Id = Guid.NewGuid().ToString("N"),
                         Name = name,
                         Description = NormalizeOptional(request.Description),
                         CreatedAt = now.ToString("O"),
                         UpdatedAt = now.ToString("O")
                     };
                     await _families.AddAsync(family, token);
-                    string resolveToStringResult()
-                    {
-                        var newGuidResult = Guid.NewGuid();
-                        var toStringResult = newGuidResult.ToString("N");
-                        return toStringResult;
-                    }
                 }
             }
 
@@ -570,15 +535,13 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
                 }
             }
 
-            var toArrayResult28 = members
+            var artifacts = members
                 .Select(member =>
                 {
-                    var mapResult25 = Map(member, family.Name);
-                    return mapResult25;
+                    return Map(member, family.Name);
                 })
                 .ToArray();
-            var mapFamilyResult29 = MapFamily(family, toArrayResult28);
-            return mapFamilyResult29;
+            return MapFamily(family, artifacts);
         }, cancellationToken);
         if (result is not null)
         {
@@ -590,8 +553,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
     public async Task<LibraryDto?> ReindexAsync(string libraryId, CancellationToken cancellationToken = default)
     {
-        var reindexAsyncResult = await ReindexAsync(libraryId, cancellationToken, "web");
-        return reindexAsyncResult;
+        return await ReindexAsync(libraryId, cancellationToken, "web");
     }
 
     public async Task<LibraryDto?> ReindexAsync(string libraryId, CancellationToken cancellationToken, string origin)
@@ -604,8 +566,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         await UploadGate.WaitAsync(cancellationToken);
         try
         {
-            var trimResult30 = libraryId.Trim();
-            var row = await _libraries.GetByIdAsync(trimResult30, cancellationToken);
+            var id = libraryId.Trim();
+            var row = await _libraries.GetByIdAsync(id, cancellationToken);
             if (row is null)
             {
                 return null;
@@ -623,8 +585,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             row.CatalogSchemaVersion = CurrentCatalogSchemaVersion;
             await _unitOfWork.ExecuteAsync(token =>
             {
-                var updateAsyncResult = _libraries.UpdateAsync(row, token);
-                return updateAsyncResult;
+                return _libraries.UpdateAsync(row, token);
             }, cancellationToken);
             var family = string.IsNullOrWhiteSpace(row.FamilyId) ? null : await _families.GetByIdAsync(row.FamilyId, cancellationToken);
             var result = Map(row, family?.Name);
@@ -639,8 +600,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
     public async Task<int> ReindexOutdatedAsync(CancellationToken cancellationToken = default)
     {
-        var rows = await _libraries.ListAsync(cancellationToken: cancellationToken);
-        var outdatedIds = rows
+        var outdatedIds = (await _libraries.ListAsync(cancellationToken: cancellationToken))
             .Where(static row => row.CatalogSchemaVersion < CurrentCatalogSchemaVersion)
             .Select(static row => row.Id)
             .ToArray();
@@ -677,9 +637,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         {
             return;
         }
-
-        var newGuidResult33 = Guid.NewGuid();
-        var workspaceChangeEventDto = new WorkspaceChangeEventDto(newGuidResult33, DateTimeOffset.UtcNow, changeType, null, null, null, null, origin, operation, LibraryIds: [libraryId]);
+        var workspaceChangeEventDto = new WorkspaceChangeEventDto(Guid.NewGuid(), DateTimeOffset.UtcNow, changeType, null, null, null, null, origin, operation, LibraryIds: [libraryId]);
         await _changePublisher.PublishAsync(workspaceChangeEventDto, CancellationToken.None);
     }
 
@@ -688,10 +646,9 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         var nodes = JsonSerializer.Deserialize<IReadOnlyList<LibraryNodeDto>>(row.NodeCatalogJson, JsonOptions) ?? [];
         var manifest = string.IsNullOrWhiteSpace(row.CompatibilityManifestJson) ? null : JsonSerializer.Deserialize<LibraryArtifactManifestDto>(row.CompatibilityManifestJson, JsonOptions);
         var uploadedAt = DateTimeOffset.TryParse(row.UploadedAt, out var parsed) ? parsed : DateTimeOffset.UnixEpoch;
-        var parseLifecycleResult = ParseLifecycle(row.Status);
-        string evaluatedValue34 = string.IsNullOrWhiteSpace(row.SemanticVersion) ? row.Version : row.SemanticVersion;
-        var libraryDto = new LibraryDto(row.Id, row.Name, row.Version, row.FileName, row.SizeBytes, row.Sha256, uploadedAt, nodes, parseLifecycleResult, row.FamilyId, evaluatedValue34, manifest, familyName, row.DllSha256);
-        return libraryDto;
+        var lifecycle = ParseLifecycle(row.Status);
+        string semanticVersion = string.IsNullOrWhiteSpace(row.SemanticVersion) ? row.Version : row.SemanticVersion;
+        return new LibraryDto(row.Id, row.Name, row.Version, row.FileName, row.SizeBytes, row.Sha256, uploadedAt, nodes, lifecycle, row.FamilyId, semanticVersion, manifest, familyName, row.DllSha256);
     }
 
     private async Task<IReadOnlyDictionary<string, string>> GetFamilyNamesAsync(IReadOnlyList<LibraryRecord> libraries, CancellationToken cancellationToken)
@@ -700,31 +657,25 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             .Select(static library => library.FamilyId)
             .Where(static familyId =>
             {
-                var evaluatedValue35 = !string.IsNullOrWhiteSpace(familyId);
-                return evaluatedValue35;
+                return !string.IsNullOrWhiteSpace(familyId);
             })
             .Select(static familyId => familyId!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (familyIds.Count == 0)
         {
-            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            return dictionary;
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
-
-        var toDictionaryResult = (await _families.ListAsync(cancellationToken: cancellationToken))
+        return (await _families.ListAsync(cancellationToken: cancellationToken))
             .Where(family =>
             {
-                var containsResult = familyIds.Contains(family.Id);
-                return containsResult;
+                return familyIds.Contains(family.Id);
             })
             .ToDictionary(family => family.Id, family => family.Name, StringComparer.OrdinalIgnoreCase);
-        return toDictionaryResult;
     }
 
     private static string? GetFamilyName(LibraryRecord library, IReadOnlyDictionary<string, string> familyNames)
     {
-        string? evaluatedValue41 = !string.IsNullOrWhiteSpace(library.FamilyId) && familyNames.TryGetValue(library.FamilyId, out var familyName) ? familyName : null;
-        return evaluatedValue41;
+        return !string.IsNullOrWhiteSpace(library.FamilyId) && familyNames.TryGetValue(library.FamilyId, out var familyName) ? familyName : null;
     }
 
     private static LibraryFamilyDto MapFamily(LibraryFamilyRecord family, IEnumerable<LibraryDto> artifacts)
@@ -732,21 +683,18 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         var members = artifacts
             .Where(item =>
             {
-                var equalsResult42 = string.Equals(item.FamilyId, family.Id, StringComparison.OrdinalIgnoreCase);
-                return equalsResult42;
+                return string.Equals(item.FamilyId, family.Id, StringComparison.OrdinalIgnoreCase);
             })
             .OrderByDescending(item =>
             {
-                var parseSemanticVersionResult = ParseSemanticVersion(item.SemanticVersion ?? item.Version);
-                return parseSemanticVersionResult;
+                return ParseSemanticVersion(item.SemanticVersion ?? item.Version);
             })
             .ThenByDescending(static item => item.UploadedAt)
             .ThenBy(static item => item.Id, StringComparer.Ordinal)
             .ToArray();
-        var parseDateResult = ParseDate(family.CreatedAt);
-        var parseDateResult45 = ParseDate(family.UpdatedAt);
-        var libraryFamilyDto = new LibraryFamilyDto(family.Id, family.Name, family.Description, family.LatestArtifactId, parseDateResult, parseDateResult45, members);
-        return libraryFamilyDto;
+        var createdAt = ParseDate(family.CreatedAt);
+        var updatedAt = ParseDate(family.UpdatedAt);
+        return new LibraryFamilyDto(family.Id, family.Name, family.Description, family.LatestArtifactId, createdAt, updatedAt, members);
     }
 
     /// <summary>
@@ -761,20 +709,17 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         var members = (await _libraries.ListAsync(cancellationToken: cancellationToken))
             .Where(item =>
             {
-                var equalsResult46 = string.Equals(item.FamilyId, family.Id, StringComparison.OrdinalIgnoreCase);
-                return equalsResult46;
+                return string.Equals(item.FamilyId, family.Id, StringComparison.OrdinalIgnoreCase);
             })
             .ToArray();
         var latest = members
             .Where(item =>
             {
-                var evaluatedValue47 = ParseLifecycle(item.Status) == LibraryLifecycleDto.Available;
-                return evaluatedValue47;
+                return ParseLifecycle(item.Status) == LibraryLifecycleDto.Available;
             })
             .OrderByDescending(item =>
             {
-                var parseSemanticVersionResult48 = ParseSemanticVersion(item.SemanticVersion ?? item.Version);
-                return parseSemanticVersionResult48;
+                return ParseSemanticVersion(item.SemanticVersion ?? item.Version);
             })
             .ThenByDescending(static item => item.UploadedAt, StringComparer.Ordinal)
             .ThenByDescending(static item => item.Id, StringComparer.Ordinal)
@@ -798,51 +743,44 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
     private static string? NormalizeOptional(string? value)
     {
-        string? evaluatedValue55 = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-        return evaluatedValue55;
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private static Version ParseSemanticVersion(string value)
     {
-        var optionalReceiver = value;
-        string? optionalResult = default(string);
-        if (optionalReceiver is not null)
+        var rawLibraryId = value;
+        string? trimStart = default(string);
+        if (rawLibraryId is not null)
         {
-            var trimResult1 = optionalReceiver.Trim();
-            optionalResult = trimResult1.TrimStart('v', 'V');
+            trimStart = rawLibraryId.Trim().TrimStart('v', 'V');
         }
 
-        var evaluatedValue2 = optionalResult;
-        Version conditionalValue;
-        if (Version.TryParse(evaluatedValue2, out var version))
+        var mappedTrimStart = trimStart;
+        Version mappedVersion;
+        if (Version.TryParse(mappedTrimStart, out var version))
         {
-            conditionalValue = version;
+            mappedVersion = version;
         }
         else
         {
-            conditionalValue = new Version(0, 0);
+            mappedVersion = new Version(0, 0);
         }
-
-        Version evaluatedValue56 = conditionalValue;
-        return evaluatedValue56;
+        return mappedVersion;
     }
 
     private static DateTimeOffset ParseDate(string? value)
     {
-        DateTimeOffset evaluatedValue57 = DateTimeOffset.TryParse(value, out var parsed) ? parsed : DateTimeOffset.UnixEpoch;
-        return evaluatedValue57;
+        return DateTimeOffset.TryParse(value, out var parsed) ? parsed : DateTimeOffset.UnixEpoch;
     }
 
     private async Task<LibraryDto?> FindAsyncCore(string libraryId, CancellationToken cancellationToken)
     {
-        var findAsyncResult58 = await FindAsync(libraryId, cancellationToken);
-        return findAsyncResult58;
+        return await FindAsync(libraryId, cancellationToken);
     }
 
     private static LibraryLifecycleDto ParseLifecycle(string? status)
     {
-        LibraryLifecycleDto evaluatedValue59 = Enum.TryParse<LibraryLifecycleDto>(status, ignoreCase: true, out var lifecycle) ? lifecycle : LibraryLifecycleDto.Available;
-        return evaluatedValue59;
+        return Enum.TryParse<LibraryLifecycleDto>(status, ignoreCase: true, out var lifecycle) ? lifecycle : LibraryLifecycleDto.Available;
     }
 
     private async Task<(long Size, string Sha256)> CopyToTemporaryFileAsync(Stream source, string destinationPath, CancellationToken cancellationToken)
@@ -853,8 +791,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
         var buffer = new byte[64 * 1024];
         while (true)
         {
-            var asMemoryResult = buffer.AsMemory();
-            var read = await source.ReadAsync(asMemoryResult, cancellationToken);
+            var read = await source.ReadAsync(buffer.AsMemory(), cancellationToken);
             if (read == 0)
             {
                 break;
@@ -867,20 +804,11 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             }
 
             hash.AppendData(buffer, 0, read);
-            var asMemoryResult60 = buffer.AsMemory(0, read);
-            await destination.WriteAsync(asMemoryResult60, cancellationToken);
+            await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
         }
 
         await destination.FlushAsync(cancellationToken);
-        var evaluatedValue61 = (total, resolveToLowerInvariantResult());
-        return evaluatedValue61;
-        string resolveToLowerInvariantResult()
-        {
-            var getHashAndResetResult = hash.GetHashAndReset();
-            var toHexStringResult = Convert.ToHexString(getHashAndResetResult);
-            var toLowerInvariantResult = toHexStringResult.ToLowerInvariant();
-            return toLowerInvariantResult;
-        }
+        return (total, Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant());
     }
 
     private async Task<LibraryDto> InspectPackageAsync(string packagePath, string fileName, string sha256, long size, CancellationToken cancellationToken)
@@ -984,9 +912,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
         await using var dllMemory = await ReadEntryAsync(dllEntry, cancellationToken);
         var dllBytes = dllMemory.ToArray();
-        var hashDataResult = SHA256.HashData(dllBytes);
-        var toHexStringResult63 = Convert.ToHexString(hashDataResult);
-        var dllSha256 = toHexStringResult63.ToLowerInvariant();
+        var dllSha256 = Convert.ToHexString(SHA256.HashData(dllBytes)).ToLowerInvariant();
         dllMemory.Position = 0;
         var metadata = LibraryMetadataScanner.Scan(dllMemory, libraryName, version, sha256, enumMetadataIndex);
         if (!string.Equals(metadata.AssemblyName, libraryName, StringComparison.OrdinalIgnoreCase))
@@ -1000,10 +926,9 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
             throw new LibraryUploadException($"Flipflop method '{invalidFlipflop.MethodName}' must return Task or Task<T>. Flipflop 方法“{invalidFlipflop.MethodName}”必须返回 Task 或 Task<T>。", 422);
         }
 
-        var getFileNameResult = Path.GetFileName(fileName);
+        var mappedFileName = Path.GetFileName(fileName);
         var libraryArtifactManifestDto = new LibraryArtifactManifestDto(sha256, metadata.AssemblyName, metadata.AssemblyVersion, version, metadata.ManifestNodes);
-        var libraryDto64 = new LibraryDto(sha256, libraryName, version, getFileNameResult, size, sha256, DateTimeOffset.UtcNow, metadata.Nodes, CompatibilityManifest: libraryArtifactManifestDto, DllSha256: dllSha256);
-        return libraryDto64;
+        return new LibraryDto(sha256, libraryName, version, mappedFileName, size, sha256, DateTimeOffset.UtcNow, metadata.Nodes, CompatibilityManifest: libraryArtifactManifestDto, DllSha256: dllSha256);
     }
 
     private static void ValidateFileName(string fileName)
@@ -1030,13 +955,11 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
         if (segments.Length == 0 || !string.Equals(segments[0], packageDirectoryName, StringComparison.OrdinalIgnoreCase) || (!isDirectory && segments.Length < 2) || segments.Any(static segment =>
         {
-            var evaluatedValue65 = segment.Length == 0 || segment is "." or ".." || segment.Contains(':') || resolveIndexOfAnyResult() >= 0;
-            return evaluatedValue65;
-            int resolveIndexOfAnyResult()
+            return segment.Length == 0 || segment is "." or ".." || segment.Contains(':') || InvalidSegmentCharacterIndex() >= 0;
+            int InvalidSegmentCharacterIndex()
             {
-                var getInvalidFileNameCharsResult = Path.GetInvalidFileNameChars();
-                var indexOfAnyResult = segment.IndexOfAny(getInvalidFileNameCharsResult);
-                return indexOfAnyResult;
+                var invalidFileNameChars = Path.GetInvalidFileNameChars();
+                return segment.IndexOfAny(invalidFileNameChars);
             }
         }))
         {
@@ -1048,14 +971,12 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     {
         var fileName = Path.GetFileName(normalizedName);
         var extension = Path.GetExtension(fileName);
-        var evaluatedValue66 = DisallowedPackageFileNames.Contains(fileName, StringComparer.OrdinalIgnoreCase) || DisallowedPackageExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
-        return evaluatedValue66;
+        return DisallowedPackageFileNames.Contains(fileName, StringComparer.OrdinalIgnoreCase) || DisallowedPackageExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
     }
 
     private static (string Name, string Version) ParsePackageName(string fileName)
     {
-        var getFileNameWithoutExtensionResult = Path.GetFileNameWithoutExtension(fileName);
-        var stem = getFileNameWithoutExtensionResult.Trim();
+        var stem = Path.GetFileNameWithoutExtension(fileName).Trim();
         var match = Regex.Match(stem, "^(?<name>.+)-(?<version>\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?)$", RegexOptions.CultureInvariant);
         if (!match.Success)
         {
@@ -1064,24 +985,22 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
         var name = match.Groups["name"].Value.Trim();
         var version = match.Groups["version"].Value.Trim();
-        if (name.Length == 0 || version.Length == 0 || resolveIndexOfAnyResult67() >= 0 || resolveIndexOfAnyResult70() >= 0)
+        if (name.Length == 0 || version.Length == 0 || InvalidNameCharacterIndex() >= 0 || InvalidVersionCharacterIndex() >= 0)
         {
             throw new LibraryUploadException("The library name or version is invalid. 类库名称或版本号无效。", 422);
         }
 
         return (name, version);
-        int resolveIndexOfAnyResult67()
+        int InvalidNameCharacterIndex()
         {
-            var getInvalidFileNameCharsResult68 = Path.GetInvalidFileNameChars();
-            var indexOfAnyResult69 = name.IndexOfAny(getInvalidFileNameCharsResult68);
-            return indexOfAnyResult69;
+            var invalidFileNameChars = Path.GetInvalidFileNameChars();
+            return name.IndexOfAny(invalidFileNameChars);
         }
 
-        int resolveIndexOfAnyResult70()
+        int InvalidVersionCharacterIndex()
         {
-            var getInvalidFileNameCharsResult71 = Path.GetInvalidFileNameChars();
-            var indexOfAnyResult72 = version.IndexOfAny(getInvalidFileNameCharsResult71);
-            return indexOfAnyResult72;
+            var mappedInvalidFileNameChars = Path.GetInvalidFileNameChars();
+            return version.IndexOfAny(mappedInvalidFileNameChars);
         }
     }
 
@@ -1110,15 +1029,8 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
 
     private static bool IsPathWithinRoot(string candidatePath, string rootPath)
     {
-        var normalizedRoot = resolveTrimEndingDirectorySeparatorResult() + Path.DirectorySeparatorChar;
-        var startsWithResult = candidatePath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
-        return startsWithResult;
-        string resolveTrimEndingDirectorySeparatorResult()
-        {
-            var getFullPathResult = Path.GetFullPath(rootPath);
-            var trimEndingDirectorySeparatorResult = Path.TrimEndingDirectorySeparator(getFullPathResult);
-            return trimEndingDirectorySeparatorResult;
-        }
+        var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath)) + Path.DirectorySeparatorChar;
+        return candidatePath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsRecoverableReindexFailure(Exception exception) => exception is LibraryUploadException or InvalidDataException or BadImageFormatException or IOException or UnauthorizedAccessException;
@@ -1133,8 +1045,7 @@ public sealed class SqliteLibraryCatalogService : ILibraryCatalogService, IDispo
     private static Action<ILogger, string, Exception?> CreateReindexSkippedLogInitialValue()
     {
         var eventId = new EventId(1001, nameof(ReindexSkippedLog));
-        Action<ILogger, string, Exception?> reindexSkippedLogInitialValue = LoggerMessage.Define<string>(LogLevel.Warning, eventId, "Library catalog reindex skipped library {LibraryId}; the saved catalog remains unchanged. 类库目录重建已跳过该类库；已保存目录保持不变。");
-        return reindexSkippedLogInitialValue;
+        return LoggerMessage.Define<string>(LogLevel.Warning, eventId, "Library catalog reindex skipped library {LibraryId}; the saved catalog remains unchanged. 类库目录重建已跳过该类库；已保存目录保持不变。");
     }
 }
 
@@ -1162,14 +1073,12 @@ internal sealed class EnumMetadataIndex
     public EnumParameterMetadataDto? Resolve(string typeName)
     {
         var normalized = UnwrapNullable(typeName);
-        EnumParameterMetadataDto? evaluatedValue73 = _ambiguousNames.Contains(normalized) ? null : _entries.GetValueOrDefault(normalized);
-        return evaluatedValue73;
+        return _ambiguousNames.Contains(normalized) ? null : _entries.GetValueOrDefault(normalized);
     }
 
     private static string UnwrapNullable(string typeName)
     {
-        var replaceResult = typeName.Replace(" ", string.Empty, StringComparison.Ordinal);
-        var normalized = replaceResult.Trim();
+        var normalized = typeName.Replace(" ", string.Empty, StringComparison.Ordinal).Trim();
         const string nullablePrefix = "System.Nullable";
         if (!normalized.StartsWith(nullablePrefix, StringComparison.Ordinal) || !normalized.EndsWith('>'))
         {
@@ -1204,8 +1113,8 @@ internal static class LibraryMetadataScanner
             foreach (var typeHandle in reader.TypeDefinitions)
             {
                 var type = reader.GetTypeDefinition(typeHandle);
-                var getCustomAttributesResult86 = type.GetCustomAttributes();
-                var libraryAttribute = FindAttribute(reader, getCustomAttributesResult86, LibraryAttributeContract.FlowLibraryAttributeFullName);
+                var attributes = type.GetCustomAttributes();
+                var libraryAttribute = FindAttribute(reader, attributes, LibraryAttributeContract.FlowLibraryAttributeFullName);
                 if (!libraryAttribute.HasValue)
                 {
                     continue;
@@ -1216,8 +1125,8 @@ internal static class LibraryMetadataScanner
                 foreach (var methodHandle in type.GetMethods())
                 {
                     var method = reader.GetMethodDefinition(methodHandle);
-                    var getCustomAttributesResult75 = method.GetCustomAttributes();
-                    var nodeAttribute = FindAttribute(reader, getCustomAttributesResult75, LibraryAttributeContract.FlowNodeAttributeFullName);
+                    var customAttributes = method.GetCustomAttributes();
+                    var nodeAttribute = FindAttribute(reader, customAttributes, LibraryAttributeContract.FlowNodeAttributeFullName);
                     if (!nodeAttribute.HasValue)
                     {
                         continue;
@@ -1225,16 +1134,16 @@ internal static class LibraryMetadataScanner
 
                     var signature = method.DecodeSignature(provider, null);
                     var nodeMetadata = ReadNodeMetadata(reader, nodeAttribute.Value, provider);
-                    var hasResultConverter = resolveFindAttributeResult().HasValue || resolveFindAttributeResult77().HasValue;
-                    var parameterDefinitions = method.GetParameters()
+                    var hasResultConverter = FindResultAttribute().HasValue || FindGenericResultAttribute().HasValue;
+                    var parameterDefinitions = method
+                        .GetParameters()
                         .Select(reader.GetParameter)
                         .Where(static parameter => parameter.SequenceNumber > 0)
                         .OrderBy(static parameter => parameter.SequenceNumber)
                         .Select((parameter, index) => new { Parameter = parameter, Index = index })
                         .Where(item =>
                         {
-                            var evaluatedValue74 = signature.ParameterTypes.Length <= item.Index || !string.Equals(signature.ParameterTypes[item.Index], FlowContextContract.FullName, StringComparison.Ordinal);
-                            return evaluatedValue74;
+                            return signature.ParameterTypes.Length <= item.Index || !string.Equals(signature.ParameterTypes[item.Index], FlowContextContract.FullName, StringComparison.Ordinal);
                         })
                         .ToArray();
                     var methodName = reader.GetString(method.Name);
@@ -1263,8 +1172,8 @@ internal static class LibraryMetadataScanner
                         }
 
                         var parameterName = parameterMetadata.Name ?? clrParameterName ?? parameterId;
-                        var getCustomAttributesResult = parameter.GetCustomAttributes();
-                        var isVariadic = FindAttribute(reader, getCustomAttributesResult, LibraryAttributeContract.ParamArrayAttributeFullName).HasValue;
+                        var customAttributeHandleCollection = parameter.GetCustomAttributes();
+                        var isVariadic = FindAttribute(reader, customAttributeHandleCollection, LibraryAttributeContract.ParamArrayAttributeFullName).HasValue;
                         var isRequired = !isVariadic && (parameter.Attributes & ParameterAttributes.Optional) == 0 && parameterMetadata.IsExplicit;
                         var parameterType = signature.ParameterTypes.Length > index ? signature.ParameterTypes[index] : "System.Object";
                         var identityConfidence = LibraryContractIdentityConfidenceDto.Explicit;
@@ -1290,32 +1199,26 @@ internal static class LibraryMetadataScanner
                         manifestParameters.Add(libraryManifestParameterDto);
                     }
 
-                    var isAwaitableReturnTypeResult = IsAwaitableReturnType(signature.ReturnType);
-                    var libraryNodeDto = new LibraryNodeDto($"{libraryId}:{nodeContractId}", nodeMetadata.Type, nodeMetadata.DisplayName ?? methodName, nodeMetadata.Description, libraryId, className, methodName, $"{assemblyName}.dll", assemblyVersion, signature.ReturnType, parameters, isAwaitableReturnTypeResult, nodeContractId, overloadSignature, nodeIdentityConfidence, libraryName, hasResultConverter);
+                    var isAwaitable = IsAwaitableReturnType(signature.ReturnType);
+                    var libraryNodeDto = new LibraryNodeDto($"{libraryId}:{nodeContractId}", nodeMetadata.Type, nodeMetadata.DisplayName ?? methodName, nodeMetadata.Description, libraryId, className, methodName, $"{assemblyName}.dll", assemblyVersion, signature.ReturnType, parameters, isAwaitable, nodeContractId, overloadSignature, nodeIdentityConfidence, libraryName, hasResultConverter);
                     nodes.Add(libraryNodeDto);
-                    var isAwaitableReturnTypeResult85 = IsAwaitableReturnType(signature.ReturnType);
-                    var libraryManifestNodeDto = new LibraryManifestNodeDto(nodeContractId, nodeIdentityConfidence, nodeMetadata.Type, className, methodName, overloadSignature, signature.ReturnType, isAwaitableReturnTypeResult85, manifestParameters, hasResultConverter);
+                    var isAwaitableReturnType = IsAwaitableReturnType(signature.ReturnType);
+                    var libraryManifestNodeDto = new LibraryManifestNodeDto(nodeContractId, nodeIdentityConfidence, nodeMetadata.Type, className, methodName, overloadSignature, signature.ReturnType, isAwaitableReturnType, manifestParameters, hasResultConverter);
                     manifestNodes.Add(libraryManifestNodeDto);
-                    CustomAttributeHandle? resolveFindAttributeResult()
+                    CustomAttributeHandle? FindResultAttribute()
                     {
-                        var getCustomAttributesResult76 = method.GetCustomAttributes();
-                        var findAttributeResult = FindAttribute(reader, getCustomAttributesResult76, LibraryAttributeContract.NodeResultAttributeFullName);
-                        return findAttributeResult;
+                        var resultAttributes = method.GetCustomAttributes();
+                        return FindAttribute(reader, resultAttributes, LibraryAttributeContract.NodeResultAttributeFullName);
                     }
 
-                    CustomAttributeHandle? resolveFindAttributeResult77()
+                    CustomAttributeHandle? FindGenericResultAttribute()
                     {
-                        var getCustomAttributesResult78 = method.GetCustomAttributes();
-                        var findAttributeResult79 = FindAttribute(reader, getCustomAttributesResult78, LibraryAttributeContract.NodeResultGenericAttributeFullName);
-                        return findAttributeResult79;
+                        var genericResultAttributes = method.GetCustomAttributes();
+                        return FindAttribute(reader, genericResultAttributes, LibraryAttributeContract.NodeResultGenericAttributeFullName);
                     }
                 }
             }
-
-            string evaluatedValue87 = string.IsNullOrWhiteSpace(assemblyName) ? fallbackName : assemblyName;
-            string evaluatedValue88 = string.IsNullOrWhiteSpace(assemblyVersion) ? fallbackVersion : assemblyVersion;
-            var libraryScanResult = new LibraryScanResult(evaluatedValue87, evaluatedValue88, nodes, manifestNodes);
-            return libraryScanResult;
+            return new LibraryScanResult((string.IsNullOrWhiteSpace(assemblyName) ? fallbackName : assemblyName), (string.IsNullOrWhiteSpace(assemblyVersion) ? fallbackVersion : assemblyVersion), nodes, manifestNodes);
         }
         catch (BadImageFormatException exception)
         {
@@ -1363,10 +1266,7 @@ internal static class LibraryMetadataScanner
                     {
                         continue;
                     }
-
-                    var getDefaultValueResult = field.GetDefaultValue();
-                    var getConstantResult = reader.GetConstant(getDefaultValueResult);
-                    var value = ReadEnumConstant(reader, getConstantResult);
+                    var value = ReadEnumConstant(reader, reader.GetConstant(field.GetDefaultValue()));
                     if (value is not null)
                     {
                         var enumValueOptionDto = new EnumValueOptionDto(fieldName, value);
@@ -1378,11 +1278,7 @@ internal static class LibraryMetadataScanner
                 {
                     continue;
                 }
-
-                var getTypeNameResult = GetTypeName(reader, typeHandle);
-                var getCustomAttributesResult89 = type.GetCustomAttributes();
-                var evaluatedValue90 = FindAttribute(reader, getCustomAttributesResult89, "System.FlagsAttribute").HasValue;
-                var enumParameterMetadataDto = new EnumParameterMetadataDto(getTypeNameResult, evaluatedValue90, underlyingType, options);
+                var enumParameterMetadataDto = new EnumParameterMetadataDto(GetTypeName(reader, typeHandle), FindAttribute(reader, type.GetCustomAttributes(), "System.FlagsAttribute").HasValue, underlyingType, options);
                 index.Add(enumParameterMetadataDto);
             }
         }
@@ -1403,8 +1299,8 @@ internal static class LibraryMetadataScanner
     {
         foreach (var attribute in attributes)
         {
-            var getAttributeNameResult = GetAttributeName(reader, attribute);
-            if (string.Equals(getAttributeNameResult, fullName, StringComparison.Ordinal))
+            var attributeName = GetAttributeName(reader, attribute);
+            if (string.Equals(attributeName, fullName, StringComparison.Ordinal))
             {
                 return attribute;
             }
@@ -1415,98 +1311,34 @@ internal static class LibraryMetadataScanner
 
     private static bool IsEnumType(MetadataReader reader, TypeDefinition type)
     {
-        var evaluatedValue93 = !type.BaseType.IsNil && resolveEqualsResult();
-        return evaluatedValue93;
-        bool resolveEqualsResult()
-        {
-            var getTypeNameResult91 = GetTypeName(reader, type.BaseType);
-            var equalsResult92 = string.Equals(getTypeNameResult91, "System.Enum", StringComparison.Ordinal);
-            return equalsResult92;
-        }
+        return !type.BaseType.IsNil && string.Equals(GetTypeName(reader, type.BaseType), "System.Enum", StringComparison.Ordinal);
     }
 
     private static string GetTypeName(MetadataReader reader, EntityHandle handle)
     {
-        string evaluatedValue94 = handle.Kind switch
+        return handle.Kind switch
         {
             HandleKind.TypeDefinition => GetTypeName(reader, (TypeDefinitionHandle)handle),
             HandleKind.TypeReference => GetTypeName(reader, (TypeReferenceHandle)handle),
             _ => string.Empty,
         };
-        return evaluatedValue94;
     }
 
     private static string? ReadEnumConstant(MetadataReader reader, Constant constant)
     {
         var value = reader.GetBlobReader(constant.Value);
-        string? evaluatedValue111 = constant.TypeCode switch
+        return constant.TypeCode switch
         {
-            ConstantTypeCode.SByte => resolveToStringResult95(),
-            ConstantTypeCode.Byte => resolveToStringResult97(),
-            ConstantTypeCode.Int16 => resolveToStringResult99(),
-            ConstantTypeCode.UInt16 => resolveToStringResult101(),
-            ConstantTypeCode.Int32 => resolveToStringResult103(),
-            ConstantTypeCode.UInt32 => resolveToStringResult105(),
-            ConstantTypeCode.Int64 => resolveToStringResult107(),
-            ConstantTypeCode.UInt64 => resolveToStringResult109(),
+            ConstantTypeCode.SByte => value.ReadSByte().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Byte => value.ReadByte().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Int16 => value.ReadInt16().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.UInt16 => value.ReadUInt16().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Int32 => value.ReadInt32().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.UInt32 => value.ReadUInt32().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Int64 => value.ReadInt64().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.UInt64 => value.ReadUInt64().ToString(CultureInfo.InvariantCulture),
             _ => null,
         };
-        return evaluatedValue111;
-        string resolveToStringResult95()
-        {
-            var readSByteResult = value.ReadSByte();
-            var toStringResult96 = readSByteResult.ToString(CultureInfo.InvariantCulture);
-            return toStringResult96;
-        }
-
-        string resolveToStringResult97()
-        {
-            var readByteResult = value.ReadByte();
-            var toStringResult98 = readByteResult.ToString(CultureInfo.InvariantCulture);
-            return toStringResult98;
-        }
-
-        string resolveToStringResult99()
-        {
-            var readInt16Result = value.ReadInt16();
-            var toStringResult100 = readInt16Result.ToString(CultureInfo.InvariantCulture);
-            return toStringResult100;
-        }
-
-        string resolveToStringResult101()
-        {
-            var readUInt16Result = value.ReadUInt16();
-            var toStringResult102 = readUInt16Result.ToString(CultureInfo.InvariantCulture);
-            return toStringResult102;
-        }
-
-        string resolveToStringResult103()
-        {
-            var readInt32Result = value.ReadInt32();
-            var toStringResult104 = readInt32Result.ToString(CultureInfo.InvariantCulture);
-            return toStringResult104;
-        }
-
-        string resolveToStringResult105()
-        {
-            var readUInt32Result = value.ReadUInt32();
-            var toStringResult106 = readUInt32Result.ToString(CultureInfo.InvariantCulture);
-            return toStringResult106;
-        }
-
-        string resolveToStringResult107()
-        {
-            var readInt64Result = value.ReadInt64();
-            var toStringResult108 = readInt64Result.ToString(CultureInfo.InvariantCulture);
-            return toStringResult108;
-        }
-
-        string resolveToStringResult109()
-        {
-            var readUInt64Result = value.ReadUInt64();
-            var toStringResult110 = readUInt64Result.ToString(CultureInfo.InvariantCulture);
-            return toStringResult110;
-        }
     }
 
     private static string? ReadParameterDefaultValue(MetadataReader reader, Parameter parameter, MetadataTypeNameProvider provider, EnumParameterMetadataDto? enumMetadata)
@@ -1514,127 +1346,44 @@ internal static class LibraryMetadataScanner
         var constantHandle = parameter.GetDefaultValue();
         if (!constantHandle.IsNil)
         {
-            var getConstantResult112 = reader.GetConstant(constantHandle);
-            var literal = ReadParameterConstant(reader, getConstantResult112);
-            string? evaluatedValue113 = enumMetadata is null ? literal : FormatEnumDefaultValue(literal, enumMetadata);
-            return evaluatedValue113;
+            var literal = ReadParameterConstant(reader, reader.GetConstant(constantHandle));
+            return enumMetadata is null ? literal : FormatEnumDefaultValue(literal, enumMetadata);
         }
-
-        var evaluatedValue114 = ReadDecimalDefaultValue(reader, parameter, provider) ?? ReadDateTimeDefaultValue(reader, parameter, provider);
-        return evaluatedValue114;
+        return ReadDecimalDefaultValue(reader, parameter, provider) ?? ReadDateTimeDefaultValue(reader, parameter, provider);
     }
 
     private static string? ReadParameterConstant(MetadataReader reader, Constant constant)
     {
         var value = reader.GetBlobReader(constant.Value);
-        string? evaluatedValue146 = constant.TypeCode switch
+        return constant.TypeCode switch
         {
             ConstantTypeCode.Boolean => value.ReadBoolean() ? "true" : "false",
-            ConstantTypeCode.Char => resolveToStringResult115(),
-            ConstantTypeCode.SByte => resolveToStringResult118(),
-            ConstantTypeCode.Byte => resolveToStringResult121(),
-            ConstantTypeCode.Int16 => resolveToStringResult124(),
-            ConstantTypeCode.UInt16 => resolveToStringResult127(),
-            ConstantTypeCode.Int32 => resolveToStringResult130(),
-            ConstantTypeCode.UInt32 => resolveToStringResult133(),
-            ConstantTypeCode.Int64 => resolveToStringResult136(),
-            ConstantTypeCode.UInt64 => resolveToStringResult139(),
-            ConstantTypeCode.Single => resolveToStringResult142(),
-            ConstantTypeCode.Double => resolveToStringResult144(),
-            ConstantTypeCode.String => resolveGetStringResult(),
+            ConstantTypeCode.Char => (((char)value.ReadUInt16())).ToString(),
+            ConstantTypeCode.SByte => value.ReadSByte().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Byte => value.ReadByte().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Int16 => value.ReadInt16().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.UInt16 => value.ReadUInt16().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Int32 => value.ReadInt32().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.UInt32 => value.ReadUInt32().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Int64 => value.ReadInt64().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.UInt64 => value.ReadUInt64().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Single => value.ReadSingle().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.Double => value.ReadDouble().ToString(CultureInfo.InvariantCulture),
+            ConstantTypeCode.String => ReadString(),
             ConstantTypeCode.NullReference => null,
             _ => null,
         };
-        return evaluatedValue146;
-        string resolveToStringResult115()
-        {
-            var evaluatedValue116 = ((char)value.ReadUInt16());
-            var toStringResult117 = evaluatedValue116.ToString();
-            return toStringResult117;
-        }
 
-        string resolveToStringResult118()
+        string ReadString()
         {
-            var readSByteResult119 = value.ReadSByte();
-            var toStringResult120 = readSByteResult119.ToString(CultureInfo.InvariantCulture);
-            return toStringResult120;
-        }
-
-        string resolveToStringResult121()
-        {
-            var readByteResult122 = value.ReadByte();
-            var toStringResult123 = readByteResult122.ToString(CultureInfo.InvariantCulture);
-            return toStringResult123;
-        }
-
-        string resolveToStringResult124()
-        {
-            var readInt16Result125 = value.ReadInt16();
-            var toStringResult126 = readInt16Result125.ToString(CultureInfo.InvariantCulture);
-            return toStringResult126;
-        }
-
-        string resolveToStringResult127()
-        {
-            var readUInt16Result128 = value.ReadUInt16();
-            var toStringResult129 = readUInt16Result128.ToString(CultureInfo.InvariantCulture);
-            return toStringResult129;
-        }
-
-        string resolveToStringResult130()
-        {
-            var readInt32Result131 = value.ReadInt32();
-            var toStringResult132 = readInt32Result131.ToString(CultureInfo.InvariantCulture);
-            return toStringResult132;
-        }
-
-        string resolveToStringResult133()
-        {
-            var readUInt32Result134 = value.ReadUInt32();
-            var toStringResult135 = readUInt32Result134.ToString(CultureInfo.InvariantCulture);
-            return toStringResult135;
-        }
-
-        string resolveToStringResult136()
-        {
-            var readInt64Result137 = value.ReadInt64();
-            var toStringResult138 = readInt64Result137.ToString(CultureInfo.InvariantCulture);
-            return toStringResult138;
-        }
-
-        string resolveToStringResult139()
-        {
-            var readUInt64Result140 = value.ReadUInt64();
-            var toStringResult141 = readUInt64Result140.ToString(CultureInfo.InvariantCulture);
-            return toStringResult141;
-        }
-
-        string resolveToStringResult142()
-        {
-            var readSingleResult = value.ReadSingle();
-            var toStringResult143 = readSingleResult.ToString(CultureInfo.InvariantCulture);
-            return toStringResult143;
-        }
-
-        string resolveToStringResult144()
-        {
-            var readDoubleResult = value.ReadDouble();
-            var toStringResult145 = readDoubleResult.ToString(CultureInfo.InvariantCulture);
-            return toStringResult145;
-        }
-
-        string resolveGetStringResult()
-        {
-            var getBlobBytesResult = reader.GetBlobBytes(constant.Value);
-            var getStringResult = System.Text.Encoding.Unicode.GetString(getBlobBytesResult);
-            return getStringResult;
+            var blobBytes = reader.GetBlobBytes(constant.Value);
+            return System.Text.Encoding.Unicode.GetString(blobBytes);
         }
     }
 
     private static string? ReadDecimalDefaultValue(MetadataReader reader, Parameter parameter, MetadataTypeNameProvider provider)
     {
-        var getCustomAttributesResult148 = parameter.GetCustomAttributes();
-        var attribute = FindAttribute(reader, getCustomAttributesResult148, "System.Runtime.CompilerServices.DecimalConstantAttribute");
+        var attribute = FindAttribute(reader, parameter.GetCustomAttributes(), "System.Runtime.CompilerServices.DecimalConstantAttribute");
         if (!attribute.HasValue)
         {
             return null;
@@ -1642,8 +1391,7 @@ internal static class LibraryMetadataScanner
 
         try
         {
-            var getCustomAttributeResult = reader.GetCustomAttribute(attribute.Value);
-            var arguments = getCustomAttributeResult.DecodeValue(provider).FixedArguments;
+            var arguments = reader.GetCustomAttribute(attribute.Value).DecodeValue(provider).FixedArguments;
             if (arguments.Length != 5)
             {
                 return null;
@@ -1654,9 +1402,7 @@ internal static class LibraryMetadataScanner
             var high = unchecked((int)Convert.ToUInt32(arguments[2].Value, CultureInfo.InvariantCulture));
             var middle = unchecked((int)Convert.ToUInt32(arguments[3].Value, CultureInfo.InvariantCulture));
             var low = unchecked((int)Convert.ToUInt32(arguments[4].Value, CultureInfo.InvariantCulture));
-            var decimalValue = new decimal(low, middle, high, isNegative, scale);
-            var toStringResult147 = decimalValue.ToString(CultureInfo.InvariantCulture);
-            return toStringResult147;
+            return new decimal(low, middle, high, isNegative, scale).ToString(CultureInfo.InvariantCulture);
         }
         catch (ArgumentException)
         {
@@ -1678,8 +1424,7 @@ internal static class LibraryMetadataScanner
 
     private static string? ReadDateTimeDefaultValue(MetadataReader reader, Parameter parameter, MetadataTypeNameProvider provider)
     {
-        var getCustomAttributesResult151 = parameter.GetCustomAttributes();
-        var attribute = FindAttribute(reader, getCustomAttributesResult151, "System.Runtime.CompilerServices.DateTimeConstantAttribute");
+        var attribute = FindAttribute(reader, parameter.GetCustomAttributes(), "System.Runtime.CompilerServices.DateTimeConstantAttribute");
         if (!attribute.HasValue)
         {
             return null;
@@ -1687,17 +1432,14 @@ internal static class LibraryMetadataScanner
 
         try
         {
-            var getCustomAttributeResult149 = reader.GetCustomAttribute(attribute.Value);
-            var arguments = getCustomAttributeResult149.DecodeValue(provider).FixedArguments;
+            var arguments = reader.GetCustomAttribute(attribute.Value).DecodeValue(provider).FixedArguments;
             if (arguments.Length != 1)
             {
                 return null;
             }
 
             var ticks = Convert.ToInt64(arguments[0].Value, CultureInfo.InvariantCulture);
-            var dateTime = new DateTime(ticks, DateTimeKind.Unspecified);
-            var toStringResult150 = dateTime.ToString("O", CultureInfo.InvariantCulture);
-            return toStringResult150;
+            return new DateTime(ticks, DateTimeKind.Unspecified).ToString("O", CultureInfo.InvariantCulture);
         }
         catch (ArgumentException)
         {
@@ -1726,8 +1468,7 @@ internal static class LibraryMetadataScanner
 
         var exactMatch = metadata.Options.FirstOrDefault(option =>
         {
-            var equalsResult152 = string.Equals(option.NumericValue, numericValue, StringComparison.Ordinal);
-            return equalsResult152;
+            return string.Equals(option.NumericValue, numericValue, StringComparison.Ordinal);
         });
         if (exactMatch is not null)
         {
@@ -1750,27 +1491,19 @@ internal static class LibraryMetadataScanner
             selected.Add(option.Name);
             remaining &= ~optionValue;
         }
-
-        string? evaluatedValue153 = remaining == 0 && selected.Count > 0 ? string.Join(", ", selected) : null;
-        return evaluatedValue153;
+        return remaining == 0 && selected.Count > 0 ? string.Join(", ", selected) : null;
     }
 
     private static NodeMetadata ReadNodeMetadata(MetadataReader reader, CustomAttributeHandle handle, MetadataTypeNameProvider provider)
     {
         try
         {
-            var getCustomAttributeResult154 = reader.GetCustomAttribute(handle);
-            var value = getCustomAttributeResult154.DecodeValue(provider);
-            var readNamedValueResult = ReadNamedValue(value, LibraryAttributeContract.NodeTypePropertyName);
-            var nodeType = ReadNodeType(readNamedValueResult);
+            var value = reader.GetCustomAttribute(handle).DecodeValue(provider);
+            var nodeType = ReadNodeType(ReadNamedValue(value, LibraryAttributeContract.NodeTypePropertyName));
             var displayName = ReadNamedValue(value, LibraryAttributeContract.DisplayNamePropertyName) as string;
             var description = ReadNamedValue(value, LibraryAttributeContract.DescriptionPropertyName) as string;
-            var evaluatedValue155 = ReadNamedValue(value, LibraryAttributeContract.NodeContractIdPropertyName) as string;
-            var contractId = NormalizeContractId(evaluatedValue155, "node");
-            string? evaluatedValue156 = string.IsNullOrWhiteSpace(displayName) ? null : displayName;
-            string? evaluatedValue157 = string.IsNullOrWhiteSpace(description) ? null : description;
-            var nodeMetadata158 = new NodeMetadata(nodeType, evaluatedValue156, evaluatedValue157, contractId);
-            return nodeMetadata158;
+            var contractId = NormalizeContractId((ReadNamedValue(value, LibraryAttributeContract.NodeContractIdPropertyName) as string), "node");
+            return new NodeMetadata(nodeType, (string.IsNullOrWhiteSpace(displayName) ? null : displayName), (string.IsNullOrWhiteSpace(description) ? null : description), contractId);
         }
         catch (BadImageFormatException exception)
         {
@@ -1787,11 +1520,9 @@ internal static class LibraryMetadataScanner
         var className = reader.GetString(type.Name);
         try
         {
-            var getCustomAttributeResult159 = reader.GetCustomAttribute(handle);
-            var value = getCustomAttributeResult159.DecodeValue(provider);
+            var value = reader.GetCustomAttribute(handle).DecodeValue(provider);
             var name = value.FixedArguments.Length > 0 ? value.FixedArguments[0].Value as string : null;
-            string evaluatedValue160 = string.IsNullOrWhiteSpace(name) ? className : name.Trim();
-            return evaluatedValue160;
+            return string.IsNullOrWhiteSpace(name) ? className : name.Trim();
         }
         catch (BadImageFormatException exception)
         {
@@ -1805,33 +1536,26 @@ internal static class LibraryMetadataScanner
 
     private static ParameterMetadata ReadParameterMetadata(MetadataReader reader, Parameter parameter, MetadataTypeNameProvider provider)
     {
-        var getCustomAttributesResult168 = parameter.GetCustomAttributes();
-        var handle = FindAttribute(reader, getCustomAttributesResult168, LibraryAttributeContract.NodeParamAttributeFullName);
+        var handle = FindAttribute(reader, parameter.GetCustomAttributes(), LibraryAttributeContract.NodeParamAttributeFullName);
         if (!handle.HasValue)
         {
-            var parameterMetadata161 = new ParameterMetadata(null, null, [], true);
-            return parameterMetadata161;
+            return new ParameterMetadata(null, null, [], true);
         }
 
         try
         {
-            var getCustomAttributeResult163 = reader.GetCustomAttribute(handle.Value);
-            var value = getCustomAttributeResult163.DecodeValue(provider);
+            var value = reader.GetCustomAttribute(handle.Value).DecodeValue(provider);
             var name = ReadNamedValue(value, LibraryAttributeContract.ParameterNamePropertyName) as string;
-            var evaluatedValue164 = ReadNamedValue(value, LibraryAttributeContract.ParameterContractIdPropertyName) as string;
-            var contractId = NormalizeContractId(evaluatedValue164, "parameter");
+            var contractId = NormalizeContractId((ReadNamedValue(value, LibraryAttributeContract.ParameterContractIdPropertyName) as string), "parameter");
             var aliases = ReadNamedStringArray(value, LibraryAttributeContract.ParameterAliasesPropertyName)
                 .Select(alias =>
                 {
-                    var evaluatedValue162 = NormalizeContractId(alias, "parameter alias")!;
-                    return evaluatedValue162;
+                    return NormalizeContractId(alias, "parameter alias")!;
                 })
                 .ToArray();
             var explicitValue = ReadNamedValue(value, LibraryAttributeContract.IsExplicitPropertyName);
             var isExplicit = explicitValue is bool boolValue ? boolValue : true;
-            string? evaluatedValue166 = string.IsNullOrWhiteSpace(name) ? null : name;
-            var parameterMetadata167 = new ParameterMetadata(evaluatedValue166, contractId, aliases, isExplicit);
-            return parameterMetadata167;
+            return new ParameterMetadata((string.IsNullOrWhiteSpace(name) ? null : name), contractId, aliases, isExplicit);
         }
         catch (BadImageFormatException exception)
         {
@@ -1845,35 +1569,26 @@ internal static class LibraryMetadataScanner
 
     private static object? ReadNamedValue(CustomAttributeValue<string> value, string name)
     {
-        var evaluatedValue170 = value.NamedArguments.FirstOrDefault(argument =>
+        return value.NamedArguments.FirstOrDefault(argument =>
         {
-            var equalsResult169 = string.Equals(argument.Name, name, StringComparison.Ordinal);
-            return equalsResult169;
+            return string.Equals(argument.Name, name, StringComparison.Ordinal);
         }).Value;
-        return evaluatedValue170;
     }
 
     private static string[] ReadNamedStringArray(CustomAttributeValue<string> value, string name)
     {
         var raw = ReadNamedValue(value, name);
-        string[] evaluatedValue177 = raw is ImmutableArray<CustomAttributeTypedArgument<string>> values ? resolveToArrayResult() : [];
-        return evaluatedValue177;
-        string[] resolveToArrayResult()
-        {
-            var toArrayResult176 = values.Select(static item => item.Value as string)
+        return raw is ImmutableArray<CustomAttributeTypedArgument<string>> values ? values
+            .Select(static item => item.Value as string)
                 .Where(static item =>
                 {
-                    var evaluatedValue171 = !string.IsNullOrWhiteSpace(item);
-                    return evaluatedValue171;
+                    return !string.IsNullOrWhiteSpace(item);
                 })
                 .Select(static item =>
                 {
-                    var trimResult172 = item!.Trim();
-                    return trimResult172;
+                    return item!.Trim();
                 })
-                .ToArray();
-            return toArrayResult176;
-        }
+                .ToArray() : [];
     }
 
     private static string? NormalizeContractId(string? value, string kind)
@@ -1907,13 +1622,12 @@ internal static class LibraryMetadataScanner
 
         try
         {
-            NodeTypeDto evaluatedValue178 = Convert.ToInt32(convertible, CultureInfo.InvariantCulture) switch
+            return Convert.ToInt32(convertible, CultureInfo.InvariantCulture) switch
             {
                 (int)NodeType.Action => NodeTypeDto.Action,
                 (int)NodeType.Flipflop => NodeTypeDto.Flipflop,
                 _ => throw new LibraryUploadException("The FlowNodeAttribute NodeType value is unsupported. FlowNodeAttribute 的 NodeType 值不受支持。", 422),
             };
-            return evaluatedValue178;
         }
         catch (FormatException)
         {
@@ -1931,17 +1645,16 @@ internal static class LibraryMetadataScanner
 
     private static bool IsAwaitableReturnType(string returnType)
     {
-        var evaluatedValue179 = string.Equals(returnType, "System.Threading.Tasks.Task", StringComparison.Ordinal) || returnType.StartsWith("System.Threading.Tasks.Task<", StringComparison.Ordinal) // Metadata signatures preserve the CLR arity suffix (Task`1<T>)
-                                                                                                                                                                                                      // while reflection exposes the same type as Task<T>.
-        // 元数据签名保留 CLR 泛型元数后缀（Task`1<T>），而反射将同一类型表示为 Task<T>。
+        var equals = string.Equals(returnType, "System.Threading.Tasks.Task", StringComparison.Ordinal) || returnType.StartsWith("System.Threading.Tasks.Task<", StringComparison.Ordinal) // Metadata signatures preserve the CLR arity suffix (Task`1<T>)
+                                                                                                                                                                                           // while reflection exposes the same type as Task<T>.
+                                                                                                                                                                                           // 元数据签名保留 CLR 泛型元数后缀（Task`1<T>），而反射将同一类型表示为 Task<T>。
         || returnType.StartsWith("System.Threading.Tasks.Task`1<", StringComparison.Ordinal);
-        return evaluatedValue179;
+        return equals;
     }
 
     private static string GetArrayElementType(string type)
     {
-        string evaluatedValue180 = type.EndsWith("[]", StringComparison.Ordinal) ? type[..^2] : "System.Object";
-        return evaluatedValue180;
+        return type.EndsWith("[]", StringComparison.Ordinal) ? type[..^2] : "System.Object";
     }
 
     private static string GetAttributeName(MetadataReader reader, CustomAttributeHandle handle)
@@ -1950,22 +1663,15 @@ internal static class LibraryMetadataScanner
         var typeHandle = attribute.Constructor.Kind switch
         {
             HandleKind.MemberReference => reader.GetMemberReference((MemberReferenceHandle)attribute.Constructor).Parent,
-            HandleKind.MethodDefinition => resolveGetDeclaringTypeResult(),
+            HandleKind.MethodDefinition => reader.GetMethodDefinition((MethodDefinitionHandle)attribute.Constructor).GetDeclaringType(),
             _ => default(EntityHandle),
         };
-        string evaluatedValue181 = typeHandle.Kind switch
+        return typeHandle.Kind switch
         {
             HandleKind.TypeReference => GetTypeName(reader, (TypeReferenceHandle)typeHandle),
             HandleKind.TypeDefinition => GetTypeName(reader, (TypeDefinitionHandle)typeHandle),
             _ => string.Empty,
         };
-        return evaluatedValue181;
-        EntityHandle resolveGetDeclaringTypeResult()
-        {
-            var getMethodDefinitionResult = reader.GetMethodDefinition((MethodDefinitionHandle)attribute.Constructor);
-            var getDeclaringTypeResult = getMethodDefinitionResult.GetDeclaringType();
-            return getDeclaringTypeResult;
-        }
     }
 
     private static string GetTypeName(MetadataReader reader, TypeDefinitionHandle handle)
@@ -1973,34 +1679,19 @@ internal static class LibraryMetadataScanner
         var type = reader.GetTypeDefinition(handle);
         var name = reader.GetString(type.Name);
         var declaring = type.GetDeclaringType();
-        string evaluatedValue183 = declaring.IsNil ? resolveCombineNamespaceResult() : $"{GetTypeName(reader, declaring)}+{name}";
-        return evaluatedValue183;
-        string resolveCombineNamespaceResult()
-        {
-            var getStringResult182 = reader.GetString(type.Namespace);
-            var combineNamespaceResult = CombineNamespace(getStringResult182, name);
-            return combineNamespaceResult;
-        }
+        return declaring.IsNil ? CombineNamespace(reader.GetString(type.Namespace), name) : $"{GetTypeName(reader, declaring)}+{name}";
     }
 
     private static string GetTypeName(MetadataReader reader, TypeReferenceHandle handle)
     {
         var type = reader.GetTypeReference(handle);
         var name = reader.GetString(type.Name);
-        string evaluatedValue187 = type.ResolutionScope.Kind == HandleKind.TypeReference ? $"{GetTypeName(reader, (TypeReferenceHandle)type.ResolutionScope)}+{name}" : resolveCombineNamespaceResult184();
-        return evaluatedValue187;
-        string resolveCombineNamespaceResult184()
-        {
-            var getStringResult185 = reader.GetString(type.Namespace);
-            var combineNamespaceResult186 = CombineNamespace(getStringResult185, name);
-            return combineNamespaceResult186;
-        }
+        return type.ResolutionScope.Kind == HandleKind.TypeReference ? $"{GetTypeName(reader, (TypeReferenceHandle)type.ResolutionScope)}+{name}" : CombineNamespace(reader.GetString(type.Namespace), name);
     }
 
     private static string CombineNamespace(string @namespace, string name)
     {
-        string evaluatedValue188 = string.IsNullOrWhiteSpace(@namespace) ? name : $"{@namespace}.{name}";
-        return evaluatedValue188;
+        return string.IsNullOrWhiteSpace(@namespace) ? name : $"{@namespace}.{name}";
     }
 }
 
@@ -2023,22 +1714,14 @@ internal sealed class MetadataTypeNameProvider : ISignatureTypeProvider<string, 
 {
     public string GetArrayType(string elementType, ArrayShape shape)
     {
-        var evaluatedValue189 = $"{elementType}[{resolvestring()}]";
-        return evaluatedValue189;
-        string resolvestring()
-        {
-            var maxResult = Math.Max(shape.Rank - 1, 0);
-            var stringValue = new string(',', maxResult);
-            return stringValue;
-        }
+        return $"{elementType}[{new string(',', Math.Max(shape.Rank - 1, 0))}]";
     }
 
     public string GetByReferenceType(string elementType) => $"ref {elementType}";
     public string GetFunctionPointerType(MethodSignature<string> signature) => "delegate*";
     public string GetGenericInstantiation(string genericType, ImmutableArray<string> typeArguments)
     {
-        var evaluatedValue190 = $"{genericType}<{string.Join(", ", typeArguments)}>";
-        return evaluatedValue190;
+        return $"{genericType}<{string.Join(", ", typeArguments)}>";
     }
 
     public string GetGenericMethodParameter(object? genericContext, int index) => $"TMethod{index}";
@@ -2071,21 +1754,17 @@ internal sealed class MetadataTypeNameProvider : ISignatureTypeProvider<string, 
     public string GetSZArrayType(string elementType) => $"{elementType}[]";
     public string GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind)
     {
-        var getTypeNameResult191 = GetTypeName(reader, handle);
-        return getTypeNameResult191;
+        return GetTypeName(reader, handle);
     }
 
     public string GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind)
     {
-        var getTypeNameResult192 = GetTypeName(reader, handle);
-        return getTypeNameResult192;
+        return GetTypeName(reader, handle);
     }
 
     public string GetTypeFromSpecification(MetadataReader reader, object? genericContext, TypeSpecificationHandle handle, byte rawTypeKind)
     {
-        var getTypeSpecificationResult = reader.GetTypeSpecification(handle);
-        var decodeSignatureResult = getTypeSpecificationResult.DecodeSignature(this, genericContext);
-        return decodeSignatureResult;
+        return reader.GetTypeSpecification(handle).DecodeSignature(this, genericContext);
     }
 
     public string GetSystemType() => "System.Type";
@@ -2093,8 +1772,7 @@ internal sealed class MetadataTypeNameProvider : ISignatureTypeProvider<string, 
     public PrimitiveTypeCode GetUnderlyingEnumType(string type) => PrimitiveTypeCode.Int32;
     public bool IsSystemType(string type)
     {
-        var equalsResult193 = string.Equals(type, "System.Type", StringComparison.Ordinal);
-        return equalsResult193;
+        return string.Equals(type, "System.Type", StringComparison.Ordinal);
     }
 
     private static string GetTypeName(MetadataReader reader, TypeDefinitionHandle handle)
@@ -2102,27 +1780,13 @@ internal sealed class MetadataTypeNameProvider : ISignatureTypeProvider<string, 
         var type = reader.GetTypeDefinition(handle);
         var name = reader.GetString(type.Name);
         var declaring = type.GetDeclaringType();
-        string evaluatedValue195 = declaring.IsNil ? resolveIsNullOrWhiteSpaceResult() ? name : $"{reader.GetString(type.Namespace)}.{name}" : $"{GetTypeName(reader, declaring)}+{name}";
-        return evaluatedValue195;
-        bool resolveIsNullOrWhiteSpaceResult()
-        {
-            var getStringResult194 = reader.GetString(type.Namespace);
-            var isNullOrWhiteSpaceResult = string.IsNullOrWhiteSpace(getStringResult194);
-            return isNullOrWhiteSpaceResult;
-        }
+        return declaring.IsNil ? string.IsNullOrWhiteSpace(reader.GetString(type.Namespace)) ? name : $"{reader.GetString(type.Namespace)}.{name}" : $"{GetTypeName(reader, declaring)}+{name}";
     }
 
     private static string GetTypeName(MetadataReader reader, TypeReferenceHandle handle)
     {
         var type = reader.GetTypeReference(handle);
         var name = reader.GetString(type.Name);
-        string evaluatedValue199 = type.ResolutionScope.Kind == HandleKind.TypeReference ? $"{GetTypeName(reader, (TypeReferenceHandle)type.ResolutionScope)}+{name}" : resolveIsNullOrWhiteSpaceResult196() ? name : $"{reader.GetString(type.Namespace)}.{name}";
-        return evaluatedValue199;
-        bool resolveIsNullOrWhiteSpaceResult196()
-        {
-            var getStringResult197 = reader.GetString(type.Namespace);
-            var isNullOrWhiteSpaceResult198 = string.IsNullOrWhiteSpace(getStringResult197);
-            return isNullOrWhiteSpaceResult198;
-        }
+        return type.ResolutionScope.Kind == HandleKind.TypeReference ? $"{GetTypeName(reader, (TypeReferenceHandle)type.ResolutionScope)}+{name}" : string.IsNullOrWhiteSpace(reader.GetString(type.Namespace)) ? name : $"{reader.GetString(type.Namespace)}.{name}";
     }
 }

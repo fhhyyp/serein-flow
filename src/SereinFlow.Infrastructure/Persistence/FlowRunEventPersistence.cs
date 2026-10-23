@@ -44,8 +44,7 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
                 .GroupBy(static item => (item.RunId, item.Sequence))
                 .Select(static group =>
                 {
-                    var firstResult = group.First();
-                    return firstResult;
+                    return group.First();
                 })
                 .ToArray();
             var existingKeys = new HashSet<(string RunId, long Sequence)>();
@@ -65,8 +64,8 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
             {
                 foreach (var item in grouped)
                 {
-                    var evaluatedValue = (item.RunId.ToString("D"), item.Sequence);
-                    if (existingKeys.Contains(evaluatedValue))
+                    var eventKey = (item.RunId.ToString("D"), item.Sequence);
+                    if (existingKeys.Contains(eventKey))
                     {
                         continue;
                     }
@@ -95,18 +94,15 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
     public async Task<IReadOnlyList<FlowRunEvent>> GetAfterAsync(Guid runId, long sequenceExclusive, CancellationToken cancellationToken = default)
     {
         var key = runId.ToString("D");
-        var rows = await _events.ListAsync(row => row.RunId == key && row.Sequence > sequenceExclusive, cancellationToken);
-        var toArrayResult = rows
+        return (await _events.ListAsync(row => row.RunId == key && row.Sequence > sequenceExclusive, cancellationToken))
             .OrderBy(static row => row.Sequence)
             .Select(Map)
             .ToArray();
-        return toArrayResult;
     }
 
     public Task<long> GetLastSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
     {
-        Task<long> operationResult1 = _queries.GetLastSequenceAsync(runId, cancellationToken);
-        return operationResult1;
+        return _queries.GetLastSequenceAsync(runId, cancellationToken);
     }
     public void Append(IReadOnlyList<FlowRunEvent> events)
     {
@@ -122,11 +118,11 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
 
         try
         {
-            var executeAsyncResult = _unitOfWork.ExecuteAsync(async cancellationToken =>
+            var task = _unitOfWork.ExecuteAsync(async cancellationToken =>
             {
                 foreach (var item in events.OrderBy(static item => item.Sequence))
                 {
-                    var flowRunEventRecord4 = new FlowRunEventRecord
+                    var entity = new FlowRunEventRecord
                     {
                         RunId = item.RunId.ToString("D"),
                         Sequence = item.Sequence,
@@ -135,13 +131,12 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
                         PayloadJson = item.PayloadJson,
                         Timestamp = item.Timestamp.ToString("O")
                     };
-                    await _events.AddAsync(flowRunEventRecord4, cancellationToken);
+                    await _events.AddAsync(entity, cancellationToken);
                 }
 
                 return true;
             });
-            var getAwaiterResult = executeAsyncResult.GetAwaiter();
-            getAwaiterResult.GetResult();
+            task.GetAwaiter().GetResult();
         }
         catch (Exception exception)
         {
@@ -151,25 +146,23 @@ public sealed class SqlSugarFlowRunEventStore : IFlowRunEventStore
 
     public IReadOnlyList<FlowRunEvent> GetAfter(Guid runId, long sequenceExclusive)
     {
-        var listAsyncResult = _events.ListAsync();
-        var getAwaiterResult6 = listAsyncResult.GetAwaiter();
-        var toArrayResult9 = getAwaiterResult6.GetResult()
+        return _events
+            .ListAsync()
+            .GetAwaiter()
+            .GetResult()
             .Where(row =>
             {
-                var evaluatedValue5 = row.RunId == runId.ToString("D") && row.Sequence > sequenceExclusive;
-                return evaluatedValue5;
+                return row.RunId == runId.ToString("D") && row.Sequence > sequenceExclusive;
             })
             .OrderBy(static row => row.Sequence)
             .Select(Map)
             .ToArray();
-        return toArrayResult9;
     }
 
     private static FlowRunEvent Map(FlowRunEventRecord row)
     {
-        var parseResult = Guid.Parse(row.RunId);
-        var parseResult10 = DateTimeOffset.Parse(row.Timestamp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        FlowRunEvent evaluatedValue11 = new(parseResult, row.Sequence, parseResult10, row.Type, row.NodeId, row.PayloadJson);
-        return evaluatedValue11;
+        var runId = Guid.Parse(row.RunId);
+        var timestamp = DateTimeOffset.Parse(row.Timestamp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+        return new(runId, row.Sequence, timestamp, row.Type, row.NodeId, row.PayloadJson);
     }
 }

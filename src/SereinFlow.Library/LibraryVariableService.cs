@@ -31,8 +31,7 @@ public sealed class LibraryVariableService
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         lock (_sync)
         {
-            var containsKeyResult = _values.ContainsKey(name);
-            return containsKeyResult;
+            return _values.ContainsKey(name);
         }
     }
 
@@ -47,8 +46,7 @@ public sealed class LibraryVariableService
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         lock (_sync)
         {
-            var getValueOrDefaultResult = _values.GetValueOrDefault(name);
-            return getValueOrDefaultResult;
+            return _values.GetValueOrDefault(name);
         }
     }
 
@@ -93,12 +91,12 @@ public sealed class LibraryVariableService
                 return false;
             }
 
-            if (stored is null && default(T)is not null)
+            if (stored is null && default(T) is not null)
             {
                 throw new InvalidCastException($"Variable '{name}' is null and cannot be cast to '{typeof(T).FullName}'. 变量为 null，无法转换为目标类型。");
             }
 
-            value = (T? )stored;
+            value = (T?)stored;
             return true;
         }
     }
@@ -128,8 +126,7 @@ public sealed class LibraryVariableService
     {
         lock (_sync)
         {
-            var dictionary = new Dictionary<string, object?>(_values, StringComparer.Ordinal);
-            return dictionary;
+            return new Dictionary<string, object?>(_values, StringComparer.Ordinal);
         }
     }
 }

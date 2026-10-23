@@ -23,12 +23,11 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
     {
         _root = string.IsNullOrWhiteSpace(root) ? null : Path.GetFullPath(root);
         _runId = runId;
-        _runDirectory = _root is null ? null : resolveCombineResult();
-        string resolveCombineResult()
+        _runDirectory = _root is null ? null : GetRunDirectory();
+        string GetRunDirectory()
         {
-            var toStringResult = runId.ToString("N");
-            var combineResult = Path.Combine(_root, toStringResult);
-            return combineResult;
+            var runIdText = runId.ToString("N");
+            return Path.Combine(_root, runIdText);
         }
     }
 
@@ -37,16 +36,14 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(content);
         var memoryStream = new MemoryStream(content, writable: false);
-        var uploadNodeOutputResult = UploadNodeOutput(context, fileName, memoryStream, contentType);
-        return uploadNodeOutputResult;
+        return UploadNodeOutput(context, fileName, memoryStream, contentType);
     }
 
     public FlowWorkpieceInfo UploadNodeOutput(IFlowContext context, string fileName, string content, string? contentType = null)
     {
         ArgumentNullException.ThrowIfNull(content);
-        var getBytesResult = Encoding.UTF8.GetBytes(content);
-        var uploadNodeOutputResult1 = UploadNodeOutput(context, fileName, getBytesResult, contentType ?? FlowWorkpieceContentTypes.Text);
-        return uploadNodeOutputResult1;
+        var bytes = Encoding.UTF8.GetBytes(content);
+        return UploadNodeOutput(context, fileName, bytes, contentType ?? FlowWorkpieceContentTypes.Text);
     }
 
     public FlowWorkpieceInfo UploadNodeOutput(IFlowContext context, string fileName, Stream content, string? contentType = null)
@@ -54,18 +51,16 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
         ArgumentNullException.ThrowIfNull(context);
         var kind = contentType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true ? FlowWorkpieceKind.Image : FlowWorkpieceKind.File;
         var inferredContentType = kind == FlowWorkpieceKind.Image ? InferImageContentType(fileName) : null;
-        var requireNodeIdResult = RequireNodeId(context.NodeId);
-        var requireExecutionIdResult = RequireExecutionId(context.ExecutionId);
-        var uploadCoreResult = UploadCore(kind, fileName, content, contentType, inferredContentType, requireNodeIdResult, requireExecutionIdResult);
-        return uploadCoreResult;
+        var nodeId = RequireNodeId(context.NodeId);
+        var executionId = RequireExecutionId(context.ExecutionId);
+        return UploadCore(kind, fileName, content, contentType, inferredContentType, nodeId, executionId);
     }
 
     private FlowWorkpieceInfo UploadCore(FlowWorkpieceKind kind, string name, Stream content, string? contentType, string? inferredContentType, string? nodeId = null, Guid? executionId = null)
     {
         ArgumentNullException.ThrowIfNull(content);
         var normalizedName = RequireFileName(name);
-        string evaluatedValue = kind == FlowWorkpieceKind.Image ? InferImageContentType(normalizedName) : "application/octet-stream";
-        var normalizedContentType = RequireContentType(contentType, inferredContentType, evaluatedValue);
+        var normalizedContentType = RequireContentType(contentType, inferredContentType, (kind == FlowWorkpieceKind.Image ? InferImageContentType(normalizedName) : "application/octet-stream"));
         if (_runDirectory is null)
         {
             throw new FlowWorkpieceException(WorkpieceErrorCodes.NotConfigured, "The flow workpiece directory is not configured. 流程工件目录尚未配置。");
@@ -74,8 +69,7 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
         lock (_gate)
         {
             Directory.CreateDirectory(_runDirectory);
-            var newGuidResult = Guid.NewGuid();
-            var id = newGuidResult.ToString("N");
+            var id = Guid.NewGuid().ToString("N");
             var dataPath = Path.Combine(_runDirectory, id + ".bin");
             var metadataPath = Path.Combine(_runDirectory, id + ".json");
             var temporaryDataPath = Path.Combine(_runDirectory, id + ".upload");
@@ -90,8 +84,7 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
 
                 File.Move(temporaryDataPath, dataPath);
                 var info = new FlowWorkpieceInfo(id, kind, normalizedName, normalizedContentType, length, DateTimeOffset.UtcNow, nodeId, executionId);
-                var serializeResult = JsonSerializer.Serialize(info, MetadataOptions);
-                File.WriteAllText(temporaryMetadataPath, serializeResult);
+                File.WriteAllText(temporaryMetadataPath, JsonSerializer.Serialize(info, MetadataOptions));
                 File.Move(temporaryMetadataPath, metadataPath);
                 return info;
             }
@@ -140,17 +133,16 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
         }
 
         var name = value.Trim();
-        if (name is "." or ".." || name != Path.GetFileName(name) || name.Contains(Path.DirectorySeparatorChar) || name.Contains(Path.AltDirectorySeparatorChar) || resolveIndexOfAnyResult() >= 0)
+        if (name is "." or ".." || name != Path.GetFileName(name) || name.Contains(Path.DirectorySeparatorChar) || name.Contains(Path.AltDirectorySeparatorChar) || InvalidNameCharacterIndex() >= 0)
         {
             throw new FlowWorkpieceException(WorkpieceErrorCodes.NameInvalid, "The workpiece name must be a file name without a path. 流程工件名称必须是不含路径的文件名。");
         }
 
         return name;
-        int resolveIndexOfAnyResult()
+        int InvalidNameCharacterIndex()
         {
-            var getInvalidFileNameCharsResult = Path.GetInvalidFileNameChars();
-            var indexOfAnyResult = name.IndexOfAny(getInvalidFileNameCharsResult);
-            return indexOfAnyResult;
+            var invalidFileNameChars = Path.GetInvalidFileNameChars();
+            return name.IndexOfAny(invalidFileNameChars);
         }
     }
 
@@ -194,7 +186,7 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
 
     private static string InferImageContentType(string fileName)
     {
-        string evaluatedValue2 = resolveToLowerInvariantResult() switch
+        return Path.GetExtension(fileName).ToLowerInvariant() switch
         {
             ".jpg" or ".jpeg" => "image/jpeg",
             ".gif" => "image/gif",
@@ -204,19 +196,11 @@ internal sealed class FileFlowWorkpiece : IFlowWorkpiece
             ".svg" => "image/svg+xml",
             _ => FlowWorkpieceContentTypes.Png,
         };
-        return evaluatedValue2;
-        string resolveToLowerInvariantResult()
-        {
-            var getExtensionResult = Path.GetExtension(fileName);
-            var toLowerInvariantResult = getExtensionResult.ToLowerInvariant();
-            return toLowerInvariantResult;
-        }
     }
 
     private static JsonSerializerOptions CreateMetadataOptions()
     {
-        var createContractOptionsResult = SereinJsonSerialization.CreateContractOptions();
-        return createContractOptionsResult;
+        return SereinJsonSerialization.CreateContractOptions();
     }
 
     private static void TryDelete(string path)

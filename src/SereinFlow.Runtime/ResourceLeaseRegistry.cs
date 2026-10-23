@@ -1,4 +1,5 @@
 namespace SereinFlow.Runtime;
+
 public sealed class ResourceLeaseRegistry : IAsyncDisposable, IDisposable
 {
     private readonly object _gate = new();
@@ -31,10 +32,10 @@ public sealed class ResourceLeaseRegistry : IAsyncDisposable, IDisposable
 
     public void Dispose()
     {
-        var disposeAsyncResult = DisposeAsync();
-        var asTaskResult = disposeAsyncResult.AsTask();
-        var getAwaiterResult = asTaskResult.GetAwaiter();
-        getAwaiterResult.GetResult();
+        DisposeAsync()
+            .AsTask()
+            .GetAwaiter()
+            .GetResult();
     }
 
     public async ValueTask DisposeAsync()
@@ -48,7 +49,7 @@ public sealed class ResourceLeaseRegistry : IAsyncDisposable, IDisposable
             }
 
             _disposed = true;
-            leases = [.._leases];
+            leases = [.. _leases];
             _leases.Clear();
         }
 

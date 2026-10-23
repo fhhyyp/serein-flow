@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -177,33 +178,16 @@ internal static class CSharpRules
                 }
             }
 
-            var arguments = node switch
-            {
-                InvocationExpressionSyntax invocation => invocation.ArgumentList.Arguments,
-                ObjectCreationExpressionSyntax { ArgumentList: { } argumentList } => argumentList.Arguments,
-                ImplicitObjectCreationExpressionSyntax creation => creation.ArgumentList.Arguments,
-                ConstructorInitializerSyntax initializer => initializer.ArgumentList.Arguments,
-                _ => default
-            };
-            if (IsCall(node))
-            {
-                foreach (var argument in arguments)
-                {
-                    if (HasCall(argument.Expression))
-                    {
-                        Report("CALL001", argument, "Store argument call results before invoking another method.");
-                    }
-                }
-            }
-
-            if (node is ReturnStatementSyntax { Expression: { } returned } && HasCall(returned) || node is LambdaExpressionSyntax { Body: ExpressionSyntax lambdaBody } && HasCall(lambdaBody))
-            {
-                Report("RETURN001", node, "Store the result in a named variable before returning.");
-            }
-
             if (node is VariableDeclarationSyntax declaration && declaration.Variables.Count > SingleVariable)
             {
                 Report("DECL001", node, "Declare each variable separately.");
+            }
+
+            if (file.Replace('\\', '/').StartsWith("src/", StringComparison.Ordinal)
+                && node is VariableDeclaratorSyntax { Parent.Parent: LocalDeclarationStatementSyntax } variable
+                && Regex.IsMatch(variable.Identifier.ValueText, @"^(?:(?:argument|evaluatedValue|conditionalValue|optionalReceiver|optionalResult|result)\d+|\w+Result\d+)$", RegexOptions.CultureInvariant))
+            {
+                Report("NAME001", node, "Remove forwarding temporaries or name the variable for its purpose instead of numbering it.");
             }
 
             if (node is IfStatementSyntax condition)
@@ -268,35 +252,6 @@ internal static class CSharpRules
 
     }
 
-    private static bool IsCall(SyntaxNode node)
-    {
-        var isCall = node is InvocationExpressionSyntax { Expression: not IdentifierNameSyntax { Identifier.ValueText: "nameof" } } or ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax or ConstructorInitializerSyntax;
-        return isCall;
-    }
-
-    private static bool HasCall(SyntaxNode node)
-    {
-        if (node is AnonymousFunctionExpressionSyntax)
-        {
-            return false;
-        }
-
-        if (IsCall(node))
-        {
-            return true;
-        }
-
-        foreach (var child in node.ChildNodes())
-        {
-            if (HasCall(child))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static string Normalize(SyntaxNode node)
     {
         var tokens = node.DescendantTokens();
@@ -343,8 +298,6 @@ internal static class ConventionTests
         var invalidCases = new Dictionary<string, string>
         {
             ["PARSE001"] = "class C { void M() { var value = ; } }",
-            ["CALL001"] = "class C { void M() { Outer(Inner()); } }",
-            ["RETURN001"] = "class C { object M() { return Create(); } }",
             ["DECL001"] = "class C { void M() { int first = 1, second = 2; } }",
             ["FLOW001"] = "class C { void M() { if (enabled) Run(); } }",
             ["FLOW002"] = "class C { void M() { if (enabled) { Run(); } else { Stop(); } } }",
@@ -387,13 +340,13 @@ internal static class ConventionTests
             return FailureExitCode;
         }
 
-        const string expressionSource = "class C { void M() { Query(row => row.Id.ToString()); } }";
-        const string queryExpression = "row => row.Id.ToString()";
+        const string expressionSource = "class C { void M() { Query(row => { if (row.Enabled) Run(); }); } }";
+        const string queryExpression = "row => { if (row.Enabled) Run(); }";
         var unregisteredDiagnostics = CSharpRules.Check(expressionSource, "test.cs");
-        var reportsImplicitReturn = unregisteredDiagnostics.Exists(static diagnostic => diagnostic.Rule == "RETURN001");
-        if (!reportsImplicitReturn)
+        var reportsUnbracedBranch = unregisteredDiagnostics.Exists(static diagnostic => diagnostic.Rule == "FLOW001");
+        if (!reportsUnbracedBranch)
         {
-            Console.Error.WriteLine("An unregistered expression callback escaped checking.");
+            Console.Error.WriteLine("An unregistered callback with an unbraced branch escaped checking.");
             return FailureExitCode;
         }
 
@@ -411,11 +364,11 @@ internal static class ConventionTests
         const string constructorSource = "class C { void M() { var value = new Container(Create()); } }";
         var awaitedDiagnostics = CSharpRules.Check(awaitedSource, "test.cs");
         var constructorDiagnostics = CSharpRules.Check(constructorSource, "test.cs");
-        var reportsAwaitedReturn = awaitedDiagnostics.Exists(static diagnostic => diagnostic.Rule == "RETURN001");
-        var reportsConstructorNesting = constructorDiagnostics.Exists(static diagnostic => diagnostic.Rule == "CALL001");
-        if (!reportsAwaitedReturn || !reportsConstructorNesting)
+        var permitsAwaitedReturn = awaitedDiagnostics.Count == SuccessExitCode;
+        var permitsConstructorNesting = constructorDiagnostics.Count == SuccessExitCode;
+        if (!permitsAwaitedReturn || !permitsConstructorNesting)
         {
-            Console.Error.WriteLine("Awaited returns and nested constructors must be checked.");
+            Console.Error.WriteLine("Awaited returns and nested constructors must remain natural expressions.");
             return FailureExitCode;
         }
 
@@ -434,10 +387,10 @@ internal static class ConventionTests
         var permitsOptionalChain = optionalDiagnostics.Count == SuccessExitCode;
         var permitsDeconstruction = deconstructionDiagnostics.Count == SuccessExitCode;
         var reportsGlobalStatements = globalDiagnostics.Exists(static diagnostic => diagnostic.Rule == "LINE001");
-        var reportsInitializerNesting = initializerDiagnostics.Exists(static diagnostic => diagnostic.Rule == "CALL001");
+        var permitsInitializerNesting = initializerDiagnostics.Count == SuccessExitCode;
         var reportsNestedStatements = nestedStatementDiagnostics.Exists(static diagnostic => diagnostic.Rule == "LINE001");
         var reportsSharedEnd = sharedEndDiagnostics.Exists(static diagnostic => diagnostic.Rule == "LINE001");
-        if (!permitsOptionalChain || !permitsDeconstruction || !reportsGlobalStatements || !reportsInitializerNesting || !reportsNestedStatements || !reportsSharedEnd)
+        if (!permitsOptionalChain || !permitsDeconstruction || !reportsGlobalStatements || !permitsInitializerNesting || !reportsNestedStatements || !reportsSharedEnd)
         {
             Console.Error.WriteLine("Optional chains, deconstruction and top-level statements must be checked.");
             return FailureExitCode;
@@ -452,8 +405,8 @@ internal static class ConventionTests
             ("void M()\n{\n(int first, string second) = Read();\n}", null),
             ("void M()\n{\nvar (first, (second, _)) = Read();\n}", null),
             ("void M()\n{\nforeach (var (first, second) in items)\n{\nUse(first, second);\n}\n}", null),
-            ("object M() => Outer(Inner());", "CALL001"),
-            ("void M()\n{\nvar (first, second) = Outer(Inner());\n}", "CALL001"),
+            ("object M() => Outer(Inner());", null),
+            ("void M()\n{\nvar (first, second) = Outer(Inner());\n}", null),
             ("void M()\n{\nint first = 1, second = 2;\n}", "DECL001")
         };
         foreach (var testCase in expressionAndTupleCases)
@@ -476,10 +429,10 @@ internal static class ConventionTests
             ("var result = items.Where(x => x > 0).OrderBy(x => x).Take(2).ToArray();", null),
             ("var result = items.Select(x => x).ToHashSet();", null),
             ("var result = items.AsQueryable().Where(x => x > 0).Select(x => x).ToArray();", null),
-            ("var result = items.Select(x => Transform(x)).ToArray();", "RETURN001"),
-            ("var result = items.Where(x => x > Limit()).ToArray();", "RETURN001"),
-            ("var result = items.Take(Limit()).ToArray();", "CALL001"),
-            ("var result = items.Select(x => {\nOuter(Transform(x));\nreturn x;\n}).ToArray();", "CALL001"),
+            ("var result = items.Select(x => Transform(x)).ToArray();", null),
+            ("var result = items.Where(x => x > Limit()).ToArray();", null),
+            ("var result = items.Take(Limit()).ToArray();", null),
+            ("var result = items.Select(x => {\nOuter(Transform(x));\nreturn x;\n}).ToArray();", null),
             ("var result = Read().Where(x => x > 0).ToArray();", null),
             ("var result = new Custom().Where().ToArray();", null),
             ("var result = items.Where(x => x > 0).ToArray().Clone();", null),
@@ -487,8 +440,8 @@ internal static class ConventionTests
             ("var result = Enum.GetValues<DayOfWeek>().ToHashSet();", null),
             ("var result = element.EnumerateArray().Select(x => x).ToArray();", null),
             ("var result = Read()?.Where(x => x > 0).ToArray();", null),
-            ("var result = Source().Next(Transform(1));", "CALL001"),
-            ("var result = items.Select(x => Source().Next()).ToArray();", "RETURN001")
+            ("var result = Source().Next(Transform(1));", null),
+            ("var result = items.Select(x => Source().Next()).ToArray();", null)
         };
         foreach (var testCase in linqCases)
         {
@@ -503,6 +456,41 @@ internal static class ConventionTests
                 Console.Error.WriteLine($"Chain convention regression: {testCase.Source}");
                 return FailureExitCode;
             }
+        }
+
+        const string numberedTemporarySource = """
+            class C
+            {
+                object M()
+                {
+                    var argument4 = Read();
+                    return argument4;
+                }
+            }
+            """;
+        var numberedTemporaryDiagnostics = CSharpRules.Check(numberedTemporarySource, "src/Example.cs");
+        if (!numberedTemporaryDiagnostics.Exists(static diagnostic => diagnostic.Rule == "NAME001"))
+        {
+            Console.Error.WriteLine("Numbered forwarding temporaries must be rejected in production sources.");
+            return FailureExitCode;
+        }
+
+        const string meaningfulNumbersSource = """
+            class C
+            {
+                void M()
+                {
+                    var sha256 = Hash();
+                    var isV2 = IsCurrentVersion();
+                    var packageBase64 = Encode();
+                    Send(sha256, isV2, packageBase64);
+                }
+            }
+            """;
+        if (CSharpRules.Check(meaningfulNumbersSource, "src/Example.cs").Count != SuccessExitCode)
+        {
+            Console.Error.WriteLine("Algorithm, encoding and version numbers must remain valid names.");
+            return FailureExitCode;
         }
 
         Console.WriteLine("C# convention self-tests passed.");

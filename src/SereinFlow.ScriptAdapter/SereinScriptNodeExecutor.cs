@@ -8,6 +8,7 @@ using ScriptLang.Runtime.ByteCode;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.ScriptAdapter;
+
 public interface IScriptNodeExecutor : INodeExecutor
 {
 }
@@ -35,8 +36,7 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
         var definition = request.Node.Script;
         if (definition is null)
         {
-            var errorResult = NodeExecutionResult.Error(ScriptErrorCodes.DefinitionMissing, "Script node definition is missing. 脚本节点定义缺失。");
-            return errorResult;
+            return NodeExecutionResult.Error(ScriptErrorCodes.DefinitionMissing, "Script node definition is missing. 脚本节点定义缺失。");
         }
 
         try
@@ -63,13 +63,11 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
                 var cacheKey = (definition.NodeId, definition.ArtifactFingerprint);
                 var cached = _compiledChunks.GetOrAdd(cacheKey, _ =>
                 {
-                    var operationResult2 = new Lazy<ByteCodeChunk>(() =>
+                    return new Lazy<ByteCodeChunk>(() =>
                     {
-                        var operationResult2 = definition.Inputs.Select(static input => input.Name);
-                        var operationResult1 = engine.CompileSource(definition.Source, $"{definition.NodeId}.script", operationResult2);
-                        return operationResult1;
+                        var inputs = definition.Inputs.Select(static input => input.Name);
+                        return engine.CompileSource(definition.Source, $"{definition.NodeId}.script", inputs);
                     });
-                    return operationResult2;
                 });
                 try
                 {
@@ -77,8 +75,8 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
                 }
                 catch
                 {
-                    var operationResult3 = new KeyValuePair<(string NodeId, string Fingerprint), Lazy<ByteCodeChunk>>(cacheKey, cached);
-                    _compiledChunks.TryRemove(operationResult3);
+                    var keyValuePair = new KeyValuePair<(string NodeId, string Fingerprint), Lazy<ByteCodeChunk>>(cacheKey, cached);
+                    _compiledChunks.TryRemove(keyValuePair);
                     throw;
                 }
             }
@@ -94,46 +92,38 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
                 // 已持久化的 .ssc 仅包含源码实际引用的全局变量；重新注册全部声明输入，
                 // 使当前未在源码中使用但合法的连接器也能安全赋值。
                 engine.RegisterGlobal(input.Name);
-                var getValueOrDefaultResult = request.Inputs.GetValueOrDefault(inputId);
-                var toScriptValueResult = ScriptValueConverter.ToScriptValue(getValueOrDefaultResult);
-                engine.SetGlobal(input.Name, toScriptValueResult);
+                var scriptValue = ScriptValueConverter.ToScriptValue(request.Inputs.GetValueOrDefault(inputId));
+                engine.SetGlobal(input.Name, scriptValue);
             }
 
             var result = await task.RunAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            var mapOutputsResult = MapOutputs(definition, result);
-            var successResult = NodeExecutionResult.Success(mapOutputsResult);
-            return successResult;
+            return NodeExecutionResult.Success(MapOutputs(definition, result));
         }
         catch (OperationCanceledException)
         {
-            var failureResult = NodeExecutionResult.Failure(ScriptErrorCodes.Cancelled, "Script execution was cancelled. 脚本执行已取消。");
-            return failureResult;
+            return NodeExecutionResult.Failure(ScriptErrorCodes.Cancelled, "Script execution was cancelled. 脚本执行已取消。");
         }
         catch (ScriptExecutionException exception)
         {
-            var errorResult1 = NodeExecutionResult.Error(exception.Code, exception.Message);
             // Script exceptions are engine-visible errors rather than a
             // business Failure branch.  This keeps unhandled script faults
             // distinguishable from a script that deliberately returns a
             // failure value.
             // 脚本异常属于引擎错误，统一进入 Error 分支；只有脚本显式返回业务结果时才走 Success/Failure。
-            return errorResult1;
+            return NodeExecutionResult.Error(exception.Code, exception.Message);
         }
         catch (NotSupportedException exception)
         {
-            var errorResult2 = NodeExecutionResult.Error(ScriptErrorCodes.ValueUnsupported, $"Script value is not supported. 脚本值不受支持。 {exception.Message}");
-            return errorResult2;
+            return NodeExecutionResult.Error(ScriptErrorCodes.ValueUnsupported, $"Script value is not supported. 脚本值不受支持。 {exception.Message}");
         }
         catch (InvalidOperationException exception)
         {
-            var errorResult3 = NodeExecutionResult.Error(ScriptErrorCodes.CompileFailed, $"Script compilation failed. 脚本编译失败。 {exception.Message}");
-            return errorResult3;
+            return NodeExecutionResult.Error(ScriptErrorCodes.CompileFailed, $"Script compilation failed. 脚本编译失败。 {exception.Message}");
         }
         catch (Exception exception)
         {
-            var errorResult4 = NodeExecutionResult.Error(ScriptErrorCodes.RuntimeFailed, $"Script runtime execution failed. 脚本运行时执行失败。 {exception.Message}");
-            return errorResult4;
+            return NodeExecutionResult.Error(ScriptErrorCodes.RuntimeFailed, $"Script runtime execution failed. 脚本运行时执行失败。 {exception.Message}");
         }
     }
 
@@ -142,8 +132,7 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
         var contracts = definition.Inputs.ToDictionary(input => input.Id ?? input.Name, StringComparer.Ordinal);
         var unknown = inputs.Keys.FirstOrDefault(id =>
         {
-            var evaluatedValue = !contracts.ContainsKey(id);
-            return evaluatedValue;
+            return !contracts.ContainsKey(id);
         });
         if (unknown is not null)
         {
@@ -152,8 +141,7 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
 
         var missing = definition.Inputs.FirstOrDefault(input =>
         {
-            var evaluatedValue5 = input.Required && !inputs.ContainsKey(input.Id ?? input.Name);
-            return evaluatedValue5;
+            return input.Required && !inputs.ContainsKey(input.Id ?? input.Name);
         });
         if (missing is not null)
         {
@@ -165,17 +153,15 @@ public sealed class SereinScriptNodeExecutor : IScriptNodeExecutor
     {
         if (definition.Outputs.Count == 0)
         {
-            var dictionary = new Dictionary<string, object?>();
-            return dictionary;
+            return new Dictionary<string, object?>();
         }
 
         if (definition.Outputs.Count == 1)
         {
-            var dictionary6 = new Dictionary<string, object?>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 [definition.Outputs[0].Id ?? definition.Outputs[0].Name] = result
             };
-            return dictionary6;
         }
 
         if (result is not ObjectValue objectResult)

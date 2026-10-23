@@ -44,7 +44,7 @@ public static class WorkerVariableService
             }
 
             var entry = Project(name, value);
-            var bytes = resolveGetByteCountResult1() + 1;
+            var bytes = GetEntryByteCount() + 1;
             if (bytes > remainingBytes && entry.ValueAvailable)
             {
                 entry = entry with
@@ -54,13 +54,12 @@ public static class WorkerVariableService
                     ValueAvailable = false,
                     UnavailableReason = "snapshot_limit"
                 };
-                bytes = resolveGetByteCountResult() + 1;
+                bytes = GetUpdatedEntryByteCount() + 1;
                 truncated = true;
-                int resolveGetByteCountResult()
+                int GetUpdatedEntryByteCount()
                 {
-                    var serializePayloadResult = WorkerProtocolCodec.SerializePayload(entry);
-                    var getByteCountResult = Encoding.UTF8.GetByteCount(serializePayloadResult);
-                    return getByteCountResult;
+                    var entryJson = WorkerProtocolCodec.SerializePayload(entry);
+                    return Encoding.UTF8.GetByteCount(entryJson);
                 }
             }
 
@@ -72,30 +71,25 @@ public static class WorkerVariableService
 
             entries.Add(entry);
             remainingBytes -= bytes;
-            int resolveGetByteCountResult1()
+            int GetEntryByteCount()
             {
-                var serializePayloadResult2 = WorkerProtocolCodec.SerializePayload(entry);
-                var getByteCountResult3 = Encoding.UTF8.GetByteCount(serializePayloadResult2);
-                return getByteCountResult3;
+                var entryJson = WorkerProtocolCodec.SerializePayload(entry);
+                return Encoding.UTF8.GetByteCount(entryJson);
             }
         }
-
-        RunVariableSnapshotDto evaluatedValue = new(runId, entries, values.Count, 0, false, DateTimeOffset.UtcNow, IsFinal: true, IsTruncated: truncated);
-        return evaluatedValue;
+        return new(runId, entries, values.Count, 0, false, DateTimeOffset.UtcNow, IsFinal: true, IsTruncated: truncated);
     }
 
     public static WorkerVariableResponseDto Execute(Guid runId, LibraryVariableService variables, WorkerVariableRequestDto request)
     {
         if (request.ProtocolVersion != WorkerProtocolConstants.Version || request.RunId != runId)
         {
-            var failureResult = Failure(runId, VariableErrorCodes.InvalidRequest, "Variable request does not match this run. 变量请求与当前运行不匹配。");
-            return failureResult;
+            return Failure(runId, VariableErrorCodes.InvalidRequest, "Variable request does not match this run. 变量请求与当前运行不匹配。");
         }
 
         if (request.Operation is not ("list" or "get" or "set") || request.Offset < 0 || request.Take is < 1 or > 200 || (request.Operation != "list" && (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 256)))
         {
-            var failureResult4 = Failure(runId, VariableErrorCodes.InvalidRequest, "Invalid variable operation, name or page. 变量操作、名称或分页参数无效。");
-            return failureResult4;
+            return Failure(runId, VariableErrorCodes.InvalidRequest, "Invalid variable operation, name or page. 变量操作、名称或分页参数无效。");
         }
 
         WorkerVariableResponseDto response;
@@ -104,14 +98,12 @@ public static class WorkerVariableService
             var input = request.Value;
             if (input.ValueKind == JsonValueKind.Undefined)
             {
-                var failureResult5 = Failure(runId, VariableErrorCodes.ValueInvalid, "A JSON value is required, including explicit null. 必须提供 JSON 值，允许显式 null。");
-                return failureResult5;
+                return Failure(runId, VariableErrorCodes.ValueInvalid, "A JSON value is required, including explicit null. 必须提供 JSON 值，允许显式 null。");
             }
 
-            if (resolveGetByteCountResult9() > MaxValueBytes)
+            if (GetInputByteCount() > MaxValueBytes)
             {
-                var failureResult6 = Failure(runId, VariableErrorCodes.TooLarge, "Variable values are limited to 16384 JSON bytes. 变量值的 JSON 大小不能超过 16384 字节。", 413);
-                return failureResult6;
+                return Failure(runId, VariableErrorCodes.TooLarge, "Variable values are limited to 16384 JSON bytes. 变量值的 JSON 大小不能超过 16384 字节。", 413);
             }
 
             object? value;
@@ -121,23 +113,20 @@ public static class WorkerVariableService
             }
             catch (NotSupportedException)
             {
-                var failureResult7 = Failure(runId, VariableErrorCodes.TypeInvalid, "Use null, boolean, string, int32, int64, double, decimal or json. 请使用 null、boolean、string、int32、int64、double、decimal 或 json。");
-                return failureResult7;
+                return Failure(runId, VariableErrorCodes.TypeInvalid, "Use null, boolean, string, int32, int64, double, decimal or json. 请使用 null、boolean、string、int32、int64、double、decimal 或 json。");
             }
             catch (Exception exception) when (exception is InvalidOperationException or FormatException or OverflowException or JsonException)
             {
-                var failureResult8 = Failure(runId, VariableErrorCodes.ValueInvalid, "The JSON value does not match valueType. JSON 值与 valueType 不匹配。");
-                return failureResult8;
+                return Failure(runId, VariableErrorCodes.ValueInvalid, "The JSON value does not match valueType. JSON 值与 valueType 不匹配。");
             }
 
             variables.Set(request.Name!, value);
-            var projectResult = Project(request.Name!, value);
-            response = new(WorkerProtocolConstants.Version, runId, 200, Variable: projectResult);
-            int resolveGetByteCountResult9()
+            var variable = Project(request.Name!, value);
+            response = new(WorkerProtocolConstants.Version, runId, 200, Variable: variable);
+            int GetInputByteCount()
             {
-                var getRawTextResult = input.GetRawText();
-                var getByteCountResult10 = Encoding.UTF8.GetByteCount(getRawTextResult);
-                return getByteCountResult10;
+                var rawText = input.GetRawText();
+                return Encoding.UTF8.GetByteCount(rawText);
             }
         }
         else
@@ -147,12 +136,11 @@ public static class WorkerVariableService
             {
                 if (!snapshot.TryGetValue(request.Name!, out var value))
                 {
-                    var failureResult11 = Failure(runId, VariableErrorCodes.NotFound, "Variable not found. 未找到变量。", 404);
-                    return failureResult11;
+                    return Failure(runId, VariableErrorCodes.NotFound, "Variable not found. 未找到变量。", 404);
                 }
 
-                var projectResult12 = Project(request.Name!, value);
-                response = new(WorkerProtocolConstants.Version, runId, 200, Variable: projectResult12);
+                var project = Project(request.Name!, value);
+                response = new(WorkerProtocolConstants.Version, runId, 200, Variable: project);
             }
             else
             {
@@ -162,18 +150,17 @@ public static class WorkerVariableService
                     .Take(request.Take)
                     .Select(static item =>
                     {
-                        var projectResult13 = Project(item.Key, item.Value);
-                        return projectResult13;
+                        return Project(item.Key, item.Value);
                     })
                     .ToArray();
-                RunVariableSnapshotDto evaluatedValue14 = new(runId, entries, snapshot.Count, request.Offset, request.Offset + entries.Length < snapshot.Count, DateTimeOffset.UtcNow);
-                response = new(WorkerProtocolConstants.Version, runId, 200, Snapshot: evaluatedValue14);
+                RunVariableSnapshotDto runVariableSnapshotDto = new(runId, entries, snapshot.Count, request.Offset, request.Offset + entries.Length < snapshot.Count, DateTimeOffset.UtcNow);
+                response = new(WorkerProtocolConstants.Version, runId, 200, Snapshot: runVariableSnapshotDto);
             }
         }
 
         // Drop large value projections while retaining names/types and paging metadata.
         // 丢弃过大的值投影，同时保留名称、类型及分页元数据。
-        if (resolveGetByteCountResult20() > MaxResponseBytes)
+        if (GetResponseByteCount() > MaxResponseBytes)
         {
             if (response.Snapshot is { } snapshot)
             {
@@ -181,44 +168,36 @@ public static class WorkerVariableService
                 {
                     Snapshot = snapshot with
                     {
-                        Variables = resolveToArrayResult()
+                        Variables = snapshot.Variables
+                        .Select(static item => item.ValueAvailable ? item with { Value = null, ValueJson = null, ValueAvailable = false, UnavailableReason = "snapshot_limit" } : item)
+                        .ToArray()
                     }
                 };
-                IReadOnlyList<RunVariableDto> resolveToArrayResult()
-                {
-                    var toArrayResult = snapshot.Variables
-                        .Select(static item => item.ValueAvailable ? item with { Value = null, ValueJson = null, ValueAvailable = false, UnavailableReason = "snapshot_limit" } : item)
-                        .ToArray();
-                    return toArrayResult;
-                }
             }
 
-            if (resolveGetByteCountResult17() > MaxResponseBytes)
+            if (GetListResponseByteCount() > MaxResponseBytes)
             {
-                var failureResult16 = Failure(runId, VariableErrorCodes.TooLarge, "Variable metadata exceeds the response limit; request a smaller page. 变量元数据超过响应大小限制，请减小分页大小。", 413);
-                return failureResult16;
+                return Failure(runId, VariableErrorCodes.TooLarge, "Variable metadata exceeds the response limit; request a smaller page. 变量元数据超过响应大小限制，请减小分页大小。", 413);
             }
 
-            int resolveGetByteCountResult17()
+            int GetListResponseByteCount()
             {
-                var serializePayloadResult18 = WorkerProtocolCodec.SerializePayload(response);
-                var getByteCountResult19 = Encoding.UTF8.GetByteCount(serializePayloadResult18);
-                return getByteCountResult19;
+                var responseJson = WorkerProtocolCodec.SerializePayload(response);
+                return Encoding.UTF8.GetByteCount(responseJson);
             }
         }
 
         return response;
-        int resolveGetByteCountResult20()
+        int GetResponseByteCount()
         {
-            var serializePayloadResult21 = WorkerProtocolCodec.SerializePayload(response);
-            var getByteCountResult22 = Encoding.UTF8.GetByteCount(serializePayloadResult21);
-            return getByteCountResult22;
+            var responseJson = WorkerProtocolCodec.SerializePayload(response);
+            return Encoding.UTF8.GetByteCount(responseJson);
         }
     }
 
     private static object? ParseValue(JsonElement value, string? valueType)
     {
-        object? evaluatedValue23 = valueType switch
+        return valueType switch
         {
             "null" when value.ValueKind == JsonValueKind.Null => null,
             "string" when value.ValueKind == JsonValueKind.Null => null,
@@ -226,25 +205,17 @@ public static class WorkerVariableService
             "boolean" => value.GetBoolean(),
             "int32" => value.GetInt32(),
             "int64" => value.GetInt64(),
-            "double" => resolveFiniteDoubleResult(),
+            "double" => FiniteDouble(value.GetDouble()),
             "decimal" => value.GetDecimal(),
             "json" => value.Clone(),
             "null" => throw new InvalidOperationException(),
             _ => throw new NotSupportedException(),
         };
-        return evaluatedValue23;
-        object resolveFiniteDoubleResult()
-        {
-            var getDoubleResult = value.GetDouble();
-            var finiteDoubleResult = FiniteDouble(getDoubleResult);
-            return finiteDoubleResult;
-        }
     }
 
     private static double FiniteDouble(double value)
     {
-        double evaluatedValue24 = double.IsFinite(value) ? value : throw new OverflowException();
-        return evaluatedValue24;
+        return double.IsFinite(value) ? value : throw new OverflowException();
     }
 
     private static RunVariableDto Project(string name, object? value)
@@ -254,19 +225,16 @@ public static class WorkerVariableService
         {
             if (!TryProjectValue(value, 0, out var safe))
             {
-                RunVariableDto evaluatedValue25 = new(name, type, false, null, "unsupported_type");
-                return evaluatedValue25;
+                return new(name, type, false, null, "unsupported_type");
             }
 
             var json = JsonSerializer.SerializeToElement(safe, JsonOptions);
             var raw = json.GetRawText();
-            RunVariableDto evaluatedValue26 = Encoding.UTF8.GetByteCount(raw) <= MaxValueBytes ? new(name, type, true, json, ValueJson: raw) : new(name, type, false, null, "value_limit");
-            return evaluatedValue26;
+            return Encoding.UTF8.GetByteCount(raw) <= MaxValueBytes ? new(name, type, true, json, ValueJson: raw) : new(name, type, false, null, "value_limit");
         }
         catch (Exception exception) when (exception is JsonException or NotSupportedException or InvalidOperationException or ObjectDisposedException or ArgumentException)
         {
-            RunVariableDto evaluatedValue27 = new(name, type, false, null, "not_json");
-            return evaluatedValue27;
+            return new(name, type, false, null, "not_json");
         }
     }
 
@@ -302,14 +270,12 @@ public static class WorkerVariableService
         var type = value.GetType();
         if (value is Array { Rank: 1 } array && array.Length <= 128)
         {
-            var projectCollectionResult = ProjectCollection(array, depth, out safe);
-            return projectCollectionResult;
+            return ProjectCollection(array, depth, out safe);
         }
 
         if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>) && value is IList { Count: <= 128 } list)
         {
-            var projectCollectionResult28 = ProjectCollection(list, depth, out safe);
-            return projectCollectionResult28;
+            return ProjectCollection(list, depth, out safe);
         }
 
         if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>) && type.GetGenericArguments()[0] == typeof(string) && value is IDictionary { Count: <= 128 } dictionary)
@@ -352,7 +318,6 @@ public static class WorkerVariableService
 
     private static WorkerVariableResponseDto Failure(Guid runId, string code, string message, int status = 400)
     {
-        WorkerVariableResponseDto evaluatedValue29 = new(WorkerProtocolConstants.Version, runId, status, Code: code, Message: message);
-        return evaluatedValue29;
+        return new(WorkerProtocolConstants.Version, runId, status, Code: code, Message: message);
     }
 }

@@ -14,108 +14,92 @@ public static class FlowDefinitionContractMapper
             throw new ArgumentNullException(nameof(dto), "The flow definition cannot be null. 流程定义不能为空。");
         }
 
-        var selectResult = dto.Canvases.Select(MapCanvas);
-        FlowRunPolicy? evaluatedValue = dto.RunPolicy is null ? null : new FlowRunPolicy((FlowConcurrencyMode)dto.RunPolicy.ConcurrencyMode);
-        var createResult = FlowDefinition.Create(dto.Id, dto.Version, selectResult, dto.EntryNodeId, dto.SchemaVersion, dto.Checksum, evaluatedValue);
-        return createResult;
+        var canvases = dto.Canvases.Select(MapCanvas);
+        FlowRunPolicy? runPolicy = dto.RunPolicy is null ? null : new FlowRunPolicy((FlowConcurrencyMode)dto.RunPolicy.ConcurrencyMode);
+        return FlowDefinition.Create(dto.Id, dto.Version, canvases, dto.EntryNodeId, dto.SchemaVersion, dto.Checksum, runPolicy);
     }
 
     private static CanvasDefinition MapCanvas(CanvasDto dto)
     {
-        var selectResult1 = dto.Nodes.Select(MapNode);
-        var selectResult2 = dto.Connections.Select(MapConnection);
-        var createResult3 = CanvasDefinition.Create(dto.Id, (CanvasLifecycle)dto.Lifecycle, selectResult1, selectResult2);
-        return createResult3;
+        var nodes = dto.Nodes.Select(MapNode);
+        var connections = dto.Connections.Select(MapConnection);
+        return CanvasDefinition.Create(dto.Id, (CanvasLifecycle)dto.Lifecycle, nodes, connections);
     }
 
     private static NodeDefinition MapNode(NodeDto dto)
     {
         var nodePosition = new NodePosition(dto.X, dto.Y);
-        var selectResult5 = dto.Ports.Select(port =>
+        var ports = dto.Ports.Select(port =>
         {
-            var parseResult = Enum.Parse<PortDirection>(port.Direction, true);
-            var portDefinition = new PortDefinition(port.Id, port.Name, parseResult, port.Required);
-            return portDefinition;
+            var direction = Enum.Parse<PortDirection>(port.Direction, true);
+            return new PortDefinition(port.Id, port.Name, direction, port.Required);
         });
-        var selectResult6 = dto.Parameters.Select(parameter =>
+        var parameters = dto.Parameters.Select(parameter =>
         {
-            var parseVariadicModeResult = ParseVariadicMode(parameter.Ui?.VariadicMode);
-            var mapEnumMetadataResult = MapEnumMetadata(parameter.Ui?.EnumMetadata);
-            var nodeParameterDefinition = new NodeParameterDefinition(parameter.Name, parameter.ValueJson, (DataSource)parameter.Source, parameter.Required, parameter.Ui?.Id, parameter.Ui?.ProjectInputKey, parameter.Ui?.Expression, parameter.Ui?.SourceNodeId, parameter.Ui?.SourcePortId, parameter.Ui?.ValueKind, parameter.Ui?.Description, parameter.Ui?.IsVariadic ?? false, parameter.Ui?.VariadicGroupId, parameter.Ui?.ElementType, parseVariadicModeResult, mapEnumMetadataResult);
-            return nodeParameterDefinition;
+            var variadicMode = ParseVariadicMode(parameter.Ui?.VariadicMode);
+            var enumMetadata = MapEnumMetadata(parameter.Ui?.EnumMetadata);
+            return new NodeParameterDefinition(parameter.Name, parameter.ValueJson, (DataSource)parameter.Source, parameter.Required, parameter.Ui?.Id, parameter.Ui?.ProjectInputKey, parameter.Ui?.Expression, parameter.Ui?.SourceNodeId, parameter.Ui?.SourcePortId, parameter.Ui?.ValueKind, parameter.Ui?.Description, parameter.Ui?.IsVariadic ?? false, parameter.Ui?.VariadicGroupId, parameter.Ui?.ElementType, variadicMode, enumMetadata);
         });
-        ScriptNodeDefinition? conditionalValue;
+        ScriptNodeDefinition? script;
         if (dto.Script is null)
         {
-            conditionalValue = null;
+            script = null;
         }
         else
         {
-            var selectResult3 = dto.Parameters.Select(input =>
+            var inputs = dto.Parameters.Select(input =>
             {
-                var scriptValueContract = new ScriptValueContract(input.Name, input.Ui?.ValueKind ?? "System.Object", input.Required, input.Ui?.Id, input.Ui?.Description);
-                return scriptValueContract;
+                return new ScriptValueContract(input.Name, input.Ui?.ValueKind ?? "System.Object", input.Required, input.Ui?.Id, input.Ui?.Description);
             });
-            var selectResult4 = dto.Script.Outputs.Select(output =>
+            var outputs = dto.Script.Outputs.Select(output =>
             {
-                var scriptValueContract4 = new ScriptValueContract(output.Name, output.ValueKind, output.Required, output.Id, output.Description);
-                return scriptValueContract4;
+                return new ScriptValueContract(output.Name, output.ValueKind, output.Required, output.Id, output.Description);
             });
-            conditionalValue = ScriptNodeDefinition.Create(dto.Script.NodeId, dto.Script.Source, dto.Script.LanguageVersion, // sync while a script is being edited. Compute it from the
-                                                                                                                             // authoritative source on the server instead.
-                                                                                                                             // 浏览器编辑脚本时无法可靠同步加密源哈希，因此由服务端从权威源代码重新计算。
-            sourceHash: null, selectResult3, selectResult4);
+            script = ScriptNodeDefinition.Create(dto.Script.NodeId, dto.Script.Source, dto.Script.LanguageVersion, // sync while a script is being edited. Compute it from the
+                                                                                                                   // authoritative source on the server instead.
+                                                                                                                   // 浏览器编辑脚本时无法可靠同步加密源哈希，因此由服务端从权威源代码重新计算。
+            sourceHash: null, inputs, outputs);
         }
 
-        ScriptNodeDefinition? evaluatedValue7 = conditionalValue;
-        NodeRuntimeDefinition? conditionalValue5;
+        NodeRuntimeDefinition? runtime;
         if (dto.Ui is null)
         {
-            conditionalValue5 = null;
+            runtime = null;
         }
         else
         {
-            Guid? evaluatedValue6 = Guid.TryParse(dto.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null;
-            var optionalReceiver = dto.Ui.FlowCallParameterBindings;
-            IReadOnlyList<FlowCallParameterBinding>? optionalResult = default(IReadOnlyList<FlowCallParameterBinding>);
-            if (optionalReceiver is not null)
+            Guid? parsedTargetFlowId = Guid.TryParse(dto.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null;
+            var bindingDtos = dto.Ui.FlowCallParameterBindings;
+            IReadOnlyList<FlowCallParameterBinding>? bindings = null;
+            if (bindingDtos is not null)
             {
-                var selectResult7 = optionalReceiver.Select(item =>
+                bindings = bindingDtos.Select(item =>
                 {
-                    var flowCallParameterBinding = new FlowCallParameterBinding(item.CallParameterId, item.TargetParameterId);
-                    return flowCallParameterBinding;
-                });
-                optionalResult = selectResult7.ToArray();
+                    return new FlowCallParameterBinding(item.CallParameterId, item.TargetParameterId);
+                }).ToArray();
             }
 
-            var evaluatedValue9 = optionalResult;
-            conditionalValue5 = new NodeRuntimeDefinition(dto.Ui.LibraryId, dto.Ui.ClassName, dto.Ui.MethodName, dto.Ui.DllName, dto.Ui.DllVersion, dto.Ui.ReturnType, dto.Ui.TargetNodeId, evaluatedValue6, dto.Ui.IsAwaitable ?? false, dto.Ui.StaticReturnType, dto.Ui.IsDynamicReturnType ?? false, dto.Ui.TargetCanvasId, dto.Ui.IsPublic ?? false, evaluatedValue9, dto.Ui.LibraryNodeContractId);
+            runtime = new NodeRuntimeDefinition(dto.Ui.LibraryId, dto.Ui.ClassName, dto.Ui.MethodName, dto.Ui.DllName, dto.Ui.DllVersion, dto.Ui.ReturnType, dto.Ui.TargetNodeId, parsedTargetFlowId, dto.Ui.IsAwaitable ?? false, dto.Ui.StaticReturnType, dto.Ui.IsDynamicReturnType ?? false, dto.Ui.TargetCanvasId, dto.Ui.IsPublic ?? false, bindings, dto.Ui.LibraryNodeContractId);
         }
 
-        NodeRuntimeDefinition? evaluatedValue8 = conditionalValue5;
-        var createResult9 = NodeDefinition.Create(dto.Id, (NodeType)dto.Type, dto.DisplayName, nodePosition, selectResult5, selectResult6, evaluatedValue7, evaluatedValue8);
-        return createResult9;
+        return NodeDefinition.Create(dto.Id, (NodeType)dto.Type, dto.DisplayName, nodePosition, ports, parameters, script, runtime);
     }
 
     private static VariadicParameterMode? ParseVariadicMode(string? value)
     {
-        VariadicParameterMode? evaluatedValue10 = Enum.TryParse<VariadicParameterMode>(value, ignoreCase: true, out var mode) ? mode : null;
-        return evaluatedValue10;
+        return Enum.TryParse<VariadicParameterMode>(value, ignoreCase: true, out var mode) ? mode : null;
     }
 
     private static EnumParameterMetadata? MapEnumMetadata(EnumParameterMetadataDto? metadata)
     {
-        EnumParameterMetadata? evaluatedValue12 = metadata is null ? null : resolveEnumParameterMetadata();
-        return evaluatedValue12;
-        EnumParameterMetadata resolveEnumParameterMetadata()
+        return metadata is null ? null : MapMetadata();
+        EnumParameterMetadata MapMetadata()
         {
-            var selectResult11 = metadata.Options.Select(static option =>
+            var options = metadata.Options.Select(static option =>
             {
-                var enumValueOption = new EnumValueOption(option.Name, option.NumericValue);
-                return enumValueOption;
+                return new EnumValueOption(option.Name, option.NumericValue);
             });
-            var enumParameterMetadata = new EnumParameterMetadata(metadata.TypeName, metadata.IsFlags, metadata.UnderlyingType, selectResult11);
-            return enumParameterMetadata;
+            return new EnumParameterMetadata(metadata.TypeName, metadata.IsFlags, metadata.UnderlyingType, options);
         }
     }
 
@@ -132,13 +116,9 @@ public static class FlowDefinitionContractMapper
             {
                 throw new ArgumentException("Execution connection branch is invalid. 流程连接分支无效。", nameof(dto));
             }
-
-            var executionResult = ConnectionDefinition.Execution(dto.FromNodeId, dto.FromPortId, dto.ToNodeId, dto.ToPortId, (ExecutionBranch)dto.Branch.Value, dto.Priority, dto.Id);
-            return executionResult;
+            return ConnectionDefinition.Execution(dto.FromNodeId, dto.FromPortId, dto.ToNodeId, dto.ToPortId, (ExecutionBranch)dto.Branch.Value, dto.Priority, dto.Id);
         }
-
-        var dataResult = ConnectionDefinition.Data(dto.FromNodeId, dto.FromPortId, dto.ToNodeId, dto.ToPortId, (DataSource)(dto.DataSource ?? DataSourceDto.Literal), dto.Priority, dto.Id);
-        return dataResult;
+        return ConnectionDefinition.Data(dto.FromNodeId, dto.FromPortId, dto.ToNodeId, dto.ToPortId, (DataSource)(dto.DataSource ?? DataSourceDto.Literal), dto.Priority, dto.Id);
     }
 }
 
@@ -155,9 +135,7 @@ public static class FlowDefinitionContractValidator
     /// </summary>
     public static FlowValidationResultDto ValidateForPersistence(FlowDefinitionDto definition)
     {
-        var evaluatedValue13 = !string.IsNullOrWhiteSpace(definition.EntryNodeId);
-        var validateCoreResult = ValidateCore(definition, requireExecutionPlan: evaluatedValue13);
-        return validateCoreResult;
+        return ValidateCore(definition, requireExecutionPlan: !string.IsNullOrWhiteSpace(definition.EntryNodeId));
     }
 
     /// <summary>
@@ -167,8 +145,7 @@ public static class FlowDefinitionContractValidator
     /// </summary>
     public static FlowValidationResultDto ValidateForExecution(FlowDefinitionDto definition)
     {
-        var validateCoreResult14 = ValidateCore(definition, requireExecutionPlan: true);
-        return validateCoreResult14;
+        return ValidateCore(definition, requireExecutionPlan: true);
     }
 
     // Preserve the existing strict behavior for callers that have not yet
@@ -176,8 +153,7 @@ public static class FlowDefinitionContractValidator
     // 对尚未迁移到明确校验上下文的调用方，保持原有的严格行为。
     public static FlowValidationResultDto Validate(FlowDefinitionDto definition)
     {
-        var validateForExecutionResult = ValidateForExecution(definition);
-        return validateForExecutionResult;
+        return ValidateForExecution(definition);
     }
 
     private static FlowValidationResultDto ValidateCore(FlowDefinitionDto definition, bool requireExecutionPlan)
@@ -186,24 +162,22 @@ public static class FlowDefinitionContractValidator
         {
             if (definition.RunPolicy is null)
             {
-                IReadOnlyList<ValidationDiagnosticDto> evaluatedValue15 = [new ValidationDiagnosticDto(FlowErrorCodes.RunPolicyMissing, "The flow run policy is required. 流程运行策略不能为空。", "runPolicy")];
-                var flowValidationResultDto = new FlowValidationResultDto(false, evaluatedValue15);
-                return flowValidationResultDto;
+                IReadOnlyList<ValidationDiagnosticDto> missingRunPolicyDiagnostics = [new ValidationDiagnosticDto(FlowErrorCodes.RunPolicyMissing, "The flow run policy is required. 流程运行策略不能为空。", "runPolicy")];
+                return new FlowValidationResultDto(false, missingRunPolicyDiagnostics);
             }
 
             if (!Enum.IsDefined(definition.RunPolicy.ConcurrencyMode))
             {
-                IReadOnlyList<ValidationDiagnosticDto> evaluatedValue16 = [new ValidationDiagnosticDto(FlowErrorCodes.RunPolicyInvalid, "The flow run policy is invalid. 流程运行策略无效。", "runPolicy.concurrencyMode")];
-                var flowValidationResultDto17 = new FlowValidationResultDto(false, evaluatedValue16);
-                return flowValidationResultDto17;
+                IReadOnlyList<ValidationDiagnosticDto> invalidRunPolicyDiagnostics = [new ValidationDiagnosticDto(FlowErrorCodes.RunPolicyInvalid, "The flow run policy is invalid. 流程运行策略无效。", "runPolicy.concurrencyMode")];
+                return new FlowValidationResultDto(false, invalidRunPolicyDiagnostics);
             }
 
             var domain = FlowDefinitionContractMapper.Map(definition);
-            var diagnostics = domain.Validate()
+            var diagnostics = domain
+                .Validate()
                 .Select(static diagnostic =>
                 {
-                    var validationDiagnosticDto = new ValidationDiagnosticDto(diagnostic.Code, diagnostic.Message, diagnostic.Path);
-                    return validationDiagnosticDto;
+                    return new ValidationDiagnosticDto(diagnostic.Code, diagnostic.Message, diagnostic.Path);
                 })
                 .ToList();
             if (diagnostics.Count == 0 && requireExecutionPlan)
@@ -215,23 +189,18 @@ public static class FlowDefinitionContractValidator
                 }
                 catch (DomainValidationException exception)
                 {
-                    var selectResult19 = exception.Diagnostics.Select(static diagnostic =>
+                    diagnostics.AddRange(exception.Diagnostics.Select(static diagnostic =>
                     {
-                        var validationDiagnosticDto18 = new ValidationDiagnosticDto(diagnostic.Code, diagnostic.Message, diagnostic.Path);
-                        return validationDiagnosticDto18;
-                    });
-                    diagnostics.AddRange(selectResult19);
+                        return new ValidationDiagnosticDto(diagnostic.Code, diagnostic.Message, diagnostic.Path);
+                    }));
                 }
             }
-
-            var flowValidationResultDto21 = new FlowValidationResultDto(diagnostics.Count == 0, diagnostics);
-            return flowValidationResultDto21;
+            return new FlowValidationResultDto(diagnostics.Count == 0, diagnostics);
         }
         catch (ArgumentException exception)
         {
-            IReadOnlyList<ValidationDiagnosticDto> evaluatedValue22 = [new ValidationDiagnosticDto(FlowErrorCodes.Invalid, $"Flow definition is invalid. 流程定义无效。 {exception.Message}", null)];
-            var flowValidationResultDto23 = new FlowValidationResultDto(false, evaluatedValue22);
-            return flowValidationResultDto23;
+            IReadOnlyList<ValidationDiagnosticDto> invalidDefinitionDiagnostics = [new ValidationDiagnosticDto(FlowErrorCodes.Invalid, $"Flow definition is invalid. 流程定义无效。 {exception.Message}", null)];
+            return new FlowValidationResultDto(false, invalidDefinitionDiagnostics);
         }
     }
 }
@@ -252,33 +221,25 @@ public static class FlowDefinitionContractNormalizer
     public static FlowDefinitionDto NormalizeForPersistence(FlowDefinitionDto definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        FlowDefinitionDto evaluatedValue24 = string.IsNullOrWhiteSpace(definition.EntryNodeId) ? definition : NormalizeForExecution(definition);
-        return evaluatedValue24;
+        return string.IsNullOrWhiteSpace(definition.EntryNodeId) ? definition : NormalizeForExecution(definition);
     }
 
     public static FlowDefinitionDto Normalize(FlowDefinitionDto definition)
     {
-        var normalizeForExecutionResult = NormalizeForExecution(definition);
-        return normalizeForExecutionResult;
+        return NormalizeForExecution(definition);
     }
 
     public static FlowDefinitionDto NormalizeForExecution(FlowDefinitionDto definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
         var domain = FlowDefinitionContractMapper.Map(definition);
-        var executionPlanBuilder26 = new SereinFlow.Runtime.ExecutionPlanBuilder();
-        var plan = executionPlanBuilder26.Build(domain);
+        var plan = new SereinFlow.Runtime.ExecutionPlanBuilder().Build(domain);
         var normalizedCanvases = definition.Canvases
             .Select(canvas =>
             {
-                var evaluatedValue25 = canvas with
+                return canvas with
                 {
-                    Nodes = resolveToArrayResult9(),
-                };
-                return evaluatedValue25;
-                IReadOnlyList<NodeDto> resolveToArrayResult9()
-                {
-                    var toArrayResult11 = canvas.Nodes
+                    Nodes = canvas.Nodes
                         .Select(node =>
                         {
                             if (node.Script is not null)
@@ -288,20 +249,14 @@ public static class FlowDefinitionContractNormalizer
                                     Script = node.Script with
                                     {
                                         SourceHash = plan.Nodes[node.Id].Script!.SourceHash,
-                                        Inputs = resolveToArrayResult(),
-                                    },
-                                };
-                                IReadOnlyList<ScriptValueContractDto> resolveToArrayResult()
-                                {
-                                    var toArrayResult = node.Parameters
+                                        Inputs = node.Parameters
                                         .Select(parameter =>
                                         {
-                                            var scriptValueContractDto = new ScriptValueContractDto(parameter.Name, parameter.Ui?.ValueKind ?? "System.Object", parameter.Required, parameter.Ui?.Id, parameter.Ui?.Description);
-                                            return scriptValueContractDto;
+                                            return new ScriptValueContractDto(parameter.Name, parameter.Ui?.ValueKind ?? "System.Object", parameter.Required, parameter.Ui?.Id, parameter.Ui?.Description);
                                         })
-                                        .ToArray();
-                                    return toArrayResult;
-                                }
+                                        .ToArray(),
+                                    },
+                                };
                             }
 
                             if (!plan.Nodes.TryGetValue(node.Id, out var runtimeNode) || runtimeNode.Type != NodeType.FlowCall || runtimeNode.Runtime is null || node.Ui is null)
@@ -318,19 +273,17 @@ public static class FlowDefinitionContractNormalizer
                                 },
                             };
                         })
-                        .ToArray();
-                    return toArrayResult11;
-                }
+                        .ToArray(),
+                };
             })
             .ToArray();
         var normalized = definition with
         {
             Canvases = normalizedCanvases
         };
-        var evaluatedValue28 = normalized with
+        return normalized with
         {
             Checksum = FlowDiffService.GetChecksum(normalized)
         };
-        return evaluatedValue28;
     }
 }

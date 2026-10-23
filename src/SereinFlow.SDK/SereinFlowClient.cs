@@ -1,6 +1,7 @@
 using System.Net.Http;
 
 namespace SereinFlow.Client;
+
 public sealed class SereinFlowClient : ISereinFlowClient, IDisposable, IAsyncDisposable
 {
     private readonly HttpClient _httpClient;
@@ -56,11 +57,10 @@ public sealed class SereinFlowClient : ISereinFlowClient, IDisposable, IAsyncDis
     {
         ArgumentNullException.ThrowIfNull(options);
         var validated = options.Validate();
-        var httpClient1 = new HttpClient
+        return new HttpClient
         {
             BaseAddress = validated.BaseAddress,
             Timeout = Timeout.InfiniteTimeSpan
         };
-        return httpClient1;
     }
 }

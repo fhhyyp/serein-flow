@@ -44,7 +44,6 @@ public sealed class NoopExecutionGate : IExecutionGate
 
     public ValueTask<ExecutionGateDecision> BeforeNodeAsync(NodeExecutionBoundary boundary, CancellationToken cancellationToken)
     {
-        var fromResultResult = ValueTask.FromResult(ExecutionGateDecision.Proceed);
-        return fromResultResult;
+        return ValueTask.FromResult(ExecutionGateDecision.Proceed);
     }
 }

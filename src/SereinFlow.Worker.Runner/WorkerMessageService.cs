@@ -43,9 +43,7 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
 
     public IMessageQueue CreateMessageQueue(MessageChannelOptions? options = null)
     {
-        var normalizeOptionsResult = NormalizeOptions(options);
-        var queueView = new QueueView(this, normalizeOptionsResult);
-        return queueView;
+        return new QueueView(this, NormalizeOptions(options));
     }
 
     public IMessageQueue CreateMessageQueue(bool useJson)
@@ -54,15 +52,12 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
         {
             SerializationMode = useJson ? MessageSerializationMode.Json : MessageSerializationMode.DirectObject
         };
-        var createMessageQueueResult = CreateMessageQueue(messageChannelOptions);
-        return createMessageQueueResult;
+        return CreateMessageQueue(messageChannelOptions);
     }
 
     public IEventBus CreateEventBus(MessageChannelOptions? options = null)
     {
-        var normalizeOptionsResult1 = NormalizeOptions(options);
-        var eventBusView = new EventBusView(this, normalizeOptionsResult1);
-        return eventBusView;
+        return new EventBusView(this, NormalizeOptions(options));
     }
 
     public WorkerMessageDeliveryResult TryDeliver(WorkerMessageDeliveryDto delivery)
@@ -78,8 +73,7 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
         var endpoint = FindEndpoint(delivery.ChannelKind, topic);
         if (endpoint is null)
         {
-            var rejectResult = Reject(delivery, MessageErrorCodes.EndpointNotReady, "The message endpoint is not registered. 消息入口尚未注册。");
-            return rejectResult;
+            return Reject(delivery, MessageErrorCodes.EndpointNotReady, "The message endpoint is not registered. 消息入口尚未注册。");
         }
 
         var endpointRejection = ValidateEndpoint(delivery, endpoint);
@@ -104,51 +98,43 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
 
         if (expiresAt is not null && expiresAt <= DateTimeOffset.UtcNow)
         {
-            var rejectResult2 = Reject(delivery, MessageErrorCodes.Expired, "The message has expired. 消息已过期。");
-            return rejectResult2;
+            return Reject(delivery, MessageErrorCodes.Expired, "The message has expired. 消息已过期。");
         }
 
         var envelope = MessageEnvelope.Json(delivery.MessageId, topic, delivery.PayloadJson ?? string.Empty, createdAt, expiresAt);
-        var acceptDeliveryResult = AcceptDelivery(delivery, endpoint, envelope, topic);
-        return acceptDeliveryResult;
+        return AcceptDelivery(delivery, endpoint, envelope, topic);
     }
 
     private WorkerMessageDeliveryResult? ValidateDeliveryHeader(WorkerMessageDeliveryDto delivery)
     {
         if (delivery.ProtocolVersion != WorkerProtocolConstants.Version)
         {
-            var rejectResult3 = Reject(delivery, MessageErrorCodes.ProtocolMismatch, "The message protocol version is not supported. 消息协议版本不受支持。");
-            return rejectResult3;
+            return Reject(delivery, MessageErrorCodes.ProtocolMismatch, "The message protocol version is not supported. 消息协议版本不受支持。");
         }
 
         if (delivery.RunId != _runId)
         {
-            var rejectResult4 = Reject(delivery, MessageErrorCodes.RunMismatch, "The message belongs to another Worker run. 消息属于其他 Worker 运行。");
-            return rejectResult4;
+            return Reject(delivery, MessageErrorCodes.RunMismatch, "The message belongs to another Worker run. 消息属于其他 Worker 运行。");
         }
 
         if (delivery.MessageId == Guid.Empty)
         {
-            var rejectResult5 = Reject(delivery, MessageErrorCodes.IdRequired, "MessageId is required. MessageId 不能为空。");
-            return rejectResult5;
+            return Reject(delivery, MessageErrorCodes.IdRequired, "MessageId is required. MessageId 不能为空。");
         }
 
         if (string.IsNullOrWhiteSpace(delivery.Topic))
         {
-            var rejectResult6 = Reject(delivery, MessageErrorCodes.TopicRequired, "Message topic is required. 消息主题不能为空。");
-            return rejectResult6;
+            return Reject(delivery, MessageErrorCodes.TopicRequired, "Message topic is required. 消息主题不能为空。");
         }
 
         if (delivery.SerializationMode != WorkerMessageSerializationModeDto.Json)
         {
-            var rejectResult7 = Reject(delivery, MessageErrorCodes.ExternalJsonRequired, "External ingress only accepts JSON messages. 外部入口只接受 JSON 消息。");
-            return rejectResult7;
+            return Reject(delivery, MessageErrorCodes.ExternalJsonRequired, "External ingress only accepts JSON messages. 外部入口只接受 JSON 消息。");
         }
 
         if (!Enum.IsDefined(delivery.ChannelKind))
         {
-            var rejectResult8 = Reject(delivery, MessageErrorCodes.ChannelInvalid, "The message channel kind is invalid. 消息通道类型无效。");
-            return rejectResult8;
+            return Reject(delivery, MessageErrorCodes.ChannelInvalid, "The message channel kind is invalid. 消息通道类型无效。");
         }
 
         return null;
@@ -156,13 +142,12 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
 
     private IEndpointTopic? FindEndpoint(WorkerMessageChannelKindDto kind, string topic)
     {
-        WorkerMessageService.IEndpointTopic? evaluatedValue = kind switch
+        return kind switch
         {
             WorkerMessageChannelKindDto.Queue => _queues.TryGetValue(topic, out var queue) ? queue : null,
             WorkerMessageChannelKindDto.EventBus => _events.TryGetValue(topic, out var bus) ? bus : null,
             _ => null
         };
-        return evaluatedValue;
     }
 
     private static WorkerMessageDeliveryResult? ValidateEndpoint(WorkerMessageDeliveryDto delivery, IEndpointTopic endpoint)
@@ -170,20 +155,17 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
         var options = endpoint.Options;
         if (!options.ExternalIngress)
         {
-            var rejectResult9 = Reject(delivery, MessageErrorCodes.EndpointForbidden, "The message endpoint is not open to external ingress. 消息入口未开放外部投递。");
-            return rejectResult9;
+            return Reject(delivery, MessageErrorCodes.EndpointForbidden, "The message endpoint is not open to external ingress. 消息入口未开放外部投递。");
         }
 
         if (options.SerializationMode != MessageSerializationMode.Json)
         {
-            var rejectResult10 = Reject(delivery, MessageErrorCodes.EndpointJsonRequired, "The external endpoint must use JSON serialization. 外部入口必须使用 JSON 序列化。");
-            return rejectResult10;
+            return Reject(delivery, MessageErrorCodes.EndpointJsonRequired, "The external endpoint must use JSON serialization. 外部入口必须使用 JSON 序列化。");
         }
 
         if (!string.Equals(options.ContractId, delivery.ContractId, StringComparison.Ordinal))
         {
-            var rejectResult11 = Reject(delivery, MessageErrorCodes.ContractMismatch, "The message contract does not match the registered endpoint. 消息合同与已注册入口不匹配。");
-            return rejectResult11;
+            return Reject(delivery, MessageErrorCodes.ContractMismatch, "The message contract does not match the registered endpoint. 消息合同与已注册入口不匹配。");
         }
 
         return null;
@@ -194,8 +176,7 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
         var payloadBytes = Encoding.UTF8.GetByteCount(delivery.PayloadJson ?? string.Empty);
         if (payloadBytes > options.MaxPayloadBytes)
         {
-            var rejectResult12 = Reject(delivery, MessageErrorCodes.PayloadTooLarge, $"Message payloads are limited to {options.MaxPayloadBytes} bytes. 消息载荷不能超过 {options.MaxPayloadBytes} 字节。");
-            return rejectResult12;
+            return Reject(delivery, MessageErrorCodes.PayloadTooLarge, $"Message payloads are limited to {options.MaxPayloadBytes} bytes. 消息载荷不能超过 {options.MaxPayloadBytes} 字节。");
         }
 
         try
@@ -204,8 +185,7 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
         }
         catch (JsonException exception)
         {
-            var rejectResult13 = Reject(delivery, MessageErrorCodes.PayloadInvalid, $"The message payload is not valid JSON. 消息载荷不是有效 JSON。 {exception.Message}");
-            return rejectResult13;
+            return Reject(delivery, MessageErrorCodes.PayloadInvalid, $"The message payload is not valid JSON. 消息载荷不是有效 JSON。 {exception.Message}");
         }
 
         return null;
@@ -218,8 +198,7 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
             PruneAcceptedMessageIds(DateTimeOffset.UtcNow);
             if (_acceptedMessageIds.ContainsKey(delivery.MessageId))
             {
-                var workerMessageDeliveryResult = new WorkerMessageDeliveryResult(true, true, null, "The message was already accepted. 消息此前已经被接受。", delivery.MessageId, topic);
-                return workerMessageDeliveryResult;
+                return new WorkerMessageDeliveryResult(true, true, null, "The message was already accepted. 消息此前已经被接受。", delivery.MessageId, topic);
             }
 
             var accepted = delivery.ChannelKind switch
@@ -230,15 +209,12 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
             };
             if (!accepted)
             {
-                var rejectResult14 = Reject(delivery, MessageErrorCodes.ChannelFull, "The message channel is full. 消息通道已满。");
-                return rejectResult14;
+                return Reject(delivery, MessageErrorCodes.ChannelFull, "The message channel is full. 消息通道已满。");
             }
 
             RememberAcceptedMessage(delivery.MessageId);
         }
-
-        var workerMessageDeliveryResult15 = new WorkerMessageDeliveryResult(true, false, null, "The message was accepted. 消息已接受。", delivery.MessageId, topic);
-        return workerMessageDeliveryResult15;
+        return new WorkerMessageDeliveryResult(true, false, null, "The message was accepted. 消息已接受。", delivery.MessageId, topic);
     }
 
     private void RememberAcceptedMessage(Guid messageId)
@@ -272,9 +248,8 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
 
     internal ValueTask<T> ReceiveQueueAsync<T>(string topic, MessageChannelOptions options, CancellationToken cancellationToken)
     {
-        var normalizeTopicResult = NormalizeTopic(topic);
-        var receiveQueueCoreAsyncResult = ReceiveQueueCoreAsync<T>(normalizeTopicResult, options, cancellationToken);
-        return receiveQueueCoreAsyncResult;
+        var normalizeTopic = NormalizeTopic(topic);
+        return ReceiveQueueCoreAsync<T>(normalizeTopic, options, cancellationToken);
     }
 
     private async ValueTask<T> ReceiveQueueCoreAsync<T>(string topic, MessageChannelOptions options, CancellationToken cancellationToken)
@@ -287,8 +262,7 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
             MessageEnvelope envelope;
             try
             {
-                var readAsyncResult = channel.Reader.ReadAsync(cancellationToken);
-                envelope = await readAsyncResult.ConfigureAwait(false);
+                envelope = await channel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (ChannelClosedException exception)
             {
@@ -299,9 +273,7 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
             {
                 continue;
             }
-
-            var deserializeResult = Deserialize<T>(envelope, topic);
-            return deserializeResult;
+            return Deserialize<T>(envelope, topic);
         }
     }
 
@@ -378,8 +350,7 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
     {
         var channel = _queues.GetOrAdd(topic, _ =>
         {
-            var queueTopic = new QueueTopic(options);
-            return queueTopic;
+            return new QueueTopic(options);
         });
         EnsureCompatible(channel.Options, options, topic);
         RegisterEndpoint(topic, WorkerMessageChannelKindDto.Queue, options, channel);
@@ -390,8 +361,7 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
     {
         var channel = _events.GetOrAdd(topic, _ =>
         {
-            var eventTopic16 = new EventTopic(options);
-            return eventTopic16;
+            return new EventTopic(options);
         });
         EnsureCompatible(channel.Options, options, topic);
         return channel;
@@ -426,20 +396,17 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
         DateTimeOffset? expiresAt = options.MessageTtl is { } ttl ? createdAt + ttl : null;
         if (options.SerializationMode == MessageSerializationMode.DirectObject)
         {
-            var directResult = MessageEnvelope.Direct(id, topic, message, createdAt, expiresAt);
-            return directResult;
+            return MessageEnvelope.Direct(id, topic, message, createdAt, expiresAt);
         }
 
         try
         {
-            var json = JsonSerializer.Serialize(message, JsonOptions);
-            if (Encoding.UTF8.GetByteCount(json) > options.MaxPayloadBytes)
+            var messageJson = JsonSerializer.Serialize(message, JsonOptions);
+            if (Encoding.UTF8.GetByteCount(messageJson) > options.MaxPayloadBytes)
             {
                 throw new MessageServiceException(MessageErrorCodes.PayloadTooLarge, $"Message payloads are limited to {options.MaxPayloadBytes} bytes. 消息载荷不能超过 {options.MaxPayloadBytes} 字节。", topic);
             }
-
-            var jsonResult = MessageEnvelope.Json(id, topic, json, createdAt, expiresAt);
-            return jsonResult;
+            return MessageEnvelope.Json(id, topic, messageJson, createdAt, expiresAt);
         }
         catch (MessageServiceException)
         {
@@ -465,14 +432,13 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
                 return default!;
             }
 
-            var evaluatedValue17 = envelope.Value?.GetType();
-            throw new MessageTypeMismatchException(topic, typeof(T), evaluatedValue17);
+            var actualType = envelope.Value?.GetType();
+            throw new MessageTypeMismatchException(topic, typeof(T), actualType);
         }
 
         try
         {
-            var evaluatedValue18 = JsonSerializer.Deserialize<T>(envelope.JsonPayload!, JsonOptions) ?? (default(T) is null ? default! : throw new MessageServiceException(MessageErrorCodes.DeserializationNull, "The JSON message deserialized to null for a non-nullable target. JSON 消息反序列化为 null，但目标类型不可为空。", topic));
-            return evaluatedValue18;
+            return JsonSerializer.Deserialize<T>(envelope.JsonPayload!, JsonOptions) ?? (default(T) is null ? default! : throw new MessageServiceException(MessageErrorCodes.DeserializationNull, "The JSON message deserialized to null for a non-nullable target. JSON 消息反序列化为 null，但目标类型不可为空。", topic));
         }
         catch (MessageServiceException)
         {
@@ -556,9 +522,8 @@ public sealed partial class WorkerMessageService : IMessageService, IAsyncDispos
     private static string GetEndpointKey(WorkerMessageChannelKindDto kind, string topic) => $"{kind}:{topic}";
     private static WorkerMessageDeliveryResult Reject(WorkerMessageDeliveryDto delivery, string code, string message)
     {
-        var evaluatedValue19 = delivery.Topic?.Trim() ?? string.Empty;
-        WorkerMessageDeliveryResult evaluatedValue20 = new(false, false, code, message, delivery.MessageId, evaluatedValue19);
-        return evaluatedValue20;
+        var topic = delivery.Topic?.Trim() ?? string.Empty;
+        return new(false, false, code, message, delivery.MessageId, topic);
     }
 
     private void PruneAcceptedMessageIds(DateTimeOffset now)

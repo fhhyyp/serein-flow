@@ -27,8 +27,7 @@ public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient, IWorkerMe
     private static WorkerSupervisor CreateSupervisor(SupervisorWorkerRunClientOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        var getFileNameWithoutExtensionResult = Path.GetFileNameWithoutExtension(options.RunnerFileName);
-        var isDotnetHost = string.Equals(getFileNameWithoutExtensionResult, "dotnet", StringComparison.OrdinalIgnoreCase);
+        var isDotnetHost = string.Equals(Path.GetFileNameWithoutExtension(options.RunnerFileName), "dotnet", StringComparison.OrdinalIgnoreCase);
         var arguments = isDotnetHost ? new[]
         {
             "exec",
@@ -37,19 +36,16 @@ public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient, IWorkerMe
 
         : Array.Empty<string>();
         var runnerLaunchOptions = new RunnerLaunchOptions(options.RunnerFileName, arguments, options.WorkingDirectory, options.HandshakeTimeout, options.HeartbeatInterval, options.CancellationGracePeriod, options.AllowedScriptArtifactRoot, options.AllowedLibraryPackageRoot, options.DiagnosticLogger, options.MessageDeliveryTimeout, options.AllowedWorkpieceRoot);
-        var workerSupervisor = new WorkerSupervisor(runnerLaunchOptions);
-        return workerSupervisor;
+        return new WorkerSupervisor(runnerLaunchOptions);
     }
 
     public Task<WorkerRunResultDto> RunAsync(WorkerRunRequestDto request, IWorkerRunEventSink eventSink, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(eventSink);
-        var runAsyncResult = _supervisor.RunAsync(request, (workerEvent, token) =>
+        return _supervisor.RunAsync(request, (workerEvent, token) =>
         {
-            var publishAsyncResult = eventSink.PublishAsync(workerEvent, token);
-            return publishAsyncResult;
+            return eventSink.PublishAsync(workerEvent, token);
         }, eventSink is IWorkerRunBatchEventSink batchSink ? batchSink.PublishBatchAsync : null, cancellationToken);
-        return runAsyncResult;
     }
 
     public async Task<IWorkerDebugRunHandle> StartDebugAsync(WorkerRunRequestDto request, IWorkerRunEventSink eventSink, CancellationToken cancellationToken = default)
@@ -63,23 +59,19 @@ public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient, IWorkerMe
 
         var session = await _supervisor.StartDebugAsync(request, (workerEvent, token) =>
         {
-            var publishAsyncResult1 = eventSink.PublishAsync(workerEvent, token);
-            return publishAsyncResult1;
+            return eventSink.PublishAsync(workerEvent, token);
         }, cancellationToken);
-        var supervisorDebugRunHandle = new SupervisorDebugRunHandle(session);
-        return supervisorDebugRunHandle;
+        return new SupervisorDebugRunHandle(session);
     }
 
     public Task<WorkerMessageDeliveryResponseDto> DeliverMessageAsync(WorkerMessageDeliveryDto delivery, CancellationToken cancellationToken = default)
     {
-        var deliverMessageAsyncResult = _supervisor.DeliverMessageAsync(delivery, cancellationToken);
-        return deliverMessageAsyncResult;
+        return _supervisor.DeliverMessageAsync(delivery, cancellationToken);
     }
 
     public Task<WorkerVariableResponseDto> AccessVariablesAsync(WorkerVariableRequestDto request, CancellationToken cancellationToken = default)
     {
-        var accessVariablesAsyncResult = _supervisor.AccessVariablesAsync(request, cancellationToken);
-        return accessVariablesAsyncResult;
+        return _supervisor.AccessVariablesAsync(request, cancellationToken);
     }
 
     private sealed class SupervisorDebugRunHandle(WorkerSupervisor.DebugRunSession session) : IWorkerDebugRunHandle
@@ -90,26 +82,22 @@ public sealed class SupervisorWorkerRunClient : IWorkerDebugRunClient, IWorkerMe
 
         public Task ContinueAsync(long commandSequence, CancellationToken cancellationToken = default)
         {
-            var continueAsyncResult = session.ContinueAsync(commandSequence, cancellationToken);
-            return continueAsyncResult;
+            return session.ContinueAsync(commandSequence, cancellationToken);
         }
 
         public Task StepAsync(long commandSequence, CancellationToken cancellationToken = default)
         {
-            var stepAsyncResult = session.StepAsync(commandSequence, cancellationToken);
-            return stepAsyncResult;
+            return session.StepAsync(commandSequence, cancellationToken);
         }
 
         public Task StopAsync(long commandSequence, CancellationToken cancellationToken = default)
         {
-            var stopAsyncResult = session.StopAsync(commandSequence, cancellationToken);
-            return stopAsyncResult;
+            return session.StopAsync(commandSequence, cancellationToken);
         }
 
         public ValueTask DisposeAsync()
         {
-            var disposeAsyncResult = session.DisposeAsync();
-            return disposeAsyncResult;
+            return session.DisposeAsync();
         }
     }
 }

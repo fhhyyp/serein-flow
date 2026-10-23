@@ -28,87 +28,70 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
         var run = await _runs.FindAsync(command.RunId, cancellationToken);
         if (run is null)
         {
-            var failureResult = Failure(RunMessageDeliveryDisposition.RunNotFound, RunErrorCodes.NotFound, "Run not found. 未找到运行实例。", 404);
-            return failureResult;
+            return Failure(RunMessageDeliveryDisposition.RunNotFound, RunErrorCodes.NotFound, "Run not found. 未找到运行实例。", 404);
         }
 
         if (run.IsTerminal || run.Status != FlowRunStatus.Running)
         {
-            var failureResult1 = Failure(RunMessageDeliveryDisposition.WorkerNotActive, WorkerErrorCodes.NotActive, "The Worker run is not active. Worker 运行当前不活动。", 409);
-            return failureResult1;
+            return Failure(RunMessageDeliveryDisposition.WorkerNotActive, WorkerErrorCodes.NotActive, "The Worker run is not active. Worker 运行当前不活动。", 409);
         }
 
         var topic = command.Topic?.Trim();
         if (string.IsNullOrWhiteSpace(topic) || topic.Length > 256 || topic.Contains('\r') || topic.Contains('\n'))
         {
-            var failureResult2 = Failure(RunMessageDeliveryDisposition.InvalidRequest, MessageErrorCodes.TopicInvalid, "The message topic is invalid. 消息主题无效。", 400);
-            return failureResult2;
+            return Failure(RunMessageDeliveryDisposition.InvalidRequest, MessageErrorCodes.TopicInvalid, "The message topic is invalid. 消息主题无效。", 400);
         }
 
         if (command.Payload.ValueKind == JsonValueKind.Undefined)
         {
-            var failureResult3 = Failure(RunMessageDeliveryDisposition.InvalidRequest, MessageErrorCodes.PayloadRequired, "A JSON message payload is required. 必须提供 JSON 消息载荷。", 400);
-            return failureResult3;
+            return Failure(RunMessageDeliveryDisposition.InvalidRequest, MessageErrorCodes.PayloadRequired, "A JSON message payload is required. 必须提供 JSON 消息载荷。", 400);
         }
 
         if (!Enum.IsDefined(command.ChannelKind))
         {
-            var failureResult4 = Failure(RunMessageDeliveryDisposition.InvalidRequest, MessageErrorCodes.ChannelInvalid, "The message channel kind is invalid. 消息通道类型无效。", 400);
-            return failureResult4;
+            return Failure(RunMessageDeliveryDisposition.InvalidRequest, MessageErrorCodes.ChannelInvalid, "The message channel kind is invalid. 消息通道类型无效。", 400);
         }
 
-        var messageIdResult = ResolveMessageId(command.RunId, topic, command.MessageId, command.IdempotencyKey);
-        if (!messageIdResult.IsSuccess)
+        var messageId = ResolveMessageId(command.RunId, topic, command.MessageId, command.IdempotencyKey);
+        if (!messageId.IsSuccess)
         {
-            var failureResult5 = Failure(RunMessageDeliveryDisposition.InvalidRequest, MessageErrorCodes.IdInvalid, "MessageId must be a valid GUID. MessageId 必须是有效 GUID。", 400);
-            return failureResult5;
+            return Failure(RunMessageDeliveryDisposition.InvalidRequest, MessageErrorCodes.IdInvalid, "MessageId must be a valid GUID. MessageId 必须是有效 GUID。", 400);
         }
 
         WorkerMessageDeliveryDto delivery;
         try
         {
-            var createWebOptionsResult = SereinJsonSerialization.CreateWebOptions();
-            var serializeResult = JsonSerializer.Serialize(command.Payload, createWebOptionsResult);
-            delivery = new WorkerMessageDeliveryDto(WorkerProtocol.Version, command.RunId, messageIdResult.MessageId, topic, command.ChannelKind, WorkerMessageSerializationModeDto.Json, command.ContractId, serializeResult, DateTimeOffset.UtcNow);
+            var webOptions = SereinJsonSerialization.CreateWebOptions();
+            var payloadJson = JsonSerializer.Serialize(command.Payload, webOptions);
+            delivery = new WorkerMessageDeliveryDto(WorkerProtocol.Version, command.RunId, messageId.MessageId, topic, command.ChannelKind, WorkerMessageSerializationModeDto.Json, command.ContractId, payloadJson, DateTimeOffset.UtcNow);
         }
         catch (JsonException)
         {
-            var failureResult6 = Failure(RunMessageDeliveryDisposition.InvalidRequest, MessageErrorCodes.PayloadInvalid, "The message payload is not valid JSON. 消息载荷不是有效 JSON。", 400);
-            return failureResult6;
+            return Failure(RunMessageDeliveryDisposition.InvalidRequest, MessageErrorCodes.PayloadInvalid, "The message payload is not valid JSON. 消息载荷不是有效 JSON。", 400);
         }
 
         var response = await _messageClient.DeliverMessageAsync(delivery, cancellationToken);
-        var mapWorkerResponseResult = MapWorkerResponse(response);
-        return mapWorkerResponseResult;
+        return MapWorkerResponse(response);
     }
 
     internal static MessageIdResolution ResolveMessageId(Guid runId, string topic, string? requestedMessageId, string? idempotencyKey)
     {
         if (requestedMessageId is not null)
         {
-            RunMessageDeliveryService.MessageIdResolution evaluatedValue = Guid.TryParse(requestedMessageId, out var parsed) && parsed != Guid.Empty ? new MessageIdResolution(true, parsed) : new MessageIdResolution(false, Guid.Empty);
-            return evaluatedValue;
+            return Guid.TryParse(requestedMessageId, out var parsed) && parsed != Guid.Empty ? new MessageIdResolution(true, parsed) : new MessageIdResolution(false, Guid.Empty);
         }
 
         if (string.IsNullOrWhiteSpace(idempotencyKey))
         {
-            var newGuidResult = Guid.NewGuid();
-            var messageIdResolution = new MessageIdResolution(true, newGuidResult);
-            return messageIdResolution;
+            return new MessageIdResolution(true, Guid.NewGuid());
         }
 
         if (Guid.TryParse(idempotencyKey, out var idempotencyGuid) && idempotencyGuid != Guid.Empty)
         {
-            var messageIdResolution7 = new MessageIdResolution(true, idempotencyGuid);
-            return messageIdResolution7;
+            return new MessageIdResolution(true, idempotencyGuid);
         }
-
-        var getBytesResult = Encoding.UTF8.GetBytes($"{runId:D}:{topic}:{idempotencyKey}");
-        var bytes = SHA256.HashData(getBytesResult);
-        var asSpanResult = bytes.AsSpan(0, 16);
-        var guid = new Guid(asSpanResult);
-        var messageIdResolution8 = new MessageIdResolution(true, guid);
-        return messageIdResolution8;
+        var guid = new Guid(SHA256.HashData(Encoding.UTF8.GetBytes($"{runId:D}:{topic}:{idempotencyKey}")).AsSpan(0, 16));
+        return new MessageIdResolution(true, guid);
     }
 
     private static RunMessageDeliveryResult MapWorkerResponse(WorkerMessageDeliveryResponseDto response)
@@ -121,7 +104,7 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
             Code = code ?? MessageErrorCodes.Rejected,
             Message = message
         };
-        RunMessageDeliveryResult evaluatedValue9 = response.Status switch
+        return response.Status switch
         {
             WorkerMessageDeliveryStatusDto.Accepted => new(RunMessageDeliveryDisposition.Accepted, normalizedResponse, null, response.Message ?? "The message was accepted. 消息已接受。", 202),
             WorkerMessageDeliveryStatusDto.NotFound when string.Equals(code, WorkerErrorCodes.NotActive, StringComparison.Ordinal) => new(RunMessageDeliveryDisposition.WorkerNotFound, normalizedResponse, code, message, 404),
@@ -132,7 +115,6 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
             _ when string.Equals(code, MessageErrorCodes.ChannelFull, StringComparison.Ordinal) => new(RunMessageDeliveryDisposition.ChannelFull, normalizedResponse, code, message, 429),
             _ => new(RunMessageDeliveryDisposition.Rejected, normalizedResponse, code ?? MessageErrorCodes.Rejected, message, 400),
         };
-        return evaluatedValue9;
     }
 
     private static string GetSafeMessage(string? code, WorkerMessageDeliveryStatusDto status) => code switch
@@ -153,8 +135,7 @@ public sealed class RunMessageDeliveryService : IRunMessageDeliveryService
     };
     private static RunMessageDeliveryResult Failure(RunMessageDeliveryDisposition disposition, string code, string message, int statusCode)
     {
-        RunMessageDeliveryResult evaluatedValue10 = new(disposition, null, code, message, statusCode);
-        return evaluatedValue10;
+        return new(disposition, null, code, message, statusCode);
     }
 
     /// <summary>

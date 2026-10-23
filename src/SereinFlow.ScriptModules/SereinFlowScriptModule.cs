@@ -61,9 +61,7 @@ namespace SereinFlow.ScriptModules
             {
                 throw new OperationCanceledException("The flow run was cancelled. 流程运行已取消。", _cancellationToken);
             }
-
-            var evaluatedValue = _runtime?.Variables ?? throw new NotSupportedException("Flow variables require an active run variable table. 流程变量需要宿主提供运行级变量表。");
-            return evaluatedValue;
+            return _runtime?.Variables ?? throw new NotSupportedException("Flow variables require an active run variable table. 流程变量需要宿主提供运行级变量表。");
         }
 
         public async Task<Value> PublishLogAsync(string level, Value value)
@@ -83,14 +81,7 @@ namespace SereinFlow.ScriptModules
                 StringValue text => text.Value,
                 _ => value.ToString() ?? string.Empty
             };
-            string evaluatedValue1 = message.Length <= MaxMessageLength ? message : resolveConcatResult();
-            return evaluatedValue1;
-            string resolveConcatResult()
-            {
-                var asSpanResult = message.AsSpan(0, MaxMessageLength);
-                var concatResult = string.Concat(asSpanResult, "…");
-                return concatResult;
-            }
+            return message.Length <= MaxMessageLength ? message : string.Concat(message.AsSpan(0, MaxMessageLength), "…");
         }
     }
 
@@ -107,15 +98,13 @@ namespace SereinFlow.ScriptModules
         [PrototypeFunction]
         public static async Task<Value> Info(SereinFlowLogModule target, Value value)
         {
-            var publishLogAsyncResult = await target._context.PublishLogAsync("info", value);
-            return publishLogAsyncResult;
+            return await target._context.PublishLogAsync("info", value);
         }
 
         [PrototypeFunction]
         public static async Task<Value> Error(SereinFlowLogModule target, Value value)
         {
-            var publishLogAsyncResult2 = await target._context.PublishLogAsync("error", value);
-            return publishLogAsyncResult2;
+            return await target._context.PublishLogAsync("error", value);
         }
     }
 
@@ -132,52 +121,43 @@ namespace SereinFlow.ScriptModules
         [PrototypeProperty]
         public static StringValue RunId(SereinFlowEnvironmentModule target)
         {
-            var evaluatedValue3 = target._context.Environment?.RunId.ToString("D") ?? string.Empty;
-            var createResult = StringValue.Create(evaluatedValue3);
-            return createResult;
+            return StringValue.Create((target._context.Environment?.RunId.ToString("D") ?? string.Empty));
         }
 
         [PrototypeProperty]
         public static StringValue ProjectId(SereinFlowEnvironmentModule target)
         {
-            var createResult4 = StringValue.Create(target._context.Environment?.ProjectId ?? string.Empty);
-            return createResult4;
+            return StringValue.Create(target._context.Environment?.ProjectId ?? string.Empty);
         }
 
         [PrototypeProperty]
         public static StringValue FlowId(SereinFlowEnvironmentModule target)
         {
-            var evaluatedValue5 = target._context.Environment?.FlowId.ToString("D") ?? string.Empty;
-            var createResult6 = StringValue.Create(evaluatedValue5);
-            return createResult6;
+            return StringValue.Create((target._context.Environment?.FlowId.ToString("D") ?? string.Empty));
         }
 
         [PrototypeProperty]
         public static StringValue CanvasId(SereinFlowEnvironmentModule target)
         {
-            var createResult7 = StringValue.Create(target._context.Environment?.CanvasId ?? string.Empty);
-            return createResult7;
+            return StringValue.Create(target._context.Environment?.CanvasId ?? string.Empty);
         }
 
         [PrototypeProperty]
         public static StringValue NodeId(SereinFlowEnvironmentModule target)
         {
-            var createResult8 = StringValue.Create(target._context.Environment?.NodeId ?? string.Empty);
-            return createResult8;
+            return StringValue.Create(target._context.Environment?.NodeId ?? string.Empty);
         }
 
         [PrototypeProperty]
         public static NumberValue<int> FrameDepth(SereinFlowEnvironmentModule target)
         {
-            var createResult9 = NumberValueFactory.Create(target._context.Environment?.FrameDepth ?? 0);
-            return createResult9;
+            return NumberValueFactory.Create(target._context.Environment?.FrameDepth ?? 0);
         }
 
         [PrototypeProperty]
         public static BoolValue IsCancellationRequested(SereinFlowEnvironmentModule target)
         {
-            var createResult10 = BoolValue.Create(target._context.IsCancellationRequested);
-            return createResult10;
+            return BoolValue.Create(target._context.IsCancellationRequested);
         }
     }
 
@@ -194,27 +174,21 @@ namespace SereinFlow.ScriptModules
         [PrototypeFunction]
         public static BoolValue Contain(SereinFlowVariableModule target, StringValue name)
         {
-            var getVariablesResult = target._context.GetVariables();
-            var containResult = getVariablesResult.Contain(name.Value);
-            var createResult11 = BoolValue.Create(containResult);
-            return createResult11;
+            return BoolValue.Create(target._context.GetVariables().Contain(name.Value));
         }
 
         [PrototypeFunction]
         public static Value Get(SereinFlowVariableModule target, StringValue name)
         {
-            var getVariablesResult12 = target._context.GetVariables();
-            var getResult = getVariablesResult12.Get(name.Value);
-            var toScriptValueResult = SereinFlowScriptValueConverter.ToScriptValue(getResult);
-            return toScriptValueResult;
+            return SereinFlowScriptValueConverter.ToScriptValue(target._context.GetVariables().Get(name.Value));
         }
 
         [PrototypeFunction]
         public static Value Set(SereinFlowVariableModule target, StringValue name, Value value)
         {
             var variables = target._context.GetVariables();
-            var toVariableValueResult = SereinFlowScriptValueConverter.ToVariableValue(value);
-            variables.Set(name.Value, toVariableValueResult);
+            var variableValue = SereinFlowScriptValueConverter.ToVariableValue(value);
+            variables.Set(name.Value, variableValue);
             return Value.Null;
         }
     }

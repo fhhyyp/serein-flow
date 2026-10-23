@@ -71,7 +71,10 @@ internal static class McpToolCacheExtension
             || result.OriginalDefinition.ToDisplayString() != "System.Threading.Tasks.Task<TResult>") return "return Task<T> from a nongeneric method 非泛型方法必须返回 Task<T>。";
         if (!method.IsStatic && method.ContainingType.IsAbstract) return "instance tool classes cannot be abstract 实例工具类不能是抽象类。";
         if (method.Parameters.Any(parameter => parameter.RefKind != RefKind.None)) return "ref, in and out parameters are unsupported 不支持 ref、in 和 out 参数。";
-        if (method.Parameters.Where(IsContext).GroupBy(parameter => TypeName(parameter.Type)).Any(group => group.Count() > 1)) return "context parameters must be unique 上下文参数不能重复。";
+        if (method.Parameters
+            .Where(IsContext)
+            .GroupBy(parameter => TypeName(parameter.Type))
+            .Any(group => group.Count() > 1)) return "context parameters must be unique 上下文参数不能重复。";
         var requests = method.Parameters.Where(parameter => !IsContext(parameter)).ToArray();
         if (requests.Length > 1) return "accept at most one request object 最多接受一个请求对象。";
         if (requests.Length == 1)
@@ -85,7 +88,10 @@ internal static class McpToolCacheExtension
                 if (!named.InstanceConstructors.Any(constructor => constructor.Parameters.Length == 0 && IsAccessible(constructor)))
                     return "McpBindProperties requests require an accessible parameterless constructor McpBindProperties 请求必须具有可访问的无参构造函数。";
                 for (var current = named; current is not null; current = current.BaseType)
-                    if (current.GetMembers().OfType<IPropertySymbol>().Any(property => property.IsRequired || property.SetMethod?.IsInitOnly == true))
+                    if (current
+                        .GetMembers()
+                        .OfType<IPropertySymbol>()
+                        .Any(property => property.IsRequired || property.SetMethod?.IsInitOnly == true))
                         return "McpBindProperties requests use writable set properties and McpParameter.Required McpBindProperties 请求应使用可写的 set 属性和 McpParameter.Required。";
             }
         }

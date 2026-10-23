@@ -107,8 +107,8 @@ internal sealed class McpLibraryPackageTools(
         var principal = context.RequirePrincipal();
         var request = arguments;
         RequireConfirmation(request);
-        var requestPayload = Serialize(request);
-        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, LibraryErrorCodes.Package, request.IdempotencyKey, requestPayload, cancellationToken);
+        var requestJson = Serialize(request);
+        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, LibraryErrorCodes.Package, request.IdempotencyKey, requestJson, cancellationToken);
         if (replay is not null)
         {
             return DeserializeStoredResponse(replay.ResponseJson);
@@ -140,7 +140,7 @@ internal sealed class McpLibraryPackageTools(
 
             var result = await _libraryCatalogService.UploadVerifiedAsync(package, stored.FileName, stored.SizeBytes, stored.PackageSha256, origin: "mcp", cancellationToken: cancellationToken);
             await MarkPreviewAppliedAsync(_mcpPreviewService, entry, cancellationToken);
-            await _mcpIdempotencyService.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, result, requestPayload, cancellationToken);
+            await _mcpIdempotencyService.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, result, requestJson, cancellationToken);
             return result;
         }
         catch (LibraryUploadException exception) when (exception.StatusCode == StatusCodes.Status409Conflict)

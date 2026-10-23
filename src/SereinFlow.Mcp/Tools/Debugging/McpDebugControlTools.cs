@@ -24,8 +24,8 @@ internal sealed class McpDebugControlTools(
         {
             IdempotencyKey = idempotencyKey
         };
-        var requestPayload = Serialize(request);
-        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, DebugErrorCodes.SessionStart, idempotencyKey, requestPayload, cancellationToken);
+        var requestJson = Serialize(request);
+        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, DebugErrorCodes.SessionStart, idempotencyKey, requestJson, cancellationToken);
         if (replay is not null)
         {
             return DeserializeStoredResponse(replay.ResponseJson);
@@ -40,7 +40,7 @@ internal sealed class McpDebugControlTools(
 
         var session = result.Session!;
         var response = new McpDebugSessionStartedDto(session.Id, session.RunId, session.ProjectId, session.FlowId, (FlowDebugSessionStatusDto)session.Status, session.StateRevision);
-        await _mcpIdempotencyService.SaveAsync(principal.Id, DebugErrorCodes.SessionStart, idempotencyKey, response, requestPayload, cancellationToken);
+        await _mcpIdempotencyService.SaveAsync(principal.Id, DebugErrorCodes.SessionStart, idempotencyKey, response, requestJson, cancellationToken);
         return response;
     }
 

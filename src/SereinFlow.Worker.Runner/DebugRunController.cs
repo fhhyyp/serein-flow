@@ -3,6 +3,7 @@ using SereinFlow.Runtime;
 using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Worker.Runner;
+
 internal sealed class DebugRunController
 {
     private readonly Guid _runId;
@@ -25,11 +26,10 @@ internal sealed class DebugRunController
     {
         var gate = new DebugExecutionGate(_options.BreakpointNodeIds, (boundary, token) =>
         {
-            var toStringResult = boundary.NodeType.ToString();
-            var pause = new WorkerDebugPauseDto(_options.DebugSessionId, boundary.RunId, boundary.NodeId, toStringResult, boundary.Step, boundary.Inputs, boundary.FrameDepth, boundary.InvocationId, boundary.ExecutionId);
-            var nextSequenceResult = session.NextSequence();
-            var publishDebugPausedAsyncResult = publisher.PublishDebugPausedAsync(pause, nextSequenceResult, token);
-            return publishDebugPausedAsyncResult;
+            var nodeType = boundary.NodeType.ToString();
+            var pause = new WorkerDebugPauseDto(_options.DebugSessionId, boundary.RunId, boundary.NodeId, nodeType, boundary.Step, boundary.Inputs, boundary.FrameDepth, boundary.InvocationId, boundary.ExecutionId);
+            var sequence = session.NextSequence();
+            return publisher.PublishDebugPausedAsync(pause, sequence, token);
         });
         lock (_sync)
         {
@@ -41,22 +41,18 @@ internal sealed class DebugRunController
 
     public bool TryContinue(WorkerDebugCommandDto command)
     {
-        var tryApplyResult = TryApply(command, static gate =>
+        return TryApply(command, static gate =>
         {
-            var tryContinueResult = gate.TryContinue();
-            return tryContinueResult;
+            return gate.TryContinue();
         });
-        return tryApplyResult;
     }
 
     public bool TryStep(WorkerDebugCommandDto command)
     {
-        var tryApplyResult1 = TryApply(command, static gate =>
+        return TryApply(command, static gate =>
         {
-            var tryStepResult = gate.TryStep();
-            return tryStepResult;
+            return gate.TryStep();
         });
-        return tryApplyResult1;
     }
 
     public bool TryStop(WorkerDebugCommandDto command)

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using SereinFlow.Domain;
 using SereinFlow.Contracts;
 
@@ -15,21 +16,27 @@ public sealed class ExecutionPlan
         Definition = definition;
         Nodes = nodes;
         Connections = connections;
-        _outgoing = connections.Where(static edge => edge.Kind == ConnectionKind.Execution).GroupBy(static edge => (edge.FromNodeId, edge.Branch)).ToDictionary(static group => group.Key, static group =>
+        _outgoing = connections
+            .Where(static edge => edge.Kind == ConnectionKind.Execution)
+            .GroupBy(static edge => (edge.FromNodeId, edge.Branch))
+            .ToDictionary(static group => group.Key, static group =>
         {
-            var operationResult1 = Sort(group);
-            return operationResult1;
+            return (IReadOnlyList<ConnectionDefinition>)Sort(group);
         });
-        _incomingData = connections.Where(static edge => edge.Kind == ConnectionKind.Data).GroupBy(static edge => (edge.ToNodeId, edge.ToPortId)).ToDictionary(static group => group.Key, static group =>
+        _incomingData = connections
+            .Where(static edge => edge.Kind == ConnectionKind.Data)
+            .GroupBy(static edge => (edge.ToNodeId, edge.ToPortId))
+            .ToDictionary(static group => group.Key, static group =>
         {
-            var operationResult2 = Sort(group);
-            return operationResult2;
+            return (IReadOnlyList<ConnectionDefinition>)Sort(group);
         });
-        _incomingExecution = connections.Where(static edge => edge.Kind == ConnectionKind.Execution).Select(static edge => edge.ToNodeId).ToHashSet(StringComparer.Ordinal);
+        _incomingExecution = connections
+            .Where(static edge => edge.Kind == ConnectionKind.Execution)
+            .Select(static edge => edge.ToNodeId)
+            .ToHashSet(StringComparer.Ordinal);
         _canvasByNode = definition.Canvases.SelectMany(static canvas =>
         {
-            var operationResult3 = canvas.Nodes.Select(node => (node.Id, CanvasId: canvas.Id));
-            return operationResult3;
+            return canvas.Nodes.Select(node => (node.Id, CanvasId: canvas.Id));
         }).ToDictionary(static item => item.Id, static item => item.CanvasId, StringComparer.Ordinal);
     }
 
@@ -39,32 +46,29 @@ public sealed class ExecutionPlan
 
     public IReadOnlyList<ConnectionDefinition> GetOutgoing(string nodeId, ExecutionBranch branch)
     {
-        var operationResult4 = _outgoing.GetValueOrDefault((nodeId, branch)) ?? Array.Empty<ConnectionDefinition>();
-        return operationResult4;
+        return _outgoing.GetValueOrDefault((nodeId, branch)) ?? Array.Empty<ConnectionDefinition>();
     }
 
     public IReadOnlyList<ConnectionDefinition> GetIncomingData(string nodeId, string portId)
     {
-        var operationResult5 = _incomingData.GetValueOrDefault((nodeId, portId)) ?? Array.Empty<ConnectionDefinition>();
-        return operationResult5;
+        return _incomingData.GetValueOrDefault((nodeId, portId)) ?? Array.Empty<ConnectionDefinition>();
     }
 
     public bool HasIncomingExecution(string nodeId)
     {
-        var operationResult6 = _incomingExecution.Contains(nodeId);
-        return operationResult6;
+        return _incomingExecution.Contains(nodeId);
     }
 
     internal string GetCanvasId(string nodeId)
     {
-        string operationResult7 = _canvasByNode.GetValueOrDefault(nodeId) ?? string.Empty;
-        return operationResult7;
+        return _canvasByNode.GetValueOrDefault(nodeId) ?? string.Empty;
     }
-    private static IReadOnlyList<ConnectionDefinition> Sort(IEnumerable<ConnectionDefinition> edges)
+    private static ReadOnlyCollection<ConnectionDefinition> Sort(IEnumerable<ConnectionDefinition> edges)
     {
-        var operationResult1 = edges.OrderBy(static edge => edge.Priority).ThenBy(static edge => edge.Id, StringComparer.Ordinal).ToArray();
-        IReadOnlyList<ConnectionDefinition> operationResult8 = Array.AsReadOnly(operationResult1);
-        return operationResult8;
+        return Array.AsReadOnly(edges
+            .OrderBy(static edge => edge.Priority)
+            .ThenBy(static edge => edge.Id, StringComparer.Ordinal)
+            .ToArray());
     }
 }
 
@@ -91,8 +95,7 @@ public sealed class ExecutionPlanBuilder
         var diagnostics = definition.Validate().ToList();
         var hasGlobalFlipflop = nodes.Values.Any(node =>
         {
-            var evaluatedValue5 = node.Type == NodeType.Flipflop && !connections.Any(connection => connection.Kind == ConnectionKind.Execution && connection.ToNodeId == node.Id);
-            return evaluatedValue5;
+            return node.Type == NodeType.Flipflop && !connections.Any(connection => connection.Kind == ConnectionKind.Execution && connection.ToNodeId == node.Id);
         });
         if (string.IsNullOrWhiteSpace(definition.EntryNodeId) && !hasGlobalFlipflop)
         {
@@ -121,13 +124,11 @@ public sealed class ExecutionPlanBuilder
             var analysis = FlowCallReturnTypeAnalyzer.Analyze(initialPlan, runtime.TargetNodeId);
             enrichedNodes[node.Id] = node.WithRuntime(runtime with { StaticReturnType = analysis.ReturnType, IsDynamicReturnType = analysis.IsDynamic, });
         }
-
-        var executionPlan = new ExecutionPlan(definition, enrichedNodes, connections);
         // The normalized runtime metadata is kept on the immutable execution
         // plan, so Worker connectors and the executor use one deterministic
         // return-type result even when an older editor omitted the hint.
         // 将规范化的运行时元数据保存在不可变执行计划中；即使旧版编辑器未提供提示，Worker 连接器和执行器也使用同一确定的返回类型结果。
-        return executionPlan;
+        return new ExecutionPlan(definition, enrichedNodes, connections);
     }
 
     private static void ValidateExecutionCycles(IReadOnlyDictionary<string, NodeDefinition> nodes, IReadOnlyList<ConnectionDefinition> connections)
@@ -137,10 +138,9 @@ public sealed class ExecutionPlanBuilder
             .GroupBy(connection => connection.FromNodeId, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group =>
             {
-                var toArrayResult7 = group
+                return group
                     .Select(item => item.ToNodeId)
                     .ToArray();
-                return toArrayResult7;
             }, StringComparer.Ordinal);
         var visiting = new HashSet<string>(StringComparer.Ordinal);
         var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -148,8 +148,8 @@ public sealed class ExecutionPlanBuilder
         {
             if (Visit(nodeId))
             {
-                IReadOnlyList<DomainDiagnostic> evaluatedValue8 = [new DomainDiagnostic(FlowErrorCodes.CycleDetected, "Execution connections must form a directed acyclic graph. 执行连接必须构成有向无环图。", $"nodes.{nodeId}")];
-                throw new DomainValidationException(evaluatedValue8);
+                IReadOnlyList<DomainDiagnostic> diagnostics = [new DomainDiagnostic(FlowErrorCodes.CycleDetected, "Execution connections must form a directed acyclic graph. 执行连接必须构成有向无环图。", $"nodes.{nodeId}")];
+                throw new DomainValidationException(diagnostics);
             }
         }
 
@@ -187,41 +187,40 @@ public sealed class ExecutionPlanBuilder
         var canvasByNodeId = definition.Canvases
             .SelectMany(canvas =>
             {
-                var selectResult10 = canvas.Nodes.Select(node => new { node.Id, CanvasId = canvas.Id });
-                return selectResult10;
+                return canvas.Nodes.Select(node => new { node.Id, CanvasId = canvas.Id });
             })
             .ToDictionary(item => item.Id, item => item.CanvasId, StringComparer.Ordinal);
         foreach (var node in nodes.Values.Where(node => node.Type == NodeType.FlowCall))
         {
             if (string.IsNullOrWhiteSpace(node.Runtime?.TargetNodeId))
             {
-                IReadOnlyList<DomainDiagnostic> evaluatedValue11 = [new DomainDiagnostic(FlowCallErrorCodes.TargetMissing, $"FlowCall node '{node.Id}' must define a target node. FlowCall 节点“{node.Id}”必须定义目标节点。", $"nodes.{node.Id}.runtime.targetNodeId")];
-                throw new DomainValidationException(evaluatedValue11);
+                IReadOnlyList<DomainDiagnostic> diagnostics = [new DomainDiagnostic(FlowCallErrorCodes.TargetMissing, $"FlowCall node '{node.Id}' must define a target node. FlowCall 节点“{node.Id}”必须定义目标节点。", $"nodes.{node.Id}.runtime.targetNodeId")];
+                throw new DomainValidationException(diagnostics);
             }
 
             if (!nodes.ContainsKey(node.Runtime.TargetNodeId))
             {
-                IReadOnlyList<DomainDiagnostic> evaluatedValue12 = [new DomainDiagnostic(FlowCallErrorCodes.TargetMissing, $"FlowCall target node '{node.Runtime.TargetNodeId}' does not exist. FlowCall 目标节点“{node.Runtime.TargetNodeId}”不存在。", $"nodes.{node.Id}.runtime.targetNodeId")];
-                throw new DomainValidationException(evaluatedValue12);
+                IReadOnlyList<DomainDiagnostic> mappedDiagnostics = [new DomainDiagnostic(FlowCallErrorCodes.TargetMissing, $"FlowCall target node '{node.Runtime.TargetNodeId}' does not exist. FlowCall 目标节点“{node.Runtime.TargetNodeId}”不存在。", $"nodes.{node.Id}.runtime.targetNodeId")];
+                throw new DomainValidationException(mappedDiagnostics);
             }
 
             if (node.Runtime.TargetFlowId is not null && node.Runtime.TargetFlowId != definition.Id)
             {
-                IReadOnlyList<DomainDiagnostic> evaluatedValue13 = [new DomainDiagnostic(FlowCallErrorCodes.TargetFlowUnavailable, "The target flow is not part of the current immutable run snapshot. 目标流程不在当前不可变运行快照中。", $"nodes.{node.Id}.runtime.targetFlowId")];
-                throw new DomainValidationException(evaluatedValue13);
+                IReadOnlyList<DomainDiagnostic> resolvedDiagnostics = [new DomainDiagnostic(FlowCallErrorCodes.TargetFlowUnavailable, "The target flow is not part of the current immutable run snapshot. 目标流程不在当前不可变运行快照中。", $"nodes.{node.Id}.runtime.targetFlowId")];
+                throw new DomainValidationException(resolvedDiagnostics);
             }
 
             var target = nodes[node.Runtime.TargetNodeId];
             if (target.Runtime?.IsPublic != true)
             {
-                IReadOnlyList<DomainDiagnostic> evaluatedValue14 = [new DomainDiagnostic(FlowCallErrorCodes.TargetNotPublic, $"FlowCall target node '{target.Id}' is not public. FlowCall 目标节点“{target.Id}”不是公开节点。", $"nodes.{node.Id}.runtime.targetNodeId")];
-                throw new DomainValidationException(evaluatedValue14);
+                IReadOnlyList<DomainDiagnostic> visibilityDiagnostics = [new DomainDiagnostic(FlowCallErrorCodes.TargetNotPublic, $"FlowCall target node '{target.Id}' is not public. FlowCall 目标节点“{target.Id}”不是公开节点。", $"nodes.{node.Id}.runtime.targetNodeId")];
+                throw new DomainValidationException(visibilityDiagnostics);
             }
 
             if (!string.IsNullOrWhiteSpace(node.Runtime.TargetCanvasId) && (!canvasByNodeId.TryGetValue(target.Id, out var targetCanvasId) || !string.Equals(node.Runtime.TargetCanvasId, targetCanvasId, StringComparison.Ordinal)))
             {
-                IReadOnlyList<DomainDiagnostic> evaluatedValue15 = [new DomainDiagnostic(FlowCallErrorCodes.TargetCanvasMismatch, "The FlowCall target canvas does not match the target node. FlowCall 目标画布与目标节点不匹配。", $"nodes.{node.Id}.runtime.targetCanvasId")];
-                throw new DomainValidationException(evaluatedValue15);
+                IReadOnlyList<DomainDiagnostic> canvasMismatchDiagnostics = [new DomainDiagnostic(FlowCallErrorCodes.TargetCanvasMismatch, "The FlowCall target canvas does not match the target node. FlowCall 目标画布与目标节点不匹配。", $"nodes.{node.Id}.runtime.targetCanvasId")];
+                throw new DomainValidationException(canvasMismatchDiagnostics);
             }
 
             ValidateFlowCallParameterBindings(node, target);
@@ -243,38 +242,36 @@ public sealed class ExecutionPlanBuilder
         {
             if (!callParameterIds.Contains(binding.CallParameterId) || !targetParameterIds.Contains(binding.TargetParameterId) || !boundCalls.Add(binding.CallParameterId) || !boundTargets.Add(binding.TargetParameterId))
             {
-                IReadOnlyList<DomainDiagnostic> evaluatedValue17 = [new DomainDiagnostic(FlowCallErrorCodes.ParameterBindingInvalid, "The FlowCall parameter binding is invalid. FlowCall 参数映射无效。", $"nodes.{callNode.Id}.runtime.flowCallParameterBindings")];
-                throw new DomainValidationException(evaluatedValue17);
+                IReadOnlyList<DomainDiagnostic> diagnostics = [new DomainDiagnostic(FlowCallErrorCodes.ParameterBindingInvalid, "The FlowCall parameter binding is invalid. FlowCall 参数映射无效。", $"nodes.{callNode.Id}.runtime.flowCallParameterBindings")];
+                throw new DomainValidationException(diagnostics);
             }
         }
 
         var missing = targetNode.Parameters.FirstOrDefault(parameter =>
         {
-            var evaluatedValue18 = parameter.Required && !(bindings.Count == 0 ? callParameterIds.Contains(parameter.Id) : boundTargets.Contains(parameter.Id));
-            return evaluatedValue18;
+            return parameter.Required && !(bindings.Count == 0 ? callParameterIds.Contains(parameter.Id) : boundTargets.Contains(parameter.Id));
         });
         if (missing is not null)
         {
-            IReadOnlyList<DomainDiagnostic> evaluatedValue19 = [new DomainDiagnostic(FlowCallErrorCodes.ParameterBindingMissing, $"Required target parameter '{missing.Name}' has no FlowCall input mapping. 目标必需参数“{missing.Name}”没有 FlowCall 输入映射。", $"nodes.{callNode.Id}.runtime.flowCallParameterBindings")];
-            throw new DomainValidationException(evaluatedValue19);
+            IReadOnlyList<DomainDiagnostic> mappedDiagnostics = [new DomainDiagnostic(FlowCallErrorCodes.ParameterBindingMissing, $"Required target parameter '{missing.Name}' has no FlowCall input mapping. 目标必需参数“{missing.Name}”没有 FlowCall 输入映射。", $"nodes.{callNode.Id}.runtime.flowCallParameterBindings")];
+            throw new DomainValidationException(mappedDiagnostics);
         }
     }
 
     private static void ValidateFlowCallCycles(IReadOnlyDictionary<string, NodeDefinition> nodes, IReadOnlyList<ConnectionDefinition> connections)
     {
-        var groupByResult26 = connections
-            .Where(static connection => connection.Kind == ConnectionKind.Execution)
-            .GroupBy(static connection => connection.FromNodeId, StringComparer.Ordinal);
         // A FlowCall introduces a call edge in addition to the visual
         // execution edges. Treat both as one conservative call graph so direct
         // and indirect recursion is rejected before a Worker is started.
         // FlowCall 除了可视化执行边还会引入调用边；合并检查可在 Worker 启动前拒绝直接和间接递归。
-        var edges = groupByResult26.ToDictionary(group => group.Key, group =>
+        var edges = connections
+            .Where(static connection => connection.Kind == ConnectionKind.Execution)
+            .GroupBy(static connection => connection.FromNodeId, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group =>
         {
-            var toArrayResult23 = group
+            return group
                 .Select(static item => item.ToNodeId)
                 .ToArray();
-            return toArrayResult23;
         }, StringComparer.Ordinal);
         foreach (var node in nodes.Values.Where(static node => node.Type == NodeType.FlowCall))
         {
@@ -297,8 +294,8 @@ public sealed class ExecutionPlanBuilder
         {
             if (Visit(nodeId))
             {
-                IReadOnlyList<DomainDiagnostic> evaluatedValue24 = [new DomainDiagnostic(FlowCallErrorCodes.CycleDetected, "FlowCall invocation graph must be acyclic. FlowCall 调用图必须无环。", $"nodes.{nodeId}")];
-                throw new DomainValidationException(evaluatedValue24);
+                IReadOnlyList<DomainDiagnostic> diagnostics = [new DomainDiagnostic(FlowCallErrorCodes.CycleDetected, "FlowCall invocation graph must be acyclic. FlowCall 调用图必须无环。", $"nodes.{nodeId}")];
+                throw new DomainValidationException(diagnostics);
             }
         }
 
@@ -353,8 +350,8 @@ public static class FlowCallReturnTypeAnalyzer
         ArgumentNullException.ThrowIfNull(plan);
         if (string.IsNullOrWhiteSpace(targetNodeId) || !plan.Nodes.ContainsKey(targetNodeId))
         {
-            IReadOnlyList<DomainDiagnostic> evaluatedValue27 = [new DomainDiagnostic(FlowCallErrorCodes.TargetMissing, $"FlowCall target node '{targetNodeId}' does not exist. FlowCall 目标节点“{targetNodeId}”不存在。", "targetNodeId")];
-            throw new DomainValidationException(evaluatedValue27);
+            IReadOnlyList<DomainDiagnostic> diagnostics = [new DomainDiagnostic(FlowCallErrorCodes.TargetMissing, $"FlowCall target node '{targetNodeId}' does not exist. FlowCall 目标节点“{targetNodeId}”不存在。", "targetNodeId")];
+            throw new DomainValidationException(diagnostics);
         }
 
         var reachable = new HashSet<string>(StringComparer.Ordinal);
@@ -400,18 +397,14 @@ public static class FlowCallReturnTypeAnalyzer
 
         if (terminalTypes.Count == 0 || terminalTypes.SetEquals(["void"]))
         {
-            FlowCallReturnTypeAnalysis evaluatedValue28 = new("void", false);
-            return evaluatedValue28;
+            return new("void", false);
         }
 
         if (terminalTypes.Count == 1)
         {
-            var singleResult = terminalTypes.Single();
-            FlowCallReturnTypeAnalysis evaluatedValue29 = new(singleResult, false);
-            return evaluatedValue29;
+            var single = terminalTypes.Single();
+            return new(single, false);
         }
-
-        FlowCallReturnTypeAnalysis evaluatedValue30 = new("System.Object", true);
-        return evaluatedValue30;
+        return new("System.Object", true);
     }
 }

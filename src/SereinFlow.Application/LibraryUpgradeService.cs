@@ -42,48 +42,41 @@ public sealed class LibraryUpgradeService
         var project = await _projects.FindAsync(projectId, cancellationToken);
         if (project is null)
         {
-            var notFoundResult = NotFound<LibraryUpgradePlanDto>(ProjectErrorCodes.NotFound, "Project was not found. 未找到项目。");
-            return notFoundResult;
+            return NotFound<LibraryUpgradePlanDto>(ProjectErrorCodes.NotFound, "Project was not found. 未找到项目。");
         }
 
         if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
         {
-            var conflictResult = Conflict<LibraryUpgradePlanDto>(ProjectErrorCodes.Archived, "Archived projects cannot apply library upgrades. 已归档的项目不能应用类库升级。");
-            return conflictResult;
+            return Conflict<LibraryUpgradePlanDto>(ProjectErrorCodes.Archived, "Archived projects cannot apply library upgrades. 已归档的项目不能应用类库升级。");
         }
 
         var libraries = await ResolveLibrariesAsync(request.SourceArtifactId, request.TargetArtifactId, cancellationToken);
         if (libraries is not { } pair)
         {
-            var conflictResult1 = Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.NotFound, "One or both library artifacts were not found. 一个或两个类库工件不存在。");
-            return conflictResult1;
+            return Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.NotFound, "One or both library artifacts were not found. 一个或两个类库工件不存在。");
         }
 
         var (source, target) = pair;
         var family = ValidateFamily(source, target);
         if (family is not null)
         {
-            var conflictResult2 = Conflict<LibraryUpgradePlanDto>(family.Value.Code, family.Value.Message);
-            return conflictResult2;
+            return Conflict<LibraryUpgradePlanDto>(family.Value.Code, family.Value.Message);
         }
 
         if (target.Lifecycle != LibraryLifecycleDto.Available)
         {
-            var conflictResult3 = Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.Archived, "An archived library artifact cannot be used as an upgrade target. 已归档的类库制品不能作为升级目标。");
-            return conflictResult3;
+            return Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.Archived, "An archived library artifact cannot be used as an upgrade target. 已归档的类库制品不能作为升级目标。");
         }
 
         if (!await _references.IsReferencedAsync(projectId, source.Id, cancellationToken))
         {
-            var conflictResult4 = Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.UpgradeSourceNotReferenced, "The project does not reference the source library artifact. 项目未引用源类库制品。");
-            return conflictResult4;
+            return Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.UpgradeSourceNotReferenced, "The project does not reference the source library artifact. 项目未引用源类库制品。");
         }
 
-        var requestedIds = resolveevaluatedValue() ?? [];
+        var requestedIds = GetDistinctRequestedFlowIds() ?? [];
         if (requestedIds.Length == 0)
         {
-            var libraryUpgradeOperationResult = new LibraryUpgradeOperationResult<LibraryUpgradePlanDto>(false, 400, Code: LibraryErrorCodes.UpgradeFlowRequired, Message: "At least one flow must be selected for a library upgrade preview. 类库升级预览至少需要选择一个流程。");
-            return libraryUpgradeOperationResult;
+            return new LibraryUpgradeOperationResult<LibraryUpgradePlanDto>(false, 400, Code: LibraryErrorCodes.UpgradeFlowRequired, Message: "At least one flow must be selected for a library upgrade preview. 类库升级预览至少需要选择一个流程。");
         }
 
         var previews = new List<FlowLibraryUpgradePreviewDto>(requestedIds.Length);
@@ -92,45 +85,33 @@ public sealed class LibraryUpgradeService
             var flow = await _flows.FindAsync(projectId, flowId, cancellationToken);
             if (flow is null)
             {
-                var notFoundResult5 = NotFound<LibraryUpgradePlanDto>(FlowErrorCodes.NotFound, "A selected flow definition was not found. 选定的流程定义不存在。");
-                return notFoundResult5;
+                return NotFound<LibraryUpgradePlanDto>(FlowErrorCodes.NotFound, "A selected flow definition was not found. 选定的流程定义不存在。");
             }
 
             if (!UsesArtifact(flow, source.Id))
             {
-                var conflictResult6 = Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.UpgradeFlowNotUsingSource, "A selected flow does not use the source library artifact. 所选流程中有流程未使用源类库制品。");
-                return conflictResult6;
+                return Conflict<LibraryUpgradePlanDto>(LibraryErrorCodes.UpgradeFlowNotUsingSource, "A selected flow does not use the source library artifact. 所选流程中有流程未使用源类库制品。");
             }
-
-            var analyzeResult = _analyzer.Analyze(flow, source, target);
-            previews.Add(analyzeResult);
+            previews.Add(_analyzer.Analyze(flow, source, target));
         }
-
-        var newGuidResult = Guid.NewGuid();
-        var plan = new LibraryUpgradePlanDto(newGuidResult, projectId, source.Id, target.Id, LibraryUpgradePlanStatusDto.Analyzed, previews, DateTimeOffset.UtcNow);
-        var savePlanAsyncResult = await _store.SavePlanAsync(plan, cancellationToken);
-        var libraryUpgradeOperationResult7 = new LibraryUpgradeOperationResult<LibraryUpgradePlanDto>(true, 201, savePlanAsyncResult);
-        return libraryUpgradeOperationResult7;
-        Guid[]? resolveevaluatedValue()
+        var plan = new LibraryUpgradePlanDto(Guid.NewGuid(), projectId, source.Id, target.Id, LibraryUpgradePlanStatusDto.Analyzed, previews, DateTimeOffset.UtcNow);
+        return new LibraryUpgradeOperationResult<LibraryUpgradePlanDto>(true, 201, (await _store.SavePlanAsync(plan, cancellationToken)));
+        Guid[]? GetDistinctRequestedFlowIds()
         {
-            var optionalReceiver = request.FlowIds;
-            Guid[]? optionalResult = default(Guid[]);
-            if (optionalReceiver is not null)
+            var flowIds = request.FlowIds;
+            Guid[]? requestedFlowIds = default(Guid[]);
+            if (flowIds is not null)
             {
-                var distinctResult = optionalReceiver.Distinct();
-                optionalResult = distinctResult.ToArray();
+                requestedFlowIds = flowIds.Distinct().ToArray();
             }
-
-            var evaluatedValue = optionalResult;
-            return evaluatedValue;
+            return requestedFlowIds;
         }
     }
 
     public async Task<LibraryUpgradeOperationResult<LibraryUpgradePlanDto>> GetPlanAsync(Guid projectId, Guid planId, CancellationToken cancellationToken = default)
     {
         var plan = await _store.FindPlanAsync(projectId, planId, cancellationToken);
-        LibraryUpgradeOperationResult<LibraryUpgradePlanDto> evaluatedValue8 = plan is null ? NotFound<LibraryUpgradePlanDto>(LibraryErrorCodes.UpgradeNotFound, "The library upgrade preview was not found. 未找到类库升级预览。") : new LibraryUpgradeOperationResult<LibraryUpgradePlanDto>(true, 200, plan);
-        return evaluatedValue8;
+        return plan is null ? NotFound<LibraryUpgradePlanDto>(LibraryErrorCodes.UpgradeNotFound, "The library upgrade preview was not found. 未找到类库升级预览。") : new LibraryUpgradeOperationResult<LibraryUpgradePlanDto>(true, 200, plan);
     }
 
     public async Task<LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>> ApplyAsync(Guid projectId, Guid planId, ApplyLibraryUpgradeRequestDto request, CancellationToken cancellationToken = default, string origin = "web")
@@ -138,92 +119,78 @@ public sealed class LibraryUpgradeService
         ArgumentNullException.ThrowIfNull(request);
         if (request.ExpectedFlowVersion < 1)
         {
-            var libraryUpgradeOperationResult9 = new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 400, Code: FlowErrorCodes.VersionInvalid, Message: "The expected flow version must be positive. 期望流程版本必须为正数。");
-            return libraryUpgradeOperationResult9;
+            return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 400, Code: FlowErrorCodes.VersionInvalid, Message: "The expected flow version must be positive. 期望流程版本必须为正数。");
         }
 
         var project = await _projects.FindAsync(projectId, cancellationToken);
         if (project is null)
         {
-            var notFoundResult10 = NotFound<LibraryUpgradeApplyResultDto>(ProjectErrorCodes.NotFound, "Project was not found. 未找到项目。");
-            return notFoundResult10;
+            return NotFound<LibraryUpgradeApplyResultDto>(ProjectErrorCodes.NotFound, "Project was not found. 未找到项目。");
         }
 
         if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
         {
-            var conflictResult11 = Conflict<LibraryUpgradeApplyResultDto>(ProjectErrorCodes.Archived, "Archived projects cannot apply library upgrades. 已归档的项目不能应用类库升级。");
-            return conflictResult11;
+            return Conflict<LibraryUpgradeApplyResultDto>(ProjectErrorCodes.Archived, "Archived projects cannot apply library upgrades. 已归档的项目不能应用类库升级。");
         }
 
         var plan = await _store.FindPlanAsync(projectId, planId, cancellationToken);
         if (plan is null)
         {
-            var notFoundResult12 = NotFound<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeNotFound, "The library upgrade preview was not found. 未找到类库升级预览。");
-            return notFoundResult12;
+            return NotFound<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeNotFound, "The library upgrade preview was not found. 未找到类库升级预览。");
         }
 
         if (plan.Status is not (LibraryUpgradePlanStatusDto.Analyzed or LibraryUpgradePlanStatusDto.Applied))
         {
-            var conflictResult13 = Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeNotApplicable, "Only an active library upgrade preview can be applied. 只有活动的类库升级预览可以应用。");
-            return conflictResult13;
+            return Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeNotApplicable, "Only an active library upgrade preview can be applied. 只有活动的类库升级预览可以应用。");
         }
 
         if (!plan.Flows.Any(flow => flow.FlowId == request.FlowId))
         {
-            var libraryUpgradeOperationResult14 = new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 400, Code: LibraryErrorCodes.UpgradeFlowNotInPlan, Message: "The selected flow is not included in this upgrade preview. 选定流程不在此升级预览中。");
-            return libraryUpgradeOperationResult14;
+            return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 400, Code: LibraryErrorCodes.UpgradeFlowNotInPlan, Message: "The selected flow is not included in this upgrade preview. 选定流程不在此升级预览中。");
         }
 
         if ((plan.AppliedFlows ?? []).Any(result => result.FlowId == request.FlowId))
         {
-            var conflictResult15 = Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeFlowAlreadyApplied, "The selected flow has already been upgraded by this plan. 选定流程已通过此计划完成升级。");
-            return conflictResult15;
+            return Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeFlowAlreadyApplied, "The selected flow has already been upgraded by this plan. 选定流程已通过此计划完成升级。");
         }
 
         var flow = await _flows.FindAsync(projectId, request.FlowId, cancellationToken);
         if (flow is null)
         {
-            var notFoundResult16 = NotFound<LibraryUpgradeApplyResultDto>(FlowErrorCodes.NotFound, "The selected flow definition was not found. 选定的流程定义不存在。");
-            return notFoundResult16;
+            return NotFound<LibraryUpgradeApplyResultDto>(FlowErrorCodes.NotFound, "The selected flow definition was not found. 选定的流程定义不存在。");
         }
 
         if (flow.Version != request.ExpectedFlowVersion)
         {
-            var libraryUpgradeOperationResult17 = new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: FlowErrorCodes.VersionConflict, Message: "The flow version changed before the library upgrade could be applied. 类库升级应用前流程版本已发生变化。", CurrentVersion: flow.Version);
-            return libraryUpgradeOperationResult17;
+            return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: FlowErrorCodes.VersionConflict, Message: "The flow version changed before the library upgrade could be applied. 类库升级应用前流程版本已发生变化。", CurrentVersion: flow.Version);
         }
 
         var libraries = await ResolveLibrariesAsync(plan.SourceArtifactId, plan.TargetArtifactId, cancellationToken);
         if (libraries is not { } pair)
         {
-            var conflictResult18 = Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.NotFound, "One or both library artifacts were not found. 一个或两个类库工件不存在。");
-            return conflictResult18;
+            return Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.NotFound, "One or both library artifacts were not found. 一个或两个类库工件不存在。");
         }
 
         var (source, target) = pair;
         var family = ValidateFamily(source, target);
         if (family is not null)
         {
-            var conflictResult19 = Conflict<LibraryUpgradeApplyResultDto>(family.Value.Code, family.Value.Message);
-            return conflictResult19;
+            return Conflict<LibraryUpgradeApplyResultDto>(family.Value.Code, family.Value.Message);
         }
 
         if (target.Lifecycle != LibraryLifecycleDto.Available)
         {
-            var conflictResult20 = Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.Archived, "An archived library artifact cannot be used as an upgrade target. 已归档类库工件不能作为升级目标。");
-            return conflictResult20;
+            return Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.Archived, "An archived library artifact cannot be used as an upgrade target. 已归档类库工件不能作为升级目标。");
         }
 
         if (!await _references.IsReferencedAsync(projectId, source.Id, cancellationToken))
         {
-            var conflictResult21 = Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeSourceNotReferenced, "The project does not reference the source library artifact. 项目未引用源类库制品。");
-            return conflictResult21;
+            return Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeSourceNotReferenced, "The project does not reference the source library artifact. 项目未引用源类库制品。");
         }
 
         if (!UsesArtifact(flow, source.Id))
         {
-            var conflictResult22 = Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeFlowNotUsingSource, "The selected flow no longer uses the source library artifact. 所选流程已不再使用源类库制品。");
-            return conflictResult22;
+            return Conflict<LibraryUpgradeApplyResultDto>(LibraryErrorCodes.UpgradeFlowNotUsingSource, "The selected flow no longer uses the source library artifact. 所选流程已不再使用源类库制品。");
         }
 
         var analysis = _analyzer.Analyze(flow, source, target);
@@ -232,8 +199,7 @@ public sealed class LibraryUpgradeService
             .ToArray();
         if (blocked.Length > 0)
         {
-            var libraryUpgradeOperationResult23 = new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: LibraryErrorCodes.UpgradeBlocked, Message: "The library upgrade contains blocking compatibility changes. 类库升级包含阻断性兼容性变更。");
-            return libraryUpgradeOperationResult23;
+            return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: LibraryErrorCodes.UpgradeBlocked, Message: "The library upgrade contains blocking compatibility changes. 类库升级包含阻断性兼容性变更。");
         }
 
         var acknowledgements = (request.AcknowledgedItemIds ?? []).ToHashSet(StringComparer.Ordinal);
@@ -241,14 +207,12 @@ public sealed class LibraryUpgradeService
             .Where(static issue => issue.RequiresAcknowledgement)
             .Where(issue =>
             {
-                var evaluatedValue24 = !acknowledgements.Contains(issue.Id);
-                return evaluatedValue24;
+                return !acknowledgements.Contains(issue.Id);
             })
             .ToArray();
         if (missingAcknowledgements.Length > 0)
         {
-            var libraryUpgradeOperationResult25 = new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: LibraryErrorCodes.UpgradeConfirmationRequired, Message: "All parameter mappings that require confirmation must be acknowledged. 必须确认所有需要确认的参数映射。");
-            return libraryUpgradeOperationResult25;
+            return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: LibraryErrorCodes.UpgradeConfirmationRequired, Message: "All parameter mappings that require confirmation must be acknowledged. 必须确认所有需要确认的参数映射。");
         }
 
         FlowDefinitionDto upgraded;
@@ -258,39 +222,35 @@ public sealed class LibraryUpgradeService
         }
         catch (LibraryUpgradeTransformationException exception)
         {
-            var libraryUpgradeOperationResult26 = new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: exception.Code, Message: exception.Message);
-            return libraryUpgradeOperationResult26;
+            return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: exception.Code, Message: exception.Message);
         }
 
         var validation = FlowDefinitionContractValidator.ValidateForPersistence(upgraded);
         if (!validation.IsValid)
         {
-            var libraryUpgradeOperationResult27 = new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: LibraryErrorCodes.UpgradeFlowInvalid, Message: validation.Diagnostics.Count > 0 ? validation.Diagnostics[0].Message : "The upgraded flow is invalid. 升级后的流程无效。");
-            return libraryUpgradeOperationResult27;
+            return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: LibraryErrorCodes.UpgradeFlowInvalid, Message: validation.Diagnostics.Count > 0 ? validation.Diagnostics[0].Message : "The upgraded flow is invalid. 升级后的流程无效。");
         }
 
         upgraded = FlowDefinitionContractNormalizer.NormalizeForPersistence(upgraded);
         var commit = await _store.CommitAsync(projectId, planId, upgraded, request.ExpectedFlowVersion, target.Id, appliedFlow: null, cancellationToken: cancellationToken);
         if (!commit.IsCommitted)
         {
-            var libraryUpgradeOperationResult28 = new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: FlowErrorCodes.VersionConflict, Message: "The flow version changed before the library upgrade could be applied. 类库升级应用前流程版本已发生变化。", CurrentVersion: commit.CurrentVersion);
-            return libraryUpgradeOperationResult28;
+            return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(false, 409, Code: FlowErrorCodes.VersionConflict, Message: "The flow version changed before the library upgrade could be applied. 类库升级应用前流程版本已发生变化。", CurrentVersion: commit.CurrentVersion);
         }
 
         var saved = commit.Definition!;
         if (_changePublisher is not null)
         {
-            var newGuidResult29 = Guid.NewGuid();
-            var toArrayResult = saved.Canvases
+            var eventId = Guid.NewGuid();
+            var canvasIds = saved.Canvases
                 .Select(static canvas => canvas.Id)
                 .ToArray();
-            var workspaceChangeEventDto = new WorkspaceChangeEventDto(newGuidResult29, DateTimeOffset.UtcNow, FlowErrorCodes.Changed, projectId, saved.Id, saved.Version, saved.Checksum, origin, "library.upgrade", toArrayResult, LibraryIds: [plan.SourceArtifactId, target.Id]);
+            var workspaceChangeEventDto = new WorkspaceChangeEventDto(eventId, DateTimeOffset.UtcNow, FlowErrorCodes.Changed, projectId, saved.Id, saved.Version, saved.Checksum, origin, "library.upgrade", canvasIds, LibraryIds: [plan.SourceArtifactId, target.Id]);
             await _changePublisher.PublishAsync(workspaceChangeEventDto, CancellationToken.None);
         }
 
         var libraryUpgradeApplyResultDto = new LibraryUpgradeApplyResultDto(saved.Id, request.ExpectedFlowVersion, saved.Version, source.Id, target.Id, analysis.AffectedNodeCount, analysis.Issues);
-        var libraryUpgradeOperationResult33 = new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(true, 200, libraryUpgradeApplyResultDto);
-        return libraryUpgradeOperationResult33;
+        return new LibraryUpgradeOperationResult<LibraryUpgradeApplyResultDto>(true, 200, libraryUpgradeApplyResultDto);
     }
 
     /// <summary>
@@ -306,14 +266,15 @@ public sealed class LibraryUpgradeService
         var requests = request.Flows?.ToArray() ?? [];
         if (requests.Length == 0)
         {
-            var libraryUpgradeOperationResult34 = new LibraryUpgradeOperationResult<LibraryUpgradeBatchApplyResultDto>(false, 400, Code: LibraryErrorCodes.UpgradeFlowRequired, Message: "At least one flow must be selected for a library upgrade. 类库升级至少需要选择一个流程。");
-            return libraryUpgradeOperationResult34;
+            return new LibraryUpgradeOperationResult<LibraryUpgradeBatchApplyResultDto>(false, 400, Code: LibraryErrorCodes.UpgradeFlowRequired, Message: "At least one flow must be selected for a library upgrade. 类库升级至少需要选择一个流程。");
         }
 
-        if (resolveCountResult() != requests.Length)
+        if (requests
+                .Select(item => item.FlowId)
+                .Distinct()
+                .Count() != requests.Length)
         {
-            var libraryUpgradeOperationResult35 = new LibraryUpgradeOperationResult<LibraryUpgradeBatchApplyResultDto>(false, 400, Code: LibraryErrorCodes.UpgradeDuplicateFlow, Message: "Each flow can appear only once in a library upgrade batch. 类库升级批次中每个流程只能出现一次。");
-            return libraryUpgradeOperationResult35;
+            return new LibraryUpgradeOperationResult<LibraryUpgradeBatchApplyResultDto>(false, 400, Code: LibraryErrorCodes.UpgradeDuplicateFlow, Message: "Each flow can appear only once in a library upgrade batch. 类库升级批次中每个流程只能出现一次。");
         }
 
         var succeeded = new List<LibraryUpgradeApplyResultDto>(requests.Length);
@@ -333,16 +294,7 @@ public sealed class LibraryUpgradeService
         }
 
         var libraryUpgradeBatchApplyResultDto = new LibraryUpgradeBatchApplyResultDto(planId, succeeded, failed);
-        var libraryUpgradeOperationResult38 = new LibraryUpgradeOperationResult<LibraryUpgradeBatchApplyResultDto>(true, 200, libraryUpgradeBatchApplyResultDto);
-        return libraryUpgradeOperationResult38;
-        int resolveCountResult()
-        {
-            var countResult = requests
-                .Select(item => item.FlowId)
-                .Distinct()
-                .Count();
-            return countResult;
-        }
+        return new LibraryUpgradeOperationResult<LibraryUpgradeBatchApplyResultDto>(true, 200, libraryUpgradeBatchApplyResultDto);
     }
 
     private async Task<(LibraryDto Source, LibraryDto Target)?> ResolveLibrariesAsync(string sourceArtifactId, string targetArtifactId, CancellationToken cancellationToken)
@@ -369,26 +321,22 @@ public sealed class LibraryUpgradeService
 
     private static bool UsesArtifact(FlowDefinitionDto flow, string artifactId)
     {
-        var anyResult = flow.Canvases
+        return flow.Canvases
             .SelectMany(static canvas => canvas.Nodes)
             .Any(node =>
             {
-                var evaluatedValue39 = node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop && string.Equals(node.Ui?.LibraryId, artifactId, StringComparison.OrdinalIgnoreCase);
-                return evaluatedValue39;
+                return node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop && string.Equals(node.Ui?.LibraryId, artifactId, StringComparison.OrdinalIgnoreCase);
             });
-        return anyResult;
     }
 
     private static LibraryUpgradeOperationResult<T> NotFound<T>(string code, string message)
     {
-        LibraryUpgradeOperationResult<T> evaluatedValue40 = new(false, 404, Code: code, Message: message);
-        return evaluatedValue40;
+        return new(false, 404, Code: code, Message: message);
     }
 
     private static LibraryUpgradeOperationResult<T> Conflict<T>(string code, string message)
     {
-        LibraryUpgradeOperationResult<T> evaluatedValue41 = new(false, 409, Code: code, Message: message);
-        return evaluatedValue41;
+        return new(false, 409, Code: code, Message: message);
     }
 
     private static FlowDefinitionDto BuildUpgradedDefinition(FlowDefinitionDto sourceDefinition, LibraryDto sourceLibrary, LibraryDto targetLibrary)
@@ -445,8 +393,7 @@ public sealed class LibraryUpgradeService
         var targetManifestNode = LibraryCompatibilityAnalyzer.FindTargetNode(sourceManifestNode, targetManifest) ?? throw new LibraryUpgradeTransformationException(LibraryErrorCodes.UpgradeTargetContractUnknown, "The target node cannot be resolved for upgrade. 无法解析要升级的目标节点。");
         var targetCatalogNode = targetLibrary.Nodes.SingleOrDefault(candidate =>
         {
-            var evaluatedValue45 = string.Equals(candidate.ContractId, targetManifestNode.ContractId, StringComparison.Ordinal) && candidate.Type == targetManifestNode.Type;
-            return evaluatedValue45;
+            return string.Equals(candidate.ContractId, targetManifestNode.ContractId, StringComparison.Ordinal) && candidate.Type == targetManifestNode.Type;
         });
         if (targetCatalogNode is null)
         {
@@ -460,13 +407,11 @@ public sealed class LibraryUpgradeService
         {
             var sourceManifestParameter = sourceManifestNode.Parameters.SingleOrDefault(candidate =>
             {
-                var evaluatedValue46 = string.Equals(candidate.ContractId, targetManifestParameter.ContractId, StringComparison.Ordinal) || targetManifestParameter.Aliases.Contains(candidate.ContractId, StringComparer.Ordinal);
-                return evaluatedValue46;
+                return string.Equals(candidate.ContractId, targetManifestParameter.ContractId, StringComparison.Ordinal) || targetManifestParameter.Aliases.Contains(candidate.ContractId, StringComparer.Ordinal);
             });
             var targetCatalogParameter = targetCatalogNode.Parameters.SingleOrDefault(candidate =>
             {
-                var equalsResult = string.Equals(candidate.Id, targetManifestParameter.ContractId, StringComparison.Ordinal);
-                return equalsResult;
+                return string.Equals(candidate.Id, targetManifestParameter.ContractId, StringComparison.Ordinal);
             });
             if (targetCatalogParameter is null)
             {
@@ -475,16 +420,13 @@ public sealed class LibraryUpgradeService
 
             var existing = sourceManifestParameter is null ? null : sourceParameters.FirstOrDefault(parameter =>
             {
-                var equalsResult47 = string.Equals(parameter.Ui?.Id ?? parameter.Name, sourceManifestParameter.ContractId, StringComparison.Ordinal);
-                return equalsResult47;
+                return string.Equals(parameter.Ui?.Id ?? parameter.Name, sourceManifestParameter.ContractId, StringComparison.Ordinal);
             });
             if (sourceManifestParameter is not null)
             {
                 parameterMap[sourceManifestParameter.ContractId] = targetManifestParameter.ContractId;
             }
-
-            NodeParameterDto evaluatedValue48 = existing is null ? CreateAddedParameter(targetManifestParameter, targetCatalogParameter) : TransformParameter(existing, targetManifestParameter, targetCatalogParameter);
-            transformedParameters.Add(evaluatedValue48);
+            transformedParameters.Add((existing is null ? CreateAddedParameter(targetManifestParameter, targetCatalogParameter) : TransformParameter(existing, targetManifestParameter, targetCatalogParameter)));
         }
 
         var runtime = node.Ui! with
@@ -499,8 +441,7 @@ public sealed class LibraryUpgradeService
             LibraryNodeContractId = targetCatalogNode.ContractId,
             FlowLibraryName = targetCatalogNode.FlowLibraryName,
         };
-        var transformedNode = new TransformedNode(node with { Type = targetCatalogNode.Type, Parameters = transformedParameters, Ui = runtime }, parameterMap);
-        return transformedNode;
+        return new TransformedNode(node with { Type = targetCatalogNode.Type, Parameters = transformedParameters, Ui = runtime }, parameterMap);
     }
 
     private static NodeParameterDto TransformParameter(NodeParameterDto source, LibraryManifestParameterDto targetManifest, LibraryParameterDto targetCatalog)
@@ -529,8 +470,7 @@ public sealed class LibraryUpgradeService
     private static NodeParameterDto CreateAddedParameter(LibraryManifestParameterDto targetManifest, LibraryParameterDto targetCatalog)
     {
         var nodeParameterUiMetadataDto = new NodeParameterUiMetadataDto(targetManifest.ContractId, targetManifest.DisplayName, targetManifest.Type, targetManifest.DefaultValue, null, null, null, null, Type: targetManifest.Type, Description: targetCatalog.Description, InputMode: targetManifest.EnumMetadata is null ? "manual" : "select", IsVariadic: targetManifest.IsVariadic, VariadicGroupId: targetManifest.IsVariadic ? targetManifest.ContractId : null, ElementType: targetManifest.ElementType, EnumMetadata: targetManifest.EnumMetadata);
-        NodeParameterDto evaluatedValue49 = new(targetManifest.ClrName, targetManifest.DefaultValue, DataSourceDto.Literal, targetManifest.Required, nodeParameterUiMetadataDto);
-        return evaluatedValue49;
+        return new(targetManifest.ClrName, targetManifest.DefaultValue, DataSourceDto.Literal, targetManifest.Required, nodeParameterUiMetadataDto);
     }
 
     private sealed record TransformedNode(NodeDto Node, IReadOnlyDictionary<string, string> ParameterMap);

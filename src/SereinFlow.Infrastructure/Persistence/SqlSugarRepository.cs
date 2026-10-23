@@ -3,6 +3,7 @@ using SqlSugar;
 using SereinFlow.Application.Persistence;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 internal sealed class SqlSugarRepository<TEntity> : IRepository<TEntity> where TEntity : class, new()
 {
     private readonly ISqlSugarClient _database;
@@ -14,9 +15,7 @@ internal sealed class SqlSugarRepository<TEntity> : IRepository<TEntity> where T
     public async Task<TEntity?> GetByIdAsync(object id, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var queryableResult = _database.Queryable<TEntity>();
-        var inSingleAsyncResult = await queryableResult.InSingleAsync(id);
-        return inSingleAsyncResult;
+        return await _database.Queryable<TEntity>().InSingleAsync(id);
     }
 
     public async Task<IReadOnlyList<TEntity>> ListAsync(Expression<Func<TEntity, bool>>? predicate = null, CancellationToken cancellationToken = default)
@@ -27,17 +26,14 @@ internal sealed class SqlSugarRepository<TEntity> : IRepository<TEntity> where T
         {
             query = query.Where(predicate);
         }
-
-        var toListAsyncResult = await query.ToListAsync(cancellationToken);
-        return toListAsyncResult;
+        return await query.ToListAsync(cancellationToken);
     }
 
     public async Task<TEntity> AddAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entity);
         cancellationToken.ThrowIfCancellationRequested();
-        var insertableResult = _database.Insertable(entity);
-        await insertableResult.ExecuteCommandAsync(cancellationToken);
+        await _database.Insertable(entity).ExecuteCommandAsync(cancellationToken);
         return entity;
     }
 
@@ -45,18 +41,16 @@ internal sealed class SqlSugarRepository<TEntity> : IRepository<TEntity> where T
     {
         ArgumentNullException.ThrowIfNull(entity);
         cancellationToken.ThrowIfCancellationRequested();
-        var updateableResult = _database.Updateable(entity);
-        var executeCommandHasChangeAsyncResult = await updateableResult.ExecuteCommandHasChangeAsync(cancellationToken);
-        return executeCommandHasChangeAsyncResult;
+        return await _database.Updateable(entity).ExecuteCommandHasChangeAsync(cancellationToken);
     }
 
     public async Task<bool> DeleteAsync(object id, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var deleteableResult = _database.Deleteable<TEntity>();
-        var inResult = deleteableResult.In(id);
-        var executeCommandHasChangeAsyncResult1 = await inResult.ExecuteCommandHasChangeAsync();
-        return executeCommandHasChangeAsyncResult1;
+        return await _database
+            .Deleteable<TEntity>()
+            .In(id)
+            .ExecuteCommandHasChangeAsync();
     }
 }
 

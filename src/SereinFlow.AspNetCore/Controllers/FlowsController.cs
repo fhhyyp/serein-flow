@@ -5,6 +5,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/projects/{projectId:guid}/flows")]
 public sealed class FlowsController : ApiControllerBase
 {
@@ -23,15 +24,13 @@ public sealed class FlowsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Get([FromRoute] Guid projectId, [FromRoute] Guid flowId, CancellationToken cancellationToken)
     {
-        if (await _projects.FindAsync(projectId, cancellationToken)is null)
+        if (await _projects.FindAsync(projectId, cancellationToken) is null)
         {
-            var apiProblemResult = ApiProblem(StatusCodes.Status404NotFound, "Project not found. 未找到项目。");
-            return apiProblemResult;
+            return ApiProblem(StatusCodes.Status404NotFound, "Project not found. 未找到项目。");
         }
 
         var flow = await _flows.FindAsync(projectId, flowId, cancellationToken);
-        ActionResult evaluatedValue = flow is null ? ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。") : Ok(flow);
-        return evaluatedValue;
+        return flow is null ? ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。") : Ok(flow);
     }
 
     [HttpPut("{flowId:guid}")]
@@ -43,37 +42,32 @@ public sealed class FlowsController : ApiControllerBase
     {
         if (request.ExpectedVersion < 1 || request.Definition.Id != flowId)
         {
-            var apiProblemResult1 = ApiProblem(StatusCodes.Status400BadRequest, "The flow route and version must match the update request. 流程路由和版本必须与更新请求一致。");
-            return apiProblemResult1;
+            return ApiProblem(StatusCodes.Status400BadRequest, "The flow route and version must match the update request. 流程路由和版本必须与更新请求一致。");
         }
 
         var project = await _projects.FindAsync(projectId, cancellationToken);
-        if (project is null || await _flows.FindAsync(projectId, flowId, cancellationToken)is null)
+        if (project is null || await _flows.FindAsync(projectId, flowId, cancellationToken) is null)
         {
-            var apiProblemResult2 = ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。");
-            return apiProblemResult2;
+            return ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。");
         }
 
         if (project.Status == ProjectStatus.Archived)
         {
-            var apiProblemResult3 = ApiProblem(StatusCodes.Status409Conflict, "Archived projects cannot save flow definitions. 已归档项目不能保存流程定义。");
-            return apiProblemResult3;
+            return ApiProblem(StatusCodes.Status409Conflict, "Archived projects cannot save flow definitions. 已归档项目不能保存流程定义。");
         }
 
         var result = await _flowWriter.WriteAsync(projectId, flowId, request.Definition, request.ExpectedVersion, cancellationToken);
-        ActionResult evaluatedValue5 = result.Status switch
+        return result.Status switch
         {
             FlowDefinitionWriteStatus.Saved or FlowDefinitionWriteStatus.NoChange => Ok(result.Saved),
             FlowDefinitionWriteStatus.Invalid when result.Preparation is not null => BadRequest(result.Preparation.Validation),
             FlowDefinitionWriteStatus.Archived => ApiProblem(StatusCodes.Status409Conflict, "Archived projects cannot save flow definitions. 已归档项目不能保存流程定义。"),
-            FlowDefinitionWriteStatus.Conflict => resolveApiProblemResult(),
+            FlowDefinitionWriteStatus.Conflict => ReadConflict(),
             _ => ApiProblem(StatusCodes.Status400BadRequest, "The flow definition is invalid. 流程定义无效。"),
         };
-        return evaluatedValue5;
-        ObjectResult resolveApiProblemResult()
+        ObjectResult ReadConflict()
         {
-            var apiProblemResult4 = ApiVersionProblem(StatusCodes.Status409Conflict, "Flow definition was changed by another editor. 流程定义已被其他编辑器修改。", currentVersion: result.CurrentVersion);
-            return apiProblemResult4;
+            return ApiVersionProblem(StatusCodes.Status409Conflict, "Flow definition was changed by another editor. 流程定义已被其他编辑器修改。", currentVersion: result.CurrentVersion);
         }
     }
 }

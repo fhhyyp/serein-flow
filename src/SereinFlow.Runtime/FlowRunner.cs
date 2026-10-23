@@ -57,24 +57,21 @@ public sealed class FlowRunner
             var globalFlipflops = plan.Nodes.Values
                 .Where(node =>
                 {
-                    var evaluatedValue = node.Type == NodeType.Flipflop && !plan.HasIncomingExecution(node.Id);
-                    return evaluatedValue;
+                    return node.Type == NodeType.Flipflop && !plan.HasIncomingExecution(node.Id);
                 })
                 .ToArray();
             var globalTasks = globalFlipflops
                 .Select(node =>
                 {
-                    var runGlobalFlipflopAsyncResult = RunGlobalFlipflopAsync(node, plan, session, linkedCancellation.Token);
-                    return runGlobalFlipflopAsyncResult;
+                    return RunGlobalFlipflopAsync(node, plan, session, linkedCancellation.Token);
                 })
                 .ToArray();
-            var mainResult = string.IsNullOrWhiteSpace(definition.EntryNodeId) ? NodeExecutionResult.Success() : plan.Nodes.TryGetValue(definition.EntryNodeId, out var entry) && entry.Type == NodeType.Flipflop && globalFlipflops.Any(node => node.Id == entry.Id) ? NodeExecutionResult.Success() : await RunStackAsync(definition.EntryNodeId, plan, session, linkedCancellation.Token);
+            var success = string.IsNullOrWhiteSpace(definition.EntryNodeId) ? NodeExecutionResult.Success() : plan.Nodes.TryGetValue(definition.EntryNodeId, out var entry) && entry.Type == NodeType.Flipflop && globalFlipflops.Any(node => node.Id == entry.Id) ? NodeExecutionResult.Success() : await RunStackAsync(definition.EntryNodeId, plan, session, linkedCancellation.Token);
             if (globalTasks.Length > 0)
             {
                 try
                 {
-                    var globalResults = await Task.WhenAll(globalTasks);
-                    var globalFailure = globalResults.FirstOrDefault(result => !result.IsSuccess);
+                    var globalFailure = (await Task.WhenAll(globalTasks)).FirstOrDefault(result => !result.IsSuccess);
                     if (globalFailure is not null)
                     {
                         if (globalFailure.ErrorCode == WorkerErrorCodes.Cancelled && linkedCancellation.IsCancellationRequested)
@@ -97,7 +94,7 @@ public sealed class FlowRunner
             // 监听器可能在进入等待循环前观察到取消并正常结束；此时仍应保留运行的取消终态，
             // 不能误报为成功。
             linkedCancellation.Token.ThrowIfCancellationRequested();
-            return mainResult;
+            return success;
         }
         finally
         {
@@ -118,30 +115,26 @@ public sealed class FlowRunner
         {
             throw new InvalidOperationException("The execution session is not attached to a plan. 运行会话尚未绑定执行计划。");
         }
-
-        var runStackAsyncResult = RunStackAsync(nodeId, session.Plan, session, cancellationToken);
-        return runStackAsyncResult;
+        return RunStackAsync(nodeId, session.Plan, session, cancellationToken);
     }
 
     private async ValueTask<NodeExecutionResult> RunStackAsync(string startNodeId, ExecutionPlan plan, FlowExecutionSession session, CancellationToken cancellationToken)
     {
         var stack = new Stack<string>();
         stack.Push(startNodeId);
-        var lastResult = NodeExecutionResult.Success();
+        var success = NodeExecutionResult.Success();
         while (stack.Count > 0)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var currentNodeId = stack.Pop();
             if (!plan.Nodes.TryGetValue(currentNodeId, out var node))
             {
-                var errorResult = NodeExecutionResult.Error(FlowErrorCodes.NodeMissing, $"Node '{currentNodeId}' does not exist. 节点“{currentNodeId}”不存在。");
-                return errorResult;
+                return NodeExecutionResult.Error(FlowErrorCodes.NodeMissing, $"Node '{currentNodeId}' does not exist. 节点“{currentNodeId}”不存在。");
             }
 
             if (!session.TryBeginStep(node.Id, out var step, out var executionId, out var limitError))
             {
-                var errorResult1 = NodeExecutionResult.Error(limitError!, "The flow execution limit was exceeded. 流程执行限制已超出。");
-                return errorResult1;
+                return NodeExecutionResult.Error(limitError!, "The flow execution limit was exceeded. 流程执行限制已超出。");
             }
 
             var startedPayload = new NodeStartedEventPayload(step, session.InvocationId);
@@ -152,8 +145,8 @@ public sealed class FlowRunner
                 inputs = _dataResolver.Resolve(node, plan, session);
                 if (_executionGate is not NoopExecutionGate)
                 {
-                    var operationResult3 = CopyInputs(inputs);
-                    var nodeExecutionBoundary = new NodeExecutionBoundary(session.RunId, node.Id, node.Type, step, operationResult3, session.FrameDepth, session.InvocationId, executionId);
+                    var copyInputs = CopyInputs(inputs);
+                    var nodeExecutionBoundary = new NodeExecutionBoundary(session.RunId, node.Id, node.Type, step, copyInputs, session.FrameDepth, session.InvocationId, executionId);
                     var gateDecision = await _executionGate.BeforeNodeAsync(nodeExecutionBoundary, cancellationToken);
                     if (gateDecision == ExecutionGateDecision.Cancel)
                     {
@@ -161,16 +154,13 @@ public sealed class FlowRunner
                         throw new OperationCanceledException("The debug execution was cancelled. 调试执行已取消。", session.CancellationToken);
                     }
                 }
-
-                var executor = _executors.Get(node.Type);
-                var createExecutionRequestResult = CreateExecutionRequest(node, plan, session, inputs, step, executionId);
-                lastResult = await executor.ExecuteAsync(createExecutionRequestResult, cancellationToken);
-                lastResult = AttachInputs(lastResult, inputs);
+                success = await _executors.Get(node.Type).ExecuteAsync(CreateExecutionRequest(node, plan, session, inputs, step, executionId), cancellationToken);
+                success = AttachInputs(success, inputs);
             }
             catch (FlowDataBindingException exception)
             {
                 inputs = exception.ResolvedInputs;
-                lastResult = NodeExecutionResult.Failure(exception.Code, exception.Message)with
+                success = NodeExecutionResult.Failure(exception.Code, exception.Message) with
                 {
                     Inputs = CopyInputs(inputs)
                 };
@@ -181,13 +171,13 @@ public sealed class FlowRunner
             }
             catch (Exception exception)
             {
-                lastResult = NodeExecutionResult.Error(NodeErrorCodes.ExecutionFailed, $"Node '{node.Id}' execution failed. 节点“{node.Id}”执行失败。 {exception.Message}")with
+                success = NodeExecutionResult.Error(NodeErrorCodes.ExecutionFailed, $"Node '{node.Id}' execution failed. 节点“{node.Id}”执行失败。 {exception.Message}") with
                 {
                     Inputs = CopyInputs(inputs)
                 };
             }
 
-            foreach (var output in lastResult.Outputs)
+            foreach (var output in success.Outputs)
             {
                 session.Write($"{node.Id}.{output.Key}", output.Value);
                 var port = node.Ports.FirstOrDefault(item => item.Name == output.Key || item.Id == output.Key);
@@ -197,20 +187,20 @@ public sealed class FlowRunner
                 }
             }
 
-            if (lastResult.Outputs.Count == 1)
+            if (success.Outputs.Count == 1)
             {
-                var firstResult = lastResult.Outputs.Values.First();
-                session.Write($"{node.Id}.data-out", firstResult);
+                var first = success.Outputs.Values.First();
+                session.Write($"{node.Id}.data-out", first);
             }
 
-            var completedPayload = NodeResultEventPayload.FromResult(lastResult, inputs, session.InvocationId);
-            await PublishAsync(session, lastResult.IsSuccess ? NodeErrorCodes.Completed : lastResult.NextBranch == ExecutionBranch.Error ? NodeErrorCodes.Error : NodeErrorCodes.Failed, node.Id, completedPayload, executionId);
-            var branch = lastResult.NextBranch;
+            var completedPayload = NodeResultEventPayload.FromResult(success, inputs, session.InvocationId);
+            await PublishAsync(session, success.IsSuccess ? NodeErrorCodes.Completed : success.NextBranch == ExecutionBranch.Error ? NodeErrorCodes.Error : NodeErrorCodes.Failed, node.Id, completedPayload, executionId);
+            var branch = success.NextBranch;
             var selected = plan.GetOutgoing(node.Id, branch);
             PushReverse(stack, selected);
         }
 
-        return lastResult;
+        return success;
     }
 
     private async Task<NodeExecutionResult> RunGlobalFlipflopAsync(NodeDefinition node, ExecutionPlan plan, FlowExecutionSession session, CancellationToken cancellationToken)
@@ -220,8 +210,7 @@ public sealed class FlowRunner
         {
             var invalidExecutorPayload = new NodeResultEventPayload(false, null, FlipFlopErrorCodes.ExecutorInvalid, "The global Flipflop executor is invalid. 全局 Flipflop 执行器无效。", EmptyInputs, EmptyInputs, null, IncludeInvocationId: false);
             await PublishAsync(session, NodeErrorCodes.Failed, node.Id, invalidExecutorPayload);
-            var errorResult4 = NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutorInvalid, "The global Flipflop executor is invalid. 全局 Flipflop 执行器无效。");
-            return errorResult4;
+            return NodeExecutionResult.Error(FlipFlopErrorCodes.ExecutorInvalid, "The global Flipflop executor is invalid. 全局 Flipflop 执行器无效。");
         }
 
         while (!cancellationToken.IsCancellationRequested)
@@ -236,8 +225,7 @@ public sealed class FlowRunner
                 {
                     var limitPayload = new NodeResultEventPayload(false, ExecutionBranch.Error, limitError, "The global Flipflop execution limit was exceeded. 全局 Flipflop 执行限制已超出。", EmptyInputs, EmptyInputs, null, Global: true, IncludeInvocationId: false);
                     await PublishAsync(session, NodeErrorCodes.Failed, node.Id, limitPayload);
-                    var errorResult6 = NodeExecutionResult.Error(limitError!, "The global Flipflop execution limit was exceeded. 全局 Flipflop 执行限制已超出。");
-                    return errorResult6;
+                    return NodeExecutionResult.Error(limitError!, "The global Flipflop execution limit was exceeded. 全局 Flipflop 执行限制已超出。");
                 }
 
                 // Every trigger gets an isolated value context. In debug mode
@@ -253,8 +241,7 @@ public sealed class FlowRunner
                     var startedPayload = new NodeStartedEventPayload(step, invocationId, Global: true);
                     await PublishAsync(session, NodeErrorCodes.Started, node.Id, startedPayload, executionId);
                     inputs = _dataResolver.Resolve(node, plan, triggerSession);
-                    var createExecutionRequestResult12 = CreateExecutionRequest(node, plan, triggerSession, inputs, step, executionId);
-                    var result = await trigger.WaitForTriggerAsync(createExecutionRequestResult12, cancellationToken);
+                    var result = await trigger.WaitForTriggerAsync(CreateExecutionRequest(node, plan, triggerSession, inputs, step, executionId), cancellationToken);
                     result = AttachInputs(result, inputs);
                     foreach (var output in result.Outputs)
                     {
@@ -263,8 +250,8 @@ public sealed class FlowRunner
 
                     if (result.Outputs.Count == 1)
                     {
-                        var firstResult7 = result.Outputs.Values.First();
-                        triggerSession.Write($"{node.Id}.data-out", firstResult7);
+                        var first = result.Outputs.Values.First();
+                        triggerSession.Write($"{node.Id}.data-out", first);
                     }
 
                     var completedPayload = NodeResultEventPayload.FromResult(result, inputs, invocationId, global: true);
@@ -283,13 +270,10 @@ public sealed class FlowRunner
                         await PublishAsync(session, DebugErrorCodes.TriggerReceived, node.Id, receivedPayload);
                         if (_debugInvocationScheduler.TrySchedule(() =>
                         {
-                            var executeScheduledTriggerAsyncResult = ExecuteScheduledTriggerAsync(node, plan, session, triggerSession, result.NextBranch, debugInputs, step, executionId, cancellationToken);
-                            return executeScheduledTriggerAsyncResult;
+                            return ExecuteScheduledTriggerAsync(node, plan, session, triggerSession, result.NextBranch, debugInputs, step, executionId, cancellationToken);
                         }, () =>
                         {
-                            var disposeAsyncResult = triggerSession.DisposeAsync();
-                            var asTaskResult = disposeAsyncResult.AsTask();
-                            return asTaskResult;
+                            return triggerSession.DisposeAsync().AsTask();
                         }, out var queuePosition))
                         {
                             triggerSessionOwnedByListener = false;
@@ -345,9 +329,7 @@ public sealed class FlowRunner
                 await Task.Delay(ListenerFailureRetryDelay, cancellationToken);
             }
         }
-
-        var successResult = NodeExecutionResult.Success();
-        return successResult;
+        return NodeExecutionResult.Success();
     }
 
     private async Task ExecuteScheduledTriggerAsync(NodeDefinition flipflopNode, ExecutionPlan plan, FlowExecutionSession rootSession, FlowExecutionSession triggerSession, ExecutionBranch branch, IReadOnlyDictionary<string, object?> inputs, int step, Guid executionId, CancellationToken cancellationToken)
@@ -358,22 +340,22 @@ public sealed class FlowRunner
         {
             var admittedPayload = new TriggerAdmittedEventPayload(invocationId, flipflopNode.Id);
             await PublishAsync(rootSession, DebugErrorCodes.TriggerAdmitted, flipflopNode.Id, admittedPayload);
-            var copyInputsResult18 = CopyInputs(inputs);
-            var nodeExecutionBoundary19 = new NodeExecutionBoundary(rootSession.RunId, flipflopNode.Id, flipflopNode.Type, step, copyInputsResult18, triggerSession.FrameDepth, invocationId, executionId);
-            var decision = await _executionGate.BeforeNodeAsync(nodeExecutionBoundary19, cancellationToken);
+            var copyInputs = CopyInputs(inputs);
+            var boundary = new NodeExecutionBoundary(rootSession.RunId, flipflopNode.Id, flipflopNode.Type, step, copyInputs, triggerSession.FrameDepth, invocationId, executionId);
+            var decision = await _executionGate.BeforeNodeAsync(boundary, cancellationToken);
             if (decision == ExecutionGateDecision.Cancel)
             {
                 rootSession.Cancel();
                 throw new OperationCanceledException("The debug execution was cancelled. 调试执行已取消。", rootSession.CancellationToken);
             }
 
-            var lastResult = NodeExecutionResult.Success();
+            var success = NodeExecutionResult.Success();
             foreach (var connection in plan.GetOutgoing(flipflopNode.Id, branch))
             {
-                lastResult = await RunStackAsync(connection.ToNodeId, plan, triggerSession, cancellationToken);
+                success = await RunStackAsync(connection.ToNodeId, plan, triggerSession, cancellationToken);
             }
 
-            var completedPayload = new TriggerCompletedEventPayload(invocationId, flipflopNode.Id, lastResult);
+            var completedPayload = new TriggerCompletedEventPayload(invocationId, flipflopNode.Id, success);
             await PublishAsync(rootSession, DebugErrorCodes.TriggerCompleted, flipflopNode.Id, completedPayload);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || rootSession.CancellationToken.IsCancellationRequested)
@@ -391,21 +373,18 @@ public sealed class FlowRunner
     {
         if (request.Context is not FlowExecutionSession session || session.Plan is null)
         {
-            var errorResult22 = NodeExecutionResult.Error(FlowCallErrorCodes.ContextInvalid, "FlowCall requires a runtime execution session. FlowCall 需要运行时执行会话。");
-            return errorResult22;
+            return NodeExecutionResult.Error(FlowCallErrorCodes.ContextInvalid, "FlowCall requires a runtime execution session. FlowCall 需要运行时执行会话。");
         }
 
         var target = request.Node.Runtime?.TargetNodeId;
         if (string.IsNullOrWhiteSpace(target))
         {
-            var errorResult23 = NodeExecutionResult.Error(FlowCallErrorCodes.TargetMissing, "FlowCall target node is missing. FlowCall 目标节点缺失。");
-            return errorResult23;
+            return NodeExecutionResult.Error(FlowCallErrorCodes.TargetMissing, "FlowCall target node is missing. FlowCall 目标节点缺失。");
         }
 
         if (!session.Plan.Nodes.TryGetValue(target, out var targetNode))
         {
-            var errorResult24 = NodeExecutionResult.Error(FlowCallErrorCodes.TargetMissing, "FlowCall target node is missing. FlowCall 目标节点缺失。");
-            return errorResult24;
+            return NodeExecutionResult.Error(FlowCallErrorCodes.TargetMissing, "FlowCall target node is missing. FlowCall 目标节点缺失。");
         }
 
         var callInputs = ResolveFlowCallInputs(request.Node, targetNode, request.Inputs);
@@ -413,23 +392,18 @@ public sealed class FlowRunner
         var result = await RunFromNodeAsync(target, callFrame, cancellationToken);
         if (!result.IsSuccess)
         {
-            var nodeExecutionResult = new NodeExecutionResult(false, result.Outputs, result.NextBranch, result.ErrorCode, result.ErrorMessage, TransferOutputs: result.TransferOutputs);
-            return nodeExecutionResult;
+            return new NodeExecutionResult(false, result.Outputs, result.NextBranch, result.ErrorCode, result.ErrorMessage, TransferOutputs: result.TransferOutputs);
         }
 
         var staticType = request.Node.Runtime?.StaticReturnType;
         if (!string.IsNullOrWhiteSpace(staticType) && !string.Equals(staticType, "void", StringComparison.OrdinalIgnoreCase) && request.Node.Runtime?.IsDynamicReturnType != true && result.Outputs.Values.FirstOrDefault() is { } actual && !IsCompatibleReturnType(actual, staticType))
         {
-            var evaluatedValue25 = $"FlowCall returned '{actual.GetType().FullName}' but the static return type is '{staticType}'. FlowCall 返回类型与静态返回类型不一致。";
-            var errorResult26 = NodeExecutionResult.Error(FlowCallErrorCodes.ReturnTypeMismatch, evaluatedValue25);
-            return errorResult26;
+            return NodeExecutionResult.Error(FlowCallErrorCodes.ReturnTypeMismatch, ($"FlowCall returned '{actual.GetType().FullName}' but the static return type is '{staticType}'. FlowCall 返回类型与静态返回类型不一致。"));
         }
-
-        var evaluatedValue27 = NodeExecutionResult.Success(result.Outputs) with
+        return NodeExecutionResult.Success(result.Outputs) with
         {
             TransferOutputs = result.TransferOutputs
         };
-        return evaluatedValue27;
     }
 
     private static IReadOnlyDictionary<string, object?> ResolveFlowCallInputs(NodeDefinition callNode, NodeDefinition targetNode, IReadOnlyDictionary<string, object?> inputs)
@@ -466,8 +440,7 @@ public sealed class FlowRunner
         var expectedType = ResolveReturnType(staticType, actualType);
         if (expectedType is not null)
         {
-            var isAssignableFromResult = expectedType.IsAssignableFrom(actualType);
-            return isAssignableFromResult;
+            return expectedType.IsAssignableFrom(actualType);
         }
 
         // Keep compatibility with older or external type names that cannot be
@@ -481,14 +454,11 @@ public sealed class FlowRunner
                 return true;
             }
         }
-
-        var anyResult = actualType.GetInterfaces()
+        return actualType.GetInterfaces()
             .Any(type =>
             {
-                var evaluatedValue28 = string.Equals(type.FullName, staticType, StringComparison.Ordinal) || string.Equals(type.Name, staticType, StringComparison.Ordinal);
-                return evaluatedValue28;
+                return string.Equals(type.FullName, staticType, StringComparison.Ordinal) || string.Equals(type.Name, staticType, StringComparison.Ordinal);
             });
-        return anyResult;
     }
 
     private static Type? ResolveReturnType(string staticType, Type actualType)
@@ -524,13 +494,12 @@ public sealed class FlowRunner
         var environment = new NodeExecutionEnvironment(session.RunId, projectId, plan.Definition.Id, canvasId, node.Id, session.FrameDepth, step, executionId);
         var nodeEventSink = new NodeEventSink(this, session, node.Id, executionId);
         var runtime = new NodeExecutionRuntime(environment, nodeEventSink, () => session.CancellationToken.IsCancellationRequested, session.Variables);
-        var nodeExecutionRequest = new NodeExecutionRequest(node, session, inputs, runtime, step, executionId);
-        return nodeExecutionRequest;
+        return new NodeExecutionRequest(node, session, inputs, runtime, step, executionId);
     }
 
     private static NodeExecutionResult AttachInputs(NodeExecutionResult result, IReadOnlyDictionary<string, object?> fallbackInputs)
     {
-        NodeExecutionResult evaluatedValue30 = result.Inputs is null ? result with
+        return result.Inputs is null ? result with
         {
             Inputs = CopyInputs(fallbackInputs)
         }
@@ -539,13 +508,11 @@ public sealed class FlowRunner
         {
             Inputs = CopyInputs(result.Inputs)
         };
-        return evaluatedValue30;
     }
 
     private static Dictionary<string, object?> CopyInputs(IReadOnlyDictionary<string, object?> values)
     {
-        var dictionary31 = new Dictionary<string, object?>(values, StringComparer.Ordinal);
-        return dictionary31;
+        return new Dictionary<string, object?>(values, StringComparer.Ordinal);
     }
 
     private sealed class NodeEventSink(FlowRunner runner, FlowExecutionSession session, string nodeId, Guid executionId) : INodeExecutionEventSink
@@ -554,8 +521,7 @@ public sealed class FlowRunner
         {
             ArgumentNullException.ThrowIfNull(entry);
             var logPayload = new NodeLogEventPayload(entry);
-            var publishAsyncResult = runner.PublishAsync(session, NodeErrorCodes.Log, nodeId, logPayload, executionId);
-            return publishAsyncResult;
+            return runner.PublishAsync(session, NodeErrorCodes.Log, nodeId, logPayload, executionId);
         }
     }
 

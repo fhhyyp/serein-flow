@@ -30,8 +30,7 @@ public static class FlowDebugSessionWaiter
             var session = await store.FindAsync(sessionId, cancellationToken);
             if (session is null)
             {
-                FlowDebugStateWaitResult evaluatedValue = new(null, false, false);
-                return evaluatedValue;
+                return new(null, false, false);
             }
 
             // Interactive control needs the next boundary where another command
@@ -41,15 +40,13 @@ public static class FlowDebugSessionWaiter
                 && (!waitForPauseOrCompletion || session.Status == FlowDebugSessionStatus.Paused);
             if (observableChange || session.IsTerminal)
             {
-                FlowDebugStateWaitResult evaluatedValue1 = new(session, session.StateRevision > afterRevision, false);
-                return evaluatedValue1;
+                return new(session, session.StateRevision > afterRevision, false);
             }
 
             var remaining = deadline - DateTimeOffset.UtcNow;
             if (remaining <= TimeSpan.Zero)
             {
-                FlowDebugStateWaitResult evaluatedValue2 = new(session, false, true);
-                return evaluatedValue2;
+                return new(session, false, true);
             }
 
             await Task.Delay(remaining < PollInterval ? remaining : PollInterval, cancellationToken);

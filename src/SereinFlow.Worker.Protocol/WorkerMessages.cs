@@ -3,6 +3,7 @@ using System.Text.Json;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Worker.Protocol;
+
 public static class WorkerProtocolConstants
 {
     public const int Version = SereinFlow.Contracts.WorkerProtocol.Version;
@@ -39,15 +40,8 @@ public sealed record WorkerMessage(int ProtocolVersion, string Kind, string Requ
 {
     public static WorkerMessage Create(string kind, string? payloadJson = null, Guid? runId = null, DateTimeOffset? deadline = null, long? sequence = null, string? requestId = null)
     {
-        var evaluatedValue = requestId ?? resolveToStringResult();
-        WorkerMessage evaluatedValue1 = new(WorkerProtocolConstants.Version, kind, evaluatedValue, runId, sequence, deadline, payloadJson);
-        return evaluatedValue1;
-        string resolveToStringResult()
-        {
-            var newGuidResult = Guid.NewGuid();
-            var toStringResult = newGuidResult.ToString("N");
-            return toStringResult;
-        }
+        var mappedRequestId = requestId ?? Guid.NewGuid().ToString("N");
+        return new(WorkerProtocolConstants.Version, kind, mappedRequestId, runId, sequence, deadline, payloadJson);
     }
 }
 
@@ -75,14 +69,14 @@ public static class WorkerProtocolCodec
             throw new WorkerProtocolException(WorkerErrorCodes.ProtocolMismatch, $"Unsupported protocol version '{message.ProtocolVersion}'. 不支持的协议版本“{message.ProtocolVersion}”。");
         }
 
-        var json = JsonSerializer.Serialize(message, JsonOptions);
-        var byteCount = Encoding.UTF8.GetByteCount(json);
+        var messageJson = JsonSerializer.Serialize(message, JsonOptions);
+        var byteCount = Encoding.UTF8.GetByteCount(messageJson);
         if (byteCount > WorkerProtocolConstants.MaxMessageBytes)
         {
             throw new WorkerProtocolException(WorkerErrorCodes.MessageTooLarge, $"Worker messages are limited to {WorkerProtocolConstants.MaxMessageBytes} bytes. Worker 消息大小不能超过 {WorkerProtocolConstants.MaxMessageBytes} 字节。");
         }
 
-        return json;
+        return messageJson;
     }
 
     public static WorkerMessage Deserialize(string line)
@@ -125,8 +119,7 @@ public static class WorkerProtocolCodec
 
     public static string SerializePayload<T>(T payload)
     {
-        var serializeResult = JsonSerializer.Serialize(payload, JsonOptions);
-        return serializeResult;
+        return JsonSerializer.Serialize(payload, JsonOptions);
     }
 
     public static T DeserializePayload<T>(WorkerMessage message)
@@ -138,8 +131,7 @@ public static class WorkerProtocolCodec
 
         try
         {
-            var evaluatedValue2 = JsonSerializer.Deserialize<T>(message.PayloadJson, JsonOptions) ?? throw new WorkerProtocolException(WorkerErrorCodes.InvalidPayload, $"Message '{message.Kind}' payload is null. 消息“{message.Kind}”的载荷为空。");
-            return evaluatedValue2;
+            return JsonSerializer.Deserialize<T>(message.PayloadJson, JsonOptions) ?? throw new WorkerProtocolException(WorkerErrorCodes.InvalidPayload, $"Message '{message.Kind}' payload is null. 消息“{message.Kind}”的载荷为空。");
         }
         catch (JsonException exception)
         {

@@ -24,7 +24,10 @@ internal static class McpPropertyBindingCacheExtension
         var names = new HashSet<string>(StringComparer.Ordinal);
         for (var current = type as INamedTypeSymbol; current is not null; current = current.BaseType)
         {
-            foreach (var property in current.GetMembers().OfType<IPropertySymbol>().OrderBy(property => property.Name, StringComparer.Ordinal))
+            foreach (var property in current
+                .GetMembers()
+                .OfType<IPropertySymbol>()
+                .OrderBy(property => property.Name, StringComparer.Ordinal))
             {
                 if (property.IsStatic || property.IsIndexer || property.SetMethod?.DeclaredAccessibility != Accessibility.Public || !names.Add(property.Name)) continue;
                 var attribute = property.GetAttributes().FirstOrDefault(item => item.AttributeClass?.ToDisplayString() == "SereinFlow.Mcp.Framework.McpParameterAttribute");

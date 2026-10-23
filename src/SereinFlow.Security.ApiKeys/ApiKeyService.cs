@@ -4,6 +4,7 @@ using SereinFlow.Application;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Security.ApiKeys;
+
 public sealed class ApiKeyService
 {
     public SereinFlowActor? ResolveBootstrapActor(string id) => id == "bootstrap-admin" && !string.IsNullOrWhiteSpace(_bootstrapAdminKey) ? ApiKeyActors.Create(id, null, AllPermissions, IsAdministrator: true) : null;
@@ -11,8 +12,7 @@ public sealed class ApiKeyService
     {
         if (id == "bootstrap-admin")
         {
-            var result1 = ResolveBootstrapActor(id);
-            return result1;
+            return ResolveBootstrapActor(id);
         }
 
         var entry = await _keys.FindAsync(id, cancellationToken);
@@ -22,8 +22,7 @@ public sealed class ApiKeyService
         }
 
         var permissions = entry.Permissions.ToHashSet();
-        var actor = ApiKeyActors.Create(entry.Id, entry.ProjectId, permissions, IsAdministrator: entry.IsAdministrator);
-        return actor;
+        return ApiKeyActors.Create(entry.Id, entry.ProjectId, permissions, IsAdministrator: entry.IsAdministrator);
     }
 
     private static readonly IReadOnlySet<SereinFlowPermission> AllPermissions = CreateAllPermissionsInitialValue();
@@ -43,12 +42,11 @@ public sealed class ApiKeyService
         }
 
         var bootstrap = _bootstrapAdminKey;
-        if (!string.IsNullOrWhiteSpace(bootstrap) && resolveFixedTimeEqualsResult())
+        if (!string.IsNullOrWhiteSpace(bootstrap) && BootstrapSecretMatches())
         {
-            var evaluatedValue1 = ApiKeyActors.Create("bootstrap-admin", null, AllPermissions, IsAdministrator: true);
+            var actor = ApiKeyActors.Create("bootstrap-admin", null, AllPermissions, IsAdministrator: true);
             {
-                var result3 = ApiKeyActors.WithStoreReference(evaluatedValue1);
-                return result3;
+                return ApiKeyActors.WithStoreReference(actor);
             }
         }
 
@@ -75,32 +73,29 @@ public sealed class ApiKeyService
             }
             catch
             {
-            // Authentication remains successful when usage telemetry fails.
-            // 使用情况遥测失败不影响身份验证成功结果。
+                // Authentication remains successful when usage telemetry fails.
+                // 使用情况遥测失败不影响身份验证成功结果。
             }
 
-            var toHashSetResult = entry.Permissions.ToHashSet();
-            var evaluatedValue2 = ApiKeyActors.Create(entry.Id, entry.ProjectId, toHashSetResult, IsAdministrator: entry.IsAdministrator);
+            var permissions = entry.Permissions.ToHashSet();
+            var apiKeyActors = ApiKeyActors.Create(entry.Id, entry.ProjectId, permissions, IsAdministrator: entry.IsAdministrator);
             {
-                var result4 = ApiKeyActors.WithStoreReference(evaluatedValue2);
-                return result4;
+                return ApiKeyActors.WithStoreReference(apiKeyActors);
             }
         }
 
         return null;
-        bool resolveFixedTimeEqualsResult()
+        bool BootstrapSecretMatches()
         {
-            var getBytesResult = Encoding.UTF8.GetBytes(bootstrap);
-            var getBytesResult3 = Encoding.UTF8.GetBytes(secret);
-            var fixedTimeEqualsResult = CryptographicOperations.FixedTimeEquals(getBytesResult, getBytesResult3);
-            return fixedTimeEqualsResult;
+            var bytes = Encoding.UTF8.GetBytes(bootstrap);
+            var mappedBytes = Encoding.UTF8.GetBytes(secret);
+            return CryptographicOperations.FixedTimeEquals(bytes, mappedBytes);
         }
     }
 
     public static CreatedApiKeyDto CreateKey(CreateApiKeyRequest request)
     {
-        var evaluatedValue4 = CreateKeyWithEntry(request).Dto;
-        return evaluatedValue4;
+        return CreateKeyWithEntry(request).Dto;
     }
 
     public static (ApiKeyEntry Entry, CreatedApiKeyDto Dto) CreateKeyWithEntry(CreateApiKeyRequest request)
@@ -127,69 +122,41 @@ public sealed class ApiKeyService
             throw new ArgumentException("A non-administrator API key must be bound to a project. 非管理员 API 密钥必须绑定到项目。", nameof(request));
         }
 
-        var secret = $"sfk_{resolveToLowerInvariantResult()}";
-        var getBytesResult6 = RandomNumberGenerator.GetBytes(16);
-        var toHexStringResult7 = Convert.ToHexString(getBytesResult6);
-        var salt = toHexStringResult7.ToLowerInvariant();
-        var newGuidResult = Guid.NewGuid();
-        var id = newGuidResult.ToString("N");
-        var trimResult = request.Name.Trim();
-        var hashResult = Hash(secret, salt);
-        var toArrayResult = request.Permissions.Distinct().ToArray();
-        var entry = new ApiKeyEntry(id, request.ProjectId, trimResult, secret[..12], hashResult, salt, toArrayResult, DateTimeOffset.UtcNow, request.ExpiresAt, null, null, request.IsAdministrator);
-        var evaluatedValue8 = (entry, resolveCreatedApiKeyDto());
-        return evaluatedValue8;
-        string resolveToLowerInvariantResult()
-        {
-            var getBytesResult5 = RandomNumberGenerator.GetBytes(24);
-            var toHexStringResult = Convert.ToHexString(getBytesResult5);
-            var toLowerInvariantResult = toHexStringResult.ToLowerInvariant();
-            return toLowerInvariantResult;
-        }
-
-        CreatedApiKeyDto resolveCreatedApiKeyDto()
-        {
-            var toDtoResult = ToDto(entry);
-            var createdApiKeyDto = new CreatedApiKeyDto(toDtoResult, secret);
-            return createdApiKeyDto;
-        }
+        var secret = $"sfk_{Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant()}";
+        var salt = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+        var id = Guid.NewGuid().ToString("N");
+        var name = request.Name.Trim();
+        var secretHash = Hash(secret, salt);
+        var permissions = request.Permissions.Distinct().ToArray();
+        var entry = new ApiKeyEntry(id, request.ProjectId, name, secret[..12], secretHash, salt, permissions, DateTimeOffset.UtcNow, request.ExpiresAt, null, null, request.IsAdministrator);
+        return (entry, new CreatedApiKeyDto(ToDto(entry), secret));
     }
 
     public static (ApiKeyEntry Entry, CreatedApiKeyDto Dto) RotateKeyWithEntry(ApiKeyEntry existing)
     {
         ArgumentNullException.ThrowIfNull(existing);
         var createMcpApiKeyRequestDto = new CreateApiKeyRequest(existing.ProjectId, existing.Name, existing.Permissions, existing.ExpiresAt, existing.IsAdministrator);
-        var createKeyWithEntryResult = CreateKeyWithEntry(createMcpApiKeyRequestDto);
-        return createKeyWithEntryResult;
+        return CreateKeyWithEntry(createMcpApiKeyRequestDto);
     }
 
     public static ApiKeyDto ToDto(ApiKeyEntry entry)
     {
-        ApiKeyDto evaluatedValue9 = new(entry.Id, entry.ProjectId, entry.Name, entry.KeyPrefix, entry.Permissions, entry.CreatedAt, entry.ExpiresAt, entry.RevokedAt, entry.LastUsedAt, entry.IsAdministrator);
-        return evaluatedValue9;
+        return new(entry.Id, entry.ProjectId, entry.Name, entry.KeyPrefix, entry.Permissions, entry.CreatedAt, entry.ExpiresAt, entry.RevokedAt, entry.LastUsedAt, entry.IsAdministrator);
     }
 
     public static string Hash(string secret, string salt)
     {
-        var getBytesResult10 = Encoding.UTF8.GetBytes($"{salt}:{secret}");
-        var hashDataResult = SHA256.HashData(getBytesResult10);
-        var toHexStringResult11 = Convert.ToHexString(hashDataResult);
-        var toLowerInvariantResult12 = toHexStringResult11.ToLowerInvariant();
-        return toLowerInvariantResult12;
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{salt}:{secret}"))).ToLowerInvariant();
     }
 
     private static bool Verify(string secret, string salt, string expected)
     {
         var actual = Hash(secret, salt);
-        var getBytesResult13 = Encoding.UTF8.GetBytes(actual);
-        var getBytesResult14 = Encoding.UTF8.GetBytes(expected);
-        var fixedTimeEqualsResult15 = CryptographicOperations.FixedTimeEquals(getBytesResult13, getBytesResult14);
-        return fixedTimeEqualsResult15;
+        return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(actual), Encoding.UTF8.GetBytes(expected));
     }
 
-    private static IReadOnlySet<SereinFlowPermission> CreateAllPermissionsInitialValue()
+    private static HashSet<SereinFlowPermission> CreateAllPermissionsInitialValue()
     {
-        IReadOnlySet<SereinFlowPermission> allPermissionsInitialValue = Enum.GetValues<SereinFlowPermission>().ToHashSet();
-        return allPermissionsInitialValue;
+        return Enum.GetValues<SereinFlowPermission>().ToHashSet();
     }
 }

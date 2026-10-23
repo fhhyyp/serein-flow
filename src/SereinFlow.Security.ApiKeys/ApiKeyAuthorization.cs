@@ -4,6 +4,7 @@ using SereinFlow.Application;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Security.ApiKeys;
+
 public static class ApiKeyActors
 {
     internal const string PermissionClaim = "sereinflow.operation";
@@ -16,17 +17,13 @@ public static class ApiKeyActors
         {
             new(ClaimTypes.NameIdentifier, id)
         };
-        var argument4 = permissions.Select(permission =>
+        claims.AddRange(permissions.Select(permission =>
         {
-            var argument5 = SereinFlowOperationNames.ToName(permission);
-            var value1 = new Claim(PermissionClaim, argument5);
-            return value1;
-        });
-        claims.AddRange(argument4);
+            return new Claim(PermissionClaim, SereinFlowOperationNames.ToName(permission));
+        }));
         if (projectId is { } project)
         {
-            var argument1 = project.ToString("D");
-            var projectClaim = new Claim(ProjectClaim, argument1);
+            var projectClaim = new Claim(ProjectClaim, project.ToString("D"));
             claims.Add(projectClaim);
         }
 
@@ -37,10 +34,8 @@ public static class ApiKeyActors
         }
 
         {
-            var argument3 = new ClaimsIdentity(claims, "SereinFlow.ApiKey");
-            var argument2 = new ClaimsPrincipal(argument3);
-            SereinFlowActor result1 = new(id, argument2);
-            return result1;
+            var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "SereinFlow.ApiKey"));
+            return new(id, principal);
         }
     }
 
@@ -65,9 +60,7 @@ public sealed class ApiKeyAuthorization(ApiKeyService? service = null) : ISerein
         {
             return null;
         }
-
-        var current = await service.ResolveActorAsync(actor.Id, cancellationToken);
-        return current;
+        return await service.ResolveActorAsync(actor.Id, cancellationToken);
     }
 
     public async ValueTask<AccessDecision> AuthorizeAsync(SereinFlowActor actor, string operation, SereinFlowResource resource, CancellationToken cancellationToken = default)
@@ -100,8 +93,7 @@ public sealed class ApiKeyAuthorization(ApiKeyService? service = null) : ISerein
         var projectKey = resource.ProjectId?.ToString("D");
         if (projectKey is not null && !actor.Principal.HasClaim(ApiKeyActors.ProjectClaim, projectKey))
         {
-            var result5 = new AccessDecision(false, McpErrorCodes.ProjectAccessDenied);
-            return result5;
+            return new AccessDecision(false, McpErrorCodes.ProjectAccessDenied);
         }
 
         return AccessDecision.Allowed;
@@ -128,14 +120,15 @@ public sealed class ApiKeyAuthorization(ApiKeyService? service = null) : ISerein
             return ProjectAccessScope.None;
         }
 
-        var projects = actor.Principal.FindAll(ApiKeyActors.ProjectClaim).Select(claim =>
+        var projects = actor.Principal
+            .FindAll(ApiKeyActors.ProjectClaim)
+            .Select(claim =>
         {
-            var value6 = Guid.Parse(claim.Value);
-            return value6;
-        }).ToHashSet();
+            return Guid.Parse(claim.Value);
+        })
+            .ToHashSet();
         {
-            var result6 = new ProjectAccessScope(false, projects);
-            return result6;
+            return new ProjectAccessScope(false, projects);
         }
     }
 }

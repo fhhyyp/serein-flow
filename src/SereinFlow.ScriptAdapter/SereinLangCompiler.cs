@@ -36,16 +36,12 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
         var source = request.Source ?? string.Empty;
         var sourceName = NormalizeSourceName(request.SourceName);
         var languageVersion = request.LanguageVersion?.Trim() ?? string.Empty;
-        var getBytesResult = Encoding.UTF8.GetBytes(source);
-        var hashDataResult = SHA256.HashData(getBytesResult);
-        var toHexStringResult = Convert.ToHexString(hashDataResult);
-        var sourceHash = toHexStringResult.ToLowerInvariant();
+        var sourceHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source))).ToLowerInvariant();
         var validation = ValidateRequest(source, languageVersion, request.Inputs);
         if (validation.Count > 0)
         {
             stopwatch.Stop();
-            var resultResult = Result(false, sourceHash, sourceName, languageVersion, stopwatch.Elapsed, validation);
-            return resultResult;
+            return Result(false, sourceHash, sourceName, languageVersion, stopwatch.Elapsed, validation);
         }
 
         try
@@ -57,15 +53,13 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
             // MCP 响应时间；编译器本身不会执行用户代码或进行 I/O。
             await CompileWithTimeoutAsync(source, sourceName, request.Inputs, cancellationToken);
             stopwatch.Stop();
-            var resultResult1 = Result(true, sourceHash, sourceName, languageVersion, stopwatch.Elapsed, []);
-            return resultResult1;
+            return Result(true, sourceHash, sourceName, languageVersion, stopwatch.Elapsed, []);
         }
         catch (TimeoutException)
         {
             stopwatch.Stop();
-            IReadOnlyList<ScriptCompileDiagnosticDto> evaluatedValue = [new ScriptCompileDiagnosticDto(ScriptErrorCodes.CompileTimeout, $"SereinLang compilation exceeded {DefaultTimeout.TotalSeconds:0} seconds. SereinLang 编译超过 {DefaultTimeout.TotalSeconds:0} 秒。", "error", sourceName)];
-            var resultResult2 = Result(false, sourceHash, sourceName, languageVersion, stopwatch.Elapsed, evaluatedValue);
-            return resultResult2;
+            IReadOnlyList<ScriptCompileDiagnosticDto> diagnostics = [new ScriptCompileDiagnosticDto(ScriptErrorCodes.CompileTimeout, $"SereinLang compilation exceeded {DefaultTimeout.TotalSeconds:0} seconds. SereinLang 编译超过 {DefaultTimeout.TotalSeconds:0} 秒。", "error", sourceName)];
+            return Result(false, sourceHash, sourceName, languageVersion, stopwatch.Elapsed, diagnostics);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -74,9 +68,8 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
         catch (Exception exception)
         {
             stopwatch.Stop();
-            var parseDiagnosticsResult = ParseDiagnostics(exception, sourceName);
-            var resultResult3 = Result(false, sourceHash, sourceName, languageVersion, stopwatch.Elapsed, parseDiagnosticsResult);
-            return resultResult3;
+            var mappedDiagnostics = ParseDiagnostics(exception, sourceName);
+            return Result(false, sourceHash, sourceName, languageVersion, stopwatch.Elapsed, mappedDiagnostics);
         }
     }
 
@@ -140,8 +133,8 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
         // visible to the compiler.
         // 只注册内置 SereinFlow 模块；空运行时上下文使 log/env 不可执行，但编译器仍可识别模块名称。
         SereinFlowScriptModuleRegistration.Register(engine, sereinFlowScriptModuleContext);
-        var selectResult = inputs.Select(static input => input.Name);
-        _ = engine.CompileSource(source, sourceName, selectResult);
+        var mappedInputs = inputs.Select(static input => input.Name);
+        _ = engine.CompileSource(source, sourceName, mappedInputs);
     }
 
     private static List<ScriptCompileDiagnosticDto> ValidateRequest(string source, string languageVersion, IReadOnlyList<ScriptValueContractDto>? inputs)
@@ -155,14 +148,12 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
 
         if (!string.Equals(languageVersion, SupportedLanguageVersion, StringComparison.Ordinal))
         {
-            var scriptCompileDiagnosticDto4 = new ScriptCompileDiagnosticDto(ScriptErrorCodes.LanguageVersionUnsupported, $"Only SereinLang version {SupportedLanguageVersion} is supported. 仅支持 SereinLang {SupportedLanguageVersion}。", "error");
-            diagnostics.Add(scriptCompileDiagnosticDto4);
+            diagnostics.Add(new ScriptCompileDiagnosticDto(ScriptErrorCodes.LanguageVersionUnsupported, $"Only SereinLang version {SupportedLanguageVersion} is supported. 仅支持 SereinLang {SupportedLanguageVersion}。", "error"));
         }
 
         if (inputs is null || inputs.Count > MaxInputs)
         {
-            var scriptCompileDiagnosticDto5 = new ScriptCompileDiagnosticDto(ScriptErrorCodes.InputsTooMany, $"A script may declare at most {MaxInputs} inputs. 脚本最多声明 {MaxInputs} 个输入。", "error");
-            diagnostics.Add(scriptCompileDiagnosticDto5);
+            diagnostics.Add(new ScriptCompileDiagnosticDto(ScriptErrorCodes.InputsTooMany, $"A script may declare at most {MaxInputs} inputs. 脚本最多声明 {MaxInputs} 个输入。", "error"));
         }
         else
         {
@@ -171,8 +162,7 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
             {
                 if (string.IsNullOrWhiteSpace(input.Name) || !IsIdentifier(input.Name) || !names.Add(input.Name))
                 {
-                    var scriptCompileDiagnosticDto6 = new ScriptCompileDiagnosticDto(ScriptErrorCodes.InputNameInvalid, $"Script input name '{input.Name}' must be a unique SereinLang identifier. 脚本输入名称必须是唯一的 SereinLang 标识符。", "error");
-                    diagnostics.Add(scriptCompileDiagnosticDto6);
+                    diagnostics.Add(new ScriptCompileDiagnosticDto(ScriptErrorCodes.InputNameInvalid, $"Script input name '{input.Name}' must be a unique SereinLang identifier. 脚本输入名称必须是唯一的 SereinLang 标识符。", "error"));
                 }
             }
         }
@@ -182,12 +172,11 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
 
     private static IReadOnlyList<ScriptCompileDiagnosticDto> ParseDiagnostics(Exception exception, string sourceName)
     {
-        var message = exception.Message;
-        var lines = message.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        var lines = exception.Message
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(static line =>
             {
-                var evaluatedValue7 = !string.IsNullOrWhiteSpace(line);
-                return evaluatedValue7;
+                return !string.IsNullOrWhiteSpace(line);
             })
             .Take(MaximumDiagnosticLines)
             .ToArray();
@@ -195,24 +184,20 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
         {
             lines = ["SereinLang compilation failed. SereinLang 编译失败。"];
         }
-
-        var toArrayResult = lines
+        return lines
             .Select((line, index) =>
             {
                 var match = LocationPattern.Match(line);
                 var lineNumber = match.Success ? int.Parse(match.Groups["line"].Success ? match.Groups["line"].Value : match.Groups["lineEn"].Value, CultureInfo.InvariantCulture) : (int?)null;
                 var column = match.Success ? int.Parse(match.Groups["column"].Success ? match.Groups["column"].Value : match.Groups["columnEn"].Value, CultureInfo.InvariantCulture) : (int?)null;
-                var scriptCompileDiagnosticDto8 = new ScriptCompileDiagnosticDto(index == 0 ? ScriptErrorCodes.CompileFailed : ScriptErrorCodes.CompileDiagnostic, line, "error", sourceName, lineNumber, column);
-                return scriptCompileDiagnosticDto8;
+                return new ScriptCompileDiagnosticDto(index == 0 ? ScriptErrorCodes.CompileFailed : ScriptErrorCodes.CompileDiagnostic, line, "error", sourceName, lineNumber, column);
             })
             .ToArray();
-        return toArrayResult;
     }
 
     private static ScriptCompileResultDto Result(bool success, string sourceHash, string sourceName, string languageVersion, TimeSpan duration, IReadOnlyList<ScriptCompileDiagnosticDto> diagnostics)
     {
-        ScriptCompileResultDto evaluatedValue10 = new(success, sourceHash, languageVersion, sourceName, duration, diagnostics);
-        return evaluatedValue10;
+        return new(success, sourceHash, languageVersion, sourceName, duration, diagnostics);
     }
 
     private static string NormalizeSourceName(string? sourceName)
@@ -223,11 +208,9 @@ public sealed class SereinLangCompiler : ISereinLangCompiler
 
     private static bool IsIdentifier(string value)
     {
-        var evaluatedValue12 = !string.IsNullOrWhiteSpace(value) && value.All(static character =>
+        return !string.IsNullOrWhiteSpace(value) && value.All(static character =>
         {
-            var evaluatedValue11 = char.IsLetterOrDigit(character) || character == '_';
-            return evaluatedValue11;
+            return char.IsLetterOrDigit(character) || character == '_';
         }) && (char.IsLetter(value[0]) || value[0] == '_');
-        return evaluatedValue12;
     }
 }

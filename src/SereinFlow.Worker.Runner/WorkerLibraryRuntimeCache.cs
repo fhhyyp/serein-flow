@@ -27,26 +27,19 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
     public WorkerLibraryRuntimeCache(string? packageRoot, Guid runId, IReadOnlyCollection<string>? allowedLibraryIds = null)
     {
         _packageRoot = string.IsNullOrWhiteSpace(packageRoot) ? null : Path.GetFullPath(packageRoot);
-        var getTempPathResult = Path.GetTempPath();
-        var toStringResult = runId.ToString("N");
-        _runRoot = Path.Combine(getTempPathResult, "sereinflow-worker", toStringResult);
-        _allowedLibraryIds = allowedLibraryIds is null ? null : resolveToHashSetResult();
-        HashSet<string> resolveToHashSetResult()
-        {
-            var toHashSetResult = allowedLibraryIds
+        var tempPath = Path.GetTempPath();
+        var runIdText = runId.ToString("N");
+        _runRoot = Path.Combine(tempPath, "sereinflow-worker", runIdText);
+        _allowedLibraryIds = allowedLibraryIds is null ? null : allowedLibraryIds
                 .Where(static id =>
                 {
-                    var evaluatedValue = !string.IsNullOrWhiteSpace(id);
-                    return evaluatedValue;
+                    return !string.IsNullOrWhiteSpace(id);
                 })
                 .Select(static id =>
                 {
-                    var trimResult = id.Trim();
-                    return trimResult;
+                    return id.Trim();
                 })
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            return toHashSetResult;
-        }
     }
 
     public async Task<ResolvedLibraryMethod> ResolveMethodAsync(NodeDefinition node, CancellationToken cancellationToken)
@@ -62,21 +55,16 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         var dllName = RequireSafeSegment(runtime.DllName, LibraryErrorCodes.AssemblyInvalid, "The library assembly file name is invalid. 类库程序集文件名无效。");
         var className = RequireNonEmpty(runtime.ClassName, LibraryErrorCodes.TypeInvalid, "The library type name is invalid. 类库类型名称无效。");
         var methodName = RequireNonEmpty(runtime.MethodName, LibraryErrorCodes.MethodInvalid, "The library method name is invalid. 类库方法名称无效。");
-        var selectResult3 = node.Parameters.Select(static parameter => parameter.Name);
-        var parameterSignature = string.Join("\u001f", selectResult3);
+        var parameterSignature = string.Join("\u001f", node.Parameters.Select(static parameter => parameter.Name));
         var key = new MethodKey(libraryId, dllName, className, methodName, parameterSignature);
-        var lazy = _methods.GetOrAdd(key, _ =>
+        return await _methods.GetOrAdd(key, _ =>
         {
-            var lazy2 = new Lazy<Task<ResolvedLibraryMethod>>(() =>
+            return new Lazy<Task<ResolvedLibraryMethod>>(() =>
             {
-                var libraryKey1 = new LibraryKey(libraryId, dllName);
-                var resolveMethodCoreAsyncResult = ResolveMethodCoreAsync(libraryKey1, className, methodName, node.Parameters);
-                return resolveMethodCoreAsyncResult;
+                var libraryKey = new LibraryKey(libraryId, dllName);
+                return ResolveMethodCoreAsync(libraryKey, className, methodName, node.Parameters);
             }, LazyThreadSafetyMode.ExecutionAndPublication);
-            return lazy2;
-        });
-        var waitAsyncResult = await lazy.Value.WaitAsync(cancellationToken);
-        return waitAsyncResult;
+        }).Value.WaitAsync(cancellationToken);
     }
 
     public ValueTask DisposeAsync()
@@ -114,21 +102,18 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
     private async Task<ResolvedLibraryMethod> ResolveMethodCoreAsync(LibraryKey libraryKey, string className, string methodName, IReadOnlyList<NodeParameterDefinition> parameters)
     {
         var typeKey = new TypeKey(libraryKey.LibraryId, libraryKey.DllName, className);
-        var typeLazy = _types.GetOrAdd(typeKey, _ =>
+        var type = await _types.GetOrAdd(typeKey, _ =>
         {
-            var lazy4 = new Lazy<Task<Type>>(() =>
+            return new Lazy<Task<Type>>(() =>
             {
-                var resolveTypeCoreAsyncResult = ResolveTypeCoreAsync(libraryKey, className);
-                return resolveTypeCoreAsyncResult;
+                return ResolveTypeCoreAsync(libraryKey, className);
             }, LazyThreadSafetyMode.ExecutionAndPublication);
-            return lazy4;
-        });
-        var type = await typeLazy.Value;
-        var candidates = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance)
+        }).Value;
+        var candidates = type
+            .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance)
             .Where(method =>
             {
-                var equalsResult = string.Equals(method.Name, methodName, StringComparison.Ordinal);
-                return equalsResult;
+                return string.Equals(method.Name, methodName, StringComparison.Ordinal);
             })
             .ToArray();
         if (candidates.Length == 0)
@@ -143,38 +128,32 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         var matched = candidates
             .Where(method =>
             {
-                var anyResult = parameters.Any(static parameter => parameter.IsVariadic);
-                var isCandidateCompatibleResult = IsCandidateCompatible(method, expectedNames, anyResult);
-                return isCandidateCompatibleResult;
+                var hasVariadicDefinitions = parameters.Any(static parameter => parameter.IsVariadic);
+                return IsCandidateCompatible(method, expectedNames, hasVariadicDefinitions);
             })
             .ToArray();
         var method = matched.Length == 1 ? matched[0] : candidates.Length == 1 ? candidates[0] : candidates.SingleOrDefault(candidate =>
         {
-            var anyResult5 = parameters.Any(static parameter => parameter.IsVariadic);
-            var isCandidateCompatibleResult6 = IsCandidateCompatible(candidate, expectedNames, anyResult5);
-            return isCandidateCompatibleResult6;
+            var any = parameters.Any(static parameter => parameter.IsVariadic);
+            return IsCandidateCompatible(candidate, expectedNames, any);
         });
         if (method is null)
         {
             throw new LibraryRuntimeCacheException(LibraryErrorCodes.MethodAmbiguous, "The library method overload is ambiguous. 类库方法重载不明确。");
         }
-
-        var resolvedLibraryMethod = new ResolvedLibraryMethod(type, method);
-        return resolvedLibraryMethod;
+        return new ResolvedLibraryMethod(type, method);
     }
 
     private static bool IsCandidateCompatible(MethodInfo method, string[] expectedNames, bool hasVariadicDefinitions)
     {
-        var parameters = method.GetParameters();
-        var visible = parameters
+        var visible = method
+            .GetParameters()
             .Where(static parameter =>
             {
-                var evaluatedValue11 = !IsFlowContextParameter(parameter);
-                return evaluatedValue11;
+                return !IsFlowContextParameter(parameter);
             })
             .ToArray();
-        var lastVisibleParameter = visible.LastOrDefault();
-        var variadicAttribute = lastVisibleParameter?.GetCustomAttribute<ParamArrayAttribute>();
+        var variadicAttribute = visible.LastOrDefault()?.GetCustomAttribute<ParamArrayAttribute>();
         var methodHasVariadic = variadicAttribute is not null;
         if (methodHasVariadic != hasVariadicDefinitions)
         {
@@ -182,40 +161,30 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         }
 
         var ordinary = methodHasVariadic ? visible[..^1] : visible;
-        var evaluatedValue14 = ordinary.Length == expectedNames.Length && resolveSequenceEqualResult();
-        return evaluatedValue14;
-        bool resolveSequenceEqualResult()
-        {
-            var sequenceEqualResult = ordinary
+        return ordinary.Length == expectedNames.Length && ordinary
                 .Select(static parameter => parameter.Name ?? string.Empty)
                 .SequenceEqual(expectedNames, StringComparer.Ordinal);
-            return sequenceEqualResult;
-        }
     }
 
     internal static bool IsFlowContextParameter(ParameterInfo parameter)
     {
-        var equalsResult15 = string.Equals(parameter.ParameterType.FullName, typeof(IFlowContext).FullName, StringComparison.Ordinal);
-        return equalsResult15;
+        return string.Equals(parameter.ParameterType.FullName, typeof(IFlowContext).FullName, StringComparison.Ordinal);
     }
 
     private async Task<Type> ResolveTypeCoreAsync(LibraryKey libraryKey, string className)
     {
-        var libraryLazy = _libraries.GetOrAdd(libraryKey, key =>
+        var library = await _libraries.GetOrAdd(libraryKey, key =>
         {
-            var lazy16 = new Lazy<Task<LoadedLibrary>>(() =>
+            return new Lazy<Task<LoadedLibrary>>(() =>
             {
-                var loadLibraryCoreAsyncResult = LoadLibraryCoreAsync(key);
-                return loadLibraryCoreAsyncResult;
+                return LoadLibraryCoreAsync(key);
             }, LazyThreadSafetyMode.ExecutionAndPublication);
-            return lazy16;
-        });
-        var library = await libraryLazy.Value;
+        }).Value;
         var type = library.Assembly.GetType(className, throwOnError: false, ignoreCase: false) ?? throw new LibraryRuntimeCacheException(LibraryErrorCodes.TypeNotFound, "The library type was not found. 未找到类库类型。");
         try
         {
-            var getCustomAttributesResult = type.GetCustomAttributes<NativeLibraryDirectoryAttribute>(inherit: false);
-            library.NativeLibraryLoader.LoadDeclaredDirectories(getCustomAttributesResult);
+            var declarations = type.GetCustomAttributes<NativeLibraryDirectoryAttribute>(inherit: false);
+            library.NativeLibraryLoader.LoadDeclaredDirectories(declarations);
         }
         catch (FlowNativeLibraryException exception)
         {
@@ -261,14 +230,13 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         var extractRoot = Path.Combine(_runRoot, key.LibraryId);
         Directory.CreateDirectory(extractRoot);
         ExtractPackage(packagePath, extractRoot);
-        var enumerateFilesResult = Directory.EnumerateFiles(extractRoot, "*", SearchOption.AllDirectories);
-        var whereResult19 = enumerateFilesResult.Where(path =>
+        var dllPaths = Directory
+            .EnumerateFiles(extractRoot, "*", SearchOption.AllDirectories)
+            .Where(path =>
         {
-            var getFileNameResult = Path.GetFileName(path);
-            var equalsResult17 = string.Equals(getFileNameResult, key.DllName, StringComparison.OrdinalIgnoreCase);
-            return equalsResult17;
-        });
-        var dllPaths = whereResult19.ToArray();
+            return string.Equals(Path.GetFileName(path), key.DllName, StringComparison.OrdinalIgnoreCase);
+        })
+            .ToArray();
         if (dllPaths.Length == 0)
         {
             throw new LibraryRuntimeCacheException(LibraryErrorCodes.AssemblyNotFound, "The library assembly was not found. 未找到类库程序集。");
@@ -280,18 +248,15 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         }
 
         var dllPath = dllPaths[0];
-        var evaluatedValue20 = $"sereinflow-{Path.GetFileName(_runRoot)}-{key.LibraryId}";
-        var loadContext = new LibraryLoadContext(evaluatedValue20, dllPath);
+        var loadContext = new LibraryLoadContext(($"sereinflow-{Path.GetFileName(_runRoot)}-{key.LibraryId}"), dllPath);
         var libraryRoot = Path.GetDirectoryName(dllPath) ?? throw new LibraryRuntimeCacheException(LibraryErrorCodes.AssemblyPathInvalid, "The library assembly directory could not be determined. 无法确定类库程序集目录。");
         var nativeLibraryLoader = new WorkerNativeLibraryLoader(libraryRoot, loadContext.LoadNativeLibraryFromPath);
         try
         {
             var assembly = loadContext.LoadFromAssemblyPath(dllPath);
-            var getCustomAttributesResult18 = assembly.GetCustomAttributes<NativeLibraryDirectoryAttribute>();
-            nativeLibraryLoader.LoadDeclaredDirectories(getCustomAttributesResult18);
+            nativeLibraryLoader.LoadDeclaredDirectories(assembly.GetCustomAttributes<NativeLibraryDirectoryAttribute>());
             var loadedLibrary = new LoadedLibrary(loadContext, assembly, nativeLibraryLoader);
-            var fromResultResult = Task.FromResult(loadedLibrary);
-            return fromResultResult;
+            return Task.FromResult(loadedLibrary);
         }
         catch (FlowNativeLibraryException exception)
         {
@@ -328,8 +293,7 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
             }
 
             var relativePath = normalizedName.Replace('/', Path.DirectorySeparatorChar);
-            var combineResult = Path.Combine(extractRoot, relativePath);
-            var destinationPath = Path.GetFullPath(combineResult);
+            var destinationPath = Path.GetFullPath(Path.Combine(extractRoot, relativePath));
             if (!IsWithinRoot(destinationPath, extractRoot))
             {
                 throw new LibraryRuntimeCacheException(LibraryErrorCodes.PackagePathInvalid, "The library package contains a path outside its extraction directory. 类库包包含超出解压目录的路径。");
@@ -367,13 +331,11 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
 
         if (segments.Length == 0 || segments.Any(static segment =>
         {
-            var evaluatedValue21 = segment.Length == 0 || segment is "." or ".." || segment.Contains(':') || resolveIndexOfAnyResult() >= 0;
-            return evaluatedValue21;
-            int resolveIndexOfAnyResult()
+            return segment.Length == 0 || segment is "." or ".." || segment.Contains(':') || InvalidSegmentCharacterIndex() >= 0;
+            int InvalidSegmentCharacterIndex()
             {
-                var getInvalidFileNameCharsResult = Path.GetInvalidFileNameChars();
-                var indexOfAnyResult = segment.IndexOfAny(getInvalidFileNameCharsResult);
-                return indexOfAnyResult;
+                var invalidFileNameChars = Path.GetInvalidFileNameChars();
+                return segment.IndexOfAny(invalidFileNameChars);
             }
         }))
         {
@@ -383,52 +345,39 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
 
     private static string ResolvePackagePath(string root, string libraryId)
     {
-        var combineResult22 = Path.Combine(root, "packages", $"{libraryId}.zip");
-        var packages = Path.GetFullPath(combineResult22);
+        var packages = Path.GetFullPath(Path.Combine(root, "packages", $"{libraryId}.zip"));
         if (IsWithinRoot(packages, root) && File.Exists(packages))
         {
             return packages;
         }
-
-        var combineResult23 = Path.Combine(root, $"{libraryId}.zip");
-        var direct = Path.GetFullPath(combineResult23);
-        string evaluatedValue24 = IsWithinRoot(direct, root) ? direct : throw new LibraryRuntimeCacheException(LibraryErrorCodes.PathInvalid, "The library package path is outside the configured root. 类库包路径超出了配置根目录。");
-        return evaluatedValue24;
+        var direct = Path.GetFullPath(Path.Combine(root, $"{libraryId}.zip"));
+        return IsWithinRoot(direct, root) ? direct : throw new LibraryRuntimeCacheException(LibraryErrorCodes.PathInvalid, "The library package path is outside the configured root. 类库包路径超出了配置根目录。");
     }
 
     private static bool IsWithinRoot(string candidate, string root)
     {
-        var normalizedRoot = resolveTrimEndingDirectorySeparatorResult() + Path.DirectorySeparatorChar;
-        var startsWithResult = candidate.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
-        return startsWithResult;
-        string resolveTrimEndingDirectorySeparatorResult()
-        {
-            var getFullPathResult = Path.GetFullPath(root);
-            var trimEndingDirectorySeparatorResult = Path.TrimEndingDirectorySeparator(getFullPathResult);
-            return trimEndingDirectorySeparatorResult;
-        }
+        var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar;
+        return candidate.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string RequireSafeSegment(string? value, string code, string message)
     {
-        if (string.IsNullOrWhiteSpace(value) || value is "." or ".." || value != Path.GetFileName(value) || value.Contains(Path.DirectorySeparatorChar) || value.Contains(Path.AltDirectorySeparatorChar) || resolveIndexOfAnyResult25() >= 0)
+        if (string.IsNullOrWhiteSpace(value) || value is "." or ".." || value != Path.GetFileName(value) || value.Contains(Path.DirectorySeparatorChar) || value.Contains(Path.AltDirectorySeparatorChar) || InvalidPathCharacterIndex() >= 0)
         {
             throw new LibraryRuntimeCacheException(code, message);
         }
 
         return value;
-        int resolveIndexOfAnyResult25()
+        int InvalidPathCharacterIndex()
         {
-            var getInvalidFileNameCharsResult26 = Path.GetInvalidFileNameChars();
-            var indexOfAnyResult27 = value.IndexOfAny(getInvalidFileNameCharsResult26);
-            return indexOfAnyResult27;
+            var invalidFileNameChars = Path.GetInvalidFileNameChars();
+            return value.IndexOfAny(invalidFileNameChars);
         }
     }
 
     private static string RequireNonEmpty(string? value, string code, string message)
     {
-        string evaluatedValue28 = string.IsNullOrWhiteSpace(value) ? throw new LibraryRuntimeCacheException(code, message) : value;
-        return evaluatedValue28;
+        return string.IsNullOrWhiteSpace(value) ? throw new LibraryRuntimeCacheException(code, message) : value;
     }
 
     private sealed class LibraryLoadContext(string name, string assemblyPath) : AssemblyLoadContext(name, isCollectible: true)
@@ -438,40 +387,38 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
         private readonly object _nativeGate = new();
         protected override Assembly? Load(AssemblyName assemblyName)
         {
-            var evaluatedValue29 = typeof(FlowServiceAttribute).Assembly.GetName().Name;
-            if (string.Equals(assemblyName.Name, evaluatedValue29, StringComparison.Ordinal))
+            var name = typeof(FlowServiceAttribute).Assembly.GetName().Name;
+            if (string.Equals(assemblyName.Name, name, StringComparison.Ordinal))
             {
                 return typeof(FlowServiceAttribute).Assembly;
             }
 
-            var evaluatedValue30 = typeof(IFlowContext).Assembly.GetName().Name;
-            if (string.Equals(assemblyName.Name, evaluatedValue30, StringComparison.Ordinal))
+            var flowContextAssemblyName = typeof(IFlowContext).Assembly.GetName().Name;
+            if (string.Equals(assemblyName.Name, flowContextAssemblyName, StringComparison.Ordinal))
             {
                 return typeof(IFlowContext).Assembly;
             }
 
-            var evaluatedValue31 = typeof(IExecutionContext).Assembly.GetName().Name;
-            if (string.Equals(assemblyName.Name, evaluatedValue31, StringComparison.Ordinal))
+            var executionContextAssemblyName = typeof(IExecutionContext).Assembly.GetName().Name;
+            if (string.Equals(assemblyName.Name, executionContextAssemblyName, StringComparison.Ordinal))
             {
                 return typeof(IExecutionContext).Assembly;
             }
 
-            var evaluatedValue32 = typeof(WorkerProtocol).Assembly.GetName().Name;
-            if (string.Equals(assemblyName.Name, evaluatedValue32, StringComparison.Ordinal))
+            var protocolAssemblyName = typeof(WorkerProtocol).Assembly.GetName().Name;
+            if (string.Equals(assemblyName.Name, protocolAssemblyName, StringComparison.Ordinal))
             {
                 return typeof(WorkerProtocol).Assembly;
             }
 
             var path = _resolver.ResolveAssemblyToPath(assemblyName);
-            Assembly? evaluatedValue33 = path is null ? null : LoadFromAssemblyPath(path);
-            return evaluatedValue33;
+            return path is null ? null : LoadFromAssemblyPath(path);
         }
 
         protected override nint LoadUnmanagedDll(string unmanagedDllName)
         {
             var path = _resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
-            nint evaluatedValue34 = path is null ? nint.Zero : LoadNativeLibraryFromPath(path);
-            return evaluatedValue34;
+            return path is null ? nint.Zero : LoadNativeLibraryFromPath(path);
         }
 
         internal nint LoadNativeLibraryFromPath(string path)
@@ -508,12 +455,14 @@ internal sealed class WorkerLibraryRuntimeCache : IAsyncDisposable
 internal sealed record ResolvedLibraryMethod(Type DeclaringType, MethodInfo Method)
 {
     public NodeResultAttribute? ResultAttribute { get; } = Method.GetCustomAttribute<NodeResultAttribute>(inherit: false);
-    public ResolvedLibraryParameter[] Parameters { get; } = Method.GetParameters().Select(static parameter =>
+    public ResolvedLibraryParameter[] Parameters { get; } = Method
+        .GetParameters()
+        .Select(static parameter =>
     {
-        var operationResult1 = parameter.GetCustomAttribute<ParamArrayAttribute>()is not null;
-        var resolvedParameter = new ResolvedLibraryParameter(parameter, operationResult1);
-        return resolvedParameter;
-    }).ToArray();
+        var isVariadic = parameter.GetCustomAttribute<ParamArrayAttribute>() is not null;
+        return new ResolvedLibraryParameter(parameter, isVariadic);
+    })
+        .ToArray();
     public bool ReturnsTask { get; } = Method.ReturnType == typeof(Task)
         || (Method.ReturnType.IsGenericType && Method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>));
     public PropertyInfo? TaskResult { get; } = Method.ReturnType.IsGenericType ? Method.ReturnType.GetProperty("Result") : null;

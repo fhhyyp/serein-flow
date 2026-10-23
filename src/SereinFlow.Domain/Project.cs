@@ -51,10 +51,7 @@ public sealed class Project
     public static Project Create(string name, DateTimeOffset? now = null, Guid? id = null)
     {
         ValidateName(name);
-        var evaluatedValue = id ?? Guid.NewGuid();
-        var trimResult = name.Trim();
-        var project1 = new Project(evaluatedValue, trimResult, now ?? DateTimeOffset.UtcNow);
-        return project1;
+        return new Project((id ?? Guid.NewGuid()), name.Trim(), now ?? DateTimeOffset.UtcNow);
     }
 
     /// <summary>
@@ -68,15 +65,12 @@ public sealed class Project
         {
             throw new ArgumentOutOfRangeException(nameof(version), "Project version must be positive. 项目版本必须为正数。");
         }
-
-        var trimResult2 = name.Trim();
-        var project = new Project(id, trimResult2, createdAt)
+        return new Project(id, name.Trim(), createdAt)
         {
             Version = version,
             Status = status,
             UpdatedAt = updatedAt
         };
-        return project;
     }
 
     /// <summary>

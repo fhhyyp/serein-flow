@@ -49,7 +49,7 @@ public sealed class RunExecutionOptions
 
     internal RunExecutionOptions Normalize()
     {
-        RunExecutionOptions evaluatedValue = new()
+        return new()
         {
             QueueCapacity = Math.Clamp(QueueCapacity, MinimumPositiveSetting, QueueCapacityLimit),
             MaxConcurrentRuns = Math.Clamp(MaxConcurrentRuns, MinimumPositiveSetting, ConcurrentRunCountLimit),
@@ -60,19 +60,17 @@ public sealed class RunExecutionOptions
             SynchronousInvocationTimeoutSeconds = Math.Clamp(SynchronousInvocationTimeoutSeconds, MinimumPositiveSetting, SynchronousInvocationTimeoutLimitSeconds),
             MaxLibraryUploadBytes = FileUploadLimits.Normalize(MaxLibraryUploadBytes)
         };
-        return evaluatedValue;
     }
 
     public RunExecutionSettingsDto ToDto()
     {
-        RunExecutionSettingsDto evaluatedValue1 = new(QueueCapacity, MaxConcurrentRuns, MaxConcurrentListenerRuns, MaxConcurrentRunsPerProject, QueueWaitTimeoutSeconds, ShutdownGracePeriodSeconds, SynchronousInvocationTimeoutSeconds, MaxLibraryUploadBytes);
-        return evaluatedValue1;
+        return new(QueueCapacity, MaxConcurrentRuns, MaxConcurrentListenerRuns, MaxConcurrentRunsPerProject, QueueWaitTimeoutSeconds, ShutdownGracePeriodSeconds, SynchronousInvocationTimeoutSeconds, MaxLibraryUploadBytes);
     }
 
     public static RunExecutionOptions FromDto(RunExecutionSettingsDto settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        var runExecutionOptions = new RunExecutionOptions
+        return new RunExecutionOptions
         {
             QueueCapacity = settings.QueueCapacity,
             MaxConcurrentRuns = settings.MaxConcurrentRuns,
@@ -82,9 +80,7 @@ public sealed class RunExecutionOptions
             ShutdownGracePeriodSeconds = settings.ShutdownGracePeriodSeconds,
             SynchronousInvocationTimeoutSeconds = settings.SynchronousInvocationTimeoutSeconds,
             MaxLibraryUploadBytes = settings.MaxLibraryUploadBytes,
-        };
-        var normalizeResult = runExecutionOptions.Normalize();
-        return normalizeResult;
+        }.Normalize();
     }
 }
 
@@ -125,8 +121,7 @@ public sealed class RunSubmissionService
     /// </summary>
     public async Task<RunSubmissionResult> SubmitAsync(Guid projectId, Guid flowId, RunFlowRequestDto request, CancellationToken cancellationToken = default)
     {
-        var submitCoreAsyncResult = await SubmitCoreAsync(projectId, flowId, request, definitionOverride: null, cancellationToken);
-        return submitCoreAsyncResult;
+        return await SubmitCoreAsync(projectId, flowId, request, definitionOverride: null, cancellationToken);
     }
 
     /// <summary>
@@ -136,8 +131,7 @@ public sealed class RunSubmissionService
     public async Task<RunSubmissionResult> SubmitDefinitionAsync(Guid projectId, FlowDefinitionDto definition, RunFlowRequestDto request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        var submitCoreAsyncResult2 = await SubmitCoreAsync(projectId, definition.Id, request, definition, cancellationToken);
-        return submitCoreAsyncResult2;
+        return await SubmitCoreAsync(projectId, definition.Id, request, definition, cancellationToken);
     }
 
     /// <summary>
@@ -146,8 +140,7 @@ public sealed class RunSubmissionService
     /// </summary>
     public async Task<RunSubmissionResult> SubmitProductionAsync(Guid projectId, Guid flowId, RunFlowRequestDto request, CancellationToken cancellationToken = default)
     {
-        var submitCoreAsyncResult3 = await SubmitCoreAsync(projectId, flowId, request, definitionOverride: null, cancellationToken: cancellationToken, definitionTrack: FlowVersionTrackDto.Production);
-        return submitCoreAsyncResult3;
+        return await SubmitCoreAsync(projectId, flowId, request, definitionOverride: null, cancellationToken: cancellationToken, definitionTrack: FlowVersionTrackDto.Production);
     }
 
     private async Task<RunSubmissionResult> SubmitCoreAsync(Guid projectId, Guid flowId, RunFlowRequestDto request, FlowDefinitionDto? definitionOverride, CancellationToken cancellationToken, FlowVersionTrackDto definitionTrack = FlowVersionTrackDto.Development)
@@ -155,29 +148,25 @@ public sealed class RunSubmissionService
         using var reservation = _queue.TryReserve();
         if (reservation is null)
         {
-            var runSubmissionResult = new RunSubmissionResult(null, StatusCodes.Status429TooManyRequests, "The run queue is full. 运行队列已满。", new { code = RunErrorCodes.QueueFull });
-            return runSubmissionResult;
+            return new RunSubmissionResult(null, StatusCodes.Status429TooManyRequests, "The run queue is full. 运行队列已满。", new { code = RunErrorCodes.QueueFull });
         }
 
         var preparation = await _runService.PrepareAsync(projectId, flowId, request, definitionOverride: definitionOverride, cancellationToken: cancellationToken, definitionTrack: definitionTrack);
         if (!preparation.IsSuccess)
         {
-            var runSubmissionResult4 = new RunSubmissionResult(null, preparation.StatusCode, preparation.ErrorTitle, preparation.ErrorBody, preparation.CurrentVersion);
-            return runSubmissionResult4;
+            return new RunSubmissionResult(null, preparation.StatusCode, preparation.ErrorTitle, preparation.ErrorBody, preparation.CurrentVersion);
         }
 
         var prepared = preparation.Preparation!;
         var item = new RunWorkItem(prepared.Run.Id, projectId, prepared.Definition, prepared.ProjectInputs, prepared.Run.QueuedAt, prepared.TimeoutSeconds, prepared.MaxSteps, prepared.MaxNodeVisits);
         if (_queue.TryEnqueueReserved(item, reservation))
         {
-            var runSubmissionResult5 = new RunSubmissionResult(prepared.Run, StatusCodes.Status202Accepted);
-            return runSubmissionResult5;
+            return new RunSubmissionResult(prepared.Run, StatusCodes.Status202Accepted);
         }
 
         prepared.Run.Cancel(RunErrorCodes.SchedulerUnavailable, DateTimeOffset.UtcNow);
         await _runStore.SaveAsync(prepared.Run, CancellationToken.None);
-        var runSubmissionResult6 = new RunSubmissionResult(null, StatusCodes.Status503ServiceUnavailable, "The run scheduler is unavailable. 运行调度器不可用。", new { code = RunErrorCodes.SchedulerUnavailable });
-        return runSubmissionResult6;
+        return new RunSubmissionResult(null, StatusCodes.Status503ServiceUnavailable, "The run scheduler is unavailable. 运行调度器不可用。", new { code = RunErrorCodes.SchedulerUnavailable });
     }
 }
 
@@ -208,8 +197,8 @@ public sealed class RunExecutionQueue : IDisposable
     private readonly IFileUploadSettings _fileUploadSettings;
     public RunExecutionQueue(IOptions<RunExecutionOptions> options, IFileUploadSettings? fileUploadSettings = null)
     {
-        var evaluatedValue7 = (options?.Value ?? new RunExecutionOptions());
-        _options = evaluatedValue7.Normalize();
+        var runExecutionOptions = (options?.Value ?? new RunExecutionOptions());
+        _options = runExecutionOptions.Normalize();
         _fileUploadSettings = fileUploadSettings ?? new FileUploadSettings();
         _fileUploadSettings.Configure(_options.MaxLibraryUploadBytes);
         var unboundedChannelOptions = new UnboundedChannelOptions
@@ -248,8 +237,7 @@ public sealed class RunExecutionQueue : IDisposable
         }
 
         SignalScheduler();
-        var toDtoResult = Options.ToDto();
-        return toDtoResult;
+        return Options.ToDto();
     }
 
     /// <summary>
@@ -266,8 +254,7 @@ public sealed class RunExecutionQueue : IDisposable
             }
 
             Interlocked.Increment(ref _queuedCount);
-            var runQueueReservation = new RunQueueReservation(this);
-            return runQueueReservation;
+            return new RunQueueReservation(this);
         }
     }
 
@@ -319,8 +306,7 @@ public sealed class RunExecutionQueue : IDisposable
     {
         lock (_gate)
         {
-            CancellationToken evaluatedValue8 = _cancellations.TryGetValue(runId, out var source) ? source.Token : new CancellationToken(canceled: true);
-            return evaluatedValue8;
+            return _cancellations.TryGetValue(runId, out var source) ? source.Token : new CancellationToken(canceled: true);
         }
     }
 
@@ -330,8 +316,7 @@ public sealed class RunExecutionQueue : IDisposable
     /// </summary>
     public bool Cancel(Guid runId)
     {
-        var cancelResult = Cancel(runId, RunCancellationSources.Api);
-        return cancelResult;
+        return Cancel(runId, RunCancellationSources.Api);
     }
 
     public bool Cancel(Guid runId, string source)
@@ -361,8 +346,7 @@ public sealed class RunExecutionQueue : IDisposable
     {
         lock (_gate)
         {
-            string? evaluatedValue9 = _cancellationSources.TryGetValue(runId, out var source) ? source : null;
-            return evaluatedValue9;
+            return _cancellationSources.TryGetValue(runId, out var source) ? source : null;
         }
     }
 
@@ -370,8 +354,7 @@ public sealed class RunExecutionQueue : IDisposable
     {
         lock (_gate)
         {
-            var evaluatedValue10 = _cancellations.TryGetValue(runId, out var source) && source.IsCancellationRequested;
-            return evaluatedValue10;
+            return _cancellations.TryGetValue(runId, out var source) && source.IsCancellationRequested;
         }
     }
 
@@ -379,8 +362,7 @@ public sealed class RunExecutionQueue : IDisposable
     {
         lock (_gate)
         {
-            var evaluatedValue11 = _cancellations.ContainsKey(runId) || _activeRuns.ContainsKey(runId);
-            return evaluatedValue11;
+            return _cancellations.ContainsKey(runId) || _activeRuns.ContainsKey(runId);
         }
     }
 
@@ -421,18 +403,17 @@ public sealed class RunExecutionQueue : IDisposable
                 return false;
             }
 
-            if (!resolveTryAddResult())
+            if (!TryRegisterListener())
             {
                 return false;
             }
 
             lease = new RunExecutionLease(this, item.RunId);
             return true;
-            bool resolveTryAddResult()
+            bool TryRegisterListener()
             {
                 var activeRunInfo = new ActiveRunInfo(item.ProjectId, listenerRun);
-                var tryAddResult = _activeRuns.TryAdd(item.RunId, activeRunInfo);
-                return tryAddResult;
+                return _activeRuns.TryAdd(item.RunId, activeRunInfo);
             }
         }
     }
@@ -472,7 +453,7 @@ public sealed class RunExecutionQueue : IDisposable
                 return false;
             }
 
-            if (!resolveTryAddResult12())
+            if (!TryRegisterFlowCallListener())
             {
                 return false;
             }
@@ -480,11 +461,10 @@ public sealed class RunExecutionQueue : IDisposable
             source = new RunCancellation();
             _cancellations[item.RunId] = source;
             lease = new RunExecutionLease(this, item.RunId);
-            bool resolveTryAddResult12()
+            bool TryRegisterFlowCallListener()
             {
-                var activeRunInfo13 = new ActiveRunInfo(item.ProjectId, listenerRun);
-                var tryAddResult14 = _activeRuns.TryAdd(item.RunId, activeRunInfo13);
-                return tryAddResult14;
+                var activeRunInfo = new ActiveRunInfo(item.ProjectId, listenerRun);
+                return _activeRuns.TryAdd(item.RunId, activeRunInfo);
             }
         }
 
@@ -496,11 +476,9 @@ public sealed class RunExecutionQueue : IDisposable
     {
         lock (_gate)
         {
-            var readResult = Volatile.Read(ref _queuedCount);
-            var maxResult = Math.Max(0, readResult);
-            var countResult = _activeRuns.Values.Count(static item => item.IsListenerRun);
-            RunExecutionSnapshot evaluatedValue15 = new(_options.QueueCapacity, maxResult, _activeRuns.Count, countResult, _options.MaxConcurrentRuns, _options.MaxConcurrentListenerRuns, _options.MaxConcurrentRunsPerProject);
-            return evaluatedValue15;
+            var queuedCount = Math.Max(0, Volatile.Read(ref _queuedCount));
+            var activeListenerRunCount = _activeRuns.Values.Count(static item => item.IsListenerRun);
+            return new(_options.QueueCapacity, queuedCount, _activeRuns.Count, activeListenerRunCount, _options.MaxConcurrentRuns, _options.MaxConcurrentListenerRuns, _options.MaxConcurrentRunsPerProject);
         }
     }
 
@@ -522,8 +500,7 @@ public sealed class RunExecutionQueue : IDisposable
         {
             if (timeout is { } value && value > TimeSpan.Zero)
             {
-                var signalled = await _schedulerSignal.WaitAsync(value, lifetime.Token);
-                return signalled;
+                return await _schedulerSignal.WaitAsync(value, lifetime.Token);
             }
 
             await _schedulerSignal.WaitAsync(lifetime.Token);
@@ -561,14 +538,14 @@ public sealed class RunExecutionQueue : IDisposable
 
             _accepting = false;
             _queue.Writer.TryComplete();
-            var selectResult = _cancellations
+            sources = _cancellations
                 .Where(static pair => !pair.Value.IsCancellationRequested)
                 .Select(pair =>
                 {
                     _cancellationSources.TryAdd(pair.Key, RunCancellationSources.HostShutdown);
                     return pair.Value;
-                });
-            sources = selectResult.ToArray();
+                })
+                .ToArray();
         }
 
         foreach (var source in sources)
@@ -734,20 +711,17 @@ public sealed class RunExecutionQueue : IDisposable
             .Where(static connection => connection.Kind == ConnectionKindDto.Execution)
             .Select(static connection => connection.ToNodeId)
             .ToHashSet(StringComparer.Ordinal);
-        var anyResult = item.Definition.Canvases
+        return item.Definition.Canvases
             .SelectMany(static canvas => canvas.Nodes)
             .Any(node =>
             {
-                var evaluatedValue16 = node.Type == NodeTypeDto.Flipflop && !incoming.Contains(node.Id);
-                return evaluatedValue16;
+                return node.Type == NodeTypeDto.Flipflop && !incoming.Contains(node.Id);
             });
-        return anyResult;
     }
 
     private static string NormalizeCancellationSource(string source)
     {
-        string evaluatedValue20 = string.IsNullOrWhiteSpace(source) ? RunCancellationSources.Worker : source.Trim();
-        return evaluatedValue20;
+        return string.IsNullOrWhiteSpace(source) ? RunCancellationSources.Worker : source.Trim();
     }
 
     private sealed record ActiveRunInfo(Guid ProjectId, bool IsListenerRun);
@@ -765,8 +739,7 @@ public sealed class RunExecutionQueue : IDisposable
             {
                 lock (_gate)
                 {
-                    var token = _disposed ? new CancellationToken(canceled: true) : _source.Token;
-                    return token;
+                    return _disposed ? new CancellationToken(canceled: true) : _source.Token;
                 }
             }
         }
@@ -840,15 +813,12 @@ public sealed class RunExecutionQueue : IDisposable
 
         internal bool TryClaim(RunExecutionQueue owner)
         {
-            var exchangeResult = Interlocked.Exchange(ref _owner, null);
-            var referenceEqualsResult = ReferenceEquals(exchangeResult, owner);
-            return referenceEqualsResult;
+            return ReferenceEquals(Interlocked.Exchange(ref _owner, null), owner);
         }
 
         public void Dispose()
         {
-            var owner = Interlocked.Exchange(ref _owner, null);
-            owner?.ReleaseQueueSlot();
+            Interlocked.Exchange(ref _owner, null)?.ReleaseQueueSlot();
         }
     }
 
@@ -864,8 +834,7 @@ public sealed class RunExecutionQueue : IDisposable
 
         public void Dispose()
         {
-            var owner = Interlocked.Exchange(ref _owner, null);
-            owner?.ReleaseExecutionSlots(_runId);
+            Interlocked.Exchange(ref _owner, null)?.ReleaseExecutionSlots(_runId);
         }
     }
 }
@@ -880,12 +849,11 @@ public sealed class RunEventBroadcaster
     {
         CleanupCompletedRuns();
         var subscriptionId = Guid.NewGuid();
-        var operationResult1 = new BoundedChannelOptions(SubscriberCapacity)
+        var channel = Channel.CreateBounded<FlowRunEventDto>(new BoundedChannelOptions(SubscriberCapacity)
         {
             FullMode = BoundedChannelFullMode.Wait,
             AllowSynchronousContinuations = false
-        };
-        var channel = Channel.CreateBounded<FlowRunEventDto>(operationResult1);
+        });
         if (_completedRuns.ContainsKey(runId))
         {
             channel.Writer.TryComplete();
@@ -894,8 +862,7 @@ public sealed class RunEventBroadcaster
 
         var subscribers = _channels.GetOrAdd(runId, static _ =>
         {
-            var concurrentDictionary = new ConcurrentDictionary<Guid, Channel<FlowRunEventDto>>();
-            return concurrentDictionary;
+            return new ConcurrentDictionary<Guid, Channel<FlowRunEventDto>>();
         });
         subscribers[subscriptionId] = channel;
         if (cancellationToken.CanBeCanceled)
@@ -985,14 +952,12 @@ public sealed class RunEventsHub : Hub
 {
     public Task Subscribe(Guid runId)
     {
-        var addToGroupAsyncResult = Groups.AddToGroupAsync(Context.ConnectionId, $"run:{runId:D}");
-        return addToGroupAsyncResult;
+        return Groups.AddToGroupAsync(Context.ConnectionId, $"run:{runId:D}");
     }
 
     public Task Unsubscribe(Guid runId)
     {
-        var removeFromGroupAsyncResult = Groups.RemoveFromGroupAsync(Context.ConnectionId, $"run:{runId:D}");
-        return removeFromGroupAsyncResult;
+        return Groups.RemoveFromGroupAsync(Context.ConnectionId, $"run:{runId:D}");
     }
 }
 
@@ -1060,14 +1025,12 @@ public sealed class RunExecutionHostedService : BackgroundService
                     _queue.PromoteToActive(item);
                     var executionTask = Task.Run(() =>
                     {
-                        var executeItemAsyncResult = ExecuteItemAsync(item, lease!, stoppingToken);
-                        return executeItemAsyncResult;
+                        return ExecuteItemAsync(item, lease!, stoppingToken);
                     }, CancellationToken.None);
                     _activeTasks[item.RunId] = executionTask;
                     _ = executionTask.ContinueWith(_ =>
                     {
-                        var tryRemoveResult = _activeTasks.TryRemove(item.RunId, out Task? _);
-                        return tryRemoveResult;
+                        return _activeTasks.TryRemove(item.RunId, out Task? _);
                     }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
                 }
 
@@ -1088,10 +1051,7 @@ public sealed class RunExecutionHostedService : BackgroundService
             var active = _activeTasks.Values.ToArray();
             if (active.Length > 0)
             {
-                var whenAllResult = Task.WhenAll(active);
-                var fromSecondsResult = TimeSpan.FromSeconds(_queue.Options.ShutdownGracePeriodSeconds);
-                var delayResult = Task.Delay(fromSecondsResult, CancellationToken.None);
-                await Task.WhenAny(whenAllResult, delayResult);
+                await Task.WhenAny(Task.WhenAll(active), Task.Delay(TimeSpan.FromSeconds(_queue.Options.ShutdownGracePeriodSeconds), CancellationToken.None));
             }
         }
     }
@@ -1099,8 +1059,8 @@ public sealed class RunExecutionHostedService : BackgroundService
     private async Task ApplyPersistedEnvironmentSettingsAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
-        var store = scope.ServiceProvider.GetRequiredService<IRunEnvironmentSettingsStore>();
-        var settings = await store.GetAsync(cancellationToken);
+        var runEnvironmentSettingsStore = scope.ServiceProvider.GetRequiredService<IRunEnvironmentSettingsStore>();
+        var settings = await runEnvironmentSettingsStore.GetAsync(cancellationToken);
         if (settings is not null)
         {
             _queue.Configure(settings);
@@ -1110,8 +1070,8 @@ public sealed class RunExecutionHostedService : BackgroundService
     private async Task RecoverPendingRunsAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
-        var runStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
-        foreach (var pending in await runStore.ListPendingAsync(cancellationToken))
+        var flowRunStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
+        foreach (var pending in await flowRunStore.ListPendingAsync(cancellationToken))
         {
             if (_queue.IsTracked(pending.Run.Id))
             {
@@ -1136,17 +1096,17 @@ public sealed class RunExecutionHostedService : BackgroundService
     private async Task ReconcileInterruptedRunsAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
-        var runStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
-        var interruptionService = scope.ServiceProvider.GetRequiredService<RunInterruptionService>();
+        var flowRunStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
+        var runInterruptionService = scope.ServiceProvider.GetRequiredService<RunInterruptionService>();
         var flowRunQuery = new FlowRunQuery([FlowRunStatus.Running], Take: 10_000);
-        var running = await runStore.ListAsync(flowRunQuery, cancellationToken);
+        var running = await flowRunStore.ListAsync(flowRunQuery, cancellationToken);
         var reconciled = 0;
         foreach (var run in running)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                var result = await interruptionService.InterruptAsync(run.Id, "engine_restart", RunErrorCodes.WorkerLost, "The worker was lost before the run reached a terminal state. Worker 在流程到达终态前已丢失。", cancellationToken);
+                var result = await runInterruptionService.InterruptAsync(run.Id, "engine_restart", RunErrorCodes.WorkerLost, "The worker was lost before the run reached a terminal state. Worker 在流程到达终态前已丢失。", cancellationToken);
                 if (result.IsInterrupted)
                 {
                     reconciled++;
@@ -1177,8 +1137,8 @@ public sealed class RunExecutionHostedService : BackgroundService
             if (_queue.IsCancellationRequested(item.RunId))
             {
                 pending.RemoveAt(index);
-                var evaluatedValue22 = _queue.GetCancellationSource(item.RunId) ?? RunCancellationSources.Worker;
-                await CompletePendingRunAsync(item, FlowRunStatusDto.Cancelled, RunErrorCodes.Cancelled, "The queued run was cancelled. 排队中的运行实例已取消。", evaluatedValue22, cancellationToken);
+                var cancellationSource = _queue.GetCancellationSource(item.RunId) ?? RunCancellationSources.Worker;
+                await CompletePendingRunAsync(item, FlowRunStatusDto.Cancelled, RunErrorCodes.Cancelled, "The queued run was cancelled. 排队中的运行实例已取消。", cancellationSource, cancellationToken);
                 continue;
             }
 
@@ -1202,11 +1162,9 @@ public sealed class RunExecutionHostedService : BackgroundService
         var now = DateTimeOffset.UtcNow;
         var deadline = pending.Min(item =>
         {
-            var addSecondsResult = item.QueuedAt.AddSeconds(_queue.Options.QueueWaitTimeoutSeconds);
-            return addSecondsResult;
+            return item.QueuedAt.AddSeconds(_queue.Options.QueueWaitTimeoutSeconds);
         });
-        TimeSpan? evaluatedValue23 = deadline <= now ? TimeSpan.FromMilliseconds(1) : deadline - now;
-        return evaluatedValue23;
+        return deadline <= now ? TimeSpan.FromMilliseconds(1) : deadline - now;
     }
 
     private async Task CompletePendingRunAsync(RunWorkItem item, FlowRunStatusDto terminalStatus, string code, string message, string cancellationSource, CancellationToken cancellationToken)
@@ -1214,9 +1172,9 @@ public sealed class RunExecutionHostedService : BackgroundService
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var runStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
-            var eventStore = scope.ServiceProvider.GetRequiredService<IFlowRunEventStore>();
-            var run = await runStore.FindAsync(item.RunId, cancellationToken);
+            var flowRunStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
+            var flowRunEventStore = scope.ServiceProvider.GetRequiredService<IFlowRunEventStore>();
+            var run = await flowRunStore.FindAsync(item.RunId, cancellationToken);
             if (run is not null && !run.IsTerminal)
             {
                 if (terminalStatus == FlowRunStatusDto.Cancelled)
@@ -1228,9 +1186,9 @@ public sealed class RunExecutionHostedService : BackgroundService
                     run.Complete(FlowRunStatus.TimedOut, DateTimeOffset.UtcNow, message);
                 }
 
-                await runStore.SaveAsync(run, CancellationToken.None);
+                await flowRunStore.SaveAsync(run, CancellationToken.None);
                 var workerRunResultDto = new WorkerRunResultDto(WorkerProtocol.Version, run.Id, terminalStatus, code, message);
-                await PublishTerminalAsync(run, workerRunResultDto, eventStore, CancellationToken.None);
+                await PublishTerminalAsync(run, workerRunResultDto, flowRunEventStore, CancellationToken.None);
             }
         }
         finally
@@ -1244,13 +1202,12 @@ public sealed class RunExecutionHostedService : BackgroundService
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var runStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
-            var eventStore = scope.ServiceProvider.GetRequiredService<IFlowRunEventStore>();
-            var outputStore = scope.ServiceProvider.GetRequiredService<IFlowRunOutputStore>();
-            var getCancellationTokenResult = _queue.GetCancellationToken(item.RunId);
-            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, getCancellationTokenResult);
+            var flowRunStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
+            var flowRunEventStore = scope.ServiceProvider.GetRequiredService<IFlowRunEventStore>();
+            var flowRunOutputStore = scope.ServiceProvider.GetRequiredService<IFlowRunOutputStore>();
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, _queue.GetCancellationToken(item.RunId));
             var runToken = cancellation.Token;
-            var run = await runStore.FindAsync(item.RunId, runToken);
+            var run = await flowRunStore.FindAsync(item.RunId, runToken);
             if (run is null || run.IsTerminal)
             {
                 return;
@@ -1260,9 +1217,9 @@ public sealed class RunExecutionHostedService : BackgroundService
             {
                 var cancellationSource = ResolveCancellationSource(item.RunId, stoppingToken);
                 run.Cancel(cancellationSource, DateTimeOffset.UtcNow);
-                await runStore.SaveAsync(run, CancellationToken.None);
-                var workerRunResultDto24 = new WorkerRunResultDto(WorkerProtocol.Version, run.Id, FlowRunStatusDto.Cancelled, RunErrorCodes.Cancelled, "The queued run was cancelled. 排队中的运行实例已取消。");
-                await PublishTerminalAsync(run, workerRunResultDto24, eventStore, CancellationToken.None);
+                await flowRunStore.SaveAsync(run, CancellationToken.None);
+                var workerRunResultDto = new WorkerRunResultDto(WorkerProtocol.Version, run.Id, FlowRunStatusDto.Cancelled, RunErrorCodes.Cancelled, "The queued run was cancelled. 排队中的运行实例已取消。");
+                await PublishTerminalAsync(run, workerRunResultDto, flowRunEventStore, CancellationToken.None);
                 return;
             }
 
@@ -1271,29 +1228,29 @@ public sealed class RunExecutionHostedService : BackgroundService
                 HostingLog.RunStarting(_logger, item.RunId, item.ProjectId, item.Definition.Id, null);
             }
             var startedAt = DateTimeOffset.UtcNow;
-            var addSecondsResult25 = startedAt.AddSeconds(item.TimeoutSeconds);
-            run.MarkRunning(startedAt, addSecondsResult25);
-            await runStore.SaveAsync(run, runToken);
-            var createWebOptionsResult = SereinJsonSerialization.CreateWebOptions();
-            var serializeResult = JsonSerializer.Serialize(item.Definition, createWebOptionsResult);
-            var toStringResult = item.ProjectId.ToString("D");
-            var getLibraryIdsResult = ProjectLibraryService.GetLibraryIds(item.Definition);
-            var request = new WorkerRunRequestDto(WorkerProtocol.Version, item.RunId, item.Definition.Id, item.Definition.Version, serializeResult, run.Deadline!.Value, toStringResult, item.ProjectInputs, item.MaxSteps, _scriptRoot, _libraryRoot, item.MaxNodeVisits, getLibraryIdsResult, WorkpieceRootPath: _workpieceRoot);
+            var addSeconds = startedAt.AddSeconds(item.TimeoutSeconds);
+            run.MarkRunning(startedAt, addSeconds);
+            await flowRunStore.SaveAsync(run, runToken);
+            var webOptions = SereinJsonSerialization.CreateWebOptions();
+            var definitionJson = JsonSerializer.Serialize(item.Definition, webOptions);
+            var projectId = item.ProjectId.ToString("D");
+            var allowedLibraryIds = ProjectLibraryService.GetLibraryIds(item.Definition);
+            var request = new WorkerRunRequestDto(WorkerProtocol.Version, item.RunId, item.Definition.Id, item.Definition.Version, definitionJson, run.Deadline!.Value, projectId, item.ProjectInputs, item.MaxSteps, _scriptRoot, _libraryRoot, item.MaxNodeVisits, allowedLibraryIds, WorkpieceRootPath: _workpieceRoot);
             var delegateWorkerRunEventSink = new DelegateWorkerRunBatchEventSink(HandleEventBatchAsync);
             var result = await _workerClient.RunAsync(request, delegateWorkerRunEventSink, runToken);
             if (result.Status == FlowRunStatusDto.Cancelled)
             {
-                var resolveCancellationSourceResult = ResolveCancellationSource(item.RunId, stoppingToken);
-                run.Cancel(resolveCancellationSourceResult, DateTimeOffset.UtcNow);
+                var mappedCancellationSource = ResolveCancellationSource(item.RunId, stoppingToken);
+                run.Cancel(mappedCancellationSource, DateTimeOffset.UtcNow);
             }
             else
             {
-                var toDomainStatusResult = ToDomainStatus(result.Status);
-                run.Complete(toDomainStatusResult, DateTimeOffset.UtcNow, result.ErrorMessage);
+                var domainStatus = ToDomainStatus(result.Status);
+                run.Complete(domainStatus, DateTimeOffset.UtcNow, result.ErrorMessage);
             }
 
-            await PublishTerminalAsync(run, result, eventStore, CancellationToken.None);
-            await runStore.SaveAsync(run, CancellationToken.None);
+            await PublishTerminalAsync(run, result, flowRunEventStore, CancellationToken.None);
+            await flowRunStore.SaveAsync(run, CancellationToken.None);
             if (_logger.IsEnabled(LogLevel.Information))
             {
                 HostingLog.RunFinished(_logger, item.RunId, run.Status, null);
@@ -1301,8 +1258,8 @@ public sealed class RunExecutionHostedService : BackgroundService
         }
         catch (OperationCanceledException)
         {
-            var resolveCancellationSourceResult26 = ResolveCancellationSource(item.RunId, stoppingToken);
-            await MarkCancelledAfterStartAsync(item.RunId, resolveCancellationSourceResult26);
+            var resolvedCancellationSource = ResolveCancellationSource(item.RunId, stoppingToken);
+            await MarkCancelledAfterStartAsync(item.RunId, resolvedCancellationSource);
         }
         catch (Exception exception)
         {
@@ -1317,33 +1274,32 @@ public sealed class RunExecutionHostedService : BackgroundService
 
     private string ResolveCancellationSource(Guid runId, CancellationToken stoppingToken)
     {
-        var evaluatedValue27 = _queue.GetCancellationSource(runId) ?? (stoppingToken.IsCancellationRequested ? RunCancellationSources.HostShutdown : RunCancellationSources.Worker);
-        return evaluatedValue27;
+        return _queue.GetCancellationSource(runId) ?? (stoppingToken.IsCancellationRequested ? RunCancellationSources.HostShutdown : RunCancellationSources.Worker);
     }
 
     private async Task MarkCancelledAfterStartAsync(Guid runId, string cancellationSource)
     {
         using var scope = _scopeFactory.CreateScope();
-        var runStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
-        var eventStore = scope.ServiceProvider.GetRequiredService<IFlowRunEventStore>();
-        var run = await runStore.FindAsync(runId, CancellationToken.None);
+        var flowRunStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
+        var flowRunEventStore = scope.ServiceProvider.GetRequiredService<IFlowRunEventStore>();
+        var run = await flowRunStore.FindAsync(runId, CancellationToken.None);
         if (run is null || run.IsTerminal)
         {
             return;
         }
 
         run.Cancel(cancellationSource, DateTimeOffset.UtcNow);
-        await runStore.SaveAsync(run, CancellationToken.None);
-        var workerRunResultDto28 = new WorkerRunResultDto(WorkerProtocol.Version, run.Id, FlowRunStatusDto.Cancelled, WorkerErrorCodes.Cancelled, "The worker run was cancelled. Worker 运行已取消。");
-        await PublishTerminalAsync(run, workerRunResultDto28, eventStore, CancellationToken.None);
+        await flowRunStore.SaveAsync(run, CancellationToken.None);
+        var workerRunResultDto = new WorkerRunResultDto(WorkerProtocol.Version, run.Id, FlowRunStatusDto.Cancelled, WorkerErrorCodes.Cancelled, "The worker run was cancelled. Worker 运行已取消。");
+        await PublishTerminalAsync(run, workerRunResultDto, flowRunEventStore, CancellationToken.None);
     }
 
     private async Task MarkFailedAfterStartAsync(Guid runId, Exception exception)
     {
         using var scope = _scopeFactory.CreateScope();
-        var runStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
-        var eventStore = scope.ServiceProvider.GetRequiredService<IFlowRunEventStore>();
-        var run = await runStore.FindAsync(runId, CancellationToken.None);
+        var flowRunStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
+        var flowRunEventStore = scope.ServiceProvider.GetRequiredService<IFlowRunEventStore>();
+        var run = await flowRunStore.FindAsync(runId, CancellationToken.None);
         if (run is null || run.IsTerminal)
         {
             return;
@@ -1351,9 +1307,9 @@ public sealed class RunExecutionHostedService : BackgroundService
 
         var errorMessage = $"Worker run failed. Worker 运行失败。 {exception.Message}";
         run.Complete(FlowRunStatus.Failed, DateTimeOffset.UtcNow, errorMessage);
-        await runStore.SaveAsync(run, CancellationToken.None);
-        var workerRunResultDto29 = new WorkerRunResultDto(WorkerProtocol.Version, run.Id, FlowRunStatusDto.Failed, WorkerErrorCodes.RunFailed, errorMessage);
-        await PublishTerminalAsync(run, workerRunResultDto29, eventStore, CancellationToken.None);
+        await flowRunStore.SaveAsync(run, CancellationToken.None);
+        var workerRunResultDto = new WorkerRunResultDto(WorkerProtocol.Version, run.Id, FlowRunStatusDto.Failed, WorkerErrorCodes.RunFailed, errorMessage);
+        await PublishTerminalAsync(run, workerRunResultDto, flowRunEventStore, CancellationToken.None);
     }
 
     private async ValueTask HandleEventBatchAsync(IReadOnlyList<WorkerEventEnvelopeDto> events, CancellationToken cancellationToken)
@@ -1366,11 +1322,11 @@ public sealed class RunExecutionHostedService : BackgroundService
         // Each batch owns its scope, including when a timed-out sink is still unwinding.
         // 每个批次独立持有服务作用域；即使接收端超时后仍在退出，该作用域也归该批次所有。
         using var scope = _scopeFactory.CreateScope();
-        var runStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
-        var eventStore = scope.ServiceProvider.GetRequiredService<IFlowRunEventStore>();
-        var outputStore = scope.ServiceProvider.GetRequiredService<IFlowRunOutputStore>();
+        var flowRunStore = scope.ServiceProvider.GetRequiredService<IFlowRunStore>();
+        var flowRunEventStore = scope.ServiceProvider.GetRequiredService<IFlowRunEventStore>();
+        var flowRunOutputStore = scope.ServiceProvider.GetRequiredService<IFlowRunOutputStore>();
         var runId = events[0].RunId;
-        if (runId == Guid.Empty || await runStore.FindAsync(runId, cancellationToken)is null)
+        if (runId == Guid.Empty || await flowRunStore.FindAsync(runId, cancellationToken) is null)
         {
             return;
         }
@@ -1378,7 +1334,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         // WorkerSupervisor already enforces monotonic sequences. Keep the
         // store boundary defensive so a custom client cannot duplicate events.
         // WorkerSupervisor 已校验序列；在持久化边界再次防御，避免自定义客户端写入重复事件。
-        var lastSequence = await eventStore.GetLastSequenceAsync(runId, cancellationToken);
+        var lastSequence = await flowRunEventStore.GetLastSequenceAsync(runId, cancellationToken);
         var items = new List<FlowRunEvent>(events.Count);
         var outputs = new List<FlowRunOutput>();
         foreach (var workerEvent in events.OrderBy(static item => item.Sequence))
@@ -1416,8 +1372,8 @@ public sealed class RunExecutionHostedService : BackgroundService
             }
         }
 
-        await eventStore.AppendAsync(items, cancellationToken);
-        await outputStore.AppendAsync(outputs, cancellationToken);
+        await flowRunEventStore.AppendAsync(items, cancellationToken);
+        await flowRunOutputStore.AppendAsync(outputs, cancellationToken);
         foreach (var item in items)
         {
             await PublishLiveEventAsync(item, cancellationToken);
@@ -1441,8 +1397,8 @@ public sealed class RunExecutionHostedService : BackgroundService
 
         try
         {
-            var groupResult = _hub.Clients.Group($"run:{item.RunId:D}");
-            await groupResult.SendAsync("runEvent", dto, cancellationToken);
+            var group = _hub.Clients.Group($"run:{item.RunId:D}");
+            await group.SendAsync("runEvent", dto, cancellationToken);
         }
         catch (Exception exception)
         {
@@ -1480,11 +1436,10 @@ public sealed class RunExecutionHostedService : BackgroundService
             var root = payload.RootElement;
             var inputsJson = root.TryGetProperty("inputs", out var inputs) ? inputs.GetRawText() : "{}";
             var outputsJson = root.TryGetProperty("outputs", out var outputs) ? outputs.GetRawText() : "{}";
-            var readPayloadStringResult = ReadPayloadString(root, "branch");
-            var readPayloadStringResult30 = ReadPayloadString(root, "errorCode");
-            var readPayloadStringResult31 = ReadPayloadString(root, "errorMessage");
-            var flowRunOutput = new FlowRunOutput(workerEvent.RunId, workerEvent.Sequence, workerEvent.Timestamp, workerEvent.NodeId, outcome, readPayloadStringResult, outputsJson, readPayloadStringResult30, readPayloadStringResult31, inputsJson);
-            return flowRunOutput;
+            var branch = ReadPayloadString(root, "branch");
+            var errorCode = ReadPayloadString(root, "errorCode");
+            var errorMessage = ReadPayloadString(root, "errorMessage");
+            return new FlowRunOutput(workerEvent.RunId, workerEvent.Sequence, workerEvent.Timestamp, workerEvent.NodeId, outcome, branch, outputsJson, errorCode, errorMessage, inputsJson);
         }
         catch (JsonException exception)
         {
@@ -1494,8 +1449,7 @@ public sealed class RunExecutionHostedService : BackgroundService
 
     private static string? ReadPayloadString(JsonElement payload, string propertyName)
     {
-        string? evaluatedValue32 = payload.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
-        return evaluatedValue32;
+        return payload.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
     }
 
     private async Task PublishTerminalAsync(FlowRun run, WorkerRunResultDto result, IFlowRunEventStore eventStore, CancellationToken cancellationToken)
@@ -1508,9 +1462,9 @@ public sealed class RunExecutionHostedService : BackgroundService
             _ => RunErrorCodes.Completed
         };
         var sequence = await eventStore.GetLastSequenceAsync(run.Id, cancellationToken) + 1;
-        var createWebOptionsResult34 = SereinJsonSerialization.CreateWebOptions();
-        var serializeResult35 = JsonSerializer.Serialize(new { result.Status, result.ErrorCode, result.ErrorMessage, cancellationSource = run.CancellationReason, variables = result.FinalVariables }, createWebOptionsResult34);
-        var item = new FlowRunEvent(run.Id, sequence, DateTimeOffset.UtcNow, type, null, serializeResult35);
+        var webOptions = SereinJsonSerialization.CreateWebOptions();
+        var payloadJson = JsonSerializer.Serialize(new { result.Status, result.ErrorCode, result.ErrorMessage, cancellationSource = run.CancellationReason, variables = result.FinalVariables }, webOptions);
+        var item = new FlowRunEvent(run.Id, sequence, DateTimeOffset.UtcNow, type, null, payloadJson);
         await eventStore.AppendAsync([item], cancellationToken);
         var dto = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);
         try
@@ -1524,8 +1478,8 @@ public sealed class RunExecutionHostedService : BackgroundService
 
         try
         {
-            var groupResult33 = _hub.Clients.Group($"run:{run.Id:D}");
-            await groupResult33.SendAsync("runEvent", dto, CancellationToken.None);
+            var group = _hub.Clients.Group($"run:{run.Id:D}");
+            await group.SendAsync("runEvent", dto, CancellationToken.None);
         }
         catch (Exception exception)
         {
@@ -1543,14 +1497,12 @@ public sealed class RunExecutionHostedService : BackgroundService
     private static Action<ILogger, Guid, Exception?> CreateWorkerRunFailedLogInitialValue()
     {
         var eventId = new EventId(4101, "WorkerRunFailed");
-        Action<ILogger, Guid, Exception?> workerRunFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Error, eventId, "Worker run {RunId} failed before completion. Worker 运行在完成前失败。");
-        return workerRunFailedLogInitialValue;
+        return LoggerMessage.Define<Guid>(LogLevel.Error, eventId, "Worker run {RunId} failed before completion. Worker 运行在完成前失败。");
     }
 
     private static Action<ILogger, Guid, Exception?> CreateReconciliationFailedLogInitialValue()
     {
-        var eventId21 = new EventId(4103, "InterruptedRunReconciliationFailed");
-        Action<ILogger, Guid, Exception?> reconciliationFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Error, eventId21, "Interrupted run reconciliation failed for {RunId}. 中断运行实例对账失败。");
-        return reconciliationFailedLogInitialValue;
+        var eventId = new EventId(4103, "InterruptedRunReconciliationFailed");
+        return LoggerMessage.Define<Guid>(LogLevel.Error, eventId, "Interrupted run reconciliation failed for {RunId}. 中断运行实例对账失败。");
     }
 }

@@ -22,68 +22,58 @@ public sealed class RunVariableService(IFlowRunStore runs, IWorkerVariableRunCli
         var run = await runs.FindAsync(request.RunId, cancellationToken);
         if (run is null)
         {
-            var failureResult = Failure(request.RunId, StatusCodes.Status404NotFound, RunErrorCodes.NotFound, "Run not found. 未找到运行实例。");
-            return failureResult;
+            return Failure(request.RunId, StatusCodes.Status404NotFound, RunErrorCodes.NotFound, "Run not found. 未找到运行实例。");
         }
 
         if (request.ProtocolVersion != WorkerProtocol.Version || request.Operation is not (ListOperation or GetOperation or SetOperation) || request.Offset < 0 || request.Take is < 1 or > MaximumVariablePageSize || (request.Operation != ListOperation && (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > MaximumVariableNameLength)))
         {
-            var failureResult1 = Failure(request.RunId, StatusCodes.Status400BadRequest, VariableErrorCodes.InvalidRequest, "Invalid variable operation, name or page. 变量操作、名称或分页参数无效。");
-            return failureResult1;
+            return Failure(request.RunId, StatusCodes.Status400BadRequest, VariableErrorCodes.InvalidRequest, "Invalid variable operation, name or page. 变量操作、名称或分页参数无效。");
         }
 
         if (request.Operation == SetOperation)
         {
             if (run.IsTerminal || run.Status != FlowRunStatus.Running)
             {
-                var failureResult2 = Failure(request.RunId, StatusCodes.Status409Conflict, WorkerErrorCodes.NotActive, "Only an active Worker can change variables. 仅活动 Worker 可修改变量。");
-                return failureResult2;
+                return Failure(request.RunId, StatusCodes.Status409Conflict, WorkerErrorCodes.NotActive, "Only an active Worker can change variables. 仅活动 Worker 可修改变量。");
             }
 
             var value = request.Value;
             if (value.ValueKind == JsonValueKind.Undefined)
             {
-                var failureResult3 = Failure(request.RunId, StatusCodes.Status400BadRequest, VariableErrorCodes.ValueInvalid, "An explicit JSON value is required. 必须显式提供 JSON 值。");
-                return failureResult3;
+                return Failure(request.RunId, StatusCodes.Status400BadRequest, VariableErrorCodes.ValueInvalid, "An explicit JSON value is required. 必须显式提供 JSON 值。");
             }
 
             if (request.ValueType is not ("null" or "boolean" or "string" or "int32" or "int64" or "double" or "decimal" or "json"))
             {
-                var failureResult4 = Failure(request.RunId, StatusCodes.Status400BadRequest, VariableErrorCodes.TypeInvalid, "Unsupported variable valueType. 不支持指定的变量 valueType。");
-                return failureResult4;
+                return Failure(request.RunId, StatusCodes.Status400BadRequest, VariableErrorCodes.TypeInvalid, "Unsupported variable valueType. 不支持指定的变量 valueType。");
             }
 
-            if (resolveGetByteCountResult() > 16_384)
+            if (GetValueByteCount() > 16_384)
             {
-                var failureResult5 = Failure(request.RunId, 413, VariableErrorCodes.TooLarge, "Variable values are limited to 16384 JSON bytes. 变量值的 JSON 大小不能超过 16384 字节。");
-                return failureResult5;
+                return Failure(request.RunId, 413, VariableErrorCodes.TooLarge, "Variable values are limited to 16384 JSON bytes. 变量值的 JSON 大小不能超过 16384 字节。");
             }
 
-            int resolveGetByteCountResult()
+            int GetValueByteCount()
             {
-                var getRawTextResult = value.GetRawText();
-                var getByteCountResult = Encoding.UTF8.GetByteCount(getRawTextResult);
-                return getByteCountResult;
+                var rawText = value.GetRawText();
+                return Encoding.UTF8.GetByteCount(rawText);
             }
         }
 
         if (run.IsTerminal)
         {
-            var readFinalAsyncResult = await ReadFinalAsync(request, cancellationToken);
-            return readFinalAsyncResult;
+            return await ReadFinalAsync(request, cancellationToken);
         }
 
         if (run.Status != FlowRunStatus.Running)
         {
-            var failureResult6 = Failure(request.RunId, StatusCodes.Status409Conflict, WorkerErrorCodes.NotActive, "The Worker is not active. Worker 尚未活动。");
-            return failureResult6;
+            return Failure(request.RunId, StatusCodes.Status409Conflict, WorkerErrorCodes.NotActive, "The Worker is not active. Worker 尚未活动。");
         }
 
         var response = await client.AccessVariablesAsync(request, cancellationToken);
-        WorkerVariableResponseDto variableResponse = request.Operation != SetOperation && response.Code == WorkerErrorCodes.NotActive ? await ReadFinalAsync(request, cancellationToken) : response;
         // Completion can be persisted between the status read and the Worker request.
         // 状态读取与 Worker 请求之间可能恰好完成运行，回退到已保存的最终快照。
-        return variableResponse;
+        return request.Operation != SetOperation && response.Code == WorkerErrorCodes.NotActive ? await ReadFinalAsync(request, cancellationToken) : response;
     }
 
     private async Task<WorkerVariableResponseDto> ReadFinalAsync(WorkerVariableRequestDto request, CancellationToken cancellationToken)
@@ -105,9 +95,7 @@ public sealed class RunVariableService(IFlowRunStore runs, IWorkerVariableRunCli
                 {
                     continue;
                 }
-
-                var createWebOptionsResult = SereinJsonSerialization.CreateWebOptions();
-                var snapshot = value.Deserialize<RunVariableSnapshotDto>(createWebOptionsResult);
+                var snapshot = value.Deserialize<RunVariableSnapshotDto>(SereinJsonSerialization.CreateWebOptions());
                 if (snapshot is null || snapshot.RunId != request.RunId || !snapshot.IsFinal || snapshot.Variables is null)
                 {
                     continue;
@@ -116,16 +104,14 @@ public sealed class RunVariableService(IFlowRunStore runs, IWorkerVariableRunCli
                 if (request.Operation == GetOperation)
                 {
                     var variable = snapshot.Variables.FirstOrDefault(entry => entry.Name == request.Name);
-                    WorkerVariableResponseDto evaluatedValue7 = variable is not null ? new(WorkerProtocol.Version, request.RunId, StatusCodes.Status200OK, Variable: variable) : Failure(request.RunId, StatusCodes.Status404NotFound, VariableErrorCodes.NotFound, "Variable not found in the saved snapshot. 保存的快照中未找到变量。");
-                    return evaluatedValue7;
+                    return variable is not null ? new(WorkerProtocol.Version, request.RunId, StatusCodes.Status200OK, Variable: variable) : Failure(request.RunId, StatusCodes.Status404NotFound, VariableErrorCodes.NotFound, "Variable not found in the saved snapshot. 保存的快照中未找到变量。");
                 }
 
                 var page = snapshot.Variables
                     .Skip(request.Offset)
                     .Take(request.Take)
                     .ToArray();
-                WorkerVariableResponseDto evaluatedValue8 = new(WorkerProtocol.Version, request.RunId, StatusCodes.Status200OK, Snapshot: snapshot with { Variables = page, Offset = request.Offset, HasMore = request.Offset + page.Length < snapshot.Variables.Count, });
-                return evaluatedValue8;
+                return new(WorkerProtocol.Version, request.RunId, StatusCodes.Status200OK, Snapshot: snapshot with { Variables = page, Offset = request.Offset, HasMore = request.Offset + page.Length < snapshot.Variables.Count, });
             }
             catch (JsonException)
             {
@@ -133,14 +119,11 @@ public sealed class RunVariableService(IFlowRunStore runs, IWorkerVariableRunCli
                 // 旧版或格式错误的终止事件不包含可恢复的快照。
             }
         }
-
-        var failureResult9 = Failure(request.RunId, StatusCodes.Status409Conflict, VariableErrorCodes.SnapshotUnavailable, "This run has no saved variable snapshot. 此运行未保存流程变量快照。");
-        return failureResult9;
+        return Failure(request.RunId, StatusCodes.Status409Conflict, VariableErrorCodes.SnapshotUnavailable, "This run has no saved variable snapshot. 此运行未保存流程变量快照。");
     }
 
     private static WorkerVariableResponseDto Failure(Guid runId, int status, string code, string message)
     {
-        WorkerVariableResponseDto evaluatedValue10 = new(WorkerProtocol.Version, runId, status, Code: code, Message: message);
-        return evaluatedValue10;
+        return new(WorkerProtocol.Version, runId, status, Code: code, Message: message);
     }
 }

@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace SereinFlow.Contracts;
+
 [JsonConverter(typeof(SereinFlowPermissionJsonConverter))]
 /// <summary>
 /// Defines transport-independent SereinFlow operations.
@@ -128,8 +129,7 @@ public static class SereinFlowOperationNames
     };
     public static string ToName(SereinFlowPermission permission)
     {
-        string evaluatedValue = Names.TryGetValue(permission, out var name) ? name : throw new ArgumentOutOfRangeException(nameof(permission), permission, "The MCP permission is not defined. 未定义该 MCP 权限。");
-        return evaluatedValue;
+        return Names.TryGetValue(permission, out var name) ? name : throw new ArgumentOutOfRangeException(nameof(permission), permission, "The MCP permission is not defined. 未定义该 MCP 权限。");
     }
 
     public static bool TryParse(string? value, out SereinFlowPermission permission)
@@ -172,8 +172,7 @@ public sealed class SereinFlowPermissionJsonConverter : JsonConverter<SereinFlow
 
     public override void Write(Utf8JsonWriter writer, SereinFlowPermission value, JsonSerializerOptions options)
     {
-        var toNameResult = SereinFlowOperationNames.ToName(value);
-        writer.WriteStringValue(toNameResult);
+        writer.WriteStringValue(SereinFlowOperationNames.ToName(value));
     }
 }
 

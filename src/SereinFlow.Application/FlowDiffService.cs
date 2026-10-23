@@ -25,49 +25,44 @@ public sealed class FlowDiffService
         var removedConnections = 0;
         var changedConnections = 0;
         AddScalar(changes, "entryNodeId", before.EntryNodeId, after.EntryNodeId);
-        var serializeResult6 = Serialize(before.RunPolicy);
-        var serializeResult7 = Serialize(after.RunPolicy);
-        AddScalar(changes, "runPolicy", serializeResult6, serializeResult7);
+        AddScalar(changes, "runPolicy", Serialize(before.RunPolicy), Serialize(after.RunPolicy));
         var beforeCanvases = before.Canvases.ToDictionary(item => item.Id, StringComparer.Ordinal);
         var afterCanvases = after.Canvases.ToDictionary(item => item.Id, StringComparer.Ordinal);
         foreach (var id in beforeCanvases.Keys.Union(afterCanvases.Keys).Order(StringComparer.Ordinal))
         {
             if (!beforeCanvases.TryGetValue(id, out var oldCanvas))
             {
-                var serializeResult = Serialize(afterCanvases[id]);
-                FlowDiffItemDto evaluatedValue = new("canvas.added", $"canvases.{id}", null, serializeResult);
-                changes.Add(evaluatedValue);
+                var serialize = Serialize(afterCanvases[id]);
+                FlowDiffItemDto flowDiffItemDto = new("canvas.added", $"canvases.{id}", null, serialize);
+                changes.Add(flowDiffItemDto);
                 continue;
             }
 
             if (!afterCanvases.TryGetValue(id, out var newCanvas))
             {
-                var serializeResult1 = Serialize(oldCanvas);
-                FlowDiffItemDto evaluatedValue2 = new("canvas.removed", $"canvases.{id}", serializeResult1, null);
-                changes.Add(evaluatedValue2);
+                var oldCanvasJson = Serialize(oldCanvas);
+                FlowDiffItemDto mappedFlowDiffItemDto = new("canvas.removed", $"canvases.{id}", oldCanvasJson, null);
+                changes.Add(mappedFlowDiffItemDto);
                 continue;
             }
 
-            var toStringResult = oldCanvas.Lifecycle.ToString();
-            var toStringResult5 = newCanvas.Lifecycle.ToString();
-            AddScalar(changes, $"canvases.{id}.lifecycle", toStringResult, toStringResult5);
+            var lifecycleText = oldCanvas.Lifecycle.ToString();
+            var mappedAfter = newCanvas.Lifecycle.ToString();
+            AddScalar(changes, $"canvases.{id}.lifecycle", lifecycleText, mappedAfter);
             AddScalar(changes, $"canvases.{id}.name", oldCanvas.Name, newCanvas.Name);
             CompareEntities(changes, $"canvases.{id}.nodes", oldCanvas.Nodes, newCanvas.Nodes, static node => node.Id, static node =>
             {
-                var serializeResult3 = Serialize(node);
-                return serializeResult3;
+                return Serialize(node);
             }, "node", ref addedNodes, ref removedNodes, ref changedNodes);
             CompareEntities(changes, $"canvases.{id}.connections", oldCanvas.Connections, newCanvas.Connections, static connection => connection.Id, static connection =>
             {
-                var serializeResult4 = Serialize(connection);
-                return serializeResult4;
+                return Serialize(connection);
             }, "connection", ref addedConnections, ref removedConnections, ref changedConnections);
         }
 
-        var getChecksumResult = GetChecksum(before);
-        var getChecksumResult8 = GetChecksum(after);
-        FlowDiffDto evaluatedValue9 = new(after.Id, before.Version, after.Version == before.Version ? null : after.Version, getChecksumResult, getChecksumResult8, changes, addedNodes, removedNodes, changedNodes, addedConnections, removedConnections, changedConnections);
-        return evaluatedValue9;
+        var baseChecksum = GetChecksum(before);
+        var candidateChecksum = GetChecksum(after);
+        return new(after.Id, before.Version, after.Version == before.Version ? null : after.Version, baseChecksum, candidateChecksum, changes, addedNodes, removedNodes, changedNodes, addedConnections, removedConnections, changedConnections);
     }
 
     public static string GetChecksum(FlowDefinitionDto definition)
@@ -82,85 +77,56 @@ public sealed class FlowDiffService
             Version = 0,
             Checksum = string.Empty
         };
-        var serializeResult10 = Serialize(canonical);
-        var bytes = Encoding.UTF8.GetBytes(serializeResult10);
-        var hashDataResult = SHA256.HashData(bytes);
-        var toHexStringResult = Convert.ToHexString(hashDataResult);
-        var toLowerInvariantResult = toHexStringResult.ToLowerInvariant();
-        return toLowerInvariantResult;
+        var canonicalJson = Serialize(canonical);
+        var bytes = Encoding.UTF8.GetBytes(canonicalJson);
+        return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     }
 
     public static FlowDiffDto RedactSensitive(FlowDiffDto diff)
     {
         ArgumentNullException.ThrowIfNull(diff);
-        var evaluatedValue12 = diff with
+        return diff with
         {
-            Changes = resolveToArrayResult(),
-        };
-        return evaluatedValue12;
-        IReadOnlyList<FlowDiffItemDto> resolveToArrayResult()
-        {
-            var toArrayResult = diff.Changes.Select(static change =>
+            Changes = diff.Changes.Select(static change =>
             {
-                var evaluatedValue11 = change with
+                return change with
                 {
                     Before = RedactJson(change.Before),
                     After = RedactJson(change.After),
                     IsSensitive = IsSensitiveChange(change) || change.IsSensitive,
                 };
-                return evaluatedValue11;
-            }).ToArray();
-            return toArrayResult;
-        }
+            }).ToArray(),
+        };
     }
 
     public static FlowDefinitionDto RedactSensitive(FlowDefinitionDto definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        var evaluatedValue24 = definition with
+        return definition with
         {
-            Canvases = resolveToArrayResult21(),
-        };
-        return evaluatedValue24;
-        IReadOnlyList<CanvasDto> resolveToArrayResult21()
-        {
-            var toArrayResult23 = definition.Canvases.Select(static canvas =>
+            Canvases = definition.Canvases.Select(static canvas =>
             {
-                var evaluatedValue20 = canvas with
+                return canvas with
                 {
-                    Nodes = resolveToArrayResult17(),
-                };
-                return evaluatedValue20;
-                IReadOnlyList<NodeDto> resolveToArrayResult17()
-                {
-                    var toArrayResult19 = canvas.Nodes.Select(static node =>
+                    Nodes = canvas.Nodes.Select(static node =>
                     {
-                        var evaluatedValue16 = node with
+                        return node with
                         {
-                            Parameters = resolveToArrayResult13(),
+                            Parameters = node.Parameters.Select(static parameter => parameter with { ValueJson = null, Ui = parameter.Ui is null ? null : parameter.Ui with { LiteralValue = null, ProjectInputKey = null, Expression = null, }, }).ToArray(),
                             Script = node.Script is null ? null : node.Script with
                             {
                                 Source = "[redacted]"
                             },
                         };
-                        return evaluatedValue16;
-                        IReadOnlyList<NodeParameterDto> resolveToArrayResult13()
-                        {
-                            var toArrayResult15 = node.Parameters.Select(static parameter => parameter with { ValueJson = null, Ui = parameter.Ui is null ? null : parameter.Ui with { LiteralValue = null, ProjectInputKey = null, Expression = null, }, }).ToArray();
-                            return toArrayResult15;
-                        }
-                    }).ToArray();
-                    return toArrayResult19;
-                }
-            }).ToArray();
-            return toArrayResult23;
-        }
+                    }).ToArray(),
+                };
+            }).ToArray(),
+        };
     }
 
     private static bool IsSensitiveChange(FlowDiffItemDto change)
     {
-        var evaluatedValue25 = change.Path.Contains(".nodes.", StringComparison.Ordinal) || change.Path.Contains(".canvases.", StringComparison.Ordinal) && (change.Before?.Contains("parameters", StringComparison.OrdinalIgnoreCase) == true || change.After?.Contains("parameters", StringComparison.OrdinalIgnoreCase) == true);
-        return evaluatedValue25;
+        return change.Path.Contains(".nodes.", StringComparison.Ordinal) || change.Path.Contains(".canvases.", StringComparison.Ordinal) && (change.Before?.Contains("parameters", StringComparison.OrdinalIgnoreCase) == true || change.After?.Contains("parameters", StringComparison.OrdinalIgnoreCase) == true);
     }
 
     private static string? RedactJson(string? value)
@@ -193,8 +159,7 @@ public sealed class FlowDiffService
             }
 
             RedactJsonNode(node);
-            var toJsonStringResult = node.ToJsonString(JsonOptions);
-            return toJsonStringResult;
+            return node.ToJsonString(JsonOptions);
         }
         catch (JsonException)
         {
@@ -244,34 +209,33 @@ public sealed class FlowDiffService
             if (!oldItems.TryGetValue(id, out var oldItem))
             {
                 added++;
-                var serializeResult26 = serialize(newItems[id]);
-                FlowDiffItemDto evaluatedValue27 = new($"{kind}.added", $"{path}.{id}", null, serializeResult26);
-                changes.Add(evaluatedValue27);
+                var mappedAfter = serialize(newItems[id]);
+                FlowDiffItemDto flowDiffItemDto = new($"{kind}.added", $"{path}.{id}", null, mappedAfter);
+                changes.Add(flowDiffItemDto);
             }
             else if (!newItems.TryGetValue(id, out var newItem))
             {
                 removed++;
-                var serializeResult28 = serialize(oldItem);
-                FlowDiffItemDto evaluatedValue29 = new($"{kind}.removed", $"{path}.{id}", serializeResult28, null);
-                changes.Add(evaluatedValue29);
+                var oldItemJson = serialize(oldItem);
+                FlowDiffItemDto mappedFlowDiffItemDto = new($"{kind}.removed", $"{path}.{id}", oldItemJson, null);
+                changes.Add(mappedFlowDiffItemDto);
             }
             else
             {
-                if (!resolveEqualsResult())
+                if (!ItemsEqual())
                 {
                     changed++;
-                    var serializeResult30 = serialize(oldItem);
-                    var serializeResult31 = serialize(newItem);
-                    FlowDiffItemDto evaluatedValue32 = new($"{kind}.changed", $"{path}.{id}", serializeResult30, serializeResult31);
-                    changes.Add(evaluatedValue32);
+                    var oldItemJson = serialize(oldItem);
+                    var newItemJson = serialize(newItem);
+                    FlowDiffItemDto resolvedFlowDiffItemDto = new($"{kind}.changed", $"{path}.{id}", oldItemJson, newItemJson);
+                    changes.Add(resolvedFlowDiffItemDto);
                 }
 
-                bool resolveEqualsResult()
+                bool ItemsEqual()
                 {
-                    var serializeResult33 = serialize(oldItem);
-                    var serializeResult34 = serialize(newItem);
-                    var equalsResult = string.Equals(serializeResult33, serializeResult34, StringComparison.Ordinal);
-                    return equalsResult;
+                    var oldItemJson = serialize(oldItem);
+                    var newItemJson = serialize(newItem);
+                    return string.Equals(oldItemJson, newItemJson, StringComparison.Ordinal);
                 }
             }
         }
@@ -281,15 +245,14 @@ public sealed class FlowDiffService
     {
         if (!string.Equals(before, after, StringComparison.Ordinal))
         {
-            FlowDiffItemDto evaluatedValue36 = new("property.changed", path, before, after);
-            changes.Add(evaluatedValue36);
+            FlowDiffItemDto flowDiffItemDto = new("property.changed", path, before, after);
+            changes.Add(flowDiffItemDto);
         }
     }
 
     private static string Serialize<T>(T value)
     {
-        var serializeResult37 = JsonSerializer.Serialize(value, JsonOptions);
-        return serializeResult37;
+        return JsonSerializer.Serialize(value, JsonOptions);
     }
 }
 
@@ -309,9 +272,8 @@ public sealed class FlowPatchService
     public FlowDefinitionDto Apply(FlowDefinitionDto definition, IReadOnlyList<FlowPatchCanonicalOperationDto> operations)
     {
         ArgumentNullException.ThrowIfNull(operations);
-        var toArrayResult39 = operations.Select(FlowPatchContractNormalizer.ToLegacyOperation).ToArray();
-        var applyResult = Apply(definition, toArrayResult39);
-        return applyResult;
+        var mappedOperations = operations.Select(FlowPatchContractNormalizer.ToLegacyOperation).ToArray();
+        return Apply(definition, mappedOperations);
     }
 
     public FlowDefinitionDto Apply(FlowDefinitionDto definition, IReadOnlyList<FlowPatchOperationDto> operations)
@@ -326,68 +288,40 @@ public sealed class FlowPatchService
             switch (operation.Operation)
             {
                 case FlowPatchOperationKindDto.AddCanvas:
-                    var readValueResult = ReadValue<CanvasDto>(operation);
-                    AddCanvas(canvases, readValueResult, false);
+                    AddCanvas(canvases, ReadValue<CanvasDto>(operation), false);
                     break;
                 case FlowPatchOperationKindDto.UpdateCanvas:
-                    var requiredResult = Required(operation.CanvasId, "canvasId");
-                    var readValueResult40 = ReadValue<CanvasDto>(operation);
-                    ReplaceCanvas(canvases, requiredResult, readValueResult40);
+                    ReplaceCanvas(canvases, Required(operation.CanvasId, "canvasId"), ReadValue<CanvasDto>(operation));
                     break;
                 case FlowPatchOperationKindDto.RemoveCanvas:
-                    var requiredResult41 = Required(operation.CanvasId, "canvasId");
-                    RemoveCanvas(canvases, requiredResult41);
+                    RemoveCanvas(canvases, Required(operation.CanvasId, "canvasId"));
                     break;
                 case FlowPatchOperationKindDto.AddNode:
-                    var requiredResult42 = Required(operation.CanvasId, "canvasId");
-                    var readValueResult43 = ReadValue<NodeDto>(operation);
-                    AddNode(canvases, requiredResult42, null, readValueResult43, false);
+                    AddNode(canvases, Required(operation.CanvasId, "canvasId"), null, ReadValue<NodeDto>(operation), false);
                     break;
                 case FlowPatchOperationKindDto.ReplaceNode:
-                    var requiredResult44 = Required(operation.CanvasId, "canvasId");
-                    var requiredResult45 = Required(operation.NodeId, "nodeId");
-                    var readValueResult46 = ReadValue<NodeDto>(operation);
-                    AddNode(canvases, requiredResult44, requiredResult45, readValueResult46, true);
+                    AddNode(canvases, Required(operation.CanvasId, "canvasId"), Required(operation.NodeId, "nodeId"), ReadValue<NodeDto>(operation), true);
                     break;
                 case FlowPatchOperationKindDto.RemoveNode:
-                    var requiredResult47 = Required(operation.CanvasId, "canvasId");
-                    var requiredResult48 = Required(operation.NodeId, "nodeId");
-                    RemoveNode(canvases, requiredResult47, requiredResult48);
+                    RemoveNode(canvases, Required(operation.CanvasId, "canvasId"), Required(operation.NodeId, "nodeId"));
                     break;
                 case FlowPatchOperationKindDto.SetNodeParameter:
-                    var requiredResult49 = Required(operation.CanvasId, "canvasId");
-                    var requiredResult50 = Required(operation.NodeId, "nodeId");
-                    var requiredResult51 = Required(operation.ParameterId, "parameterId");
-                    var readValueResult52 = ReadValue<NodeParameterDto>(operation);
-                    SetNodeParameter(canvases, requiredResult49, requiredResult50, requiredResult51, readValueResult52);
+                    SetNodeParameter(canvases, Required(operation.CanvasId, "canvasId"), Required(operation.NodeId, "nodeId"), Required(operation.ParameterId, "parameterId"), ReadValue<NodeParameterDto>(operation));
                     break;
                 case FlowPatchOperationKindDto.AddNodeParameter:
-                    var requiredResult53 = Required(operation.CanvasId, "canvasId");
-                    var requiredResult54 = Required(operation.NodeId, "nodeId");
-                    var readValueResult55 = ReadValue<NodeParameterDto>(operation);
-                    AddNodeParameter(canvases, requiredResult53, requiredResult54, readValueResult55);
+                    AddNodeParameter(canvases, Required(operation.CanvasId, "canvasId"), Required(operation.NodeId, "nodeId"), ReadValue<NodeParameterDto>(operation));
                     break;
                 case FlowPatchOperationKindDto.RemoveNodeParameter:
-                    var requiredResult56 = Required(operation.CanvasId, "canvasId");
-                    var requiredResult57 = Required(operation.NodeId, "nodeId");
-                    var requiredResult58 = Required(operation.ParameterId, "parameterId");
-                    RemoveNodeParameter(canvases, requiredResult56, requiredResult57, requiredResult58);
+                    RemoveNodeParameter(canvases, Required(operation.CanvasId, "canvasId"), Required(operation.NodeId, "nodeId"), Required(operation.ParameterId, "parameterId"));
                     break;
                 case FlowPatchOperationKindDto.AddConnection:
-                    var requiredResult59 = Required(operation.CanvasId, "canvasId");
-                    var readValueResult60 = ReadValue<ConnectionDto>(operation);
-                    AddConnection(canvases, requiredResult59, null, readValueResult60, false);
+                    AddConnection(canvases, Required(operation.CanvasId, "canvasId"), null, ReadValue<ConnectionDto>(operation), false);
                     break;
                 case FlowPatchOperationKindDto.ReplaceConnection:
-                    var requiredResult61 = Required(operation.CanvasId, "canvasId");
-                    var requiredResult62 = Required(operation.ConnectionId, "connectionId");
-                    var readValueResult63 = ReadValue<ConnectionDto>(operation);
-                    AddConnection(canvases, requiredResult61, requiredResult62, readValueResult63, true);
+                    AddConnection(canvases, Required(operation.CanvasId, "canvasId"), Required(operation.ConnectionId, "connectionId"), ReadValue<ConnectionDto>(operation), true);
                     break;
                 case FlowPatchOperationKindDto.RemoveConnection:
-                    var requiredResult64 = Required(operation.CanvasId, "canvasId");
-                    var requiredResult65 = Required(operation.ConnectionId, "connectionId");
-                    RemoveConnection(canvases, requiredResult64, requiredResult65);
+                    RemoveConnection(canvases, Required(operation.CanvasId, "canvasId"), Required(operation.ConnectionId, "connectionId"));
                     break;
                 case FlowPatchOperationKindDto.SetEntryNode:
                     entryNodeId = ReadValue<string>(operation);
@@ -396,10 +330,7 @@ public sealed class FlowPatchService
                     runPolicy = ReadValue<FlowRunPolicyDto>(operation);
                     break;
                 case FlowPatchOperationKindDto.ReplaceScriptSource:
-                    var requiredResult66 = Required(operation.CanvasId, "canvasId");
-                    var requiredResult67 = Required(operation.NodeId, "nodeId");
-                    var readValueResult68 = ReadValue<string>(operation);
-                    ReplaceScriptSource(canvases, requiredResult66, requiredResult67, readValueResult68);
+                    ReplaceScriptSource(canvases, Required(operation.CanvasId, "canvasId"), Required(operation.NodeId, "nodeId"), ReadValue<string>(operation));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(operations), operation.Operation, "The flow patch operation is not supported. 不支持此流程补丁操作。");
@@ -412,14 +343,13 @@ public sealed class FlowPatchService
         // 删除入口节点对编辑器草稿是合法的。依据最终画布内容同步流程元数据，
         // 这样持久化校验才能接受刻意保留的空白草稿。
         entryNodeId = NormalizeEntryNodeId(canvases, entryNodeId);
-        var evaluatedValue69 = definition with
+        return definition with
         {
             Canvases = canvases,
             EntryNodeId = entryNodeId,
             RunPolicy = runPolicy,
             Checksum = FlowDiffService.GetChecksum(definition with { Canvases = canvases, EntryNodeId = entryNodeId, RunPolicy = runPolicy })
         };
-        return evaluatedValue69;
     }
 
     private static void AddCanvas(List<CanvasDto> canvases, CanvasDto canvas, bool replace)
@@ -522,23 +452,16 @@ public sealed class FlowPatchService
 
         canvases[canvasIndex] = canvas with
         {
-            Nodes = resolveToArrayResult70()
+            Nodes = canvas.Nodes.Where(node => node.Id != nodeId).ToArray()
         };
-        IReadOnlyList<NodeDto> resolveToArrayResult70()
-        {
-            var toArrayResult71 = canvas.Nodes.Where(node => node.Id != nodeId).ToArray();
-            return toArrayResult71;
-        }
     }
 
     private static string NormalizeEntryNodeId(IReadOnlyList<CanvasDto> canvases, string entryNodeId)
     {
-        string evaluatedValue72 = string.IsNullOrWhiteSpace(entryNodeId) || canvases.Any(canvas =>
+        return string.IsNullOrWhiteSpace(entryNodeId) || canvases.Any(canvas =>
         {
-            var anyResult = canvas.Nodes.Any(node => node.Id == entryNodeId);
-            return anyResult;
+            return canvas.Nodes.Any(node => node.Id == entryNodeId);
         }) ? entryNodeId ?? string.Empty : string.Empty;
-        return evaluatedValue72;
     }
 
     private static void SetNodeParameter(List<CanvasDto> canvases, string canvasId, string nodeId, string parameterId, NodeParameterDto parameter)
@@ -552,8 +475,7 @@ public sealed class FlowPatchService
 
         var canvasIndex = FindCanvas(canvases, canvasId);
         var canvas = canvases[canvasIndex];
-        var toListResult = canvas.Nodes.ToList();
-        var nodeIndex = toListResult.FindIndex(node => node.Id == nodeId);
+        var nodeIndex = canvas.Nodes.ToList().FindIndex(node => node.Id == nodeId);
         if (nodeIndex < 0)
         {
             throw new InvalidOperationException($"Node '{nodeId}' does not exist. 指定节点不存在。");
@@ -564,8 +486,7 @@ public sealed class FlowPatchService
         var parameters = node.Parameters.ToList();
         var index = parameters.FindIndex(item =>
         {
-            var equalsResult73 = string.Equals(item.Ui?.Id, parameterId, StringComparison.Ordinal);
-            return equalsResult73;
+            return string.Equals(item.Ui?.Id, parameterId, StringComparison.Ordinal);
         });
         if (index < 0)
         {
@@ -589,8 +510,7 @@ public sealed class FlowPatchService
         RequireObjectId(parameterId, "parameter.ui.id");
         var canvasIndex = FindCanvas(canvases, canvasId);
         var canvas = canvases[canvasIndex];
-        var toListResult75 = canvas.Nodes.ToList();
-        var nodeIndex = toListResult75.FindIndex(node => node.Id == nodeId);
+        var nodeIndex = canvas.Nodes.ToList().FindIndex(node => node.Id == nodeId);
         if (nodeIndex < 0)
         {
             throw new InvalidOperationException($"Node '{nodeId}' does not exist. 指定节点不存在。");
@@ -600,8 +520,7 @@ public sealed class FlowPatchService
         var node = nodes[nodeIndex];
         if (node.Parameters.Any(item =>
         {
-            var equalsResult74 = string.Equals(item.Ui?.Id, parameterId, StringComparison.Ordinal);
-            return equalsResult74;
+            return string.Equals(item.Ui?.Id, parameterId, StringComparison.Ordinal);
         }))
         {
             throw new InvalidOperationException($"Parameter '{parameterId}' already exists on node '{nodeId}'. 指定节点上已存在该参数。");
@@ -623,8 +542,7 @@ public sealed class FlowPatchService
     {
         var canvasIndex = FindCanvas(canvases, canvasId);
         var canvas = canvases[canvasIndex];
-        var toListResult77 = canvas.Nodes.ToList();
-        var nodeIndex = toListResult77.FindIndex(node => node.Id == nodeId);
+        var nodeIndex = canvas.Nodes.ToList().FindIndex(node => node.Id == nodeId);
         if (nodeIndex < 0)
         {
             throw new InvalidOperationException($"Node '{nodeId}' does not exist. 指定节点不存在。");
@@ -640,8 +558,7 @@ public sealed class FlowPatchService
         var parameters = node.Parameters.ToList();
         var parameterIndex = parameters.FindIndex(item =>
         {
-            var equalsResult76 = string.Equals(item.Ui?.Id, parameterId, StringComparison.Ordinal);
-            return equalsResult76;
+            return string.Equals(item.Ui?.Id, parameterId, StringComparison.Ordinal);
         });
         if (parameterIndex < 0)
         {
@@ -707,8 +624,7 @@ public sealed class FlowPatchService
     private static void RemoveConnection(List<CanvasDto> canvases, string canvasId, string connectionId)
     {
         var canvasIndex = FindCanvas(canvases, canvasId);
-        var canvas = canvases[canvasIndex];
-        var connection = canvas.Connections.FirstOrDefault(item => item.Id == connectionId);
+        var connection = canvases[canvasIndex].Connections.FirstOrDefault(item => item.Id == connectionId);
         if (connection is null)
         {
             throw new InvalidOperationException($"Connection '{connectionId}' does not exist. 指定连接不存在。");
@@ -718,13 +634,8 @@ public sealed class FlowPatchService
         var updatedCanvas = canvases[canvasIndex];
         canvases[canvasIndex] = updatedCanvas with
         {
-            Connections = resolveToArrayResult78(),
+            Connections = updatedCanvas.Connections.Where(connection => connection.Id != connectionId).ToArray(),
         };
-        IReadOnlyList<ConnectionDto> resolveToArrayResult78()
-        {
-            var toArrayResult80 = updatedCanvas.Connections.Where(connection => connection.Id != connectionId).ToArray();
-            return toArrayResult80;
-        }
     }
 
     private static ConnectionDto NormalizeDataConnection(ConnectionDto connection) => connection with
@@ -740,8 +651,7 @@ public sealed class FlowPatchService
 
         var canvasIndex = FindCanvas(canvases, canvasId);
         var canvas = canvases[canvasIndex];
-        var toListResult82 = canvas.Nodes.ToList();
-        var nodeIndex = toListResult82.FindIndex(node => node.Id == connection.ToNodeId);
+        var nodeIndex = canvas.Nodes.ToList().FindIndex(node => node.Id == connection.ToNodeId);
         if (nodeIndex < 0)
         {
             return;
@@ -749,11 +659,9 @@ public sealed class FlowPatchService
 
         var nodes = canvas.Nodes.ToList();
         var node = nodes[nodeIndex];
-        var toListResult83 = node.Parameters.ToList();
-        var parameterIndex = toListResult83.FindIndex(parameter =>
+        var parameterIndex = node.Parameters.ToList().FindIndex(parameter =>
         {
-            var equalsResult81 = string.Equals(parameter.Ui?.Id, connection.ToPortId, StringComparison.Ordinal);
-            return equalsResult81;
+            return string.Equals(parameter.Ui?.Id, connection.ToPortId, StringComparison.Ordinal);
         });
         if (parameterIndex < 0)
         {
@@ -796,8 +704,7 @@ public sealed class FlowPatchService
 
         var canvasIndex = FindCanvas(canvases, canvasId);
         var canvas = canvases[canvasIndex];
-        var toListResult85 = canvas.Nodes.ToList();
-        var nodeIndex = toListResult85.FindIndex(node => node.Id == connection.ToNodeId);
+        var nodeIndex = canvas.Nodes.ToList().FindIndex(node => node.Id == connection.ToNodeId);
         if (nodeIndex < 0)
         {
             return;
@@ -805,11 +712,9 @@ public sealed class FlowPatchService
 
         var nodes = canvas.Nodes.ToList();
         var node = nodes[nodeIndex];
-        var toListResult86 = node.Parameters.ToList();
-        var parameterIndex = toListResult86.FindIndex(parameter =>
+        var parameterIndex = node.Parameters.ToList().FindIndex(parameter =>
         {
-            var equalsResult84 = string.Equals(parameter.Ui?.Id, connection.ToPortId, StringComparison.Ordinal);
-            return equalsResult84;
+            return string.Equals(parameter.Ui?.Id, connection.ToPortId, StringComparison.Ordinal);
         });
         if (parameterIndex < 0)
         {
@@ -885,15 +790,12 @@ public sealed class FlowPatchService
         {
             throw new InvalidOperationException($"Operation '{operation.Operation}' requires a value. 此操作必须提供值。");
         }
-
-        var evaluatedValue87 = value.Deserialize<T>(JsonOptions) ?? throw new InvalidOperationException($"Operation '{operation.Operation}' contains an invalid value. 操作包含无效的值。");
-        return evaluatedValue87;
+        return value.Deserialize<T>(JsonOptions) ?? throw new InvalidOperationException($"Operation '{operation.Operation}' contains an invalid value. 操作包含无效的值。");
     }
 
     private static string Required(string? value, string name)
     {
-        string evaluatedValue88 = string.IsNullOrWhiteSpace(value) ? throw new InvalidOperationException($"'{name}' is required. 必须提供该字段。") : value.Trim();
-        return evaluatedValue88;
+        return string.IsNullOrWhiteSpace(value) ? throw new InvalidOperationException($"'{name}' is required. 必须提供该字段。") : value.Trim();
     }
 
     private static void RequireObjectId(string? value, string name)
@@ -907,16 +809,9 @@ public sealed class FlowPatchService
     private static void RequireMatchingId(string? expected, string actual, string name)
     {
         RequireObjectId(expected, name);
-        if (!resolveEqualsResult89())
+        if (!string.Equals(expected!.Trim(), actual, StringComparison.Ordinal))
         {
             throw new InvalidOperationException($"The operation {name} does not match the value object's {name}. 操作字段与值对象中的对应字段不一致。");
-        }
-
-        bool resolveEqualsResult89()
-        {
-            var trimResult = expected!.Trim();
-            var equalsResult90 = string.Equals(trimResult, actual, StringComparison.Ordinal);
-            return equalsResult90;
         }
     }
 

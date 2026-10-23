@@ -31,12 +31,11 @@ public static class SereinJsonSerialization
     /// </summary>
     public static JsonSerializerOptions CreateContractOptions(Action<JsonSerializerOptions>? configure = null)
     {
-        var createWebOptionsResult = CreateWebOptions(options =>
+        return CreateWebOptions(options =>
         {
             var jsonStringEnumConverter = new JsonStringEnumConverter(JsonNamingPolicy.CamelCase);
             options.Converters.Add(jsonStringEnumConverter);
             configure?.Invoke(options);
         });
-        return createWebOptionsResult;
     }
 }

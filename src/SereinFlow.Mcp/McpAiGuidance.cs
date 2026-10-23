@@ -337,8 +337,7 @@ public sealed class McpAiGuidanceProvider
 
     public IReadOnlyList<McpResourceDescriptor> GetResourceDescriptors()
     {
-        var snapshot = CreateSnapshot();
-        return snapshot.ById.Values.Select(static resource =>
+        return CreateSnapshot().ById.Values.Select(static resource =>
             new McpResourceDescriptor(resource.Resource.Uri, resource.Resource.Name, resource.Resource.Description, McpAiGuidance.MimeType))
             .ToArray();
     }

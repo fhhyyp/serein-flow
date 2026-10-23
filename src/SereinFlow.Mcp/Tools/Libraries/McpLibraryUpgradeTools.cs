@@ -60,8 +60,8 @@ internal sealed class McpLibraryUpgradeTools(
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "At least one flow must be selected for a library upgrade. 类库升级必须至少选择一个流程。");
         }
 
-        var requestPayload = Serialize(request);
-        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, "library.upgrade", request.IdempotencyKey, requestPayload, cancellationToken);
+        var requestJson = Serialize(request);
+        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, "library.upgrade", request.IdempotencyKey, requestJson, cancellationToken);
         if (replay is not null)
         {
             return DeserializeStoredResponse(replay.ResponseJson);
@@ -107,7 +107,7 @@ internal sealed class McpLibraryUpgradeTools(
             await MarkPreviewAppliedAsync(_mcpPreviewService, entry, cancellationToken);
         }
 
-        await _mcpIdempotencyService.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, response, requestPayload, cancellationToken);
+        await _mcpIdempotencyService.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, response, requestJson, cancellationToken);
         return response;
     }
 

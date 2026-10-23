@@ -7,6 +7,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/environment/settings")]
 public sealed class EnvironmentController : ApiControllerBase
 {
@@ -22,9 +23,8 @@ public sealed class EnvironmentController : ApiControllerBase
     [ProducesResponseType(typeof(RunExecutionSettingsDto), StatusCodes.Status200OK)]
     public ActionResult<RunExecutionSettingsDto> Get()
     {
-        var toDtoResult = _queue.Options.ToDto();
-        var okResult = Ok(toDtoResult);
-        return okResult;
+        var dto = _queue.Options.ToDto();
+        return Ok(dto);
     }
 
     [HttpPut]
@@ -32,11 +32,9 @@ public sealed class EnvironmentController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> Update([FromBody] RunExecutionSettingsDto settings, CancellationToken cancellationToken)
     {
-        var fromDtoResult = RunExecutionOptions.FromDto(settings);
-        var normalized = fromDtoResult.ToDto();
+        var normalized = RunExecutionOptions.FromDto(settings).ToDto();
         var saved = await _settings.SaveAsync(normalized, cancellationToken);
-        var configureResult = _queue.Configure(saved);
-        var okResult1 = Ok(configureResult);
-        return okResult1;
+        var configure = _queue.Configure(saved);
+        return Ok(configure);
     }
 }

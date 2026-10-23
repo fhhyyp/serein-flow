@@ -453,7 +453,6 @@ public static class LibraryAttributeContract
     private static string GetFullName<T>() => typeof(T).FullName ?? typeof(T).Name;
     private static string GetGenericDefinitionFullName<T>()
     {
-        var evaluatedValue = (typeof(T).IsGenericType ? typeof(T).GetGenericTypeDefinition() : typeof(T)).FullName ?? typeof(T).Name;
-        return evaluatedValue;
+        return (typeof(T).IsGenericType ? typeof(T).GetGenericTypeDefinition() : typeof(T)).FullName ?? typeof(T).Name;
     }
 }

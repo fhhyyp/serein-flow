@@ -2,6 +2,7 @@ using System.Text.Json;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Client;
+
 public interface ISereinFlowClient
 {
     IFlowInvocationClient Flows { get; }
@@ -90,9 +91,7 @@ public sealed class FlowWorkpieceDownload : IDisposable, IAsyncDisposable
         {
             return;
         }
-
-        var disposeAsyncResult = Content.DisposeAsync();
-        await disposeAsyncResult.ConfigureAwait(false);
+        await Content.DisposeAsync().ConfigureAwait(false);
         _response.Dispose();
     }
 }

@@ -50,11 +50,6 @@ public sealed class CanvasDefinition
         {
             throw new ArgumentException("Canvas ID cannot be empty. 画布 ID 不能为空。", nameof(id));
         }
-
-        var trimResult = id.Trim();
-        var toArrayResult = nodes.ToArray();
-        var toArrayResult1 = connections.ToArray();
-        var canvasDefinition = new CanvasDefinition(trimResult, lifecycle, toArrayResult, toArrayResult1);
-        return canvasDefinition;
+        return new CanvasDefinition(id.Trim(), lifecycle, nodes.ToArray(), connections.ToArray());
     }
 }

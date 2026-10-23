@@ -33,9 +33,7 @@ public sealed record PortDefinition
         {
             throw new ArgumentException("Port identifiers and names cannot be empty. 端口标识和名称不能为空。", parameterName);
         }
-
-        var trimResult = value.Trim();
-        return trimResult;
+        return value.Trim();
     }
 }
 
@@ -92,9 +90,7 @@ public sealed record NodeParameterDefinition
         {
             throw new ArgumentException("Parameter names cannot be empty. 参数名称不能为空。", parameterName);
         }
-
-        var trimResult1 = value.Trim();
-        return trimResult1;
+        return value.Trim();
     }
 }
 
@@ -169,19 +165,12 @@ public sealed class NodeDefinition
 
     public NodeDefinition WithRuntime(NodeRuntimeDefinition? runtime)
     {
-        var createResult = Create(Id, Type, DisplayName, Position, Ports, Parameters, Script, runtime);
-        return createResult;
+        return Create(Id, Type, DisplayName, Position, Ports, Parameters, Script, runtime);
     }
 
     public static NodeDefinition Create(string id, NodeType type, string displayName, NodePosition? position = null, IEnumerable<PortDefinition>? ports = null, IEnumerable<NodeParameterDefinition>? parameters = null, ScriptNodeDefinition? script = null, NodeRuntimeDefinition? runtime = null)
     {
-        var validateResult = Validate(id, nameof(id));
-        var validateResult2 = Validate(displayName, nameof(displayName));
-        var evaluatedValue = position ?? new NodePosition(0, 0);
-        var toArrayResult = (ports ?? []).ToArray();
-        var toArrayResult3 = (parameters ?? []).ToArray();
-        var nodeDefinition = new NodeDefinition(validateResult, type, validateResult2, evaluatedValue, toArrayResult, toArrayResult3, script, runtime);
-        return nodeDefinition;
+        return new NodeDefinition(Validate(id, nameof(id)), type, Validate(displayName, nameof(displayName)), (position ?? new NodePosition(0, 0)), (ports ?? []).ToArray(), (parameters ?? []).ToArray(), script, runtime);
     }
 
     private static string Validate(string value, string parameterName)
@@ -190,8 +179,6 @@ public sealed class NodeDefinition
         {
             throw new ArgumentException("Node identifiers and display names cannot be empty. 节点标识和显示名称不能为空。", parameterName);
         }
-
-        var trimResult4 = value.Trim();
-        return trimResult4;
+        return value.Trim();
     }
 }

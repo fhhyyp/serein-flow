@@ -8,7 +8,6 @@ public static class SereinFlowApiUris
 {
     public static string RunWorkpiece(Guid runId, string workpieceId)
     {
-        var evaluatedValue = $"/api/runs/{runId:D}/workpieces/{Uri.EscapeDataString(workpieceId)}";
-        return evaluatedValue;
+        return $"/api/runs/{runId:D}/workpieces/{Uri.EscapeDataString(workpieceId)}";
     }
 }

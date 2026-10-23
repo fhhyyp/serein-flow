@@ -6,6 +6,7 @@ using SereinFlow.Domain;
 using static SereinFlow.Api.ApiEndpointHelpers;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/runs")]
 public sealed class RunsController : ApiControllerBase
 {
@@ -46,41 +47,39 @@ public sealed class RunsController : ApiControllerBase
             {
                 if (!Enum.TryParse<FlowRunStatus>(value, ignoreCase: true, out var item))
                 {
-                    var apiProblemResult = ApiProblemWithCode(StatusCodes.Status400BadRequest, "A run status filter is invalid. 运行状态筛选条件无效。", code: RunErrorCodes.StatusInvalid);
-                    return apiProblemResult;
+                    return ApiProblemWithCode(StatusCodes.Status400BadRequest, "A run status filter is invalid. 运行状态筛选条件无效。", code: RunErrorCodes.StatusInvalid);
                 }
 
                 parsed.Add(item);
             }
-
-            var distinctResult = parsed.Distinct();
-            statuses = distinctResult.ToArray();
+            statuses = parsed.Distinct().ToArray();
         }
 
         var flowRunQuery = new FlowRunQuery(statuses, projectId, take ?? 100);
-        var runs = await _runs.ListAsync(flowRunQuery, cancellationToken);
-        var toArrayResult = runs.Select(ToRunDto).ToArray();
-        var okResult = Ok(toArrayResult);
-        return okResult;
+        var mappedRuns = (await _runs.ListAsync(flowRunQuery, cancellationToken)).Select(ToRunDto).ToArray();
+        return Ok(mappedRuns);
     }
 
     [HttpGet("overview")]
     [ProducesResponseType(typeof(FlowRunOverviewDto), StatusCodes.Status200OK)]
     public async Task<ActionResult> GetOverview(CancellationToken cancellationToken)
     {
-        var flowRunQuery1 = new FlowRunQuery([FlowRunStatus.Pending], Take: 50);
-        var queued = await _runs.ListAsync(flowRunQuery1, cancellationToken);
-        var flowRunQuery2 = new FlowRunQuery([FlowRunStatus.Running], Take: 50);
-        var active = await _runs.ListAsync(flowRunQuery2, cancellationToken);
-        var flowRunQuery3 = new FlowRunQuery(Take: RecentRunQueryLimit);
-        var recent = await _runs.ListAsync(flowRunQuery3, cancellationToken);
+        var query = new FlowRunQuery([FlowRunStatus.Pending], Take: 50);
+        var queued = await _runs.ListAsync(query, cancellationToken);
+        var flowRunQuery = new FlowRunQuery([FlowRunStatus.Running], Take: 50);
+        var active = await _runs.ListAsync(flowRunQuery, cancellationToken);
+        var mappedQuery = new FlowRunQuery(Take: RecentRunQueryLimit);
+        var recent = await _runs.ListAsync(mappedQuery, cancellationToken);
         var snapshot = _queue.GetSnapshot();
-        var toArrayResult5 = queued.Select(ToRunDto).ToArray();
-        var toArrayResult7 = active.Select(ToRunDto).ToArray();
-        var toArrayResult9 = recent.Where(static run => run.IsTerminal).Take(RecentCompletedRunLimit).Select(ToRunDto).ToArray();
-        var flowRunOverviewDto = new FlowRunOverviewDto(snapshot.QueueCapacity, snapshot.QueuedCount, snapshot.ActiveRunCount, snapshot.ActiveListenerRunCount, snapshot.MaxConcurrentRuns, snapshot.MaxConcurrentListenerRuns, snapshot.MaxConcurrentRunsPerProject, toArrayResult5, toArrayResult7, toArrayResult9);
-        var okResult10 = Ok(flowRunOverviewDto);
-        return okResult10;
+        var queuedRuns = queued.Select(ToRunDto).ToArray();
+        var activeRuns = active.Select(ToRunDto).ToArray();
+        var recentRuns = recent
+            .Where(static run => run.IsTerminal)
+            .Take(RecentCompletedRunLimit)
+            .Select(ToRunDto)
+            .ToArray();
+        var flowRunOverviewDto = new FlowRunOverviewDto(snapshot.QueueCapacity, snapshot.QueuedCount, snapshot.ActiveRunCount, snapshot.ActiveListenerRunCount, snapshot.MaxConcurrentRuns, snapshot.MaxConcurrentListenerRuns, snapshot.MaxConcurrentRunsPerProject, queuedRuns, activeRuns, recentRuns);
+        return Ok(flowRunOverviewDto);
     }
 
     [HttpGet("{runId:guid}")]
@@ -99,19 +98,16 @@ public sealed class RunsController : ApiControllerBase
         var run = await _runs.FindAsync(runId, cancellationToken);
         if (run is null)
         {
-            var apiProblemResult11 = ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
-            return apiProblemResult11;
+            return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
         }
 
         var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
         var failure = ToAuthorizationFailure(authorization);
-        var evaluatedValue = failure ?? resolveOkResult();
-        return evaluatedValue;
-        ActionResult resolveOkResult()
+        return failure ?? CreateRunResponse();
+        ActionResult CreateRunResponse()
         {
-            var toRunDtoResult = ToRunDto(run);
-            var okResult12 = Ok(toRunDtoResult);
-            return okResult12;
+            var runDto = ToRunDto(run);
+            return Ok(runDto);
         }
     }
 
@@ -121,13 +117,11 @@ public sealed class RunsController : ApiControllerBase
     public async Task<ActionResult> GetDebugSession([FromRoute] Guid runId, CancellationToken cancellationToken)
     {
         var session = await _debugSessions.FindByRunIdAsync(runId, cancellationToken);
-        ActionResult evaluatedValue15 = session is null ? ApiProblem(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。") : resolveOkResult13();
-        return evaluatedValue15;
-        ObjectResult resolveOkResult13()
+        return session is null ? ApiProblem(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。") : CreateDebugSessionResponse();
+        ObjectResult CreateDebugSessionResponse()
         {
-            var toFlowDebugSessionDtoResult = ToFlowDebugSessionDto(session);
-            var okResult14 = Ok(toFlowDebugSessionDtoResult);
-            return okResult14;
+            var flowDebugSessionDto = ToFlowDebugSessionDto(session);
+            return Ok(flowDebugSessionDto);
         }
     }
 
@@ -147,8 +141,7 @@ public sealed class RunsController : ApiControllerBase
         var run = await _runs.FindAsync(runId, cancellationToken);
         if (run is null)
         {
-            var apiProblemResult16 = ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
-            return apiProblemResult16;
+            return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
         }
 
         var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
@@ -159,8 +152,7 @@ public sealed class RunsController : ApiControllerBase
         }
 
         var snapshot = await _runs.GetSnapshotAsync(runId, cancellationToken);
-        ActionResult evaluatedValue17 = snapshot is null ? ApiProblem(StatusCodes.Status404NotFound, "Run snapshot not found. 未找到运行快照。") : Ok(snapshot);
-        return evaluatedValue17;
+        return snapshot is null ? ApiProblem(StatusCodes.Status404NotFound, "Run snapshot not found. 未找到运行快照。") : Ok(snapshot);
     }
 
     [HttpGet("{runId:guid}/outputs")]
@@ -179,8 +171,7 @@ public sealed class RunsController : ApiControllerBase
         var run = await _runs.FindAsync(runId, cancellationToken);
         if (run is null)
         {
-            var apiProblemResult18 = ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
-            return apiProblemResult18;
+            return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
         }
 
         var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
@@ -189,11 +180,8 @@ public sealed class RunsController : ApiControllerBase
         {
             return failure;
         }
-
-        var outputs = await _outputs.ListAsync(runId, cancellationToken);
-        var toArrayResult20 = outputs.Select(ToRunOutputDto).ToArray();
-        var okResult21 = Ok(toArrayResult20);
-        return okResult21;
+        var mappedOutputs = (await _outputs.ListAsync(runId, cancellationToken)).Select(ToRunOutputDto).ToArray();
+        return Ok(mappedOutputs);
     }
 
     [HttpPost("{runId:guid}/cancel")]
@@ -213,8 +201,7 @@ public sealed class RunsController : ApiControllerBase
         var run = await _runs.FindAsync(runId, cancellationToken);
         if (run is null)
         {
-            var apiProblemResult22 = ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
-            return apiProblemResult22;
+            return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
         }
 
         var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunExecute, run.ProjectId, cancellationToken);
@@ -226,12 +213,9 @@ public sealed class RunsController : ApiControllerBase
 
         if (run.IsTerminal)
         {
-            var apiProblemResult23 = ApiProblem(StatusCodes.Status409Conflict, "The run is already complete. 运行实例已经完成。");
-            return apiProblemResult23;
+            return ApiProblem(StatusCodes.Status409Conflict, "The run is already complete. 运行实例已经完成。");
         }
-
-        ActionResult evaluatedValue24 = _queue.Cancel(runId, RunCancellationSources.Api) ? Accepted($"/api/runs/{runId:D}") : ApiProblem(StatusCodes.Status409Conflict, "Run is not currently cancellable. 当前运行实例不可取消。");
-        return evaluatedValue24;
+        return _queue.Cancel(runId, RunCancellationSources.Api) ? Accepted($"/api/runs/{runId:D}") : ApiProblem(StatusCodes.Status409Conflict, "Run is not currently cancellable. 当前运行实例不可取消。");
     }
 
     [HttpPost("{runId:guid}/messages/{topic}")]
@@ -255,8 +239,7 @@ public sealed class RunsController : ApiControllerBase
         var run = await _runs.FindAsync(runId, cancellationToken);
         if (run is null)
         {
-            var apiProblemResult25 = ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
-            return apiProblemResult25;
+            return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
         }
 
         var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunMessagePublish, run.ProjectId, cancellationToken);
@@ -266,33 +249,25 @@ public sealed class RunsController : ApiControllerBase
             return failure;
         }
 
-        var firstOrDefaultResult = Request.Headers["Idempotency-Key"].FirstOrDefault();
-        var command = new RunMessageDeliveryCommand(runId, topic, request?.Payload ?? default, request?.MessageId, firstOrDefaultResult, request?.ContractId, request?.ChannelKind ?? WorkerMessageChannelKindDto.Queue);
+        var idempotencyKey = Request.Headers["Idempotency-Key"].FirstOrDefault();
+        var command = new RunMessageDeliveryCommand(runId, topic, request?.Payload ?? default, request?.MessageId, idempotencyKey, request?.ContractId, request?.ChannelKind ?? WorkerMessageChannelKindDto.Queue);
         var result = await _messageDelivery.DeliverAsync(command, cancellationToken);
-        ActionResult evaluatedValue29 = result.Disposition switch
+        return result.Disposition switch
         {
-            RunMessageDeliveryDisposition.Accepted => resolveAcceptedResult(),
+            RunMessageDeliveryDisposition.Accepted => ReadAccepted(),
             RunMessageDeliveryDisposition.TimedOut => StatusCode(result.StatusCode, result.Response),
             RunMessageDeliveryDisposition.EndpointForbidden or RunMessageDeliveryDisposition.ChannelFull => StatusCode(result.StatusCode, result.Response),
-            _ => resolveApiProblemResult()};
-        return evaluatedValue29;
-        ObjectResult resolveAcceptedResult()
+            _ => CreateMessageFailureResponse()
+        };
+        ObjectResult ReadAccepted()
         {
-            var evaluatedValue26 = $"/api/runs/{runId:D}/messages/{resolveEscapeDataStringResult()}";
-            var acceptedResult = Accepted(evaluatedValue26, result.Response);
-            return acceptedResult;
-            string resolveEscapeDataStringResult()
-            {
-                var trimResult = topic.Trim();
-                var escapeDataStringResult = Uri.EscapeDataString(trimResult);
-                return escapeDataStringResult;
-            }
+            var messageLocation = $"/api/runs/{runId:D}/messages/{Uri.EscapeDataString(topic.Trim())}";
+            return Accepted(messageLocation, result.Response);
         }
 
-        ObjectResult resolveApiProblemResult()
+        ObjectResult CreateMessageFailureResponse()
         {
-            var apiProblemResult28 = ApiProblemWithCode(result.StatusCode, result.Message, code: result.ErrorCode ?? MessageErrorCodes.Rejected);
-            return apiProblemResult28;
+            return ApiProblemWithCode(result.StatusCode, result.Message, code: result.ErrorCode ?? MessageErrorCodes.Rejected);
         }
     }
 
@@ -313,8 +288,7 @@ public sealed class RunsController : ApiControllerBase
         var run = await _runs.FindAsync(runId, cancellationToken);
         if (run is null)
         {
-            var apiProblemResult30 = ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
-            return apiProblemResult30;
+            return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
         }
 
         var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunExecute, run.ProjectId, cancellationToken);
@@ -326,37 +300,32 @@ public sealed class RunsController : ApiControllerBase
 
         if (run.IsTerminal)
         {
-            var apiProblemResult31 = ApiProblem(StatusCodes.Status409Conflict, "The run is already complete. 运行实例已经完成。");
-            return apiProblemResult31;
+            return ApiProblem(StatusCodes.Status409Conflict, "The run is already complete. 运行实例已经完成。");
         }
 
         if (run.Status != FlowRunStatus.Running)
         {
-            var apiProblemResult32 = ApiProblem(StatusCodes.Status409Conflict, "Only an orphaned running run can be marked as interrupted. 只有孤儿运行中的实例可以标记为中断。");
-            return apiProblemResult32;
+            return ApiProblem(StatusCodes.Status409Conflict, "Only an orphaned running run can be marked as interrupted. 只有孤儿运行中的实例可以标记为中断。");
         }
 
         if (_queue.IsTracked(runId))
         {
-            var apiProblemResult33 = ApiProblem(StatusCodes.Status409Conflict, "The run is currently supervised and cannot be interrupted manually. 当前运行实例正在受控执行，不能手动标记为中断。");
-            return apiProblemResult33;
+            return ApiProblem(StatusCodes.Status409Conflict, "The run is currently supervised and cannot be interrupted manually. 当前运行实例正在受控执行，不能手动标记为中断。");
         }
 
         var result = await _interruptions.InterruptAsync(runId, "operator_reconciliation", RunErrorCodes.OperatorInterrupted, "The orphaned run was marked as interrupted by an operator. 孤儿运行实例已由操作人员标记为中断。", cancellationToken);
-        ActionResult evaluatedValue37 = result.Disposition switch
+        return result.Disposition switch
         {
-            RunInterruptionDisposition.Interrupted => resolveAcceptedResult34(),
+            RunInterruptionDisposition.Interrupted => ReadInterrupted(),
             RunInterruptionDisposition.NotFound => ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。"),
             RunInterruptionDisposition.AlreadyTerminal => ApiProblem(StatusCodes.Status409Conflict, "The run is already complete. 运行实例已经完成。"),
             RunInterruptionDisposition.NotRunning => ApiProblem(StatusCodes.Status409Conflict, "Only an orphaned running run can be marked as interrupted. 只有孤儿运行中的实例可以标记为中断。"),
             _ => ApiProblem(StatusCodes.Status409Conflict, "The run could not be marked as interrupted. 无法将运行实例标记为中断。"),
         };
-        return evaluatedValue37;
-        ObjectResult resolveAcceptedResult34()
+        ObjectResult ReadInterrupted()
         {
-            var toRunDtoResult35 = ToRunDto(result.Run!);
-            var acceptedResult36 = Accepted($"/api/runs/{runId:D}", toRunDtoResult35);
-            return acceptedResult36;
+            var runDto = ToRunDto(result.Run!);
+            return Accepted($"/api/runs/{runId:D}", runDto);
         }
     }
 
@@ -376,8 +345,7 @@ public sealed class RunsController : ApiControllerBase
         var run = await _runs.FindAsync(runId, cancellationToken);
         if (run is null)
         {
-            var apiProblemResult38 = ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
-            return apiProblemResult38;
+            return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
         }
 
         var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
@@ -389,11 +357,9 @@ public sealed class RunsController : ApiControllerBase
 
         var events = (await _events.GetAfterAsync(runId, afterSequence ?? 0, cancellationToken)).Select(item =>
         {
-            var flowRunEventDto = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);
-            return flowRunEventDto;
+            return new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);
         });
-        var okResult40 = Ok(events);
-        return okResult40;
+        return Ok(events);
     }
 
     [HttpGet("{runId:guid}/events/stream")]
@@ -433,8 +399,8 @@ public sealed class RunsController : ApiControllerBase
         var reader = run.IsTerminal ? null : _eventBroadcaster.Subscribe(runId, HttpContext.RequestAborted);
         foreach (var item in await _events.GetAfterAsync(runId, lastEventId, cancellationToken))
         {
-            var flowRunEventDto41 = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);
-            await WriteSseAsync(HttpContext, flowRunEventDto41);
+            var flowRunEventDto = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);
+            await WriteSseAsync(HttpContext, flowRunEventDto);
             lastEventId = item.Sequence;
         }
 

@@ -35,13 +35,11 @@ public sealed record ScriptCompilationResult(bool IsSuccess, ScriptLang.Runtime.
 {
     public static ScriptCompilationResult Success(ScriptLang.Runtime.ByteCode.ByteCodeChunk chunk)
     {
-        ScriptCompilationResult evaluatedValue = new(true, chunk, []);
-        return evaluatedValue;
+        return new(true, chunk, []);
     }
 
     public static ScriptCompilationResult Failure(params ScriptExecutionDiagnostic[] diagnostics)
     {
-        ScriptCompilationResult evaluatedValue1 = new(false, null, diagnostics);
-        return evaluatedValue1;
+        return new(false, null, diagnostics);
     }
 }

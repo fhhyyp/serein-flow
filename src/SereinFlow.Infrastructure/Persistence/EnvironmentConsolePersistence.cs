@@ -3,6 +3,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 public sealed class SqlSugarRunEnvironmentSettingsStore : IRunEnvironmentSettingsStore
 {
     private const string SettingsId = "default";
@@ -15,8 +16,7 @@ public sealed class SqlSugarRunEnvironmentSettingsStore : IRunEnvironmentSetting
     public async Task<RunExecutionSettingsDto?> GetAsync(CancellationToken cancellationToken = default)
     {
         var record = await _settings.GetByIdAsync(SettingsId, cancellationToken);
-        RunExecutionSettingsDto? evaluatedValue = record is null ? null : Map(record);
-        return evaluatedValue;
+        return record is null ? null : Map(record);
     }
 
     public async Task<RunExecutionSettingsDto> SaveAsync(RunExecutionSettingsDto settings, CancellationToken cancellationToken = default)
@@ -27,14 +27,12 @@ public sealed class SqlSugarRunEnvironmentSettingsStore : IRunEnvironmentSetting
         {
             record = Map(settings);
             await _settings.AddAsync(record, cancellationToken);
-            var mapResult = Map(record);
-            return mapResult;
+            return Map(record);
         }
 
         Apply(record, settings);
         await _settings.UpdateAsync(record, cancellationToken);
-        var mapResult1 = Map(record);
-        return mapResult1;
+        return Map(record);
     }
 
     private static RunEnvironmentSettingsRecord Map(RunExecutionSettingsDto settings)
@@ -49,8 +47,7 @@ public sealed class SqlSugarRunEnvironmentSettingsStore : IRunEnvironmentSetting
 
     private static RunExecutionSettingsDto Map(RunEnvironmentSettingsRecord record)
     {
-        RunExecutionSettingsDto evaluatedValue2 = new(record.QueueCapacity, record.MaxConcurrentRuns, record.MaxConcurrentListenerRuns, record.MaxConcurrentRunsPerProject, record.QueueWaitTimeoutSeconds, record.ShutdownGracePeriodSeconds, record.SynchronousInvocationTimeoutSeconds, record.MaxLibraryUploadBytes);
-        return evaluatedValue2;
+        return new(record.QueueCapacity, record.MaxConcurrentRuns, record.MaxConcurrentListenerRuns, record.MaxConcurrentRunsPerProject, record.QueueWaitTimeoutSeconds, record.ShutdownGracePeriodSeconds, record.SynchronousInvocationTimeoutSeconds, record.MaxLibraryUploadBytes);
     }
 
     private static void Apply(RunEnvironmentSettingsRecord record, RunExecutionSettingsDto settings)
@@ -77,54 +74,53 @@ public sealed class SqlSugarFlowInterfaceRepository : IFlowInterfaceRepository
 
     public async Task<IReadOnlyList<FlowInterfaceDto>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var toArrayResult = (await _interfaces.ListAsync(cancellationToken: cancellationToken)).Select(Map).OrderBy(static item => item.Name, StringComparer.OrdinalIgnoreCase).ThenBy(static item => item.Id).ToArray();
-        return toArrayResult;
+        return (await _interfaces.ListAsync(cancellationToken: cancellationToken))
+            .Select(Map)
+            .OrderBy(static item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static item => item.Id)
+            .ToArray();
     }
 
     public async Task<FlowInterfaceDto?> FindAsync(Guid interfaceId, CancellationToken cancellationToken = default)
     {
-        var toStringResult = interfaceId.ToString("D");
-        var record = await _interfaces.GetByIdAsync(toStringResult, cancellationToken);
-        FlowInterfaceDto? evaluatedValue4 = record is null ? null : Map(record);
-        return evaluatedValue4;
+        var id = interfaceId.ToString("D");
+        var record = await _interfaces.GetByIdAsync(id, cancellationToken);
+        return record is null ? null : Map(record);
     }
 
     public async Task<FlowInterfaceDto> AddAsync(FlowInterfaceDto flowInterface, CancellationToken cancellationToken = default)
     {
-        var mapResult5 = Map(flowInterface);
-        await _interfaces.AddAsync(mapResult5, cancellationToken);
+        var entity = Map(flowInterface);
+        await _interfaces.AddAsync(entity, cancellationToken);
         return flowInterface;
     }
 
     public Task<bool> UpdateAsync(FlowInterfaceDto flowInterface, CancellationToken cancellationToken = default)
     {
-        var mapResult6 = Map(flowInterface);
-        var updateAsyncResult = _interfaces.UpdateAsync(mapResult6, cancellationToken);
-        return updateAsyncResult;
+        var entity = Map(flowInterface);
+        return _interfaces.UpdateAsync(entity, cancellationToken);
     }
 
     public Task<bool> DeleteAsync(Guid interfaceId, CancellationToken cancellationToken = default)
     {
-        var toStringResult7 = interfaceId.ToString("D");
-        var deleteAsyncResult = _interfaces.DeleteAsync(toStringResult7, cancellationToken);
-        return deleteAsyncResult;
+        var id = interfaceId.ToString("D");
+        return _interfaces.DeleteAsync(id, cancellationToken);
     }
 
     private static FlowInterfaceDto Map(FlowInterfaceRecord record)
     {
-        var parseResult = Guid.Parse(record.Id);
-        var parseResult8 = Guid.Parse(record.ProjectId);
-        var parseResult9 = Guid.Parse(record.FlowId);
-        var parseResult10 = Enum.Parse<FlowInvocationModeDto>(record.InvocationMode, ignoreCase: true);
-        var parseResult11 = Parse(record.CreatedAt);
-        var parseResult12 = Parse(record.UpdatedAt);
-        FlowInterfaceDto evaluatedValue13 = new(parseResult, parseResult8, parseResult9, record.Name, parseResult10, record.IsEnabled, parseResult11, parseResult12);
-        return evaluatedValue13;
+        var id = Guid.Parse(record.Id);
+        var projectId = Guid.Parse(record.ProjectId);
+        var flowId = Guid.Parse(record.FlowId);
+        var invocationMode = Enum.Parse<FlowInvocationModeDto>(record.InvocationMode, ignoreCase: true);
+        var createdAt = Parse(record.CreatedAt);
+        var updatedAt = Parse(record.UpdatedAt);
+        return new(id, projectId, flowId, record.Name, invocationMode, record.IsEnabled, createdAt, updatedAt);
     }
 
     private static FlowInterfaceRecord Map(FlowInterfaceDto flowInterface)
     {
-        FlowInterfaceRecord evaluatedValue14 = new()
+        return new()
         {
             Id = flowInterface.Id.ToString("D"),
             ProjectId = flowInterface.ProjectId.ToString("D"),
@@ -135,12 +131,10 @@ public sealed class SqlSugarFlowInterfaceRepository : IFlowInterfaceRepository
             CreatedAt = flowInterface.CreatedAt.ToString("O", CultureInfo.InvariantCulture),
             UpdatedAt = flowInterface.UpdatedAt.ToString("O", CultureInfo.InvariantCulture)
         };
-        return evaluatedValue14;
     }
 
     private static DateTimeOffset Parse(string value)
     {
-        var parseResult15 = DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        return parseResult15;
+        return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
     }
 }

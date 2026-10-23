@@ -4,6 +4,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/libraries")]
 public sealed class LibrariesController : ApiControllerBase
 {
@@ -21,18 +22,16 @@ public sealed class LibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> List(CancellationToken cancellationToken)
     {
-        var listAsyncResult = await _catalog.ListAsync(cancellationToken: cancellationToken);
-        var okResult = Ok(listAsyncResult);
-        return okResult;
+        var libraries = await _catalog.ListAsync(cancellationToken: cancellationToken);
+        return Ok(libraries);
     }
 
     [HttpGet("usage")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> GetUsage(CancellationToken cancellationToken)
     {
-        var listAsyncResult1 = await _usage.ListAsync(cancellationToken);
-        var okResult2 = Ok(listAsyncResult1);
-        return okResult2;
+        var libraryUsage = await _usage.ListAsync(cancellationToken);
+        return Ok(libraryUsage);
     }
 
     [HttpGet("{libraryId}")]
@@ -41,8 +40,7 @@ public sealed class LibrariesController : ApiControllerBase
     public async Task<ActionResult> Get([FromRoute] string libraryId, CancellationToken cancellationToken)
     {
         var library = await _catalog.FindAsync(libraryId, cancellationToken);
-        ActionResult evaluatedValue = library is null ? ApiProblem(StatusCodes.Status404NotFound, "Library not found. 未找到类库。") : Ok(library);
-        return evaluatedValue;
+        return library is null ? ApiProblem(StatusCodes.Status404NotFound, "Library not found. 未找到类库。") : Ok(library);
     }
 
     [HttpPatch("{libraryId}/family")]
@@ -54,13 +52,11 @@ public sealed class LibrariesController : ApiControllerBase
         try
         {
             var family = await _catalog.AssignFamilyAsync(libraryId, request, cancellationToken);
-            ActionResult evaluatedValue3 = family is null ? ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。") : Ok(family);
-            return evaluatedValue3;
+            return family is null ? ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。") : Ok(family);
         }
         catch (ArgumentException exception)
         {
-            var apiProblemResult = ApiProblem(StatusCodes.Status400BadRequest, exception.Message);
-            return apiProblemResult;
+            return ApiProblem(StatusCodes.Status400BadRequest, exception.Message);
         }
     }
 
@@ -72,12 +68,9 @@ public sealed class LibrariesController : ApiControllerBase
     {
         if (!Enum.IsDefined(request.Lifecycle))
         {
-            var apiProblemResult4 = ApiProblem(StatusCodes.Status400BadRequest, "The library lifecycle is invalid. 类库生命周期无效。");
-            return apiProblemResult4;
+            return ApiProblem(StatusCodes.Status400BadRequest, "The library lifecycle is invalid. 类库生命周期无效。");
         }
-
-        ActionResult evaluatedValue5 = await _catalog.SetLifecycleAsync(libraryId, request.Lifecycle, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。");
-        return evaluatedValue5;
+        return await _catalog.SetLifecycleAsync(libraryId, request.Lifecycle, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。");
     }
 
     [HttpPost("upload")]
@@ -87,8 +80,7 @@ public sealed class LibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public Task<ActionResult> Upload(CancellationToken cancellationToken)
     {
-        var uploadCoreResult = UploadCore(cancellationToken);
-        return uploadCoreResult;
+        return UploadCore(cancellationToken);
     }
 
     [HttpDelete("{libraryId}")]
@@ -96,8 +88,7 @@ public sealed class LibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Archive([FromRoute] string libraryId, CancellationToken cancellationToken)
     {
-        ActionResult evaluatedValue6 = await _catalog.ArchiveAsync(libraryId, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Library not found. 未找到类库。");
-        return evaluatedValue6;
+        return await _catalog.ArchiveAsync(libraryId, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Library not found. 未找到类库。");
     }
 
     // These singular routes are maintained as explicit attribute aliases for existing clients.
@@ -106,9 +97,8 @@ public sealed class LibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> ListLegacy(CancellationToken cancellationToken)
     {
-        var listAsyncResult7 = await _catalog.ListAsync(cancellationToken: cancellationToken);
-        var okResult8 = Ok(listAsyncResult7);
-        return okResult8;
+        var libraries = await _catalog.ListAsync(cancellationToken: cancellationToken);
+        return Ok(libraries);
     }
 
     [HttpGet("/api/library/{libraryId}")]
@@ -116,8 +106,7 @@ public sealed class LibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public Task<ActionResult> GetLegacy([FromRoute] string libraryId, CancellationToken cancellationToken)
     {
-        var getResult = Get(libraryId, cancellationToken);
-        return getResult;
+        return Get(libraryId, cancellationToken);
     }
 
     [HttpGet("/api/library/{libraryId}/nodes")]
@@ -126,8 +115,7 @@ public sealed class LibrariesController : ApiControllerBase
     public async Task<ActionResult> GetLegacyNodes([FromRoute] string libraryId, CancellationToken cancellationToken)
     {
         var library = await _catalog.FindAsync(libraryId, cancellationToken);
-        ActionResult evaluatedValue9 = library is null ? ApiProblem(StatusCodes.Status404NotFound, "Library not found. 未找到类库。") : Ok(library.Nodes);
-        return evaluatedValue9;
+        return library is null ? ApiProblem(StatusCodes.Status404NotFound, "Library not found. 未找到类库。") : Ok(library.Nodes);
     }
 
     [HttpPost("/api/library/upload")]
@@ -137,8 +125,7 @@ public sealed class LibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public Task<ActionResult> UploadLegacy(CancellationToken cancellationToken)
     {
-        var uploadCoreResult10 = UploadCore(cancellationToken);
-        return uploadCoreResult10;
+        return UploadCore(cancellationToken);
     }
 
     [HttpDelete("/api/library/{libraryId}")]
@@ -146,17 +133,15 @@ public sealed class LibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public Task<ActionResult> ArchiveLegacy([FromRoute] string libraryId, CancellationToken cancellationToken)
     {
-        var archiveResult = Archive(libraryId, cancellationToken);
-        return archiveResult;
+        return Archive(libraryId, cancellationToken);
     }
 
     [HttpGet("/api/environment/libraries")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> ListEnvironment(CancellationToken cancellationToken)
     {
-        var listAsyncResult11 = await _catalog.ListAsync(includeArchived: true, cancellationToken: cancellationToken);
-        var okResult12 = Ok(listAsyncResult11);
-        return okResult12;
+        var libraries = await _catalog.ListAsync(includeArchived: true, cancellationToken: cancellationToken);
+        return Ok(libraries);
     }
 
     [HttpPost("/api/environment/libraries/upload")]
@@ -165,8 +150,7 @@ public sealed class LibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public Task<ActionResult> UploadEnvironment(CancellationToken cancellationToken)
     {
-        var uploadCoreResult13 = UploadCore(cancellationToken);
-        return uploadCoreResult13;
+        return UploadCore(cancellationToken);
     }
 
     [HttpPost("/api/environment/libraries/{libraryId}/archive")]
@@ -174,8 +158,7 @@ public sealed class LibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> ArchiveEnvironment([FromRoute] string libraryId, CancellationToken cancellationToken)
     {
-        ActionResult evaluatedValue14 = await _catalog.ArchiveAsync(libraryId, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。");
-        return evaluatedValue14;
+        return await _catalog.ArchiveAsync(libraryId, cancellationToken) ? NoContent() : ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。");
     }
 
     [HttpPost("/api/environment/libraries/{libraryId}/reindex")]
@@ -187,13 +170,11 @@ public sealed class LibrariesController : ApiControllerBase
         try
         {
             var library = await _catalog.ReindexAsync(libraryId, cancellationToken);
-            ActionResult evaluatedValue15 = library is null ? ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。") : Ok(library);
-            return evaluatedValue15;
+            return library is null ? ApiProblem(StatusCodes.Status404NotFound, "Library artifact not found. 未找到类库制品。") : Ok(library);
         }
         catch (LibraryUploadException exception)
         {
-            var apiProblemResult16 = ApiProblem(exception.StatusCode, exception.Message);
-            return apiProblemResult16;
+            return ApiProblem(exception.StatusCode, exception.Message);
         }
     }
 
@@ -201,36 +182,31 @@ public sealed class LibrariesController : ApiControllerBase
     {
         if (!Request.HasFormContentType)
         {
-            var apiProblemResult17 = ApiProblem(StatusCodes.Status400BadRequest, "A multipart form upload is required. 必须使用 multipart 表单上传文件。");
-            return apiProblemResult17;
+            return ApiProblem(StatusCodes.Status400BadRequest, "A multipart form upload is required. 必须使用 multipart 表单上传文件。");
         }
 
         var maxRequestBytes = FileUploadLimits.GetApiRequestBodyLimit(_fileUploadSettings.MaxLibraryUploadBytes);
-        if (Request.ContentLength is> 0 && Request.ContentLength > maxRequestBytes)
+        if (Request.ContentLength is > 0 && Request.ContentLength > maxRequestBytes)
         {
-            var apiProblemResult18 = ApiProblem(StatusCodes.Status413PayloadTooLarge, $"The upload request cannot exceed {_fileUploadSettings.MaxLibraryUploadBytes / (1024 * 1024)} MB plus multipart overhead. 上传请求不能超过 {_fileUploadSettings.MaxLibraryUploadBytes / (1024 * 1024)} MB（另含 multipart 开销）。");
-            return apiProblemResult18;
+            return ApiProblem(StatusCodes.Status413PayloadTooLarge, $"The upload request cannot exceed {_fileUploadSettings.MaxLibraryUploadBytes / (1024 * 1024)} MB plus multipart overhead. 上传请求不能超过 {_fileUploadSettings.MaxLibraryUploadBytes / (1024 * 1024)} MB（另含 multipart 开销）。");
         }
 
         var form = await Request.ReadFormAsync(cancellationToken);
         var file = form.Files.GetFile("file") ?? (form.Files.Count > 0 ? form.Files[0] : null);
         if (file is null)
         {
-            var apiProblemResult19 = ApiProblem(StatusCodes.Status400BadRequest, "The upload must include a file field named 'file'. 上传请求必须包含名为 file 的文件字段。");
-            return apiProblemResult19;
+            return ApiProblem(StatusCodes.Status400BadRequest, "The upload must include a file field named 'file'. 上传请求必须包含名为 file 的文件字段。");
         }
 
         try
         {
             await using var stream = file.OpenReadStream();
-            var uploadAsyncResult = await _catalog.UploadAsync(stream, file.FileName, file.Length, cancellationToken);
-            var okResult20 = Ok(uploadAsyncResult);
-            return okResult20;
+            var upload = await _catalog.UploadAsync(stream, file.FileName, file.Length, cancellationToken);
+            return Ok(upload);
         }
         catch (LibraryUploadException exception)
         {
-            var apiProblemResult21 = ApiProblem(exception.StatusCode, "Library upload rejected. 类库上传已拒绝。", detail: exception.Message);
-            return apiProblemResult21;
+            return ApiProblem(exception.StatusCode, "Library upload rejected. 类库上传已拒绝。", detail: exception.Message);
         }
     }
 }

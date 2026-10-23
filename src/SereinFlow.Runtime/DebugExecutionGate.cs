@@ -17,18 +17,16 @@ public sealed class DebugExecutionGate : IExecutionGate
     public DebugExecutionGate(IEnumerable<string> breakpointNodeIds, Func<NodeExecutionBoundary, CancellationToken, ValueTask>? onPaused = null)
     {
         ArgumentNullException.ThrowIfNull(breakpointNodeIds);
-        var selectResult = breakpointNodeIds
+        var mappedBreakpointNodeIds = breakpointNodeIds
             .Where(static nodeId =>
             {
-                var evaluatedValue = !string.IsNullOrWhiteSpace(nodeId);
-                return evaluatedValue;
+                return !string.IsNullOrWhiteSpace(nodeId);
             })
             .Select(static nodeId =>
             {
-                var trimResult = nodeId.Trim();
-                return trimResult;
+                return nodeId.Trim();
             });
-        _breakpointNodeIds = selectResult.ToHashSet(StringComparer.Ordinal);
+        _breakpointNodeIds = mappedBreakpointNodeIds.ToHashSet(StringComparer.Ordinal);
         _onPaused = onPaused;
     }
 
@@ -74,13 +72,9 @@ public sealed class DebugExecutionGate : IExecutionGate
         {
             if (_onPaused is not null)
             {
-                var onPausedResult = _onPaused(boundary, cancellationToken);
-                await onPausedResult.ConfigureAwait(false);
+                await _onPaused(boundary, cancellationToken).ConfigureAwait(false);
             }
-
-            var waitAsyncResult = decisionSource.Task.WaitAsync(cancellationToken);
-            var configureAwaitResult = await waitAsyncResult.ConfigureAwait(false);
-            return configureAwaitResult;
+            return await decisionSource.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -97,20 +91,17 @@ public sealed class DebugExecutionGate : IExecutionGate
 
     public bool TryContinue()
     {
-        var tryReleaseResult = TryRelease(ExecutionGateDecision.Proceed, pauseBeforeNextNode: false);
-        return tryReleaseResult;
+        return TryRelease(ExecutionGateDecision.Proceed, pauseBeforeNextNode: false);
     }
 
     public bool TryStep()
     {
-        var tryReleaseResult1 = TryRelease(ExecutionGateDecision.Proceed, pauseBeforeNextNode: true);
-        return tryReleaseResult1;
+        return TryRelease(ExecutionGateDecision.Proceed, pauseBeforeNextNode: true);
     }
 
     public bool TryCancel()
     {
-        var tryReleaseResult2 = TryRelease(ExecutionGateDecision.Cancel, pauseBeforeNextNode: false);
-        return tryReleaseResult2;
+        return TryRelease(ExecutionGateDecision.Cancel, pauseBeforeNextNode: false);
     }
 
     private bool TryRelease(ExecutionGateDecision decision, bool pauseBeforeNextNode)
@@ -126,9 +117,7 @@ public sealed class DebugExecutionGate : IExecutionGate
             {
                 _pauseBeforeNextNode = true;
             }
-
-            var trySetResultResult = _pendingDecision.TrySetResult(decision);
-            return trySetResultResult;
+            return _pendingDecision.TrySetResult(decision);
         }
     }
 }

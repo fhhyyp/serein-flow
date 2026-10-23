@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Application;
+
 public sealed record SereinFlowActor(string Id, ClaimsPrincipal Principal);
 public sealed record SereinFlowResource(string Kind, string? Id = null, Guid? ProjectId = null)
 {
@@ -13,22 +14,19 @@ public sealed record SereinFlowResource(string Kind, string? Id = null, Guid? Pr
     public static SereinFlowResource Project(Guid id)
     {
         var key = id.ToString("D");
-        var resource = new SereinFlowResource("project", key, id);
-        return resource;
+        return new SereinFlowResource("project", key, id);
     }
 
     public static SereinFlowResource Flow(Guid id, Guid projectId)
     {
         var key = id.ToString("D");
-        var resource = new SereinFlowResource("flow", key, projectId);
-        return resource;
+        return new SereinFlowResource("flow", key, projectId);
     }
 
     public static SereinFlowResource Run(Guid id, Guid projectId)
     {
         var key = id.ToString("D");
-        var resource = new SereinFlowResource("run", key, projectId);
-        return resource;
+        return new SereinFlowResource("run", key, projectId);
     }
     public static SereinFlowResource Library(string id, Guid? projectId = null) => new("library", id, projectId);
 }
@@ -74,8 +72,7 @@ public sealed class SereinFlowActorAccessor : ISereinFlowActorAccessor
         var previous = Current;
         Current = actor;
         {
-            var result1 = new Restore(() => Current = previous);
-            return result1;
+            return new Restore(() => Current = previous);
         }
     }
 
@@ -152,8 +149,7 @@ public sealed class SereinFlowAccess(ISereinFlowAuthorizationService authorizati
     public ValueTask<ProjectAccessScope> GetScopeAsync(SereinFlowActor actor, SereinFlowPermission permission, CancellationToken cancellationToken = default)
     {
         var operation = SereinFlowOperationNames.ToName(permission);
-        var result = scopes.GetScopeAsync(actor, operation, cancellationToken);
-        return result;
+        return scopes.GetScopeAsync(actor, operation, cancellationToken);
     }
 
     public async ValueTask<ProjectAccessScope> GetReadScopeAsync(SereinFlowActor actor, CancellationToken cancellationToken = default)
@@ -166,8 +162,7 @@ public sealed class SereinFlowAccess(ISereinFlowAuthorizationService authorizati
         }
 
         var projects = runs.ProjectIds.Concat(debug.ProjectIds).ToHashSet();
-        var result = new ProjectAccessScope(false, projects);
-        return result;
+        return new ProjectAccessScope(false, projects);
     }
 }
 

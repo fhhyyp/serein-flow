@@ -62,9 +62,8 @@ internal sealed record NodeResultEventPayload(
 {
     internal static NodeResultEventPayload FromResult(NodeExecutionResult result, IReadOnlyDictionary<string, object?> fallbackInputs, Guid? invocationId, bool? global = null)
     {
-        var payload = new NodeResultEventPayload(result.IsSuccess, result.NextBranch, result.ErrorCode, result.ErrorMessage,
+        return new NodeResultEventPayload(result.IsSuccess, result.NextBranch, result.ErrorCode, result.ErrorMessage,
             result.Inputs ?? fallbackInputs, result.TransferOutputs ?? result.Outputs, invocationId, global);
-        return payload;
     }
 
     internal override void WriteTo(Dictionary<string, object?> payload)
@@ -206,7 +205,6 @@ internal static class RuntimeEventFactory
     {
         var values = payload.ToDictionary(session.FrameDepth, executionId);
         var sequence = session.NextSequence();
-        var runtimeEvent = new RuntimeEvent(session.RunId, sequence, DateTimeOffset.UtcNow, type, nodeId, values);
-        return runtimeEvent;
+        return new RuntimeEvent(session.RunId, sequence, DateTimeOffset.UtcNow, type, nodeId, values);
     }
 }

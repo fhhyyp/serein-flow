@@ -30,33 +30,27 @@ public sealed class ProjectArchiveService
         var project = await _projects.FindAsync(projectId, cancellationToken);
         if (project is null)
         {
-            var projectArchiveResult = new ProjectArchiveResult(false, 404, ProjectErrorCodes.NotFound, "Project was not found. 未找到项目。");
-            return projectArchiveResult;
+            return new ProjectArchiveResult(false, 404, ProjectErrorCodes.NotFound, "Project was not found. 未找到项目。");
         }
 
         if (project.Status == ProjectStatus.Archived)
         {
-            var projectArchiveResult1 = new ProjectArchiveResult(true, 200, Project: project);
-            return projectArchiveResult1;
+            return new ProjectArchiveResult(true, 200, Project: project);
         }
 
         var hasEnvironmentInterface = (await _interfaces.ListAsync(cancellationToken))
             .Any(flowInterface => flowInterface.ProjectId == projectId);
         if (hasEnvironmentInterface)
         {
-            var projectArchiveResult2 = new ProjectArchiveResult(false, 409, ProjectErrorCodes.ArchiveEnvironmentInterfaceExists, "The project is referenced by one or more environment interfaces and cannot be archived. 项目已被一个或多个环境接口引用，不能归档。");
-            return projectArchiveResult2;
+            return new ProjectArchiveResult(false, 409, ProjectErrorCodes.ArchiveEnvironmentInterfaceExists, "The project is referenced by one or more environment interfaces and cannot be archived. 项目已被一个或多个环境接口引用，不能归档。");
         }
 
         var expectedVersion = project.Version;
         project.Archive();
         if (!await _projects.TryUpdateAsync(project, expectedVersion, cancellationToken))
         {
-            var projectArchiveResult3 = new ProjectArchiveResult(false, 409, ProjectErrorCodes.VersionConflict, "The project was changed by another editor. 项目已被其他编辑器修改。");
-            return projectArchiveResult3;
+            return new ProjectArchiveResult(false, 409, ProjectErrorCodes.VersionConflict, "The project was changed by another editor. 项目已被其他编辑器修改。");
         }
-
-        var projectArchiveResult4 = new ProjectArchiveResult(true, 200, Project: project);
-        return projectArchiveResult4;
+        return new ProjectArchiveResult(true, 200, Project: project);
     }
 }

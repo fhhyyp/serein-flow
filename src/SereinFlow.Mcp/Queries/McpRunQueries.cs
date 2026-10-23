@@ -25,8 +25,7 @@ internal sealed class McpRunQueries(
         }
 
         await security.RequireAnyAsync(principal, run.ProjectId, cancellationToken, SereinFlowPermission.DebugRead, SereinFlowPermission.RunRead);
-        var items = await _flowWorkpieceStore.ListAsync(runId, cancellationToken);
-        return items.Select(ToWorkpieceDto).ToArray();
+        return (await _flowWorkpieceStore.ListAsync(runId, cancellationToken)).Select(ToWorkpieceDto).ToArray();
     }
 
     internal async Task<FlowWorkpieceDto?> GetRunWorkpieceAsync(

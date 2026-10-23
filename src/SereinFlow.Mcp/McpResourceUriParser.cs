@@ -22,7 +22,8 @@ public static class McpResourceUriParser
             return false;
         }
 
-        var segments = parsed.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries)
+        var segments = parsed.AbsolutePath
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
             .Select(Uri.UnescapeDataString)
             .ToArray();
         var collection = parsed.Host.ToLowerInvariant();

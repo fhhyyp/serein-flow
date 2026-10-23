@@ -17,30 +17,26 @@ public static class FileUploadLimits
     public const long TransportOverheadBytes = BytesPerMebibyte;
     public static long Normalize(long value)
     {
-        var clampResult = Math.Clamp(value, MinimumMaxFileSizeBytes, MaximumMaxFileSizeBytes);
-        return clampResult;
+        return Math.Clamp(value, MinimumMaxFileSizeBytes, MaximumMaxFileSizeBytes);
     }
 
     public static long GetApiRequestBodyLimit(long maxFileSizeBytes)
     {
         var normalizedFileSize = Normalize(maxFileSizeBytes);
-        var requestBodyLimit = checked(normalizedFileSize + TransportOverheadBytes);
-        return requestBodyLimit;
+        return checked(normalizedFileSize + TransportOverheadBytes);
     }
 
     public static long GetMcpRequestBodyLimit(long maxFileSizeBytes, long protocolRequestLimitBytes)
     {
         var fileSize = Normalize(maxFileSizeBytes);
         var base64Bytes = checked(((fileSize + Base64GroupRoundingBytes) / Base64DecodedGroupBytes) * Base64EncodedGroupCharacters);
-        var maxResult = Math.Max(protocolRequestLimitBytes, checked(base64Bytes + TransportOverheadBytes));
-        return maxResult;
+        return Math.Max(protocolRequestLimitBytes, checked(base64Bytes + TransportOverheadBytes));
     }
 
     public static long GetBase64EncodedLimit(long maxFileSizeBytes)
     {
         var normalizedFileSize = Normalize(maxFileSizeBytes);
-        var encodedLimit = checked(((normalizedFileSize + Base64GroupRoundingBytes) / Base64DecodedGroupBytes) * Base64EncodedGroupCharacters);
-        return encodedLimit;
+        return checked(((normalizedFileSize + Base64GroupRoundingBytes) / Base64DecodedGroupBytes) * Base64EncodedGroupCharacters);
     }
 }
 
@@ -62,8 +58,7 @@ public sealed class FileUploadSettings : IFileUploadSettings
     {
         get
         {
-            var readResult = Interlocked.Read(ref _maxLibraryUploadBytes);
-            return readResult;
+            return Interlocked.Read(ref _maxLibraryUploadBytes);
         }
     }
 

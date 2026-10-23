@@ -23,8 +23,7 @@ public sealed class ApiKeyManagementService
 
     public async Task<IReadOnlyList<ApiKeyDto>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var toArrayResult = (await _keys.ListAsync(cancellationToken)).Select(ApiKeyService.ToDto).ToArray();
-        return toArrayResult;
+        return (await _keys.ListAsync(cancellationToken)).Select(ApiKeyService.ToDto).ToArray();
     }
 
     public async Task<CreatedApiKeyDto> CreateAsync(CreateApiKeyRequest request, CancellationToken cancellationToken = default)
@@ -46,11 +45,8 @@ public sealed class ApiKeyManagementService
             {
                 throw new SereinFlowAccessException(ApiKeyErrorCodes.SetupAlreadyCompleted, "API key setup has already been completed. API 密钥初始化已完成。", StatusCodes.Status409Conflict);
             }
-
-            var getValuesResult = Enum.GetValues<SereinFlowPermission>();
-            var createMcpApiKeyRequestDto = new CreateApiKeyRequest(null, "SereinFlow Web Console", getValuesResult, null, IsAdministrator: true);
-            var createAsyncResult = await CreateAsync(createMcpApiKeyRequestDto, cancellationToken);
-            return createAsyncResult;
+            var createMcpApiKeyRequestDto = new CreateApiKeyRequest(null, "SereinFlow Web Console", Enum.GetValues<SereinFlowPermission>(), null, IsAdministrator: true);
+            return await CreateAsync(createMcpApiKeyRequestDto, cancellationToken);
         }
         finally
         {
@@ -63,8 +59,7 @@ public sealed class ApiKeyManagementService
         var existing = await FindAsync(id, cancellationToken);
         if (existing.RevokedAt is not null)
         {
-            var toDtoResult = ApiKeyService.ToDto(existing);
-            return toDtoResult;
+            return ApiKeyService.ToDto(existing);
         }
 
         var revoked = existing with
@@ -72,8 +67,7 @@ public sealed class ApiKeyManagementService
             RevokedAt = DateTimeOffset.UtcNow
         };
         await _keys.UpdateAsync(revoked, cancellationToken);
-        var toDtoResult1 = ApiKeyService.ToDto(revoked);
-        return toDtoResult1;
+        return ApiKeyService.ToDto(revoked);
     }
 
     public async Task<RotatedApiKeyDto> RotateAsync(string id, CancellationToken cancellationToken = default)
@@ -87,14 +81,12 @@ public sealed class ApiKeyManagementService
         var replacement = ApiKeyService.RotateKeyWithEntry(existing);
         await _keys.AddAsync(replacement.Entry, cancellationToken);
         await _keys.UpdateAsync(existing with { RevokedAt = DateTimeOffset.UtcNow }, cancellationToken);
-        var rotatedApiKeyDto = new RotatedApiKeyDto(existing.Id, replacement.Dto.Key, replacement.Dto.Secret);
-        return rotatedApiKeyDto;
+        return new RotatedApiKeyDto(existing.Id, replacement.Dto.Key, replacement.Dto.Secret);
     }
 
     private async Task<ApiKeyEntry> FindAsync(string id, CancellationToken cancellationToken)
     {
-        var evaluatedValue2 = await _keys.FindAsync(id, cancellationToken) ?? throw new SereinFlowAccessException(ApiKeyErrorCodes.NotFound, "The API key was not found. 未找到 API 密钥。", StatusCodes.Status404NotFound);
-        return evaluatedValue2;
+        return await _keys.FindAsync(id, cancellationToken) ?? throw new SereinFlowAccessException(ApiKeyErrorCodes.NotFound, "The API key was not found. 未找到 API 密钥。", StatusCodes.Status404NotFound);
     }
 
     private async Task ValidateProjectAsync(Guid? projectId, CancellationToken cancellationToken)

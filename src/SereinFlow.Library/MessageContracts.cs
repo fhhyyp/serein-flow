@@ -92,8 +92,7 @@ public sealed record MessageChannelOptions
     {
         get
         {
-            MessageChannelOptions evaluatedValue = new();
-            return evaluatedValue;
+            return new();
         }
     }
 
@@ -105,11 +104,10 @@ public sealed record MessageChannelOptions
     {
         get
         {
-            MessageChannelOptions evaluatedValue1 = new()
+            return new()
             {
                 SerializationMode = MessageSerializationMode.DirectObject
             };
-            return evaluatedValue1;
         }
     }
 }

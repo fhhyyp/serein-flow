@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using SereinFlow.Application;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/node-catalog")]
 public sealed class NodeCatalogController : ApiControllerBase
 {
@@ -15,8 +16,7 @@ public sealed class NodeCatalogController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult GetBuiltins()
     {
-        var getCatalogResult = _catalog.GetCatalog();
-        var okResult = Ok(getCatalogResult);
-        return okResult;
+        var catalog = _catalog.GetCatalog();
+        return Ok(catalog);
     }
 }

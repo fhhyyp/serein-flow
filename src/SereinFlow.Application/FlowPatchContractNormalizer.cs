@@ -35,22 +35,17 @@ public sealed class FlowPatchContractNormalizer
         {
             throw Invalid(McpErrorCodes.FlowPatchOperationRequired, "$.operations", "at least one typed operation", "Add an operation or omit the preview request. 请添加操作，或省略预览请求。");
         }
-
-        var getArrayLengthResult = operationElement.GetArrayLength();
-        var operations = new List<FlowPatchCanonicalOperationDto>(getArrayLengthResult);
+        var operations = new List<FlowPatchCanonicalOperationDto>(operationElement.GetArrayLength());
         var index = 0;
         foreach (var operation in operationElement.EnumerateArray())
         {
             var path = $"$.operations[{index}]";
-            FlowPatchCanonicalOperationDto evaluatedValue = isV2 ? ReadV2Operation(operation, path) : ReadV1Operation(operation, path);
-            operations.Add(evaluatedValue);
+            operations.Add((isV2 ? ReadV2Operation(operation, path) : ReadV1Operation(operation, path)));
             index++;
         }
 
         var canonical = new FlowPatchCanonicalRequestDto(projectId, flowId, expectedVersion, schemaVersion, operations, remark);
-        var toLegacyRequestResult = ToLegacyRequest(canonical);
-        var normalizedFlowPatchRequest = new NormalizedFlowPatchRequest(canonical, toLegacyRequestResult, warnings);
-        return normalizedFlowPatchRequest;
+        return new NormalizedFlowPatchRequest(canonical, ToLegacyRequest(canonical), warnings);
     }
 
     public NormalizedFlowPatchRequest NormalizeLegacyRequest(FlowPatchRequestDto request)
@@ -59,27 +54,23 @@ public sealed class FlowPatchContractNormalizer
         var operations = request.Operations
             .Select((operation, index) =>
             {
-                var readPersistedLegacyOperationResult = ReadPersistedLegacyOperation(operation, $"$.operations[{index}]");
-                return readPersistedLegacyOperationResult;
+                return ReadPersistedLegacyOperation(operation, $"$.operations[{index}]");
             })
             .ToArray();
         var canonical = new FlowPatchCanonicalRequestDto(request.ProjectId, request.FlowId, request.ExpectedDevelopmentVersion, FlowPatchContract.CurrentSchemaVersion, operations, request.Remark);
-        IReadOnlyList<FlowPatchNormalizationWarningDto> evaluatedValue1 = [new FlowPatchNormalizationWarningDto(McpErrorCodes.FlowPatchLegacyInput, "$.operations", "The stored preview uses the legacy flow-patch representation and was normalized to schema 2.0. 已存储的预览使用旧版流程补丁表示，现已规范化为架构 2.0。")];
-        var normalizedFlowPatchRequest2 = new NormalizedFlowPatchRequest(canonical, request, evaluatedValue1);
-        return normalizedFlowPatchRequest2;
+        IReadOnlyList<FlowPatchNormalizationWarningDto> warnings = [new FlowPatchNormalizationWarningDto(McpErrorCodes.FlowPatchLegacyInput, "$.operations", "The stored preview uses the legacy flow-patch representation and was normalized to schema 2.0. 已存储的预览使用旧版流程补丁表示，现已规范化为架构 2.0。")];
+        return new NormalizedFlowPatchRequest(canonical, request, warnings);
     }
 
     public IReadOnlyList<FlowPatchCanonicalOperationDto> NormalizeLegacyOperations(IReadOnlyList<FlowPatchOperationDto> operations)
     {
         ArgumentNullException.ThrowIfNull(operations);
-        var toArrayResult = operations
+        return operations
             .Select((operation, index) =>
             {
-                var readPersistedLegacyOperationResult3 = ReadPersistedLegacyOperation(operation, $"$.operations[{index}]");
-                return readPersistedLegacyOperationResult3;
+                return ReadPersistedLegacyOperation(operation, $"$.operations[{index}]");
             })
             .ToArray();
-        return toArrayResult;
     }
 
     /// <summary>
@@ -102,17 +93,16 @@ public sealed class FlowPatchContractNormalizer
 
     public static FlowPatchRequestDto ToLegacyRequest(FlowPatchCanonicalRequestDto request)
     {
-        var toArrayResult6 = request.Operations
+        var operations = request.Operations
             .Select(ToLegacyOperation)
             .ToArray();
-        FlowPatchRequestDto evaluatedValue7 = new(request.ProjectId, request.FlowId, request.ExpectedDevelopmentVersion, toArrayResult6, request.Remark);
-        return evaluatedValue7;
+        return new(request.ProjectId, request.FlowId, request.ExpectedDevelopmentVersion, operations, request.Remark);
     }
 
     public static FlowPatchOperationDto ToLegacyOperation(FlowPatchCanonicalOperationDto operation)
     {
         ArgumentNullException.ThrowIfNull(operation);
-        FlowPatchOperationDto evaluatedValue8 = operation.Op switch
+        return operation.Op switch
         {
             "addCanvas" => Legacy(FlowPatchOperationKindDto.AddCanvas, value: operation.Canvas),
             "updateCanvas" => Legacy(FlowPatchOperationKindDto.UpdateCanvas, operation.CanvasId, value: operation.Canvas),
@@ -131,14 +121,12 @@ public sealed class FlowPatchContractNormalizer
             "replaceScriptSource" => Legacy(FlowPatchOperationKindDto.ReplaceScriptSource, operation.CanvasId, operation.NodeId, value: operation.Source),
             _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, "$.operations", "a supported schema 2.0 operation", "Use the operation names published by sereinflow_preview_flow_patch. 请使用 sereinflow_preview_flow_patch 公布的操作名称。")
         };
-        return evaluatedValue8;
     }
 
     private static FlowPatchOperationDto Legacy(FlowPatchOperationKindDto operation, string? canvasId = null, string? nodeId = null, string? connectionId = null, string? parameterId = null, object? value = null)
     {
-        JsonElement? evaluatedValue9 = value is null ? null : JsonSerializer.SerializeToElement(value, JsonOptions);
-        FlowPatchOperationDto evaluatedValue10 = new(operation, canvasId, nodeId, connectionId, parameterId, evaluatedValue9);
-        return evaluatedValue10;
+        JsonElement? serializeToElement = value is null ? null : JsonSerializer.SerializeToElement(value, JsonOptions);
+        return new(operation, canvasId, nodeId, connectionId, parameterId, serializeToElement);
     }
 
     private static bool ReadSchemaVersion(JsonElement arguments, out string schemaVersion, out IReadOnlyList<FlowPatchNormalizationWarningDto> warnings)
@@ -177,304 +165,269 @@ public sealed class FlowPatchContractNormalizer
     {
         RequireObject(operation, path, "Each operation must be an object. 每项操作必须是对象。");
         var op = ReadRequiredString(operation, "op", $"{path}.op");
-        FlowPatchCanonicalOperationDto evaluatedValue43 = op switch
+        return op switch
         {
-            "addCanvas" => resolveevaluatedValue(),
-            "updateCanvas" => resolveevaluatedValue12(),
+            "addCanvas" => ReadAddCanvas(),
+            "updateCanvas" => ReadUpdateCanvas(),
             "removeCanvas" => ReadV2RemoveCanvas(operation, path, op),
-            "addNode" => resolveevaluatedValue15(),
-            "replaceNode" => resolveevaluatedValue18(),
+            "addNode" => ReadAddNode(),
+            "replaceNode" => ReadReplaceNode(),
             "removeNode" => ReadV2RemoveNode(operation, path, op),
-            "setNodeParameter" => resolveevaluatedValue23(),
-            "addNodeParameter" => resolveevaluatedValue28(),
+            "setNodeParameter" => ReadSetNodeParameter(),
+            "addNodeParameter" => ReadAddNodeParameter(),
             "removeNodeParameter" => ReadV2RemoveNodeParameter(operation, path, op),
-            "addConnection" => resolveevaluatedValue33(),
-            "replaceConnection" => resolveevaluatedValue36(),
+            "addConnection" => ReadAddConnection(),
+            "replaceConnection" => ReadReplaceConnection(),
             "removeConnection" => ReadV2RemoveConnection(operation, path, op),
             "setEntryNode" => ReadV2SetEntryNode(operation, path, op),
-            "setRunPolicy" => resolveevaluatedValue41(),
+            "setRunPolicy" => ReadSetRunPolicy(),
             "replaceScriptSource" => ReadV2ReplaceScriptSource(operation, path, op),
             _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.op", "one of the 15 schema 2.0 operation names", "Use the operation names exposed by sereinflow_preview_flow_patch. 请使用 sereinflow_preview_flow_patch 公开的操作名称。")
         };
-        return evaluatedValue43;
-        FlowPatchCanonicalOperationDto resolveevaluatedValue()
+        FlowPatchCanonicalOperationDto ReadAddCanvas()
         {
-            var readCanvasResult = ReadCanvas(operation, "canvas", path, legacyEnums: false, ["op", "canvas"]);
-            FlowPatchCanonicalOperationDto evaluatedValue11 = new(op, Canvas: readCanvasResult);
-            return evaluatedValue11;
+            var canvas = ReadCanvas(operation, "canvas", path, legacyEnums: false, ["op", "canvas"]);
+            return new(op, Canvas: canvas);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue12()
+        FlowPatchCanonicalOperationDto ReadUpdateCanvas()
         {
-            var readRequiredStringResult = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
-            var readCanvasResult13 = ReadCanvas(operation, "canvas", path, legacyEnums: false, ["op", "canvasId", "canvas"]);
-            FlowPatchCanonicalOperationDto evaluatedValue14 = new(op, readRequiredStringResult, Canvas: readCanvasResult13);
-            return evaluatedValue14;
+            var canvasId = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
+            var canvas = ReadCanvas(operation, "canvas", path, legacyEnums: false, ["op", "canvasId", "canvas"]);
+            return new(op, canvasId, Canvas: canvas);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue15()
+        FlowPatchCanonicalOperationDto ReadAddNode()
         {
-            var readRequiredStringResult16 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
-            var readNodeResult = ReadNode(operation, "node", path, legacyEnums: false, ["op", "canvasId", "node"]);
-            FlowPatchCanonicalOperationDto evaluatedValue17 = new(op, readRequiredStringResult16, Node: readNodeResult);
-            return evaluatedValue17;
+            var canvasId = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
+            var node = ReadNode(operation, "node", path, legacyEnums: false, ["op", "canvasId", "node"]);
+            return new(op, canvasId, Node: node);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue18()
+        FlowPatchCanonicalOperationDto ReadReplaceNode()
         {
-            var readRequiredStringResult19 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
-            var readRequiredStringResult20 = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
-            var readNodeResult21 = ReadNode(operation, "node", path, legacyEnums: false, ["op", "canvasId", "nodeId", "node"]);
-            FlowPatchCanonicalOperationDto evaluatedValue22 = new(op, readRequiredStringResult19, readRequiredStringResult20, Node: readNodeResult21);
-            return evaluatedValue22;
+            var canvasId = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
+            var nodeId = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
+            var node = ReadNode(operation, "node", path, legacyEnums: false, ["op", "canvasId", "nodeId", "node"]);
+            return new(op, canvasId, nodeId, Node: node);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue23()
+        FlowPatchCanonicalOperationDto ReadSetNodeParameter()
         {
-            var readRequiredStringResult24 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
-            var readRequiredStringResult25 = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
-            var readRequiredStringResult26 = ReadRequiredString(operation, "parameterId", $"{path}.parameterId");
-            var readParameterResult = ReadParameter(operation, "parameter", path, legacyEnums: false, ["op", "canvasId", "nodeId", "parameterId", "parameter"]);
-            FlowPatchCanonicalOperationDto evaluatedValue27 = new(op, readRequiredStringResult24, readRequiredStringResult25, ParameterId: readRequiredStringResult26, Parameter: readParameterResult);
-            return evaluatedValue27;
+            var canvasId = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
+            var nodeId = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
+            var parameterId = ReadRequiredString(operation, "parameterId", $"{path}.parameterId");
+            var parameter = ReadParameter(operation, "parameter", path, legacyEnums: false, ["op", "canvasId", "nodeId", "parameterId", "parameter"]);
+            return new(op, canvasId, nodeId, ParameterId: parameterId, Parameter: parameter);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue28()
+        FlowPatchCanonicalOperationDto ReadAddNodeParameter()
         {
-            var readRequiredStringResult29 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
-            var readRequiredStringResult30 = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
-            var readParameterResult31 = ReadParameter(operation, "parameter", path, legacyEnums: false, ["op", "canvasId", "nodeId", "parameter"]);
-            FlowPatchCanonicalOperationDto evaluatedValue32 = new(op, readRequiredStringResult29, readRequiredStringResult30, Parameter: readParameterResult31);
-            return evaluatedValue32;
+            var canvasId = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
+            var nodeId = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
+            var parameter = ReadParameter(operation, "parameter", path, legacyEnums: false, ["op", "canvasId", "nodeId", "parameter"]);
+            return new(op, canvasId, nodeId, Parameter: parameter);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue33()
+        FlowPatchCanonicalOperationDto ReadAddConnection()
         {
-            var readRequiredStringResult34 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
-            var readConnectionResult = ReadConnection(operation, "connection", path, legacyEnums: false, ["op", "canvasId", "connection"]);
-            FlowPatchCanonicalOperationDto evaluatedValue35 = new(op, readRequiredStringResult34, Connection: readConnectionResult);
-            return evaluatedValue35;
+            var canvasId = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
+            var connection = ReadConnection(operation, "connection", path, legacyEnums: false, ["op", "canvasId", "connection"]);
+            return new(op, canvasId, Connection: connection);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue36()
+        FlowPatchCanonicalOperationDto ReadReplaceConnection()
         {
-            var readRequiredStringResult37 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
-            var readRequiredStringResult38 = ReadRequiredString(operation, "connectionId", $"{path}.connectionId");
-            var readConnectionResult39 = ReadConnection(operation, "connection", path, legacyEnums: false, ["op", "canvasId", "connectionId", "connection"]);
-            FlowPatchCanonicalOperationDto evaluatedValue40 = new(op, readRequiredStringResult37, ConnectionId: readRequiredStringResult38, Connection: readConnectionResult39);
-            return evaluatedValue40;
+            var canvasId = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
+            var connectionId = ReadRequiredString(operation, "connectionId", $"{path}.connectionId");
+            var connection = ReadConnection(operation, "connection", path, legacyEnums: false, ["op", "canvasId", "connectionId", "connection"]);
+            return new(op, canvasId, ConnectionId: connectionId, Connection: connection);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue41()
+        FlowPatchCanonicalOperationDto ReadSetRunPolicy()
         {
-            var readRunPolicyResult = ReadRunPolicy(operation, "runPolicy", path, legacyEnums: false, ["op", "runPolicy"]);
-            FlowPatchCanonicalOperationDto evaluatedValue42 = new(op, RunPolicy: readRunPolicyResult);
-            return evaluatedValue42;
+            var runPolicy = ReadRunPolicy(operation, "runPolicy", path, legacyEnums: false, ["op", "runPolicy"]);
+            return new(op, RunPolicy: runPolicy);
         }
     }
 
     private static FlowPatchCanonicalOperationDto ReadV2RemoveCanvas(JsonElement operation, string path, string op)
     {
         EnsureKnownProperties(operation, path, ["op", "canvasId"]);
-        var readRequiredStringResult44 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
-        FlowPatchCanonicalOperationDto evaluatedValue45 = new(op, readRequiredStringResult44);
-        return evaluatedValue45;
+        var canvasId = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
+        return new(op, canvasId);
     }
 
     private static FlowPatchCanonicalOperationDto ReadV2RemoveNode(JsonElement operation, string path, string op)
     {
         EnsureKnownProperties(operation, path, ["op", "canvasId", "nodeId"]);
-        var readRequiredStringResult46 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
-        var readRequiredStringResult47 = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
-        FlowPatchCanonicalOperationDto evaluatedValue48 = new(op, readRequiredStringResult46, readRequiredStringResult47);
-        return evaluatedValue48;
+        var canvasId = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
+        var nodeId = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
+        return new(op, canvasId, nodeId);
     }
 
     private static FlowPatchCanonicalOperationDto ReadV2RemoveNodeParameter(JsonElement operation, string path, string op)
     {
         EnsureKnownProperties(operation, path, ["op", "canvasId", "nodeId", "parameterId"]);
-        var readRequiredStringResult49 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
-        var readRequiredStringResult50 = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
-        var readRequiredStringResult51 = ReadRequiredString(operation, "parameterId", $"{path}.parameterId");
-        FlowPatchCanonicalOperationDto evaluatedValue52 = new(op, readRequiredStringResult49, readRequiredStringResult50, ParameterId: readRequiredStringResult51);
-        return evaluatedValue52;
+        var canvasId = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
+        var nodeId = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
+        var parameterId = ReadRequiredString(operation, "parameterId", $"{path}.parameterId");
+        return new(op, canvasId, nodeId, ParameterId: parameterId);
     }
 
     private static FlowPatchCanonicalOperationDto ReadV2RemoveConnection(JsonElement operation, string path, string op)
     {
         EnsureKnownProperties(operation, path, ["op", "canvasId", "connectionId"]);
-        var readRequiredStringResult53 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
-        var readRequiredStringResult54 = ReadRequiredString(operation, "connectionId", $"{path}.connectionId");
-        FlowPatchCanonicalOperationDto evaluatedValue55 = new(op, readRequiredStringResult53, ConnectionId: readRequiredStringResult54);
-        return evaluatedValue55;
+        var canvasId = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
+        var connectionId = ReadRequiredString(operation, "connectionId", $"{path}.connectionId");
+        return new(op, canvasId, ConnectionId: connectionId);
     }
 
     private static FlowPatchCanonicalOperationDto ReadV2SetEntryNode(JsonElement operation, string path, string op)
     {
         EnsureKnownProperties(operation, path, ["op", "entryNodeId"]);
-        var readRequiredStringResult56 = ReadRequiredString(operation, "entryNodeId", $"{path}.entryNodeId");
-        FlowPatchCanonicalOperationDto evaluatedValue57 = new(op, EntryNodeId: readRequiredStringResult56);
-        return evaluatedValue57;
+        var entryNodeId = ReadRequiredString(operation, "entryNodeId", $"{path}.entryNodeId");
+        return new(op, EntryNodeId: entryNodeId);
     }
 
     private static FlowPatchCanonicalOperationDto ReadV2ReplaceScriptSource(JsonElement operation, string path, string op)
     {
         EnsureKnownProperties(operation, path, ["op", "canvasId", "nodeId", "source"]);
-        var readRequiredStringResult58 = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
-        var readRequiredStringResult59 = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
-        var readRequiredStringResult60 = ReadRequiredString(operation, "source", $"{path}.source");
-        FlowPatchCanonicalOperationDto evaluatedValue61 = new(op, readRequiredStringResult58, readRequiredStringResult59, Source: readRequiredStringResult60);
-        return evaluatedValue61;
+        var canvasId = ReadRequiredString(operation, "canvasId", $"{path}.canvasId");
+        var nodeId = ReadRequiredString(operation, "nodeId", $"{path}.nodeId");
+        var source = ReadRequiredString(operation, "source", $"{path}.source");
+        return new(op, canvasId, nodeId, Source: source);
     }
 
     private static FlowPatchCanonicalOperationDto ReadV1Operation(JsonElement operation, string path)
     {
         RequireObject(operation, path, "Each operation must be an object. 每项操作必须是对象。");
-        var requirePropertyResult = RequireProperty(operation, "operation", $"{path}.operation");
-        var op = ReadLegacyOperationName(requirePropertyResult, $"{path}.operation");
-        FlowPatchCanonicalOperationDto evaluatedValue124 = op switch
+        var op = ReadLegacyOperationName(RequireProperty(operation, "operation", $"{path}.operation"), $"{path}.operation");
+        return op switch
         {
-            "addCanvas" => resolveevaluatedValue62(),
-            "updateCanvas" => resolveevaluatedValue64(),
-            "removeCanvas" => resolveevaluatedValue67(),
-            "addNode" => resolveevaluatedValue70(),
-            "replaceNode" => resolveevaluatedValue74(),
-            "removeNode" => resolveevaluatedValue79(),
-            "setNodeParameter" => resolveevaluatedValue83(),
-            "addNodeParameter" => resolveevaluatedValue89(),
-            "removeNodeParameter" => resolveevaluatedValue94(),
-            "addConnection" => resolveevaluatedValue99(),
-            "replaceConnection" => resolveevaluatedValue103(),
-            "removeConnection" => resolveevaluatedValue109(),
-            "setEntryNode" => resolveevaluatedValue113(),
-            "setRunPolicy" => resolveevaluatedValue116(),
-            "replaceScriptSource" => resolveevaluatedValue119(),
+            "addCanvas" => ReadAddCanvas(),
+            "updateCanvas" => ReadUpdateCanvas(),
+            "removeCanvas" => ReadRemoveCanvas(),
+            "addNode" => ReadAddNode(),
+            "replaceNode" => ReadReplaceNode(),
+            "removeNode" => ReadRemoveNode(),
+            "setNodeParameter" => ReadSetNodeParameter(),
+            "addNodeParameter" => ReadAddNodeParameter(),
+            "removeNodeParameter" => ReadRemoveNodeParameter(),
+            "addConnection" => ReadAddConnection(),
+            "replaceConnection" => ReadReplaceConnection(),
+            "removeConnection" => ReadRemoveConnection(),
+            "setEntryNode" => ReadSetEntryNode(),
+            "setRunPolicy" => ReadSetRunPolicy(),
+            "replaceScriptSource" => ReadReplaceScriptSource(),
             _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, $"{path}.operation", "a supported legacy operation name", "Use schemaVersion 2.0 and the canonical op names. 请使用 schemaVersion 2.0 和规范的 op 名称。")
         };
-        return evaluatedValue124;
-        FlowPatchCanonicalOperationDto resolveevaluatedValue62()
+        FlowPatchCanonicalOperationDto ReadAddCanvas()
         {
-            var readLegacyPayloadResult = ReadLegacyPayload<CanvasDto>(operation, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue63 = new(op, Canvas: readLegacyPayloadResult);
-            return evaluatedValue63;
+            var canvas = ReadLegacyPayload<CanvasDto>(operation, path, legacyEnums: true);
+            return new(op, Canvas: canvas);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue64()
+        FlowPatchCanonicalOperationDto ReadUpdateCanvas()
         {
-            var readLegacyIdentifierResult = ReadLegacyIdentifier(operation, "canvasId", path);
-            var readLegacyPayloadResult65 = ReadLegacyPayload<CanvasDto>(operation, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue66 = new(op, readLegacyIdentifierResult, Canvas: readLegacyPayloadResult65);
-            return evaluatedValue66;
+            var canvasId = ReadLegacyIdentifier(operation, "canvasId", path);
+            var nodeId = ReadLegacyPayload<CanvasDto>(operation, path, legacyEnums: true);
+            return new(op, canvasId, Canvas: nodeId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue67()
+        FlowPatchCanonicalOperationDto ReadRemoveCanvas()
         {
-            var readLegacyIdentifierResult68 = ReadLegacyIdentifier(operation, "canvasId", path);
-            FlowPatchCanonicalOperationDto evaluatedValue69 = new(op, readLegacyIdentifierResult68);
-            return evaluatedValue69;
+            var canvasId = ReadLegacyIdentifier(operation, "canvasId", path);
+            return new(op, canvasId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue70()
+        FlowPatchCanonicalOperationDto ReadAddNode()
         {
-            var readLegacyIdentifierResult71 = ReadLegacyIdentifier(operation, "canvasId", path);
-            var readLegacyPayloadResult72 = ReadLegacyPayload<NodeDto>(operation, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue73 = new(op, readLegacyIdentifierResult71, Node: readLegacyPayloadResult72);
-            return evaluatedValue73;
+            var canvasId = ReadLegacyIdentifier(operation, "canvasId", path);
+            var node = ReadLegacyPayload<NodeDto>(operation, path, legacyEnums: true);
+            return new(op, canvasId, Node: node);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue74()
+        FlowPatchCanonicalOperationDto ReadReplaceNode()
         {
-            var readLegacyIdentifierResult75 = ReadLegacyIdentifier(operation, "canvasId", path);
-            var readLegacyIdentifierResult76 = ReadLegacyIdentifier(operation, "nodeId", path);
-            var readLegacyPayloadResult77 = ReadLegacyPayload<NodeDto>(operation, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue78 = new(op, readLegacyIdentifierResult75, readLegacyIdentifierResult76, Node: readLegacyPayloadResult77);
-            return evaluatedValue78;
+            var canvasId = ReadLegacyIdentifier(operation, "canvasId", path);
+            var nodeId = ReadLegacyIdentifier(operation, "nodeId", path);
+            var connectionId = ReadLegacyPayload<NodeDto>(operation, path, legacyEnums: true);
+            return new(op, canvasId, nodeId, Node: connectionId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue79()
+        FlowPatchCanonicalOperationDto ReadRemoveNode()
         {
-            var readLegacyIdentifierResult80 = ReadLegacyIdentifier(operation, "canvasId", path);
-            var readLegacyIdentifierResult81 = ReadLegacyIdentifier(operation, "nodeId", path);
-            FlowPatchCanonicalOperationDto evaluatedValue82 = new(op, readLegacyIdentifierResult80, readLegacyIdentifierResult81);
-            return evaluatedValue82;
+            var canvasId = ReadLegacyIdentifier(operation, "canvasId", path);
+            var nodeId = ReadLegacyIdentifier(operation, "nodeId", path);
+            return new(op, canvasId, nodeId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue83()
+        FlowPatchCanonicalOperationDto ReadSetNodeParameter()
         {
-            var readLegacyIdentifierResult84 = ReadLegacyIdentifier(operation, "canvasId", path);
-            var readLegacyIdentifierResult85 = ReadLegacyIdentifier(operation, "nodeId", path);
-            var readLegacyIdentifierResult86 = ReadLegacyIdentifier(operation, "parameterId", path);
-            var readLegacyPayloadResult87 = ReadLegacyPayload<NodeParameterDto>(operation, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue88 = new(op, readLegacyIdentifierResult84, readLegacyIdentifierResult85, ParameterId: readLegacyIdentifierResult86, Parameter: readLegacyPayloadResult87);
-            return evaluatedValue88;
+            var canvasId = ReadLegacyIdentifier(operation, "canvasId", path);
+            var nodeId = ReadLegacyIdentifier(operation, "nodeId", path);
+            var parameterId = ReadLegacyIdentifier(operation, "parameterId", path);
+            var parameter = ReadLegacyPayload<NodeParameterDto>(operation, path, legacyEnums: true);
+            return new(op, canvasId, nodeId, ParameterId: parameterId, Parameter: parameter);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue89()
+        FlowPatchCanonicalOperationDto ReadAddNodeParameter()
         {
-            var readLegacyIdentifierResult90 = ReadLegacyIdentifier(operation, "canvasId", path);
-            var readLegacyIdentifierResult91 = ReadLegacyIdentifier(operation, "nodeId", path);
-            var readLegacyPayloadResult92 = ReadLegacyPayload<NodeParameterDto>(operation, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue93 = new(op, readLegacyIdentifierResult90, readLegacyIdentifierResult91, Parameter: readLegacyPayloadResult92);
-            return evaluatedValue93;
+            var canvasId = ReadLegacyIdentifier(operation, "canvasId", path);
+            var nodeId = ReadLegacyIdentifier(operation, "nodeId", path);
+            var nodeParameterDto = ReadLegacyPayload<NodeParameterDto>(operation, path, legacyEnums: true);
+            return new(op, canvasId, nodeId, Parameter: nodeParameterDto);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue94()
+        FlowPatchCanonicalOperationDto ReadRemoveNodeParameter()
         {
-            var readLegacyIdentifierResult95 = ReadLegacyIdentifier(operation, "canvasId", path);
-            var readLegacyIdentifierResult96 = ReadLegacyIdentifier(operation, "nodeId", path);
-            var readLegacyIdentifierResult97 = ReadLegacyIdentifier(operation, "parameterId", path);
-            FlowPatchCanonicalOperationDto evaluatedValue98 = new(op, readLegacyIdentifierResult95, readLegacyIdentifierResult96, ParameterId: readLegacyIdentifierResult97);
-            return evaluatedValue98;
+            var canvasId = ReadLegacyIdentifier(operation, "canvasId", path);
+            var nodeId = ReadLegacyIdentifier(operation, "nodeId", path);
+            var parameterId = ReadLegacyIdentifier(operation, "parameterId", path);
+            return new(op, canvasId, nodeId, ParameterId: parameterId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue99()
+        FlowPatchCanonicalOperationDto ReadAddConnection()
         {
-            var readLegacyIdentifierResult100 = ReadLegacyIdentifier(operation, "canvasId", path);
-            var readLegacyPayloadResult101 = ReadLegacyPayload<ConnectionDto>(operation, path, legacyEnums: true);
-            var normalizeConnectionResult = NormalizeConnection(readLegacyPayloadResult101);
-            FlowPatchCanonicalOperationDto evaluatedValue102 = new(op, readLegacyIdentifierResult100, Connection: normalizeConnectionResult);
-            return evaluatedValue102;
+            var canvasId = ReadLegacyIdentifier(operation, "canvasId", path);
+            var connection = NormalizeConnection(ReadLegacyPayload<ConnectionDto>(operation, path, legacyEnums: true));
+            return new(op, canvasId, Connection: connection);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue103()
+        FlowPatchCanonicalOperationDto ReadReplaceConnection()
         {
-            var readLegacyIdentifierResult104 = ReadLegacyIdentifier(operation, "canvasId", path);
-            var readLegacyIdentifierResult105 = ReadLegacyIdentifier(operation, "connectionId", path);
-            var readLegacyPayloadResult106 = ReadLegacyPayload<ConnectionDto>(operation, path, legacyEnums: true);
-            var normalizeConnectionResult107 = NormalizeConnection(readLegacyPayloadResult106);
-            FlowPatchCanonicalOperationDto evaluatedValue108 = new(op, readLegacyIdentifierResult104, ConnectionId: readLegacyIdentifierResult105, Connection: normalizeConnectionResult107);
-            return evaluatedValue108;
+            var canvasId = ReadLegacyIdentifier(operation, "canvasId", path);
+            var connectionId = ReadLegacyIdentifier(operation, "connectionId", path);
+            var normalizeConnection = NormalizeConnection(ReadLegacyPayload<ConnectionDto>(operation, path, legacyEnums: true));
+            return new(op, canvasId, ConnectionId: connectionId, Connection: normalizeConnection);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue109()
+        FlowPatchCanonicalOperationDto ReadRemoveConnection()
         {
-            var readLegacyIdentifierResult110 = ReadLegacyIdentifier(operation, "canvasId", path);
-            var readLegacyIdentifierResult111 = ReadLegacyIdentifier(operation, "connectionId", path);
-            FlowPatchCanonicalOperationDto evaluatedValue112 = new(op, readLegacyIdentifierResult110, ConnectionId: readLegacyIdentifierResult111);
-            return evaluatedValue112;
+            var canvasId = ReadLegacyIdentifier(operation, "canvasId", path);
+            var connectionId = ReadLegacyIdentifier(operation, "connectionId", path);
+            return new(op, canvasId, ConnectionId: connectionId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue113()
+        FlowPatchCanonicalOperationDto ReadSetEntryNode()
         {
-            var readLegacyPayloadResult114 = ReadLegacyPayload<string>(operation, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue115 = new(op, EntryNodeId: readLegacyPayloadResult114);
-            return evaluatedValue115;
+            var entryNodeId = ReadLegacyPayload<string>(operation, path, legacyEnums: true);
+            return new(op, EntryNodeId: entryNodeId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue116()
+        FlowPatchCanonicalOperationDto ReadSetRunPolicy()
         {
-            var readLegacyPayloadResult117 = ReadLegacyPayload<FlowRunPolicyDto>(operation, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue118 = new(op, RunPolicy: readLegacyPayloadResult117);
-            return evaluatedValue118;
+            var runPolicy = ReadLegacyPayload<FlowRunPolicyDto>(operation, path, legacyEnums: true);
+            return new(op, RunPolicy: runPolicy);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue119()
+        FlowPatchCanonicalOperationDto ReadReplaceScriptSource()
         {
-            var readLegacyIdentifierResult120 = ReadLegacyIdentifier(operation, "canvasId", path);
-            var readLegacyIdentifierResult121 = ReadLegacyIdentifier(operation, "nodeId", path);
-            var readLegacyPayloadResult122 = ReadLegacyPayload<string>(operation, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue123 = new(op, readLegacyIdentifierResult120, readLegacyIdentifierResult121, Source: readLegacyPayloadResult122);
-            return evaluatedValue123;
+            var canvasId = ReadLegacyIdentifier(operation, "canvasId", path);
+            var nodeId = ReadLegacyIdentifier(operation, "nodeId", path);
+            var source = ReadLegacyPayload<string>(operation, path, legacyEnums: true);
+            return new(op, canvasId, nodeId, Source: source);
         }
     }
 
@@ -482,157 +435,137 @@ public sealed class FlowPatchContractNormalizer
     {
         ArgumentNullException.ThrowIfNull(operation);
         var value = operation.Value;
-        FlowPatchCanonicalOperationDto evaluatedValue188 = operation.Operation switch
+        return operation.Operation switch
         {
-            FlowPatchOperationKindDto.AddCanvas => resolveevaluatedValue125(),
-            FlowPatchOperationKindDto.UpdateCanvas => resolveevaluatedValue127(),
-            FlowPatchOperationKindDto.RemoveCanvas => resolveevaluatedValue130(),
-            FlowPatchOperationKindDto.AddNode => resolveevaluatedValue133(),
-            FlowPatchOperationKindDto.ReplaceNode => resolveevaluatedValue137(),
-            FlowPatchOperationKindDto.RemoveNode => resolveevaluatedValue142(),
-            FlowPatchOperationKindDto.SetNodeParameter => resolveevaluatedValue146(),
-            FlowPatchOperationKindDto.AddNodeParameter => resolveevaluatedValue152(),
-            FlowPatchOperationKindDto.RemoveNodeParameter => resolveevaluatedValue157(),
-            FlowPatchOperationKindDto.AddConnection => resolveevaluatedValue162(),
-            FlowPatchOperationKindDto.ReplaceConnection => resolveevaluatedValue167(),
-            FlowPatchOperationKindDto.RemoveConnection => resolveevaluatedValue173(),
-            FlowPatchOperationKindDto.SetEntryNode => resolveevaluatedValue177(),
-            FlowPatchOperationKindDto.SetRunPolicy => resolveevaluatedValue180(),
-            FlowPatchOperationKindDto.ReplaceScriptSource => resolveevaluatedValue183(),
+            FlowPatchOperationKindDto.AddCanvas => ReadAddCanvas(),
+            FlowPatchOperationKindDto.UpdateCanvas => ReadUpdateCanvas(),
+            FlowPatchOperationKindDto.RemoveCanvas => ReadRemoveCanvas(),
+            FlowPatchOperationKindDto.AddNode => ReadAddNode(),
+            FlowPatchOperationKindDto.ReplaceNode => ReadReplaceNode(),
+            FlowPatchOperationKindDto.RemoveNode => ReadRemoveNode(),
+            FlowPatchOperationKindDto.SetNodeParameter => ReadSetNodeParameter(),
+            FlowPatchOperationKindDto.AddNodeParameter => ReadAddNodeParameter(),
+            FlowPatchOperationKindDto.RemoveNodeParameter => ReadRemoveNodeParameter(),
+            FlowPatchOperationKindDto.AddConnection => ReadAddConnection(),
+            FlowPatchOperationKindDto.ReplaceConnection => ReadReplaceConnection(),
+            FlowPatchOperationKindDto.RemoveConnection => ReadRemoveConnection(),
+            FlowPatchOperationKindDto.SetEntryNode => ReadSetEntryNode(),
+            FlowPatchOperationKindDto.SetRunPolicy => ReadSetRunPolicy(),
+            FlowPatchOperationKindDto.ReplaceScriptSource => ReadReplaceScriptSource(),
             _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a supported legacy operation", "Create a new schema 2.0 preview. 请创建新的架构 2.0 预览。")
         };
-        return evaluatedValue188;
-        FlowPatchCanonicalOperationDto resolveevaluatedValue125()
+        FlowPatchCanonicalOperationDto ReadAddCanvas()
         {
-            var readPersistedPayloadResult = ReadPersistedPayload<CanvasDto>(value, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue126 = new("addCanvas", Canvas: readPersistedPayloadResult);
-            return evaluatedValue126;
+            var canvas = ReadPersistedPayload<CanvasDto>(value, path, legacyEnums: true);
+            return new("addCanvas", Canvas: canvas);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue127()
+        FlowPatchCanonicalOperationDto ReadUpdateCanvas()
         {
-            var requiredResult = Required(operation.CanvasId, $"{path}.canvasId");
-            var readPersistedPayloadResult128 = ReadPersistedPayload<CanvasDto>(value, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue129 = new("updateCanvas", requiredResult, Canvas: readPersistedPayloadResult128);
-            return evaluatedValue129;
+            var canvasId = Required(operation.CanvasId, $"{path}.canvasId");
+            var nodeId = ReadPersistedPayload<CanvasDto>(value, path, legacyEnums: true);
+            return new("updateCanvas", canvasId, Canvas: nodeId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue130()
+        FlowPatchCanonicalOperationDto ReadRemoveCanvas()
         {
-            var requiredResult131 = Required(operation.CanvasId, $"{path}.canvasId");
-            FlowPatchCanonicalOperationDto evaluatedValue132 = new("removeCanvas", requiredResult131);
-            return evaluatedValue132;
+            var canvasId = Required(operation.CanvasId, $"{path}.canvasId");
+            return new("removeCanvas", canvasId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue133()
+        FlowPatchCanonicalOperationDto ReadAddNode()
         {
-            var requiredResult134 = Required(operation.CanvasId, $"{path}.canvasId");
-            var readPersistedPayloadResult135 = ReadPersistedPayload<NodeDto>(value, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue136 = new("addNode", requiredResult134, Node: readPersistedPayloadResult135);
-            return evaluatedValue136;
+            var canvasId = Required(operation.CanvasId, $"{path}.canvasId");
+            var node = ReadPersistedPayload<NodeDto>(value, path, legacyEnums: true);
+            return new("addNode", canvasId, Node: node);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue137()
+        FlowPatchCanonicalOperationDto ReadReplaceNode()
         {
-            var requiredResult138 = Required(operation.CanvasId, $"{path}.canvasId");
-            var requiredResult139 = Required(operation.NodeId, $"{path}.nodeId");
-            var readPersistedPayloadResult140 = ReadPersistedPayload<NodeDto>(value, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue141 = new("replaceNode", requiredResult138, requiredResult139, Node: readPersistedPayloadResult140);
-            return evaluatedValue141;
+            var canvasId = Required(operation.CanvasId, $"{path}.canvasId");
+            var nodeId = Required(operation.NodeId, $"{path}.nodeId");
+            var connectionId = ReadPersistedPayload<NodeDto>(value, path, legacyEnums: true);
+            return new("replaceNode", canvasId, nodeId, Node: connectionId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue142()
+        FlowPatchCanonicalOperationDto ReadRemoveNode()
         {
-            var requiredResult143 = Required(operation.CanvasId, $"{path}.canvasId");
-            var requiredResult144 = Required(operation.NodeId, $"{path}.nodeId");
-            FlowPatchCanonicalOperationDto evaluatedValue145 = new("removeNode", requiredResult143, requiredResult144);
-            return evaluatedValue145;
+            var canvasId = Required(operation.CanvasId, $"{path}.canvasId");
+            var nodeId = Required(operation.NodeId, $"{path}.nodeId");
+            return new("removeNode", canvasId, nodeId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue146()
+        FlowPatchCanonicalOperationDto ReadSetNodeParameter()
         {
-            var requiredResult147 = Required(operation.CanvasId, $"{path}.canvasId");
-            var requiredResult148 = Required(operation.NodeId, $"{path}.nodeId");
-            var requiredResult149 = Required(operation.ParameterId, $"{path}.parameterId");
-            var readPersistedPayloadResult150 = ReadPersistedPayload<NodeParameterDto>(value, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue151 = new("setNodeParameter", requiredResult147, requiredResult148, ParameterId: requiredResult149, Parameter: readPersistedPayloadResult150);
-            return evaluatedValue151;
+            var canvasId = Required(operation.CanvasId, $"{path}.canvasId");
+            var nodeId = Required(operation.NodeId, $"{path}.nodeId");
+            var parameterId = Required(operation.ParameterId, $"{path}.parameterId");
+            var parameter = ReadPersistedPayload<NodeParameterDto>(value, path, legacyEnums: true);
+            return new("setNodeParameter", canvasId, nodeId, ParameterId: parameterId, Parameter: parameter);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue152()
+        FlowPatchCanonicalOperationDto ReadAddNodeParameter()
         {
-            var requiredResult153 = Required(operation.CanvasId, $"{path}.canvasId");
-            var requiredResult154 = Required(operation.NodeId, $"{path}.nodeId");
-            var readPersistedPayloadResult155 = ReadPersistedPayload<NodeParameterDto>(value, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue156 = new("addNodeParameter", requiredResult153, requiredResult154, Parameter: readPersistedPayloadResult155);
-            return evaluatedValue156;
+            var canvasId = Required(operation.CanvasId, $"{path}.canvasId");
+            var nodeId = Required(operation.NodeId, $"{path}.nodeId");
+            var nodeParameterDto = ReadPersistedPayload<NodeParameterDto>(value, path, legacyEnums: true);
+            return new("addNodeParameter", canvasId, nodeId, Parameter: nodeParameterDto);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue157()
+        FlowPatchCanonicalOperationDto ReadRemoveNodeParameter()
         {
-            var requiredResult158 = Required(operation.CanvasId, $"{path}.canvasId");
-            var requiredResult159 = Required(operation.NodeId, $"{path}.nodeId");
-            var requiredResult160 = Required(operation.ParameterId, $"{path}.parameterId");
-            FlowPatchCanonicalOperationDto evaluatedValue161 = new("removeNodeParameter", requiredResult158, requiredResult159, ParameterId: requiredResult160);
-            return evaluatedValue161;
+            var canvasId = Required(operation.CanvasId, $"{path}.canvasId");
+            var nodeId = Required(operation.NodeId, $"{path}.nodeId");
+            var parameterId = Required(operation.ParameterId, $"{path}.parameterId");
+            return new("removeNodeParameter", canvasId, nodeId, ParameterId: parameterId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue162()
+        FlowPatchCanonicalOperationDto ReadAddConnection()
         {
-            var requiredResult163 = Required(operation.CanvasId, $"{path}.canvasId");
-            var readPersistedPayloadResult164 = ReadPersistedPayload<ConnectionDto>(value, path, legacyEnums: true);
-            var normalizeConnectionResult165 = NormalizeConnection(readPersistedPayloadResult164);
-            FlowPatchCanonicalOperationDto evaluatedValue166 = new("addConnection", requiredResult163, Connection: normalizeConnectionResult165);
-            return evaluatedValue166;
+            var canvasId = Required(operation.CanvasId, $"{path}.canvasId");
+            var connection = NormalizeConnection(ReadPersistedPayload<ConnectionDto>(value, path, legacyEnums: true));
+            return new("addConnection", canvasId, Connection: connection);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue167()
+        FlowPatchCanonicalOperationDto ReadReplaceConnection()
         {
-            var requiredResult168 = Required(operation.CanvasId, $"{path}.canvasId");
-            var requiredResult169 = Required(operation.ConnectionId, $"{path}.connectionId");
-            var readPersistedPayloadResult170 = ReadPersistedPayload<ConnectionDto>(value, path, legacyEnums: true);
-            var normalizeConnectionResult171 = NormalizeConnection(readPersistedPayloadResult170);
-            FlowPatchCanonicalOperationDto evaluatedValue172 = new("replaceConnection", requiredResult168, ConnectionId: requiredResult169, Connection: normalizeConnectionResult171);
-            return evaluatedValue172;
+            var canvasId = Required(operation.CanvasId, $"{path}.canvasId");
+            var connectionId = Required(operation.ConnectionId, $"{path}.connectionId");
+            var normalizeConnection = NormalizeConnection(ReadPersistedPayload<ConnectionDto>(value, path, legacyEnums: true));
+            return new("replaceConnection", canvasId, ConnectionId: connectionId, Connection: normalizeConnection);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue173()
+        FlowPatchCanonicalOperationDto ReadRemoveConnection()
         {
-            var requiredResult174 = Required(operation.CanvasId, $"{path}.canvasId");
-            var requiredResult175 = Required(operation.ConnectionId, $"{path}.connectionId");
-            FlowPatchCanonicalOperationDto evaluatedValue176 = new("removeConnection", requiredResult174, ConnectionId: requiredResult175);
-            return evaluatedValue176;
+            var canvasId = Required(operation.CanvasId, $"{path}.canvasId");
+            var connectionId = Required(operation.ConnectionId, $"{path}.connectionId");
+            return new("removeConnection", canvasId, ConnectionId: connectionId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue177()
+        FlowPatchCanonicalOperationDto ReadSetEntryNode()
         {
-            var readPersistedPayloadResult178 = ReadPersistedPayload<string>(value, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue179 = new("setEntryNode", EntryNodeId: readPersistedPayloadResult178);
-            return evaluatedValue179;
+            var entryNodeId = ReadPersistedPayload<string>(value, path, legacyEnums: true);
+            return new("setEntryNode", EntryNodeId: entryNodeId);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue180()
+        FlowPatchCanonicalOperationDto ReadSetRunPolicy()
         {
-            var readPersistedPayloadResult181 = ReadPersistedPayload<FlowRunPolicyDto>(value, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue182 = new("setRunPolicy", RunPolicy: readPersistedPayloadResult181);
-            return evaluatedValue182;
+            var runPolicy = ReadPersistedPayload<FlowRunPolicyDto>(value, path, legacyEnums: true);
+            return new("setRunPolicy", RunPolicy: runPolicy);
         }
 
-        FlowPatchCanonicalOperationDto resolveevaluatedValue183()
+        FlowPatchCanonicalOperationDto ReadReplaceScriptSource()
         {
-            var requiredResult184 = Required(operation.CanvasId, $"{path}.canvasId");
-            var requiredResult185 = Required(operation.NodeId, $"{path}.nodeId");
-            var readPersistedPayloadResult186 = ReadPersistedPayload<string>(value, path, legacyEnums: true);
-            FlowPatchCanonicalOperationDto evaluatedValue187 = new("replaceScriptSource", requiredResult184, requiredResult185, Source: readPersistedPayloadResult186);
-            return evaluatedValue187;
+            var canvasId = Required(operation.CanvasId, $"{path}.canvasId");
+            var nodeId = Required(operation.NodeId, $"{path}.nodeId");
+            var source = ReadPersistedPayload<string>(value, path, legacyEnums: true);
+            return new("replaceScriptSource", canvasId, nodeId, Source: source);
         }
     }
 
     private static T ReadLegacyPayload<T>(JsonElement operation, string path, bool legacyEnums)
     {
-        var requirePropertyResult189 = RequireProperty(operation, "value", $"{path}.value");
-        var readPayloadResult = ReadPayload<T>(requirePropertyResult189, $"{path}.value", legacyEnums);
-        return readPayloadResult;
+        return ReadPayload<T>(RequireProperty(operation, "value", $"{path}.value"), $"{path}.value", legacyEnums);
     }
 
     private static T ReadPersistedPayload<T>(JsonElement? value, string path, bool legacyEnums)
@@ -641,42 +574,31 @@ public sealed class FlowPatchContractNormalizer
         {
             throw Invalid(McpErrorCodes.FlowPatchFieldRequired, $"{path}.value", "a value", "Provide the operation payload. 请提供操作载荷。");
         }
-
-        var readPayloadResult190 = ReadPayload<T>(payload, $"{path}.value", legacyEnums);
-        return readPayloadResult190;
+        return ReadPayload<T>(payload, $"{path}.value", legacyEnums);
     }
 
     private static CanvasDto ReadCanvas(JsonElement operation, string name, string path, bool legacyEnums, string[] allowed)
     {
         EnsureKnownProperties(operation, path, allowed);
-        var requirePropertyResult191 = RequireProperty(operation, name, $"{path}.{name}");
-        var readPayloadResult192 = ReadPayload<CanvasDto>(requirePropertyResult191, $"{path}.{name}", legacyEnums);
-        return readPayloadResult192;
+        return ReadPayload<CanvasDto>(RequireProperty(operation, name, $"{path}.{name}"), $"{path}.{name}", legacyEnums);
     }
 
     private static NodeDto ReadNode(JsonElement operation, string name, string path, bool legacyEnums, string[] allowed)
     {
         EnsureKnownProperties(operation, path, allowed);
-        var requirePropertyResult193 = RequireProperty(operation, name, $"{path}.{name}");
-        var readPayloadResult194 = ReadPayload<NodeDto>(requirePropertyResult193, $"{path}.{name}", legacyEnums);
-        return readPayloadResult194;
+        return ReadPayload<NodeDto>(RequireProperty(operation, name, $"{path}.{name}"), $"{path}.{name}", legacyEnums);
     }
 
     private static NodeParameterDto ReadParameter(JsonElement operation, string name, string path, bool legacyEnums, string[] allowed)
     {
         EnsureKnownProperties(operation, path, allowed);
-        var requirePropertyResult195 = RequireProperty(operation, name, $"{path}.{name}");
-        var readPayloadResult196 = ReadPayload<NodeParameterDto>(requirePropertyResult195, $"{path}.{name}", legacyEnums);
-        return readPayloadResult196;
+        return ReadPayload<NodeParameterDto>(RequireProperty(operation, name, $"{path}.{name}"), $"{path}.{name}", legacyEnums);
     }
 
     private static ConnectionDto ReadConnection(JsonElement operation, string name, string path, bool legacyEnums, string[] allowed)
     {
         EnsureKnownProperties(operation, path, allowed);
-        var requirePropertyResult197 = RequireProperty(operation, name, $"{path}.{name}");
-        var readPayloadResult198 = ReadPayload<ConnectionDto>(requirePropertyResult197, $"{path}.{name}", legacyEnums);
-        var normalizeConnectionResult199 = NormalizeConnection(readPayloadResult198);
-        return normalizeConnectionResult199;
+        return NormalizeConnection(ReadPayload<ConnectionDto>(RequireProperty(operation, name, $"{path}.{name}"), $"{path}.{name}", legacyEnums));
     }
 
     private static ConnectionDto NormalizeConnection(ConnectionDto connection) => connection with
@@ -686,9 +608,7 @@ public sealed class FlowPatchContractNormalizer
     private static FlowRunPolicyDto ReadRunPolicy(JsonElement operation, string name, string path, bool legacyEnums, string[] allowed)
     {
         EnsureKnownProperties(operation, path, allowed);
-        var requirePropertyResult200 = RequireProperty(operation, name, $"{path}.{name}");
-        var readPayloadResult201 = ReadPayload<FlowRunPolicyDto>(requirePropertyResult200, $"{path}.{name}", legacyEnums);
-        return readPayloadResult201;
+        return ReadPayload<FlowRunPolicyDto>(RequireProperty(operation, name, $"{path}.{name}"), $"{path}.{name}", legacyEnums);
     }
 
     private static T ReadPayload<T>(JsonElement payload, string path, bool legacyEnums)
@@ -696,8 +616,7 @@ public sealed class FlowPatchContractNormalizer
         ValidatePayload<T>(payload, path, legacyEnums);
         try
         {
-            var evaluatedValue202 = payload.Deserialize<T>(JsonOptions) ?? throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, typeof(T).Name, "Provide a valid typed payload. 请提供有效的强类型载荷。");
-            return evaluatedValue202;
+            return payload.Deserialize<T>(JsonOptions) ?? throw Invalid(McpErrorCodes.FlowPatchPayloadInvalid, path, typeof(T).Name, "Provide a valid typed payload. 请提供有效的强类型载荷。");
         }
         catch (JsonException)
         {
@@ -741,9 +660,7 @@ public sealed class FlowPatchContractNormalizer
             EnsureKnownProperties(payload, path, ["id", "lifecycle", "nodes", "connections", "name"]);
             _ = ReadRequiredString(payload, "id", $"{path}.id");
         }
-
-        var requirePropertyResult203 = RequireProperty(payload, "lifecycle", $"{path}.lifecycle");
-        ValidateEnum(requirePropertyResult203, $"{path}.lifecycle", legacyEnums, CanvasLifecycles);
+        ValidateEnum(RequireProperty(payload, "lifecycle", $"{path}.lifecycle"), $"{path}.lifecycle", legacyEnums, CanvasLifecycles);
         var nodes = RequireProperty(payload, "nodes", $"{path}.nodes");
         var connections = RequireProperty(payload, "connections", $"{path}.connections");
         RequireArray(nodes, $"{path}.nodes");
@@ -768,9 +685,7 @@ public sealed class FlowPatchContractNormalizer
         {
             EnsureKnownProperties(payload, path, ["id", "type", "displayName", "x", "y", "ports", "parameters", "script", "ui"]);
         }
-
-        var requirePropertyResult205 = RequireProperty(payload, "type", $"{path}.type");
-        var nodeType = ValidateEnum(requirePropertyResult205, $"{path}.type", legacyEnums, NodeTypes).Canonical;
+        var nodeType = ValidateEnum(RequireProperty(payload, "type", $"{path}.type"), $"{path}.type", legacyEnums, NodeTypes).Canonical;
         string? nodeId = null;
         if (!legacyEnums)
         {
@@ -792,8 +707,8 @@ public sealed class FlowPatchContractNormalizer
             if (!legacyEnums)
             {
                 EnsureKnownProperties(port, $"{path}.ports[{index}]", ["id", "name", "direction", "required"]);
-                var portId = ReadRequiredString(port, "id", $"{path}.ports[{index}].id");
-                if (!portIds.Add(portId))
+                var id = ReadRequiredString(port, "id", $"{path}.ports[{index}].id");
+                if (!portIds.Add(id))
                 {
                     throw Invalid(McpErrorCodes.FlowPatchDuplicateId, $"{path}.ports[{index}].id", "a unique port ID", "Use a unique port ID on the node. 请在节点上使用唯一的端口 ID。");
                 }
@@ -820,8 +735,8 @@ public sealed class FlowPatchContractNormalizer
                     throw Invalid(McpErrorCodes.FlowPatchFieldRequired, parameterPath, "parameter UI metadata", "Provide the parameter contract ID in ui.id. 请在 ui.id 中提供参数契约 ID。");
                 }
 
-                var parameterId = ReadRequiredString(parameterUi, "id", $"{parameterPath}.id");
-                if (!parameterIds.Add(parameterId))
+                var id = ReadRequiredString(parameterUi, "id", $"{parameterPath}.id");
+                if (!parameterIds.Add(id))
                 {
                     throw Invalid(McpErrorCodes.FlowPatchDuplicateId, $"{parameterPath}.id", "a unique parameter ID", "Use a unique parameter ID on the node. 请在节点上使用唯一的参数 ID。");
                 }
@@ -837,16 +752,15 @@ public sealed class FlowPatchContractNormalizer
             }
 
             ValidateScriptPayload(script, $"{path}.script", legacyEnums);
-            if (!legacyEnums && !resolveEqualsResult())
+            if (!legacyEnums && !ScriptNodeIdMatches())
             {
                 throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.script.nodeId", $"the node ID '{nodeId}'", "Make script.nodeId match node.id. 请确保 script.nodeId 与 node.id 一致。");
             }
 
-            bool resolveEqualsResult()
+            bool ScriptNodeIdMatches()
             {
-                var readRequiredStringResult204 = ReadRequiredString(script, "nodeId", $"{path}.script.nodeId");
-                var equalsResult = string.Equals(nodeId, readRequiredStringResult204, StringComparison.Ordinal);
-                return equalsResult;
+                var nodeId = ReadRequiredString(script, "nodeId", $"{path}.script.nodeId");
+                return string.Equals(nodeId, nodeId, StringComparison.Ordinal);
             }
         }
         else if (hasScript)
@@ -870,9 +784,7 @@ public sealed class FlowPatchContractNormalizer
             RequireNullableString(payload, "valueJson", $"{path}.valueJson");
             RequireBoolean(payload, "required", $"{path}.required");
         }
-
-        var requirePropertyResult206 = RequireProperty(payload, "source", $"{path}.source");
-        ValidateEnum(requirePropertyResult206, $"{path}.source", legacyEnums, DataSources);
+        ValidateEnum(RequireProperty(payload, "source", $"{path}.source"), $"{path}.source", legacyEnums, DataSources);
         if (payload.TryGetProperty("ui", out var ui) && ui.ValueKind != JsonValueKind.Null)
         {
             ValidateParameterUiPayload(ui, $"{path}.ui", legacyEnums);
@@ -894,9 +806,7 @@ public sealed class FlowPatchContractNormalizer
             RequireNullableEnum(payload, "branch", $"{path}.branch", legacyEnums, ExecutionBranches);
             RequireNullableEnum(payload, "dataSource", $"{path}.dataSource", legacyEnums, DataSources);
         }
-
-        var requirePropertyResult207 = RequireProperty(payload, "kind", $"{path}.kind");
-        ValidateEnum(requirePropertyResult207, $"{path}.kind", legacyEnums, ConnectionKinds);
+        ValidateEnum(RequireProperty(payload, "kind", $"{path}.kind"), $"{path}.kind", legacyEnums, ConnectionKinds);
         if (payload.TryGetProperty("branch", out var branch) && branch.ValueKind != JsonValueKind.Null)
         {
             ValidateEnum(branch, $"{path}.branch", legacyEnums, ExecutionBranches);
@@ -915,9 +825,7 @@ public sealed class FlowPatchContractNormalizer
         {
             EnsureKnownProperties(payload, path, ["concurrencyMode"]);
         }
-
-        var requirePropertyResult208 = RequireProperty(payload, "concurrencyMode", $"{path}.concurrencyMode");
-        ValidateEnum(requirePropertyResult208, $"{path}.concurrencyMode", legacyEnums, ConcurrencyModes);
+        ValidateEnum(RequireProperty(payload, "concurrencyMode", $"{path}.concurrencyMode"), $"{path}.concurrencyMode", legacyEnums, ConcurrencyModes);
     }
 
     private static void ValidateScriptPayload(JsonElement payload, string path, bool legacyEnums)
@@ -931,11 +839,8 @@ public sealed class FlowPatchContractNormalizer
             _ = ReadRequiredString(payload, "languageVersion", $"{path}.languageVersion");
             _ = ReadOptionalString(payload, "sourceHash", $"{path}.sourceHash");
         }
-
-        var requirePropertyResult209 = RequireProperty(payload, "inputs", $"{path}.inputs");
-        ValidateScriptValues(requirePropertyResult209, $"{path}.inputs", legacyEnums);
-        var requirePropertyResult210 = RequireProperty(payload, "outputs", $"{path}.outputs");
-        ValidateScriptValues(requirePropertyResult210, $"{path}.outputs", legacyEnums);
+        ValidateScriptValues(RequireProperty(payload, "inputs", $"{path}.inputs"), $"{path}.inputs", legacyEnums);
+        ValidateScriptValues(RequireProperty(payload, "outputs", $"{path}.outputs"), $"{path}.outputs", legacyEnums);
     }
 
     private static void ValidateScriptValues(JsonElement values, string path, bool legacyEnums)
@@ -1080,8 +985,7 @@ public sealed class FlowPatchContractNormalizer
             var supplied = value.GetString();
             var canonical = allowed.FirstOrDefault(item =>
             {
-                var equalsResult211 = string.Equals(item.Canonical, supplied, StringComparison.Ordinal);
-                return equalsResult211;
+                return string.Equals(item.Canonical, supplied, StringComparison.Ordinal);
             });
             if (canonical is not null)
             {
@@ -1092,8 +996,7 @@ public sealed class FlowPatchContractNormalizer
             {
                 var pascalCase = allowed.FirstOrDefault(item =>
                 {
-                    var equalsResult212 = string.Equals(item.LegacyPascalCase, supplied, StringComparison.Ordinal);
-                    return equalsResult212;
+                    return string.Equals(item.LegacyPascalCase, supplied, StringComparison.Ordinal);
                 });
                 if (pascalCase is not null)
                 {
@@ -1105,9 +1008,7 @@ public sealed class FlowPatchContractNormalizer
         {
             return numericMatch;
         }
-
-        var selectResult213 = allowed.Select(static item => $"'{item.Canonical}'");
-        var expected = string.Join(", ", selectResult213);
+        var expected = string.Join(", ", allowed.Select(static item => $"'{item.Canonical}'"));
         throw Invalid(McpErrorCodes.FlowPatchEnumEncodingInvalid, path, expected, $"Use canonical {FlowPatchContract.EnumEncoding} enum strings for schema {FlowPatchContract.CurrentSchemaVersion}. 请按上述架构版本使用规范的枚举字符串编码。");
     }
 
@@ -1124,7 +1025,7 @@ public sealed class FlowPatchContractNormalizer
     {
         if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var numeric))
         {
-            string evaluatedValue214 = numeric switch
+            return numeric switch
             {
                 0 => "addCanvas",
                 1 => "updateCanvas",
@@ -1143,15 +1044,13 @@ public sealed class FlowPatchContractNormalizer
                 14 => "removeNodeParameter",
                 _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a known legacy operation number", "Use a schema 2.0 op string. 请使用架构 2.0 的 op 字符串。")
             };
-            return evaluatedValue214;
         }
 
         if (value.ValueKind != JsonValueKind.String)
         {
             throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a legacy operation string", "Use a schema 2.0 op string. 请使用架构 2.0 的 op 字符串。");
         }
-
-        string evaluatedValue215 = value.GetString() switch
+        return value.GetString() switch
         {
             "addCanvas" or "AddCanvas" or "add_canvas" => "addCanvas",
             "updateCanvas" or "UpdateCanvas" or "update_canvas" => "updateCanvas",
@@ -1170,7 +1069,6 @@ public sealed class FlowPatchContractNormalizer
             "replaceScriptSource" or "ReplaceScriptSource" or "replace_script_source" => "replaceScriptSource",
             _ => throw Invalid(McpErrorCodes.FlowPatchOperationUnknown, path, "a supported legacy operation name", "Use a schema 2.0 op string. 请使用架构 2.0 的 op 字符串。")
         };
-        return evaluatedValue215;
     }
 
     private static Guid ReadGuid(JsonElement source, string name, string path)
@@ -1208,8 +1106,7 @@ public sealed class FlowPatchContractNormalizer
 
         if (value.ValueKind == JsonValueKind.String)
         {
-            var getStringResult = value.GetString();
-            return getStringResult;
+            return value.GetString();
         }
 
         throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a string or null", "Use a string value for this field. 此字段请使用字符串值。");
@@ -1217,27 +1114,18 @@ public sealed class FlowPatchContractNormalizer
 
     private static string ReadLegacyIdentifier(JsonElement source, string name, string path)
     {
-        var readRequiredStringResult216 = ReadRequiredString(source, name, $"{path}.{name}");
-        return readRequiredStringResult216;
+        return ReadRequiredString(source, name, $"{path}.{name}");
     }
 
     private static string ReadRequiredString(JsonElement source, string name, string path)
     {
         var value = RequireProperty(source, name, path);
-        if (value.ValueKind == JsonValueKind.String && !resolveIsNullOrWhiteSpaceResult())
+        if (value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(value.GetString()))
         {
-            var evaluatedValue217 = value.GetString()!;
-            var trimResult = evaluatedValue217.Trim();
-            return trimResult;
+            return (value.GetString()!).Trim();
         }
 
         throw Invalid(McpErrorCodes.FlowPatchFieldInvalid, path, "a non-empty string", "Provide the required field value. 请提供必填字段的值。");
-        bool resolveIsNullOrWhiteSpaceResult()
-        {
-            var getStringResult218 = value.GetString();
-            var isNullOrWhiteSpaceResult = string.IsNullOrWhiteSpace(getStringResult218);
-            return isNullOrWhiteSpaceResult;
-        }
     }
 
     private static void RequireNullableString(JsonElement source, string name, string path)
@@ -1302,21 +1190,18 @@ public sealed class FlowPatchContractNormalizer
 
     private static bool HasAnyProperty(JsonElement source, IReadOnlyCollection<string> names)
     {
-        var anyResult = source.EnumerateObject()
+        return source.EnumerateObject()
             .Any(property =>
             {
-                var evaluatedValue219 = names.Contains(property.Name, StringComparer.Ordinal) && property.Value.ValueKind != JsonValueKind.Null;
-                return evaluatedValue219;
+                return names.Contains(property.Name, StringComparer.Ordinal) && property.Value.ValueKind != JsonValueKind.Null;
             });
-        return anyResult;
     }
 
     private static string Required(string? value, string path)
     {
         if (!string.IsNullOrWhiteSpace(value))
         {
-            var trimResult220 = value.Trim();
-            return trimResult220;
+            return value.Trim();
         }
 
         throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, "a non-empty string", "Provide the required field value. 请提供必填字段的值。");
@@ -1338,9 +1223,8 @@ public sealed class FlowPatchContractNormalizer
         {
             if (!allowed.Contains(property.Name, StringComparer.Ordinal))
             {
-                var selectResult221 = allowed.Select(static item => $"'{item}'");
-                var joinResult = string.Join(", ", selectResult221);
-                throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, $"{path}.{property.Name}", joinResult, "Remove fields that are not defined by this operation schema. 请移除此操作架构未定义的字段。");
+                var expected = string.Join(", ", allowed.Select(static item => $"'{item}'"));
+                throw Invalid(McpErrorCodes.FlowPatchUnexpectedField, $"{path}.{property.Name}", expected, "Remove fields that are not defined by this operation schema. 请移除此操作架构未定义的字段。");
             }
         }
     }
@@ -1363,8 +1247,7 @@ public sealed class FlowPatchContractNormalizer
 
     private static FlowPatchContractException Invalid(string code, string fieldPath, string expected, string remediation)
     {
-        FlowPatchContractException evaluatedValue222 = new(code, fieldPath, expected, remediation);
-        return evaluatedValue222;
+        return new(code, fieldPath, expected, remediation);
     }
 
     private sealed class PatchReferenceState
@@ -1380,21 +1263,18 @@ public sealed class FlowPatchContractNormalizer
             var canvases = new Dictionary<string, CanvasReferenceState>(StringComparer.Ordinal);
             foreach (var canvas in definition.Canvases)
             {
-                if (!resolveTryAddResult())
+                if (!TryAddCurrentCanvas())
                 {
                     throw Invalid(McpErrorCodes.FlowPatchDuplicateId, "$.current.canvases", "unique canvas IDs", "Repair the current flow before submitting a patch. 请先修复当前流程，再提交补丁。");
                 }
 
-                bool resolveTryAddResult()
+                bool TryAddCurrentCanvas()
                 {
-                    var fromCanvasResult = CanvasReferenceState.FromCanvas(canvas, "$.current.canvases");
-                    var tryAddResult = canvases.TryAdd(canvas.Id, fromCanvasResult);
-                    return tryAddResult;
+                    var fromCanvas = CanvasReferenceState.FromCanvas(canvas, "$.current.canvases");
+                    return canvases.TryAdd(canvas.Id, fromCanvas);
                 }
             }
-
-            var patchReferenceState = new PatchReferenceState(canvases);
-            return patchReferenceState;
+            return new PatchReferenceState(canvases);
         }
 
         public void Apply(FlowPatchCanonicalOperationDto operation, string path)
@@ -1405,18 +1285,17 @@ public sealed class FlowPatchContractNormalizer
                 case "addCanvas":
                     {
                         var canvas = RequireValue(operation.Canvas, $"{path}.canvas");
-                        if (!resolveTryAddResult223())
+                        if (!TryAddCanvas())
                         {
                             throw Duplicate($"{path}.canvas.id", "canvas ID");
                         }
 
                         ValidateConnections(_canvases[canvas.Id], $"{path}.canvas.connections");
                         return;
-                        bool resolveTryAddResult223()
+                        bool TryAddCanvas()
                         {
-                            var fromCanvasResult224 = CanvasReferenceState.FromCanvas(canvas, $"{path}.canvas");
-                            var tryAddResult225 = _canvases.TryAdd(canvas.Id, fromCanvasResult224);
-                            return tryAddResult225;
+                            var fromCanvas = CanvasReferenceState.FromCanvas(canvas, $"{path}.canvas");
+                            return _canvases.TryAdd(canvas.Id, fromCanvas);
                         }
                     }
 
@@ -1447,27 +1326,26 @@ public sealed class FlowPatchContractNormalizer
 
                 case "addNode":
                     {
-                        var requireIdResult = RequireId(operation.CanvasId, $"{path}.canvasId");
-                        var canvas = RequireCanvas(requireIdResult, $"{path}.canvasId");
+                        var requireId = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(requireId, $"{path}.canvasId");
                         var node = RequireValue(operation.Node, $"{path}.node");
-                        if (!resolveTryAddResult226())
+                        if (!TryAddNode())
                         {
                             throw Duplicate($"{path}.node.id", "node ID");
                         }
 
                         return;
-                        bool resolveTryAddResult226()
+                        bool TryAddNode()
                         {
-                            var fromNodeResult = NodeReferenceState.FromNode(node, $"{path}.node");
-                            var tryAddResult227 = canvas.Nodes.TryAdd(node.Id, fromNodeResult);
-                            return tryAddResult227;
+                            var fromNode = NodeReferenceState.FromNode(node, $"{path}.node");
+                            return canvas.Nodes.TryAdd(node.Id, fromNode);
                         }
                     }
 
                 case "replaceNode":
                     {
-                        var requireIdResult228 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                        var canvas = RequireCanvas(requireIdResult228, $"{path}.canvasId");
+                        var mappedCanvasId = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(mappedCanvasId, $"{path}.canvasId");
                         var nodeId = RequireId(operation.NodeId, $"{path}.nodeId");
                         var node = RequireValue(operation.Node, $"{path}.node");
                         RequireMatchingId(nodeId, node.Id, $"{path}.node.id");
@@ -1483,8 +1361,8 @@ public sealed class FlowPatchContractNormalizer
 
                 case "removeNode":
                     {
-                        var requireIdResult229 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                        var canvas = RequireCanvas(requireIdResult229, $"{path}.canvasId");
+                        var resolvedCanvasId = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(resolvedCanvasId, $"{path}.canvasId");
                         var nodeId = RequireId(operation.NodeId, $"{path}.nodeId");
                         if (!canvas.Nodes.ContainsKey(nodeId))
                         {
@@ -1502,13 +1380,11 @@ public sealed class FlowPatchContractNormalizer
 
                 case "setNodeParameter":
                     {
-                        var requireIdResult230 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                        var canvas = RequireCanvas(requireIdResult230, $"{path}.canvasId");
-                        var requireIdResult231 = RequireId(operation.NodeId, $"{path}.nodeId");
-                        var node = RequireNode(canvas, requireIdResult231, $"{path}.nodeId");
+                        var validatedCanvasId = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(validatedCanvasId, $"{path}.canvasId");
+                        var node = RequireNode(canvas, RequireId(operation.NodeId, $"{path}.nodeId"), $"{path}.nodeId");
                         var parameterId = RequireId(operation.ParameterId, $"{path}.parameterId");
-                        var parameter = RequireValue(operation.Parameter, $"{path}.parameter");
-                        var actualParameterId = RequireId(parameter.Ui?.Id, $"{path}.parameter.ui.id");
+                        var actualParameterId = RequireId(RequireValue(operation.Parameter, $"{path}.parameter").Ui?.Id, $"{path}.parameter.ui.id");
                         RequireMatchingId(parameterId, actualParameterId, $"{path}.parameter.ui.id");
                         if (!node.ParameterIds.Contains(parameterId))
                         {
@@ -1520,12 +1396,10 @@ public sealed class FlowPatchContractNormalizer
 
                 case "addNodeParameter":
                     {
-                        var requireIdResult232 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                        var canvas = RequireCanvas(requireIdResult232, $"{path}.canvasId");
-                        var requireIdResult233 = RequireId(operation.NodeId, $"{path}.nodeId");
-                        var node = RequireNode(canvas, requireIdResult233, $"{path}.nodeId");
-                        var parameter = RequireValue(operation.Parameter, $"{path}.parameter");
-                        var parameterId = RequireId(parameter.Ui?.Id, $"{path}.parameter.ui.id");
+                        var validatedCanvasId = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(validatedCanvasId, $"{path}.canvasId");
+                        var node = RequireNode(canvas, RequireId(operation.NodeId, $"{path}.nodeId"), $"{path}.nodeId");
+                        var parameterId = RequireId(RequireValue(operation.Parameter, $"{path}.parameter").Ui?.Id, $"{path}.parameter.ui.id");
                         if (!node.ParameterIds.Add(parameterId))
                         {
                             throw Duplicate($"{path}.parameter.ui.id", "parameter ID");
@@ -1536,8 +1410,8 @@ public sealed class FlowPatchContractNormalizer
 
                 case "removeNodeParameter":
                     {
-                        var requireIdResult234 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                        var canvas = RequireCanvas(requireIdResult234, $"{path}.canvasId");
+                        var validatedCanvasId = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(validatedCanvasId, $"{path}.canvasId");
                         var nodeId = RequireId(operation.NodeId, $"{path}.nodeId");
                         var node = RequireNode(canvas, nodeId, $"{path}.nodeId");
                         var parameterId = RequireId(operation.ParameterId, $"{path}.parameterId");
@@ -1557,8 +1431,8 @@ public sealed class FlowPatchContractNormalizer
 
                 case "addConnection":
                     {
-                        var requireIdResult235 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                        var canvas = RequireCanvas(requireIdResult235, $"{path}.canvasId");
+                        var validatedCanvasId = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(validatedCanvasId, $"{path}.canvasId");
                         var connection = RequireValue(operation.Connection, $"{path}.connection");
                         if (canvas.Connections.ContainsKey(connection.Id))
                         {
@@ -1572,8 +1446,8 @@ public sealed class FlowPatchContractNormalizer
 
                 case "replaceConnection":
                     {
-                        var requireIdResult236 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                        var canvas = RequireCanvas(requireIdResult236, $"{path}.canvasId");
+                        var validatedCanvasId = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(validatedCanvasId, $"{path}.canvasId");
                         var connectionId = RequireId(operation.ConnectionId, $"{path}.connectionId");
                         var connection = RequireValue(operation.Connection, $"{path}.connection");
                         RequireMatchingId(connectionId, connection.Id, $"{path}.connection.id");
@@ -1589,8 +1463,8 @@ public sealed class FlowPatchContractNormalizer
 
                 case "removeConnection":
                     {
-                        var requireIdResult237 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                        var canvas = RequireCanvas(requireIdResult237, $"{path}.canvasId");
+                        var validatedCanvasId = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(validatedCanvasId, $"{path}.canvasId");
                         var connectionId = RequireId(operation.ConnectionId, $"{path}.connectionId");
                         if (!canvas.Connections.Remove(connectionId))
                         {
@@ -1605,8 +1479,7 @@ public sealed class FlowPatchContractNormalizer
                         var entryNodeId = RequireId(operation.EntryNodeId, $"{path}.entryNodeId");
                         if (!_canvases.Values.Any(canvas =>
                         {
-                            var containsKeyResult = canvas.Nodes.ContainsKey(entryNodeId);
-                            return containsKeyResult;
+                            return canvas.Nodes.ContainsKey(entryNodeId);
                         }))
                         {
                             throw ReferenceInvalid($"{path}.entryNodeId", "an existing node ID");
@@ -1620,10 +1493,9 @@ public sealed class FlowPatchContractNormalizer
                     return;
                 case "replaceScriptSource":
                     {
-                        var requireIdResult238 = RequireId(operation.CanvasId, $"{path}.canvasId");
-                        var canvas = RequireCanvas(requireIdResult238, $"{path}.canvasId");
-                        var requireIdResult239 = RequireId(operation.NodeId, $"{path}.nodeId");
-                        var node = RequireNode(canvas, requireIdResult239, $"{path}.nodeId");
+                        var validatedCanvasId = RequireId(operation.CanvasId, $"{path}.canvasId");
+                        var canvas = RequireCanvas(validatedCanvasId, $"{path}.canvasId");
+                        var node = RequireNode(canvas, RequireId(operation.NodeId, $"{path}.nodeId"), $"{path}.nodeId");
                         if (!node.HasScript)
                         {
                             throw Invalid(McpErrorCodes.FlowPatchReferenceInvalid, $"{path}.nodeId", "an existing script node", "Use replaceScriptSource only with a script node. replaceScriptSource 仅适用于 script 节点。");
@@ -1639,14 +1511,12 @@ public sealed class FlowPatchContractNormalizer
 
         private CanvasReferenceState RequireCanvas(string canvasId, string path)
         {
-            FlowPatchContractNormalizer.PatchReferenceState.CanvasReferenceState evaluatedValue240 = _canvases.TryGetValue(canvasId, out var canvas) ? canvas : throw ReferenceInvalid(path, "an existing canvas ID");
-            return evaluatedValue240;
+            return _canvases.TryGetValue(canvasId, out var canvas) ? canvas : throw ReferenceInvalid(path, "an existing canvas ID");
         }
 
         private static NodeReferenceState RequireNode(CanvasReferenceState canvas, string nodeId, string path)
         {
-            FlowPatchContractNormalizer.PatchReferenceState.NodeReferenceState evaluatedValue241 = canvas.Nodes.TryGetValue(nodeId, out var node) ? node : throw ReferenceInvalid(path, "an existing node ID");
-            return evaluatedValue241;
+            return canvas.Nodes.TryGetValue(nodeId, out var node) ? node : throw ReferenceInvalid(path, "an existing node ID");
         }
 
         private static void ValidateConnections(CanvasReferenceState canvas, string path)
@@ -1685,14 +1555,12 @@ public sealed class FlowPatchContractNormalizer
         private static T RequireValue<T>(T? value, string path)
             where T : class
         {
-            var evaluatedValue242 = value ?? throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, "the operation payload", "Provide the payload required by the selected operation. 请提供所选操作要求的载荷。");
-            return evaluatedValue242;
+            return value ?? throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, "the operation payload", "Provide the payload required by the selected operation. 请提供所选操作要求的载荷。");
         }
 
         private static string RequireId(string? value, string path)
         {
-            string evaluatedValue243 = string.IsNullOrWhiteSpace(value) ? throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, "a non-empty ID", "Provide an ID from the flow edit model. 请提供流程编辑模型中的 ID。") : value.Trim();
-            return evaluatedValue243;
+            return string.IsNullOrWhiteSpace(value) ? throw Invalid(McpErrorCodes.FlowPatchFieldRequired, path, "a non-empty ID", "Provide an ID from the flow edit model. 请提供流程编辑模型中的 ID。") : value.Trim();
         }
 
         private static void RequireMatchingId(string expected, string actual, string path)
@@ -1705,14 +1573,12 @@ public sealed class FlowPatchContractNormalizer
 
         private static FlowPatchContractException Duplicate(string path, string kind)
         {
-            var invalidResult = Invalid(McpErrorCodes.FlowPatchDuplicateId, path, $"a unique {kind}", "Use an ID that is not already present in the target canvas. 请使用目标画布中尚不存在的 ID。");
-            return invalidResult;
+            return Invalid(McpErrorCodes.FlowPatchDuplicateId, path, $"a unique {kind}", "Use an ID that is not already present in the target canvas. 请使用目标画布中尚不存在的 ID。");
         }
 
         private static FlowPatchContractException ReferenceInvalid(string path, string expected)
         {
-            var invalidResult244 = Invalid(McpErrorCodes.FlowPatchReferenceInvalid, path, expected, "Read the current flow edit model and use an existing ID and port. 请读取当前流程编辑模型，并使用已有的 ID 和端口。");
-            return invalidResult244;
+            return Invalid(McpErrorCodes.FlowPatchReferenceInvalid, path, expected, "Read the current flow edit model and use an existing ID and port. 请读取当前流程编辑模型，并使用已有的 ID 和端口。");
         }
 
         private sealed class CanvasReferenceState
@@ -1731,16 +1597,15 @@ public sealed class FlowPatchContractNormalizer
                 var nodes = new Dictionary<string, NodeReferenceState>(StringComparer.Ordinal);
                 foreach (var node in canvas.Nodes)
                 {
-                    if (!resolveTryAddResult245())
+                    if (!TryAddCanvasNode())
                     {
                         throw Duplicate($"{path}.nodes", "node ID");
                     }
 
-                    bool resolveTryAddResult245()
+                    bool TryAddCanvasNode()
                     {
-                        var fromNodeResult246 = NodeReferenceState.FromNode(node, $"{path}.nodes");
-                        var tryAddResult247 = nodes.TryAdd(node.Id, fromNodeResult246);
-                        return tryAddResult247;
+                        var fromNode = NodeReferenceState.FromNode(node, $"{path}.nodes");
+                        return nodes.TryAdd(node.Id, fromNode);
                     }
                 }
 
@@ -1752,9 +1617,7 @@ public sealed class FlowPatchContractNormalizer
                         throw Duplicate($"{path}.connections", "connection ID");
                     }
                 }
-
-                var canvasReferenceState = new CanvasReferenceState(nodes, connections);
-                return canvasReferenceState;
+                return new CanvasReferenceState(nodes, connections);
             }
         }
 
@@ -1791,9 +1654,7 @@ public sealed class FlowPatchContractNormalizer
                         throw Duplicate($"{path}.parameters.ui.id", "parameter ID");
                     }
                 }
-
-                var nodeReferenceState = new NodeReferenceState(ports, parameters, node.Script is not null);
-                return nodeReferenceState;
+                return new NodeReferenceState(ports, parameters, node.Script is not null);
             }
         }
     }
@@ -1822,8 +1683,6 @@ public sealed class FlowPatchContractException(string code, string fieldPath, st
 
     private static string CreateDiagnosticIdInitialValue()
     {
-        var newGuidResult = Guid.NewGuid();
-        string diagnosticIdInitialValue = newGuidResult.ToString("N");
-        return diagnosticIdInitialValue;
+        return Guid.NewGuid().ToString("N");
     }
 }

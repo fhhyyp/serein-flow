@@ -42,8 +42,8 @@ public sealed class McpPackageStagingService : IDisposable
         ArgumentNullException.ThrowIfNull(source);
         CleanupStaleFiles();
         var maxBytes = _fileUploadSettings?.MaxLibraryUploadBytes ?? _maxBytes;
-        var evaluatedValue = $"mcp-{Guid.NewGuid():N}.zip";
-        var path = Path.Combine(_rootPath, evaluatedValue);
+        var packageFileName = $"mcp-{Guid.NewGuid():N}.zip";
+        var path = Path.Combine(_rootPath, packageFileName);
         long size = 0;
         try
         {
@@ -51,8 +51,7 @@ public sealed class McpPackageStagingService : IDisposable
             var buffer = new byte[64 * 1024];
             while (true)
             {
-                var asMemoryResult = buffer.AsMemory();
-                var read = await source.ReadAsync(asMemoryResult, cancellationToken);
+                var read = await source.ReadAsync(buffer.AsMemory(), cancellationToken);
                 if (read == 0)
                 {
                     break;
@@ -63,14 +62,11 @@ public sealed class McpPackageStagingService : IDisposable
                 {
                     throw new InvalidOperationException("The staged MCP package exceeds the configured size limit. 暂存的 MCP 包超过配置的大小限制。");
                 }
-
-                var asMemoryResult1 = buffer.AsMemory(0, read);
-                await destination.WriteAsync(asMemoryResult1, cancellationToken);
+                await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             }
 
             await destination.FlushAsync(cancellationToken);
-            var mcpStagedPackage = new McpStagedPackage(path, size);
-            return mcpStagedPackage;
+            return new McpStagedPackage(path, size);
         }
         catch
         {
@@ -85,9 +81,7 @@ public sealed class McpPackageStagingService : IDisposable
         {
             throw new FileNotFoundException("The staged MCP package is no longer available. 暂存的 MCP 包已不可用。");
         }
-
-        var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.SequentialScan);
-        return fileStream;
+        return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.SequentialScan);
     }
 
     public bool IsOwnedPath(string path)
@@ -101,21 +95,7 @@ public sealed class McpPackageStagingService : IDisposable
         {
             var fullPath = Path.GetFullPath(path);
             var root = Path.TrimEndingDirectorySeparator(_rootPath) + Path.DirectorySeparatorChar;
-            var evaluatedValue2 = fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase) && resolveStartsWithResult() && resolveEqualsResult();
-            return evaluatedValue2;
-            bool resolveStartsWithResult()
-            {
-                var getFileNameResult = Path.GetFileName(fullPath);
-                var startsWithResult = getFileNameResult.StartsWith("mcp-", StringComparison.Ordinal);
-                return startsWithResult;
-            }
-
-            bool resolveEqualsResult()
-            {
-                var getExtensionResult = Path.GetExtension(fullPath);
-                var equalsResult = string.Equals(getExtensionResult, ".zip", StringComparison.OrdinalIgnoreCase);
-                return equalsResult;
-            }
+            return fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase) && Path.GetFileName(fullPath).StartsWith("mcp-", StringComparison.Ordinal) && string.Equals(Path.GetExtension(fullPath), ".zip", StringComparison.OrdinalIgnoreCase);
         }
         catch (ArgumentException)
         {

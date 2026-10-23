@@ -5,6 +5,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Library;
 
 namespace SereinFlow.Worker.Runner;
+
 public sealed partial class WorkerMessageService
 {
     private interface IEndpointTopic
@@ -36,8 +37,7 @@ public sealed partial class WorkerMessageService
 
         public bool TryWrite(MessageEnvelope envelope)
         {
-            var tryWriteResult = _channel.Writer.TryWrite(envelope);
-            return tryWriteResult;
+            return _channel.Writer.TryWrite(envelope);
         }
 
         public void Complete()
@@ -47,8 +47,7 @@ public sealed partial class WorkerMessageService
 
         public bool TryMarkRegistered()
         {
-            var evaluatedValue = Interlocked.Exchange(ref _registered, 1) == 0;
-            return evaluatedValue;
+            return Interlocked.Exchange(ref _registered, 1) == 0;
         }
     }
 
@@ -105,8 +104,7 @@ public sealed partial class WorkerMessageService
 
         public bool TryMarkRegistered()
         {
-            var evaluatedValue1 = Interlocked.Exchange(ref _registered, 1) == 0;
-            return evaluatedValue1;
+            return Interlocked.Exchange(ref _registered, 1) == 0;
         }
     }
 
@@ -114,14 +112,12 @@ public sealed partial class WorkerMessageService
     {
         public ValueTask SendAsync(string topic, object message, CancellationToken cancellationToken = default)
         {
-            var sendQueueAsyncResult = owner.SendQueueAsync(topic, message, options, cancellationToken);
-            return sendQueueAsyncResult;
+            return owner.SendQueueAsync(topic, message, options, cancellationToken);
         }
 
         public ValueTask<T> ReceiveAsync<T>(string topic, CancellationToken cancellationToken = default)
         {
-            var receiveQueueAsyncResult = owner.ReceiveQueueAsync<T>(topic, options, cancellationToken);
-            return receiveQueueAsyncResult;
+            return owner.ReceiveQueueAsync<T>(topic, options, cancellationToken);
         }
     }
 
@@ -129,14 +125,12 @@ public sealed partial class WorkerMessageService
     {
         public ValueTask PublishAsync(string topic, object message, CancellationToken cancellationToken = default)
         {
-            var publishEventAsyncResult = owner.PublishEventAsync(topic, message, options, cancellationToken);
-            return publishEventAsyncResult;
+            return owner.PublishEventAsync(topic, message, options, cancellationToken);
         }
 
         public IEventSubscription<T> Subscribe<T>(string topic, CancellationToken cancellationToken = default)
         {
-            var subscribeEventResult = owner.SubscribeEvent<T>(topic, options, cancellationToken);
-            return subscribeEventResult;
+            return owner.SubscribeEvent<T>(topic, options, cancellationToken);
         }
     }
 
@@ -171,8 +165,7 @@ public sealed partial class WorkerMessageService
                 MessageEnvelope envelope;
                 try
                 {
-                    var readAsyncResult = Core.Reader.ReadAsync(cancellationToken);
-                    envelope = await readAsyncResult.ConfigureAwait(false);
+                    envelope = await Core.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (ChannelClosedException)
                 {
@@ -193,8 +186,7 @@ public sealed partial class WorkerMessageService
             MessageEnvelope envelope;
             try
             {
-                var readAsyncResult2 = Core.Reader.ReadAsync(cancellationToken);
-                envelope = await readAsyncResult2.ConfigureAwait(false);
+                envelope = await Core.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (ChannelClosedException exception)
             {
@@ -203,13 +195,9 @@ public sealed partial class WorkerMessageService
 
             if (envelope.IsExpired(DateTimeOffset.UtcNow))
             {
-                var nextAsyncResult = NextAsync(cancellationToken);
-                var configureAwaitResult = await nextAsyncResult.ConfigureAwait(false);
-                return configureAwaitResult;
+                return await NextAsync(cancellationToken).ConfigureAwait(false);
             }
-
-            var deserializeResult = Deserialize<T>(envelope, _topic);
-            return deserializeResult;
+            return Deserialize<T>(envelope, _topic);
         }
 
         public ValueTask DisposeAsync()
@@ -235,22 +223,21 @@ public sealed partial class WorkerMessageService
         private readonly Channel<MessageEnvelope> _channel;
         public EventSubscriptionCore(MessageChannelOptions options)
         {
-            var boundedChannelOptions3 = new BoundedChannelOptions(options.Capacity)
+            var boundedChannelOptions = new BoundedChannelOptions(options.Capacity)
             {
                 FullMode = ToFullMode(options.OverflowStrategy),
                 SingleReader = false,
                 SingleWriter = false,
                 AllowSynchronousContinuations = false
             };
-            _channel = Channel.CreateBounded<MessageEnvelope>(boundedChannelOptions3);
+            _channel = Channel.CreateBounded<MessageEnvelope>(boundedChannelOptions);
         }
 
         public ChannelReader<MessageEnvelope> Reader => _channel.Reader;
 
         public bool TryWrite(MessageEnvelope envelope)
         {
-            var tryWriteResult4 = _channel.Writer.TryWrite(envelope);
-            return tryWriteResult4;
+            return _channel.Writer.TryWrite(envelope);
         }
 
         public void Complete()
@@ -263,14 +250,12 @@ public sealed partial class WorkerMessageService
     {
         public static MessageEnvelope Direct(Guid id, string topic, object value, DateTimeOffset createdAt, DateTimeOffset? expiresAt)
         {
-            WorkerMessageService.MessageEnvelope evaluatedValue5 = new(id, topic, MessageSerializationMode.DirectObject, value, null, createdAt, expiresAt);
-            return evaluatedValue5;
+            return new(id, topic, MessageSerializationMode.DirectObject, value, null, createdAt, expiresAt);
         }
 
         public static MessageEnvelope Json(Guid id, string topic, string json, DateTimeOffset createdAt, DateTimeOffset? expiresAt)
         {
-            WorkerMessageService.MessageEnvelope evaluatedValue6 = new(id, topic, MessageSerializationMode.Json, null, json, createdAt, expiresAt);
-            return evaluatedValue6;
+            return new(id, topic, MessageSerializationMode.Json, null, json, createdAt, expiresAt);
         }
 
         public bool IsExpired(DateTimeOffset now) => ExpiresAt is { } expiresAt && expiresAt <= now;
@@ -278,12 +263,12 @@ public sealed partial class WorkerMessageService
 
     private static BoundedChannelFullMode ToFullMode(MessageOverflowStrategy strategy)
     {
-        BoundedChannelFullMode evaluatedValue7 = strategy switch
+        return strategy switch
         {
             MessageOverflowStrategy.Reject => BoundedChannelFullMode.Wait,
             MessageOverflowStrategy.DropOldest => BoundedChannelFullMode.DropOldest,
             MessageOverflowStrategy.DropNewest => BoundedChannelFullMode.DropWrite,
-            _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, "Unsupported message overflow strategy. 不支持此消息溢出策略。")};
-        return evaluatedValue7;
+            _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, "Unsupported message overflow strategy. 不支持此消息溢出策略。")
+        };
     }
 }

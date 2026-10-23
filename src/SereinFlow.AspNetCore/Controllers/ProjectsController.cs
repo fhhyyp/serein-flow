@@ -7,6 +7,7 @@ using SereinFlow.Domain;
 using static SereinFlow.Api.ApiEndpointHelpers;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/projects")]
 public sealed class ProjectsController : ApiControllerBase
 {
@@ -30,9 +31,9 @@ public sealed class ProjectsController : ApiControllerBase
     public async Task<ActionResult> List([FromQuery] bool? includeArchived, CancellationToken cancellationToken)
     {
         var actor = SereinFlow.AspNetCore.SereinFlowHttpActor.Get(HttpContext);
-        var access = HttpContext.RequestServices.GetRequiredService<SereinFlowAccess>();
-        await access.RequireAsync(actor, SereinFlowPermission.ProjectRead, cancellationToken: cancellationToken);
-        var scope = await access.GetScopeAsync(actor!, SereinFlowPermission.ProjectRead, cancellationToken);
+        var sereinFlowAccess = HttpContext.RequestServices.GetRequiredService<SereinFlowAccess>();
+        await sereinFlowAccess.RequireAsync(actor, SereinFlowPermission.ProjectRead, cancellationToken: cancellationToken);
+        var scope = await sereinFlowAccess.GetScopeAsync(actor!, SereinFlowPermission.ProjectRead, cancellationToken);
         var workspaces = new List<ProjectWorkspaceDto>();
         foreach (var project in await _projects.ListAsync(cancellationToken))
         {
@@ -45,19 +46,15 @@ public sealed class ProjectsController : ApiControllerBase
             var summaries = new List<FlowDefinitionSummaryDto>(flows.Count);
             foreach (var flow in flows)
             {
-                var findProductionVersionAsyncResult = await _versions.FindProductionVersionAsync(project.Id, flow.Id, cancellationToken);
-                var toFlowSummaryDtoResult = ToFlowSummaryDto(flow, findProductionVersionAsyncResult);
-                summaries.Add(toFlowSummaryDtoResult);
+                var flowSummaryDto = ToFlowSummaryDto(flow, (await _versions.FindProductionVersionAsync(project.Id, flow.Id, cancellationToken)));
+                summaries.Add(flowSummaryDto);
             }
-
-            var toProjectDtoResult = ToProjectDto(project);
-            var projectWorkspaceDto = new ProjectWorkspaceDto(toProjectDtoResult, summaries);
+            var projectWorkspaceDto = new ProjectWorkspaceDto(ToProjectDto(project), summaries);
             workspaces.Add(projectWorkspaceDto);
         }
 
-        var toArrayResult = workspaces.ToArray();
-        var okResult = Ok(toArrayResult);
-        return okResult;
+        var mappedWorkspaces = workspaces.ToArray();
+        return Ok(mappedWorkspaces);
     }
 
     [HttpPost]
@@ -68,8 +65,7 @@ public sealed class ProjectsController : ApiControllerBase
     {
         if (request is null || request.Definition is null)
         {
-            var badRequestResult = BadRequest(new { message = "A project name and initial flow definition are required. 项目名称和初始流程定义不能为空。", });
-            return badRequestResult;
+            return BadRequest(new { message = "A project name and initial flow definition are required. 项目名称和初始流程定义不能为空。", });
         }
 
         ProjectCreationCandidate candidate;
@@ -79,34 +75,29 @@ public sealed class ProjectsController : ApiControllerBase
         }
         catch (ArgumentException exception)
         {
-            var badRequestResult1 = BadRequest(new { message = exception.Message });
-            return badRequestResult1;
+            return BadRequest(new { message = exception.Message });
         }
 
         if (!candidate.Validation.IsValid)
         {
-            var badRequestResult2 = BadRequest(candidate.Validation);
-            return badRequestResult2;
+            return BadRequest(candidate.Validation);
         }
 
         var result = await _projectCreation.CreateAsync(candidate, cancellationToken);
         if (result.Status == ProjectCreationStatus.Conflict)
         {
-            var conflictResult = Conflict(new { code = result.ErrorCode, message = result.ErrorMessage });
-            return conflictResult;
+            return Conflict(new { code = result.ErrorCode, message = result.ErrorMessage });
         }
 
         if (result.Status != ProjectCreationStatus.Created)
         {
-            var badRequestResult3 = BadRequest(candidate.Validation);
-            return badRequestResult3;
+            return BadRequest(candidate.Validation);
         }
 
-        var toProjectDtoResult4 = ToProjectDto(candidate.Project);
-        IReadOnlyList<FlowDefinitionSummaryDto> evaluatedValue = [ToFlowSummaryDto(candidate.Definition)];
-        var workspace = new ProjectWorkspaceDto(toProjectDtoResult4, evaluatedValue);
-        var createdResult = Created($"/api/projects/{candidate.Project.Id:D}/flows/{candidate.Definition.Id:D}", workspace);
-        return createdResult;
+        var project = ToProjectDto(candidate.Project);
+        IReadOnlyList<FlowDefinitionSummaryDto> flows = [ToFlowSummaryDto(candidate.Definition)];
+        var workspace = new ProjectWorkspaceDto(project, flows);
+        return Created($"/api/projects/{candidate.Project.Id:D}/flows/{candidate.Definition.Id:D}", workspace);
     }
 
     [HttpPut("{projectId:guid}")]
@@ -118,50 +109,41 @@ public sealed class ProjectsController : ApiControllerBase
     {
         if (request.ExpectedVersion < 1 || string.IsNullOrWhiteSpace(request.Name))
         {
-            var apiProblemResult = ApiProblem(StatusCodes.Status400BadRequest, "A non-empty project name and a positive expected version are required. 项目名称不能为空，期望版本必须为正数。");
-            return apiProblemResult;
+            return ApiProblem(StatusCodes.Status400BadRequest, "A non-empty project name and a positive expected version are required. 项目名称不能为空，期望版本必须为正数。");
         }
 
         var project = await _projects.FindAsync(projectId, cancellationToken);
         if (project is null)
         {
-            var apiProblemResult5 = ApiProblem(StatusCodes.Status404NotFound, "Project not found. 未找到项目。");
-            return apiProblemResult5;
+            return ApiProblem(StatusCodes.Status404NotFound, "Project not found. 未找到项目。");
         }
 
         if (project.Status == ProjectStatus.Archived)
         {
-            var apiProblemResult6 = ApiProblem(StatusCodes.Status409Conflict, "Archived projects cannot be renamed. 已归档项目不能重命名。");
-            return apiProblemResult6;
+            return ApiProblem(StatusCodes.Status409Conflict, "Archived projects cannot be renamed. 已归档项目不能重命名。");
         }
 
         if (project.Version != request.ExpectedVersion)
         {
-            var apiProblemResult7 = ApiVersionProblem(StatusCodes.Status409Conflict, "The project was changed by another editor. 项目已被其他编辑器修改。", currentVersion: project.Version);
-            return apiProblemResult7;
+            return ApiVersionProblem(StatusCodes.Status409Conflict, "The project was changed by another editor. 项目已被其他编辑器修改。", currentVersion: project.Version);
         }
 
         project.Rename(request.Name);
         if (!await _projects.TryUpdateAsync(project, request.ExpectedVersion, cancellationToken))
         {
             var currentVersion = (await _projects.FindAsync(projectId, cancellationToken))?.Version;
-            var apiProblemResult9 = ApiVersionProblem(StatusCodes.Status409Conflict, "The project was changed by another editor. 项目已被其他编辑器修改。", currentVersion: currentVersion);
-            return apiProblemResult9;
+            return ApiVersionProblem(StatusCodes.Status409Conflict, "The project was changed by another editor. 项目已被其他编辑器修改。", currentVersion: currentVersion);
         }
 
         var flows = await _flows.ListByProjectAsync(project.Id, cancellationToken);
         var summaries = new List<FlowDefinitionSummaryDto>(flows.Count);
         foreach (var flow in flows)
         {
-            var findProductionVersionAsyncResult10 = await _versions.FindProductionVersionAsync(project.Id, flow.Id, cancellationToken);
-            var toFlowSummaryDtoResult11 = ToFlowSummaryDto(flow, findProductionVersionAsyncResult10);
-            summaries.Add(toFlowSummaryDtoResult11);
+            var flowSummaryDto = ToFlowSummaryDto(flow, (await _versions.FindProductionVersionAsync(project.Id, flow.Id, cancellationToken)));
+            summaries.Add(flowSummaryDto);
         }
-
-        var toProjectDtoResult12 = ToProjectDto(project);
-        var projectWorkspaceDto13 = new ProjectWorkspaceDto(toProjectDtoResult12, summaries);
-        var okResult14 = Ok(projectWorkspaceDto13);
-        return okResult14;
+        var projectWorkspaceDto = new ProjectWorkspaceDto(ToProjectDto(project), summaries);
+        return Ok(projectWorkspaceDto);
     }
 
     [HttpPost("{projectId:guid}/archive")]
@@ -171,19 +153,16 @@ public sealed class ProjectsController : ApiControllerBase
     public async Task<ActionResult> Archive([FromRoute] Guid projectId, CancellationToken cancellationToken)
     {
         var result = await _projectArchive.ArchiveAsync(projectId, cancellationToken);
-        ActionResult evaluatedValue19 = result.IsSuccess ? resolveOkResult() : resolveApiProblemResult();
-        return evaluatedValue19;
-        ObjectResult resolveOkResult()
+        return result.IsSuccess ? CreateProjectResponse() : CreateFailureResponse();
+        ObjectResult CreateProjectResponse()
         {
-            var toProjectDtoResult15 = ToProjectDto(result.Project!);
-            var okResult16 = Ok(toProjectDtoResult15);
-            return okResult16;
+            var projectDto = ToProjectDto(result.Project!);
+            return Ok(projectDto);
         }
 
-        ObjectResult resolveApiProblemResult()
+        ObjectResult CreateFailureResponse()
         {
-            var apiProblemResult18 = ApiProblemWithCode(result.StatusCode, result.Message, code: result.Code);
-            return apiProblemResult18;
+            return ApiProblemWithCode(result.StatusCode, result.Message, code: result.Code);
         }
     }
 }

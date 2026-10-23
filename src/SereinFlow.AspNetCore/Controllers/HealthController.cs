@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("healthz")]
 public sealed class HealthController : ApiControllerBase
 {
@@ -13,7 +14,6 @@ public sealed class HealthController : ApiControllerBase
     public ActionResult<HealthCheckResponse> Get()
     {
         var healthCheckResponse = new HealthCheckResponse("Healthy");
-        var okResult = Ok(healthCheckResponse);
-        return okResult;
+        return Ok(healthCheckResponse);
     }
 }

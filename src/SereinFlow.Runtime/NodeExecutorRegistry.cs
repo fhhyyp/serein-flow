@@ -2,6 +2,7 @@ using SereinFlow.Domain;
 using SereinFlow.Runtime.Abstractions;
 
 namespace SereinFlow.Runtime;
+
 public sealed class NodeExecutorRegistry
 {
     private readonly Dictionary<NodeType, INodeExecutor> _executors;
@@ -17,13 +18,11 @@ public sealed class NodeExecutorRegistry
 
     public INodeExecutor Get(NodeType nodeType)
     {
-        INodeExecutor evaluatedValue = _executors.TryGetValue(nodeType, out var executor) ? executor : throw new InvalidOperationException($"No executor is registered for node type '{nodeType}'. 未注册节点类型“{nodeType}”的执行器。");
-        return evaluatedValue;
+        return _executors.TryGetValue(nodeType, out var executor) ? executor : throw new InvalidOperationException($"No executor is registered for node type '{nodeType}'. 未注册节点类型“{nodeType}”的执行器。");
     }
 
     public IReadOnlyCollection<INodeExecutor> GetAll()
     {
-        var toArrayResult = _executors.Values.ToArray();
-        return toArrayResult;
+        return _executors.Values.ToArray();
     }
 }

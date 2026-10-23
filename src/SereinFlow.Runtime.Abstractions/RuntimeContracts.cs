@@ -2,6 +2,7 @@ using SereinFlow.Domain;
 using LibraryVariableService = SereinFlow.Library.LibraryVariableService;
 
 namespace SereinFlow.Runtime.Abstractions;
+
 public interface IExecutionContext
 {
     object? Read(string key);
@@ -73,8 +74,7 @@ public sealed class NodeExecutionRuntime
     {
         get
         {
-            var isCancellationRequestedResult = _isCancellationRequested();
-            return isCancellationRequestedResult;
+            return _isCancellationRequested();
         }
     }
 }
@@ -87,23 +87,18 @@ public sealed record NodeExecutionResult(bool IsSuccess, IReadOnlyDictionary<str
 {
     public static NodeExecutionResult Success(IReadOnlyDictionary<string, object?>? outputs = null)
     {
-        var evaluatedValue = outputs ?? new Dictionary<string, object?>();
-        NodeExecutionResult evaluatedValue1 = new(true, evaluatedValue, ExecutionBranch.Success);
-        return evaluatedValue1;
+        return new(true, outputs ?? new Dictionary<string, object?>(), ExecutionBranch.Success);
     }
 
     public static NodeExecutionResult Failure(string errorCode, string errorMessage)
     {
-        var dictionary = new Dictionary<string, object?>();
-        NodeExecutionResult evaluatedValue2 = new(false, dictionary, ExecutionBranch.Failure, errorCode, errorMessage);
-        return evaluatedValue2;
+        return new(false, new Dictionary<string, object?>(), ExecutionBranch.Failure, errorCode, errorMessage);
     }
 
     public static NodeExecutionResult Error(string errorCode, string errorMessage)
     {
-        var dictionary3 = new Dictionary<string, object?>();
-        NodeExecutionResult evaluatedValue4 = new(false, dictionary3, ExecutionBranch.Error, errorCode, errorMessage);
-        return evaluatedValue4;
+        var outputs = new Dictionary<string, object?>();
+        return new(false, outputs, ExecutionBranch.Error, errorCode, errorMessage);
     }
 }
 

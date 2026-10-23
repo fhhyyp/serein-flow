@@ -22,20 +22,17 @@ internal static class SereinFlowMcpResourceResolver
         var flowId = Key("FlowId");
         if (Key("RunId") is { } runId)
         {
-            var store = services.GetRequiredService<IFlowRunStore>();
-            var run = await store.FindAsync(runId, cancellationToken) ?? throw Missing(RunErrorCodes.NotFound);
+            var run = await services.GetRequiredService<IFlowRunStore>().FindAsync(runId, cancellationToken) ?? throw Missing(RunErrorCodes.NotFound);
             return SereinFlowResource.Run(runId, run.ProjectId);
         }
         if (Key("SessionId") is { } sessionId)
         {
-            var sessions = services.GetRequiredService<IFlowDebugSessionService>();
-            var session = await sessions.FindAsync(sessionId, cancellationToken) ?? throw Missing(DebugErrorCodes.SessionNotFound);
+            var session = await services.GetRequiredService<IFlowDebugSessionService>().FindAsync(sessionId, cancellationToken) ?? throw Missing(DebugErrorCodes.SessionNotFound);
             return new SereinFlowResource("run", session.RunId.ToString("D"), session.ProjectId);
         }
         if (Key("PreviewId") is { } previewId)
         {
-            var store = services.GetRequiredService<IMcpPreviewStore>();
-            var preview = await store.FindAsync(previewId, cancellationToken) ?? throw Missing(McpErrorCodes.PreviewNotFound);
+            var preview = await services.GetRequiredService<IMcpPreviewStore>().FindAsync(previewId, cancellationToken) ?? throw Missing(McpErrorCodes.PreviewNotFound);
             if (!string.Equals(preview.PrincipalId, actor.Id, StringComparison.Ordinal))
                 throw new SereinFlowAccessException(McpErrorCodes.PreviewOwnerMismatch, "The preview belongs to another caller.", 403);
             projectId = preview.ProjectId;

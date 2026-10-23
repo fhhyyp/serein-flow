@@ -60,7 +60,10 @@ public static class McpToolDiscovery
             if (schemaNode is not null && tool.RequiredProperties is not null)
             {
                 var required = (schemaNode["required"] as JsonArray)?.Select(item => item!.GetValue<string>()) ?? [];
-                schemaNode["required"] = JsonSerializer.SerializeToNode(required.Concat(tool.RequiredProperties(jsonOptions)).Distinct(StringComparer.Ordinal).ToArray());
+                schemaNode["required"] = JsonSerializer.SerializeToNode(required
+                    .Concat(tool.RequiredProperties(jsonOptions))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray());
             }
             var schema = schemaNode is null
                 ? JsonSerializer.SerializeToElement(new { type = "object", properties = new { } })

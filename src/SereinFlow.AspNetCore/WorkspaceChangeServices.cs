@@ -26,10 +26,10 @@ public sealed class WorkspaceChangePublisher : IWorkspaceChangePublisher
         try
         {
             var group = change.ProjectId is { } projectId ? ProjectGroup(projectId) : GlobalGroup;
-            var groupResult = _hub.Clients.Group(group);
-            await groupResult.SendAsync("workspaceChanged", change, cancellationToken);
+            var mappedGroup = _hub.Clients.Group(group);
+            await mappedGroup.SendAsync("workspaceChanged", change, cancellationToken);
         }
-        catch (Exception exception)when (exception is not OperationCanceledException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             // The database commit has already completed. A disconnected live
             // client will reconcile from the authoritative GET on reconnect.
@@ -46,27 +46,23 @@ public sealed class WorkspaceEventsHub : Hub
 {
     public Task SubscribeProject(Guid projectId)
     {
-        var projectGroupResult = WorkspaceChangePublisher.ProjectGroup(projectId);
-        var addToGroupAsyncResult = Groups.AddToGroupAsync(Context.ConnectionId, projectGroupResult);
-        return addToGroupAsyncResult;
+        var projectGroup = WorkspaceChangePublisher.ProjectGroup(projectId);
+        return Groups.AddToGroupAsync(Context.ConnectionId, projectGroup);
     }
 
     public Task UnsubscribeProject(Guid projectId)
     {
-        var projectGroupResult1 = WorkspaceChangePublisher.ProjectGroup(projectId);
-        var removeFromGroupAsyncResult = Groups.RemoveFromGroupAsync(Context.ConnectionId, projectGroupResult1);
-        return removeFromGroupAsyncResult;
+        var projectGroup = WorkspaceChangePublisher.ProjectGroup(projectId);
+        return Groups.RemoveFromGroupAsync(Context.ConnectionId, projectGroup);
     }
 
     public Task SubscribeGlobal()
     {
-        var addToGroupAsyncResult2 = Groups.AddToGroupAsync(Context.ConnectionId, WorkspaceChangePublisher.GlobalGroup);
-        return addToGroupAsyncResult2;
+        return Groups.AddToGroupAsync(Context.ConnectionId, WorkspaceChangePublisher.GlobalGroup);
     }
 
     public Task UnsubscribeGlobal()
     {
-        var removeFromGroupAsyncResult3 = Groups.RemoveFromGroupAsync(Context.ConnectionId, WorkspaceChangePublisher.GlobalGroup);
-        return removeFromGroupAsyncResult3;
+        return Groups.RemoveFromGroupAsync(Context.ConnectionId, WorkspaceChangePublisher.GlobalGroup);
     }
 }

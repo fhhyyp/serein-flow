@@ -12,6 +12,7 @@ using SereinFlow.Mcp;
 using SereinFlow.Worker.Client;
 
 namespace SereinFlow.Api;
+
 internal static class McpStdioHost
 {
     public static async Task RunAsync(string[] args)
@@ -26,20 +27,20 @@ internal static class McpStdioHost
         builder.Services.AddSereinFlowExecution(builder.Configuration, builder.Environment.ContentRootPath);
         builder.Services.AddSereinFlowLocalAccess();
         using var host = builder.Build();
-        var principalAccessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
-        var requestContextAccessor = host.Services.GetRequiredService<IMcpRequestContextAccessor>();
+        var sereinFlowActorAccessor = host.Services.GetRequiredService<ISereinFlowActorAccessor>();
+        var mcpRequestContextAccessor = host.Services.GetRequiredService<IMcpRequestContextAccessor>();
         var principal = LocalTrustedAuthorization.CreateActor(storageOptions.DataRoot);
-        using var actorScope = principalAccessor.Push(principal);
-        var previousContext = requestContextAccessor.Current;
-        requestContextAccessor.Current = new McpRequestContext("stdio");
+        using var actorScope = sereinFlowActorAccessor.Push(principal);
+        var previousContext = mcpRequestContextAccessor.Current;
+        mcpRequestContextAccessor.Current = new McpRequestContext("stdio");
         try
         {
-            var getRequiredServiceResult = host.Services.GetRequiredService<SereinFlowMcpServer>();
-            await getRequiredServiceResult.RunAsync(Console.In, Console.Out);
+            var sereinFlowMcpServer = host.Services.GetRequiredService<SereinFlowMcpServer>();
+            await sereinFlowMcpServer.RunAsync(Console.In, Console.Out);
         }
         finally
         {
-            requestContextAccessor.Current = previousContext;
+            mcpRequestContextAccessor.Current = previousContext;
         }
     }
 }

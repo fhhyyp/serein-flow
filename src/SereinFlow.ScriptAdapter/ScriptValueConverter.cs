@@ -17,8 +17,7 @@ public static partial class ScriptValueConverter
 {
     public static Value ToScriptValue(object? value)
     {
-        var toScriptValueResult = SereinFlowScriptValueConverter.ToScriptValue(value);
-        return toScriptValueResult;
+        return SereinFlowScriptValueConverter.ToScriptValue(value);
     }
 
     /// <summary>
@@ -37,8 +36,7 @@ public static partial class ScriptValueConverter
         {
             throw new InvalidOperationException("Script output exceeded the maximum nesting depth. 脚本输出超过最大嵌套深度。");
         }
-
-        object? evaluatedValue = value switch
+        return value switch
         {
             NullValue => null,
             BoolValue boolean => boolean.Value,
@@ -50,8 +48,8 @@ public static partial class ScriptValueConverter
             TimeSpanValue timeSpan => timeSpan.Value,
             ClrObjectValue clrObject => CreateClrObjectSummary(clrObject),
             ClrMethodValue clrMethod => CreateClrMethodSummary(clrMethod),
-            _ => CreateRuntimeValueSummary(value)};
-        return evaluatedValue;
+            _ => CreateRuntimeValueSummary(value)
+        };
     }
 
     /// <summary>
@@ -65,8 +63,7 @@ public static partial class ScriptValueConverter
     {
         if (value is Value scriptValue)
         {
-            var toAuditValueResult = ToAuditValue(scriptValue, maxDepth, maxItems);
-            return toAuditValueResult;
+            return ToAuditValue(scriptValue, maxDepth, maxItems);
         }
 
         if (value is null)
@@ -76,29 +73,25 @@ public static partial class ScriptValueConverter
 
         if (maxDepth < 0)
         {
-            var dictionary1 = new Dictionary<string, object?>
+            return new Dictionary<string, object?>
             {
                 ["$kind"] = "DepthLimit"
             };
-            return dictionary1;
         }
 
         if (value is JsonElement element)
         {
-            var toScriptValueResult2 = ToScriptValue(element);
-            var toAuditValueResult3 = ToAuditValue(toScriptValueResult2, maxDepth, maxItems);
-            return toAuditValueResult3;
+            return ToAuditValue(ToScriptValue(element), maxDepth, maxItems);
         }
 
         if (value is IDictionary dictionary)
         {
             if (dictionary.Count > maxItems)
             {
-                var dictionary4 = new Dictionary<string, object?>
+                return new Dictionary<string, object?>
                 {
                     ["$kind"] = "ItemLimit"
                 };
-                return dictionary4;
             }
 
             var projected = new Dictionary<string, object?>(StringComparer.Ordinal);
@@ -118,15 +111,12 @@ public static partial class ScriptValueConverter
             {
                 if (projected.Count >= maxItems)
                 {
-                    var dictionary5 = new Dictionary<string, object?>
+                    return new Dictionary<string, object?>
                     {
                         ["$kind"] = "ItemLimit"
                     };
-                    return dictionary5;
                 }
-
-                var toAuditValueResult6 = ToAuditValue(item, maxDepth - 1, maxItems);
-                projected.Add(toAuditValueResult6);
+                projected.Add(ToAuditValue(item, maxDepth - 1, maxItems));
             }
 
             return projected;
@@ -134,21 +124,19 @@ public static partial class ScriptValueConverter
 
         try
         {
-            var serializeToElementResult = JsonSerializer.SerializeToElement(value);
             // JsonElement is safe to serialize into the protocol and preserves
             // useful DTO results returned by ordinary library nodes.
             // JsonElement 可以安全写入协议，并保留普通类库节点 DTO 返回值。
-            return serializeToElementResult;
+            return JsonSerializer.SerializeToElement(value);
         }
-        catch (Exception exception)when (exception is NotSupportedException or JsonException or InvalidOperationException)
+        catch (Exception exception) when (exception is NotSupportedException or JsonException or InvalidOperationException)
         {
-            var dictionary7 = new Dictionary<string, object?>
+            return new Dictionary<string, object?>
             {
                 ["$kind"] = "ClrValue",
                 ["clrType"] = value.GetType().FullName,
                 ["serializable"] = false
             };
-            return dictionary7;
         }
     }
 
@@ -157,24 +145,19 @@ public static partial class ScriptValueConverter
     // 保留该兼容名称供显式需要可序列化表示的调用方使用；流程内部传递不会调用它。
     public static object? ToClrValue(Value value, int maxDepth = 32, int maxItems = 10_000)
     {
-        var toAuditValueResult8 = ToAuditValue(value, maxDepth, maxItems);
-        return toAuditValueResult8;
+        return ToAuditValue(value, maxDepth, maxItems);
     }
 
-    private static object? [] ToAuditArray(ArrayValue array, int maxDepth, int maxItems)
+    private static object?[] ToAuditArray(ArrayValue array, int maxDepth, int maxItems)
     {
         if (array.Elements.Count > maxItems)
         {
             throw new InvalidOperationException("Script output exceeded the maximum item count. 脚本输出超过最大项目数。");
         }
-
-        var selectResult = array.Elements.Select(item =>
+        return array.Elements.Select(item =>
         {
-            var toAuditValueResult9 = ToAuditValue(item, maxDepth - 1, maxItems);
-            return toAuditValueResult9;
-        });
-        var toArrayResult = selectResult.ToArray();
-        return toArrayResult;
+            return ToAuditValue(item, maxDepth - 1, maxItems);
+        }).ToArray();
     }
 
     private static Dictionary<string, object?> ToAuditObject(ObjectValue value, int maxDepth, int maxItems)
@@ -183,55 +166,40 @@ public static partial class ScriptValueConverter
         {
             throw new InvalidOperationException("Script output exceeded the maximum property count. 脚本输出超过最大属性数。");
         }
-
-        var toDictionaryResult = value.Properties.ToDictionary(pair => pair.Key, pair =>
+        return value.Properties.ToDictionary(pair => pair.Key, pair =>
         {
-            var toAuditValueResult10 = ToAuditValue(pair.Value, maxDepth - 1, maxItems);
-            return toAuditValueResult10;
+            return ToAuditValue(pair.Value, maxDepth - 1, maxItems);
         }, StringComparer.Ordinal);
-        return toDictionaryResult;
     }
 
     private static object? GetNumberValue(Value value)
     {
-        var evaluatedValue13 = resolveevaluatedValue() ?? throw resolveNotSupportedException();
-        return evaluatedValue13;
-        object? resolveevaluatedValue()
+        return ReadNumericValue() ?? throw new NotSupportedException(($"Script number type '{value.GetType().Name}' has no numeric value. 脚本数值类型“{value.GetType().Name}”没有数值内容。"));
+        object? ReadNumericValue()
         {
-            var getTypeResult = value.GetType();
-            var optionalReceiver = getTypeResult.GetProperty("Value", BindingFlags.Public | BindingFlags.Instance);
-            object? optionalResult = default(object);
-            if (optionalReceiver is not null)
+            var property = value.GetType().GetProperty("Value", BindingFlags.Public | BindingFlags.Instance);
+            object? convertedValue = default(object);
+            if (property is not null)
             {
-                optionalResult = optionalReceiver.GetValue(value);
+                convertedValue = property.GetValue(value);
             }
-
-            var evaluatedValue11 = optionalResult;
-            return evaluatedValue11;
-        }
-
-        Exception resolveNotSupportedException()
-        {
-            var evaluatedValue12 = $"Script number type '{value.GetType().Name}' has no numeric value. 脚本数值类型“{value.GetType().Name}”没有数值内容。";
-            var notSupportedException = new NotSupportedException(evaluatedValue12);
-            return notSupportedException;
+            return convertedValue;
         }
     }
 
     private static Dictionary<string, object?> CreateClrObjectSummary(ClrObjectValue value)
     {
-        Dictionary<string, object?> evaluatedValue14 = new(StringComparer.Ordinal)
+        return new(StringComparer.Ordinal)
         {
             ["$kind"] = "ClrObject",
             ["clrType"] = value.Value?.GetType().FullName,
             ["serializable"] = false
         };
-        return evaluatedValue14;
     }
 
     private static Dictionary<string, object?> CreateClrMethodSummary(ClrMethodValue value)
     {
-        Dictionary<string, object?> evaluatedValue15 = new(StringComparer.Ordinal)
+        return new(StringComparer.Ordinal)
         {
             ["$kind"] = "ClrMethod",
             ["declaringType"] = value.MethodInfo.DeclaringType?.FullName,
@@ -239,16 +207,14 @@ public static partial class ScriptValueConverter
             ["returnType"] = value.ReturnType.FullName,
             ["serializable"] = false
         };
-        return evaluatedValue15;
     }
 
     private static Dictionary<string, object?> CreateRuntimeValueSummary(Value value)
     {
-        Dictionary<string, object?> evaluatedValue16 = new(StringComparer.Ordinal)
+        return new(StringComparer.Ordinal)
         {
             ["$kind"] = value.GetType().Name,
             ["serializable"] = false
         };
-        return evaluatedValue16;
     }
 }

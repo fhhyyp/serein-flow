@@ -24,23 +24,20 @@ public sealed class SqlSugarProjectLibraryReferenceRepository : IProjectLibraryR
     public async Task<IReadOnlyList<ProjectLibraryReference>> ListByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
         var key = projectId.ToString("D");
-        var toArrayResult = (await _references.ListAsync(item => item.ProjectId == key, cancellationToken))
+        return (await _references.ListAsync(item => item.ProjectId == key, cancellationToken))
             .Select(Map)
             .OrderBy(static item => item.ReferencedAt)
             .ThenBy(static item => item.LibraryId, StringComparer.Ordinal)
             .ToArray();
-        return toArrayResult;
     }
 
     public async Task<bool> IsReferencedAsync(Guid projectId, string libraryId, CancellationToken cancellationToken = default)
     {
-        var evaluatedValue1 = await resolveGetByIdAsyncResult() is not null;
-        return evaluatedValue1;
-        Task<ProjectLibraryReferenceRecord?> resolveGetByIdAsyncResult()
+        return await FindReferenceAsync() is not null;
+        Task<ProjectLibraryReferenceRecord?> FindReferenceAsync()
         {
-            var createIdResult = CreateId(projectId, libraryId);
-            var getByIdAsyncResult = _references.GetByIdAsync(createIdResult, cancellationToken);
-            return getByIdAsyncResult;
+            var id = CreateId(projectId, libraryId);
+            return _references.GetByIdAsync(id, cancellationToken);
         }
     }
 
@@ -51,8 +48,7 @@ public sealed class SqlSugarProjectLibraryReferenceRepository : IProjectLibraryR
         var existing = await _references.GetByIdAsync(id, cancellationToken);
         if (existing is not null)
         {
-            var mapResult = Map(existing);
-            return mapResult;
+            return Map(existing);
         }
 
         var reference = new ProjectLibraryReference(projectId, normalizedId, DateTimeOffset.UtcNow);
@@ -69,23 +65,20 @@ public sealed class SqlSugarProjectLibraryReferenceRepository : IProjectLibraryR
 
     public async Task<bool> RemoveAsync(Guid projectId, string libraryId, CancellationToken cancellationToken = default)
     {
-        var createIdResult2 = CreateId(projectId, libraryId);
-        var deleteAsyncResult = await _references.DeleteAsync(createIdResult2, cancellationToken);
-        return deleteAsyncResult;
+        var id = CreateId(projectId, libraryId);
+        return await _references.DeleteAsync(id, cancellationToken);
     }
 
     private static ProjectLibraryReference Map(ProjectLibraryReferenceRecord record)
     {
-        var parseResult = Guid.Parse(record.ProjectId);
-        var parseResult3 = DateTimeOffset.Parse(record.ReferencedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        ProjectLibraryReference evaluatedValue4 = new(parseResult, record.LibraryId, parseResult3);
-        return evaluatedValue4;
+        var projectId = Guid.Parse(record.ProjectId);
+        var referencedAt = DateTimeOffset.Parse(record.ReferencedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+        return new(projectId, record.LibraryId, referencedAt);
     }
 
     private static string CreateId(Guid projectId, string libraryId)
     {
-        var evaluatedValue5 = $"{projectId:N}:{NormalizeLibraryId(libraryId)}";
-        return evaluatedValue5;
+        return $"{projectId:N}:{NormalizeLibraryId(libraryId)}";
     }
 
     private static string NormalizeLibraryId(string libraryId)
@@ -94,9 +87,6 @@ public sealed class SqlSugarProjectLibraryReferenceRepository : IProjectLibraryR
         {
             throw new ArgumentException("Library artifact ID cannot be empty. 类库制品 ID 不能为空。", nameof(libraryId));
         }
-
-        var trimResult = libraryId.Trim();
-        var toLowerInvariantResult = trimResult.ToLowerInvariant();
-        return toLowerInvariantResult;
+        return libraryId.Trim().ToLowerInvariant();
     }
 }

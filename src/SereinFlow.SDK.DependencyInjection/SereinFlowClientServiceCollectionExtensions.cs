@@ -4,27 +4,26 @@ using Microsoft.Extensions.Options;
 using SereinFlow.Client;
 
 namespace SereinFlow.Client.DependencyInjection;
+
 public static class SereinFlowClientServiceCollectionExtensions
 {
     public static IServiceCollection AddSereinFlowClient(this IServiceCollection services, Action<SereinFlowClientOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configure);
-        var addOptionsResult = services.AddOptions<SereinFlowClientOptions>();
-        addOptionsResult.Configure(configure);
+        var addOptions = services.AddOptions<SereinFlowClientOptions>();
+        addOptions.Configure(configure);
         services.AddHttpClient(SereinFlowClientHttpClientName);
         services.TryAddSingleton<SereinFlowClient>(serviceProvider =>
         {
             var options = serviceProvider.GetRequiredService<IOptions<SereinFlowClientOptions>>().Value;
-            var factory = serviceProvider.GetRequiredService<IHttpClientFactory>();
-            var createClientResult = factory.CreateClient(SereinFlowClientHttpClientName);
-            var sereinFlowClient = new SereinFlowClient(createClientResult, options);
-            return sereinFlowClient;
+            var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient(SereinFlowClientHttpClientName);
+            return new SereinFlowClient(httpClient, options);
         });
         services.TryAddSingleton<ISereinFlowClient>(serviceProvider =>
         {
-            var getRequiredServiceResult = serviceProvider.GetRequiredService<SereinFlowClient>();
-            return getRequiredServiceResult;
+            return serviceProvider.GetRequiredService<SereinFlowClient>();
         });
         return services;
     }

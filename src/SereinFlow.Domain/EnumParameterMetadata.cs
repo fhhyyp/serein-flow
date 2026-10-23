@@ -20,9 +20,7 @@ public sealed record EnumValueOption
         {
             throw new ArgumentException("Enum option names and values cannot be empty. 枚举选项名称和值不能为空。", parameterName);
         }
-
-        var trimResult = value.Trim();
-        return trimResult;
+        return value.Trim();
     }
 }
 
@@ -37,25 +35,19 @@ public sealed record EnumParameterMetadata
         TypeName = Validate(typeName, nameof(typeName));
         IsFlags = isFlags;
         UnderlyingType = Validate(underlyingType, nameof(underlyingType));
-        var evaluatedValue = (options ?? throw new ArgumentNullException(nameof(options)));
-        Options = evaluatedValue.ToArray();
+        var mappedOptions = (options ?? throw new ArgumentNullException(nameof(options)));
+        Options = mappedOptions.ToArray();
         if (Options.Count == 0)
         {
             throw new ArgumentException("Enum metadata must contain at least one option. 枚举元数据至少包含一个选项。", nameof(options));
         }
 
-        if (resolveCountResult() != Options.Count)
-        {
-            throw new ArgumentException("Enum option names must be unique. 枚举选项名称必须唯一。", nameof(options));
-        }
-
-        int resolveCountResult()
-        {
-            var countResult = Options
+        if (Options
                 .Select(static option => option.Name)
                 .Distinct(StringComparer.Ordinal)
-                .Count();
-            return countResult;
+                .Count() != Options.Count)
+        {
+            throw new ArgumentException("Enum option names must be unique. 枚举选项名称必须唯一。", nameof(options));
         }
     }
 
@@ -70,8 +62,6 @@ public sealed record EnumParameterMetadata
         {
             throw new ArgumentException("Enum metadata fields cannot be empty. 枚举元数据字段不能为空。", parameterName);
         }
-
-        var trimResult1 = value.Trim();
-        return trimResult1;
+        return value.Trim();
     }
 }

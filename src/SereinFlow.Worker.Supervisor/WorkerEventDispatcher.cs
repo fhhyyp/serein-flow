@@ -26,13 +26,13 @@ internal sealed class WorkerEventDispatcher : IAsyncDisposable
         _maximumBytes = maximumBytes;
         _batchSize = batchSize;
         _processingTimeout = processingTimeout ?? TimeSpan.FromSeconds(30);
-        var operationResult1 = new BoundedChannelOptions(capacity)
+        var boundedChannelOptions = new BoundedChannelOptions(capacity)
         {
             SingleReader = true,
             FullMode = BoundedChannelFullMode.Wait,
             AllowSynchronousContinuations = false
         };
-        _events = Channel.CreateBounded<WorkerEventEnvelopeDto>(operationResult1);
+        _events = Channel.CreateBounded<WorkerEventEnvelopeDto>(boundedChannelOptions);
         Completion = Task.Run(ConsumeAsync);
     }
 
@@ -76,8 +76,7 @@ internal sealed class WorkerEventDispatcher : IAsyncDisposable
                 // 使用短暂的合并窗口，在限制延迟的同时摊薄事务开销。
                 if (_events.Reader.Count < _batchSize && !_events.Reader.Completion.IsCompleted)
                 {
-                    var operationResult2 = TimeSpan.FromMilliseconds(10);
-                    await Task.Delay(operationResult2, _shutdown.Token);
+                    await Task.Delay(TimeSpan.FromMilliseconds(10), _shutdown.Token);
                 }
 
                 var batch = new List<WorkerEventEnvelopeDto>(_batchSize);
@@ -113,8 +112,7 @@ internal sealed class WorkerEventDispatcher : IAsyncDisposable
 
     private static int EstimateBytes(WorkerEventEnvelopeDto item)
     {
-        int operationResult1 = Encoding.UTF8.GetByteCount(item.PayloadJson) + item.PayloadJson.Length * 2 + 512;
-        return operationResult1;
+        return Encoding.UTF8.GetByteCount(item.PayloadJson) + item.PayloadJson.Length * 2 + 512;
     }
     public async ValueTask DisposeAsync()
     {

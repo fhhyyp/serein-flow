@@ -91,20 +91,17 @@ public sealed class RunInterruptionService
             var run = await _runStore.FindAsync(runId, cancellationToken);
             if (run is null)
             {
-                var runInterruptionResult = new RunInterruptionResult(RunInterruptionDisposition.NotFound);
-                return runInterruptionResult;
+                return new RunInterruptionResult(RunInterruptionDisposition.NotFound);
             }
 
             if (run.IsTerminal)
             {
-                var runInterruptionResult4 = new RunInterruptionResult(RunInterruptionDisposition.AlreadyTerminal, run);
-                return runInterruptionResult4;
+                return new RunInterruptionResult(RunInterruptionDisposition.AlreadyTerminal, run);
             }
 
             if (run.Status != FlowRunStatus.Running)
             {
-                var runInterruptionResult5 = new RunInterruptionResult(RunInterruptionDisposition.NotRunning, run);
-                return runInterruptionResult5;
+                return new RunInterruptionResult(RunInterruptionDisposition.NotRunning, run);
             }
 
             var interruptedAt = DateTimeOffset.UtcNow;
@@ -112,13 +109,12 @@ public sealed class RunInterruptionService
             if (!await _runStore.SaveAsync(run, cancellationToken))
             {
                 SaveFailedLog(_logger, runId, null);
-                var runInterruptionResult6 = new RunInterruptionResult(RunInterruptionDisposition.SaveFailed);
-                return runInterruptionResult6;
+                return new RunInterruptionResult(RunInterruptionDisposition.SaveFailed);
             }
 
             var sequence = await _eventStore.GetLastSequenceAsync(run.Id, cancellationToken) + 1;
-            var createWebOptionsResult = SereinJsonSerialization.CreateWebOptions();
-            var payload = JsonSerializer.Serialize(new { status = FlowRunStatusDto.Interrupted, errorCode, errorMessage, reason = run.CancellationReason, lastKnownSequence = sequence - 1, interruptedAt }, createWebOptionsResult);
+            var webOptions = SereinJsonSerialization.CreateWebOptions();
+            var payload = JsonSerializer.Serialize(new { status = FlowRunStatusDto.Interrupted, errorCode, errorMessage, reason = run.CancellationReason, lastKnownSequence = sequence - 1, interruptedAt }, webOptions);
             var item = new FlowRunEvent(run.Id, sequence, interruptedAt, RunErrorCodes.Interrupted, null, payload);
             try
             {
@@ -135,8 +131,7 @@ public sealed class RunInterruptionService
 
             var dto = new FlowRunEventDto(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, item.PayloadJson);
             await PublishLiveAsync(dto);
-            var runInterruptionResult7 = new RunInterruptionResult(RunInterruptionDisposition.Interrupted, run);
-            return runInterruptionResult7;
+            return new RunInterruptionResult(RunInterruptionDisposition.Interrupted, run);
         }
         finally
         {
@@ -157,8 +152,8 @@ public sealed class RunInterruptionService
 
         try
         {
-            var groupResult = _hub.Clients.Group($"run:{item.RunId:D}");
-            await groupResult.SendAsync("runEvent", item, CancellationToken.None);
+            var group = _hub.Clients.Group($"run:{item.RunId:D}");
+            await group.SendAsync("runEvent", item, CancellationToken.None);
         }
         catch (Exception exception)
         {
@@ -169,28 +164,24 @@ public sealed class RunInterruptionService
     private static Action<ILogger, Guid, Exception?> CreateSaveFailedLogInitialValue()
     {
         var eventId = new EventId(4201, "InterruptedRunSaveFailed");
-        Action<ILogger, Guid, Exception?> saveFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Warning, eventId, "Interrupted flow run {RunId} could not be saved because it no longer exists. 已中断的流程实例无法保存，实例可能已不存在。");
-        return saveFailedLogInitialValue;
+        return LoggerMessage.Define<Guid>(LogLevel.Warning, eventId, "Interrupted flow run {RunId} could not be saved because it no longer exists. 已中断的流程实例无法保存，实例可能已不存在。");
     }
 
     private static Action<ILogger, Guid, Exception?> CreateAuditAppendFailedLogInitialValue()
     {
-        var eventId1 = new EventId(4202, "InterruptedRunAuditAppendFailed");
-        Action<ILogger, Guid, Exception?> auditAppendFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Error, eventId1, "Interrupted flow run {RunId} could not append its audit event. 已中断流程实例无法追加审计事件。");
-        return auditAppendFailedLogInitialValue;
+        var eventId = new EventId(4202, "InterruptedRunAuditAppendFailed");
+        return LoggerMessage.Define<Guid>(LogLevel.Error, eventId, "Interrupted flow run {RunId} could not append its audit event. 已中断流程实例无法追加审计事件。");
     }
 
     private static Action<ILogger, Guid, Exception?> CreateBroadcastFailedLogInitialValue()
     {
-        var eventId2 = new EventId(4203, "InterruptedRunBroadcastFailed");
-        Action<ILogger, Guid, Exception?> broadcastFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Warning, eventId2, "Interrupted run event broadcast failed for {RunId}. 中断运行事件广播失败。");
-        return broadcastFailedLogInitialValue;
+        var eventId = new EventId(4203, "InterruptedRunBroadcastFailed");
+        return LoggerMessage.Define<Guid>(LogLevel.Warning, eventId, "Interrupted run event broadcast failed for {RunId}. 中断运行事件广播失败。");
     }
 
     private static Action<ILogger, Guid, Exception?> CreateSignalRPushFailedLogInitialValue()
     {
-        var eventId3 = new EventId(4204, "InterruptedRunSignalRPushFailed");
-        Action<ILogger, Guid, Exception?> signalRPushFailedLogInitialValue = LoggerMessage.Define<Guid>(LogLevel.Warning, eventId3, "Interrupted SignalR event push failed for {RunId}. 中断 SignalR 事件推送失败。");
-        return signalRPushFailedLogInitialValue;
+        var eventId = new EventId(4204, "InterruptedRunSignalRPushFailed");
+        return LoggerMessage.Define<Guid>(LogLevel.Warning, eventId, "Interrupted SignalR event push failed for {RunId}. 中断 SignalR 事件推送失败。");
     }
 }

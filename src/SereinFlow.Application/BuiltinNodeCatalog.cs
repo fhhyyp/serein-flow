@@ -20,24 +20,15 @@ public sealed class BuiltinNodeCatalog : IBuiltinNodeCatalog
     private const string ScriptLanguageVersion = "0.1";
     public BuiltinNodeCatalogDto GetCatalog()
     {
-        IReadOnlyList<NodeCreationDescriptorDto> evaluatedValue4 = [resolveNodeCreationDescriptorDto(), resolveNodeCreationDescriptorDto1()];
-        BuiltinNodeCatalogDto evaluatedValue5 = new(evaluatedValue4);
-        return evaluatedValue5;
-        NodeCreationDescriptorDto resolveNodeCreationDescriptorDto()
+        IReadOnlyList<NodeCreationDescriptorDto> nodes = [CreateScriptDescriptor(), new NodeCreationDescriptorDto("builtin:flow-call", NodeTypeDto.FlowCall, "FlowCall", null, new NodeUiMetadataDto("flowCall", "node.kind.flowCall", "node.flowCallSubtitle", null, "ready", true, 260, Category: "basic", ReturnType: "System.Object"), null, [])];
+        return new(nodes);
+        NodeCreationDescriptorDto CreateScriptDescriptor()
         {
             var nodeUiMetadataDto = new NodeUiMetadataDto("script", "node.kind.script", "node.scriptSubtitle", null, "ready", true, 260, Category: "basic", ReturnType: "ScriptLang.Runtime.Value");
-            var computeSourceHashResult = ScriptNodeDefinition.ComputeSourceHash(ScriptSource);
-            IReadOnlyList<ScriptValueContractDto> evaluatedValue = [new ScriptValueContractDto("result", "ScriptLang.Runtime.Value", false, "result", "Script result. 脚本结果。")];
-            var scriptNodeDataDto = new ScriptNodeDataDto("", ScriptSource, ScriptLanguageVersion, computeSourceHashResult, [], evaluatedValue);
-            var nodeCreationDescriptorDto = new NodeCreationDescriptorDto("builtin:script", NodeTypeDto.Script, "Script", null, nodeUiMetadataDto, scriptNodeDataDto, []);
-            return nodeCreationDescriptorDto;
-        }
-
-        NodeCreationDescriptorDto resolveNodeCreationDescriptorDto1()
-        {
-            var nodeUiMetadataDto2 = new NodeUiMetadataDto("flowCall", "node.kind.flowCall", "node.flowCallSubtitle", null, "ready", true, 260, Category: "basic", ReturnType: "System.Object");
-            var nodeCreationDescriptorDto3 = new NodeCreationDescriptorDto("builtin:flow-call", NodeTypeDto.FlowCall, "FlowCall", null, nodeUiMetadataDto2, null, []);
-            return nodeCreationDescriptorDto3;
+            var sourceHash = ScriptNodeDefinition.ComputeSourceHash(ScriptSource);
+            IReadOnlyList<ScriptValueContractDto> outputs = [new ScriptValueContractDto("result", "ScriptLang.Runtime.Value", false, "result", "Script result. 脚本结果。")];
+            var scriptNodeDataDto = new ScriptNodeDataDto("", ScriptSource, ScriptLanguageVersion, sourceHash, [], outputs);
+            return new NodeCreationDescriptorDto("builtin:script", NodeTypeDto.Script, "Script", null, nodeUiMetadataDto, scriptNodeDataDto, []);
         }
     }
 }

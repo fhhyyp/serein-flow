@@ -38,8 +38,6 @@ public sealed record FlowRunEvent
         {
             throw new ArgumentException("Event type cannot be empty. 事件类型不能为空。", parameterName);
         }
-
-        var trimResult = value.Trim();
-        return trimResult;
+        return value.Trim();
     }
 }

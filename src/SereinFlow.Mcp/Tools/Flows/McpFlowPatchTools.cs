@@ -87,8 +87,8 @@ internal sealed class McpFlowPatchTools(
         var principal = context.RequirePrincipal();
         var request = arguments;
         RequireConfirmation(request);
-        var requestPayload = Serialize(request);
-        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, FlowErrorCodes.Patch, request.IdempotencyKey, requestPayload, cancellationToken);
+        var requestJson = Serialize(request);
+        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, FlowErrorCodes.Patch, request.IdempotencyKey, requestJson, cancellationToken);
         if (replay is not null)
         {
             return DeserializeStoredResponse(replay.ResponseJson);
@@ -146,7 +146,7 @@ internal sealed class McpFlowPatchTools(
         }
 
         var response = FlowDiffService.RedactSensitive(persisted);
-        await _mcpIdempotencyService.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, response, requestPayload, cancellationToken);
+        await _mcpIdempotencyService.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, response, requestJson, cancellationToken);
         return response;
     }
 }

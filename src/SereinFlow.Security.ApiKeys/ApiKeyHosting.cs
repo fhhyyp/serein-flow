@@ -18,6 +18,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Infrastructure.Persistence;
 
 namespace SereinFlow.Security.ApiKeys;
+
 public static class ApiKeyHosting
 {
     public const string Scheme = "SereinFlow.ApiKey";
@@ -36,29 +37,30 @@ public static class ApiKeyHosting
         }
 
         services.AddSereinFlowAccess();
-        var argument1 = new SereinFlowHttpSecurityOptions
+        services.AddSingleton(new SereinFlowHttpSecurityOptions
         {
             Mode = "ApiKey",
             AuthenticationScheme = Scheme,
             ApiKeyManagement = true
-        };
-        services.AddSingleton(argument1);
+        });
         services.AddScoped<IApiKeyStore, ApiKeyStore>();
         services.AddScoped(provider =>
         {
-            var argument8 = provider.GetRequiredService<IApiKeyStore>();
+            var apiKeyStore = provider.GetRequiredService<IApiKeyStore>();
             var configuration = provider.GetRequiredService<IConfiguration>();
             var bootstrapKey = configuration["SereinFlow:Security:ApiKeys:BootstrapAdminKey"];
-            var value1 = new ApiKeyService(argument8, bootstrapKey);
-            return value1;
+            return new ApiKeyService(apiKeyStore, bootstrapKey);
         });
         services.AddScoped<ApiKeyManagementService>();
         services.AddScoped<ISereinFlowAuthorizationService, ApiKeyAuthorization>();
         services.AddScoped<ISereinFlowProjectScopeProvider, ApiKeyAuthorization>();
         services.AddScoped<ISereinFlowSecurityCapabilities, ApiKeyCapabilities>();
-        services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, ApiKeyHandler>(Scheme, _ =>
+        services
+            .AddAuthentication()
+            .AddScheme<AuthenticationSchemeOptions, ApiKeyHandler>(Scheme, _ =>
         {
-        }).AddCookie(SessionScheme, options =>
+        })
+            .AddCookie(SessionScheme, options =>
         {
             options.Cookie.Name = "SereinFlow.ApiKeySession";
             options.Cookie.HttpOnly = true;
@@ -97,12 +99,11 @@ public sealed class ApiKeyHandler(IOptionsMonitor<AuthenticationSchemeOptions> o
         {
             if (!raw.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
-                var result1 = AuthenticateResult.Fail("A Bearer credential is required.");
-                return result1;
+                return AuthenticateResult.Fail("A Bearer credential is required.");
             }
 
-            var argument2 = raw[7..].Trim();
-            actor = await keys.AuthenticateAsync(argument2, Context.RequestAborted);
+            var secret = raw[7..].Trim();
+            actor = await keys.AuthenticateAsync(secret, Context.RequestAborted);
         }
         else
         {
@@ -110,8 +111,7 @@ public sealed class ApiKeyHandler(IOptionsMonitor<AuthenticationSchemeOptions> o
             var id = session.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!session.Succeeded || string.IsNullOrEmpty(id))
             {
-                var result2 = AuthenticateResult.NoResult();
-                return result2;
+                return AuthenticateResult.NoResult();
             }
 
             actor = await keys.ResolveActorAsync(id, Context.RequestAborted);
@@ -125,13 +125,11 @@ public sealed class ApiKeyHandler(IOptionsMonitor<AuthenticationSchemeOptions> o
         {
             if (actor is null)
             {
-                var failure = AuthenticateResult.Fail("The credential is invalid, expired or revoked.");
-                return failure;
+                return AuthenticateResult.Fail("The credential is invalid, expired or revoked.");
             }
 
             var ticket = new AuthenticationTicket(actor.Principal, ApiKeyHosting.Scheme);
-            var result3 = AuthenticateResult.Success(ticket);
-            return result3;
+            return AuthenticateResult.Success(ticket);
         }
     }
 
@@ -160,14 +158,12 @@ public sealed class ApiKeysController(ApiKeyManagementService management, IApiKe
         var address = HttpContext.Connection.RemoteIpAddress;
         if (address is null || !IPAddress.IsLoopback(address) || Request.Headers.ContainsKey("Forwarded") || Request.Headers.ContainsKey("X-Forwarded-For"))
         {
-            var result4 = StatusCode(403);
-            return result4;
+            return StatusCode(403);
         }
 
         var created = await management.CreateInitialAdministratorAsync(cancellationToken);
         {
-            var result5 = Created("/api/security/api-keys/" + created.Key.Id, created);
-            return result5;
+            return Created("/api/security/api-keys/" + created.Key.Id, created);
         }
     }
 
@@ -177,9 +173,8 @@ public sealed class ApiKeysController(ApiKeyManagementService management, IApiKe
     {
         await RequireManagementAsync();
         {
-            var argument3 = await management.ListAsync(cancellationToken);
-            var result6 = Ok(argument3);
-            return result6;
+            var apiKeys = await management.ListAsync(cancellationToken);
+            return Ok(apiKeys);
         }
     }
 
@@ -190,8 +185,7 @@ public sealed class ApiKeysController(ApiKeyManagementService management, IApiKe
         await RequireManagementAsync();
         var created = await management.CreateAsync(request, cancellationToken);
         {
-            var result7 = Created("/api/security/api-keys/" + created.Key.Id, created);
-            return result7;
+            return Created("/api/security/api-keys/" + created.Key.Id, created);
         }
     }
 
@@ -213,9 +207,7 @@ public sealed class ApiKeysController(ApiKeyManagementService management, IApiKe
             var principal = new ClaimsPrincipal(identity);
             await HttpContext.SignInAsync(ApiKeyHosting.SessionScheme, principal, session.Properties);
         }
-
-        var result = Ok(rotated);
-        return result;
+        return Ok(rotated);
     }
 
     [HttpDelete("api-keys/{id}")]
@@ -224,9 +216,8 @@ public sealed class ApiKeysController(ApiKeyManagementService management, IApiKe
     {
         await RequireManagementAsync();
         {
-            var argument5 = await management.RevokeAsync(id, cancellationToken);
-            var result9 = Ok(argument5);
-            return result9;
+            var revoke = await management.RevokeAsync(id, cancellationToken);
+            return Ok(revoke);
         }
     }
 
@@ -237,35 +228,30 @@ public sealed class ApiKeysController(ApiKeyManagementService management, IApiKe
         var actor = SereinFlowHttpActor.Get(HttpContext);
         if (actor is null)
         {
-            var result10 = Unauthorized();
-            return result10;
+            return Unauthorized();
         }
 
         if (!Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
-            var result11 = Unauthorized();
-            return result11;
+            return Unauthorized();
         }
 
-        if (actor.Id != "bootstrap-admin" && await store.FindAsync(actor.Id, cancellationToken)is null)
+        if (actor.Id != "bootstrap-admin" && await store.FindAsync(actor.Id, cancellationToken) is null)
         {
-            var result12 = Unauthorized();
-            return result12;
+            return Unauthorized();
         }
 
         var subjectClaim = new Claim(ClaimTypes.NameIdentifier, actor.Id);
-        var argument6 = new ClaimsIdentity([subjectClaim], ApiKeyHosting.SessionScheme);
-        var principal = new ClaimsPrincipal(argument6);
-        var argument7 = new AuthenticationProperties
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([subjectClaim], ApiKeyHosting.SessionScheme));
+        var authenticationProperties = new AuthenticationProperties
         {
             IsPersistent = false,
             ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8),
             AllowRefresh = false
         };
-        await HttpContext.SignInAsync(ApiKeyHosting.SessionScheme, principal, argument7);
+        await HttpContext.SignInAsync(ApiKeyHosting.SessionScheme, principal, authenticationProperties);
         {
-            var result13 = NoContent();
-            return result13;
+            return NoContent();
         }
     }
 
@@ -275,12 +261,11 @@ public sealed class ApiKeysController(ApiKeyManagementService management, IApiKe
     {
         await HttpContext.SignOutAsync(ApiKeyHosting.SessionScheme);
         {
-            var result14 = NoContent();
-            return result14;
+            return NoContent();
         }
     }
 
     [HttpGet("session")]
     [SereinFlow.Api.SereinFlowScopedAuthorization]
-    public IActionResult Session() => SereinFlowHttpActor.Get(HttpContext)is { } actor ? Ok(new { id = actor.Id }) : Unauthorized();
+    public IActionResult Session() => SereinFlowHttpActor.Get(HttpContext) is { } actor ? Ok(new { id = actor.Id }) : Unauthorized();
 }

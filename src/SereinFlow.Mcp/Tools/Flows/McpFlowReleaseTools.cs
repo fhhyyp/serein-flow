@@ -73,8 +73,8 @@ internal sealed class McpFlowReleaseTools(
         var principal = context.RequirePrincipal();
         var request = arguments;
         RequireConfirmation(request);
-        var requestPayload = Serialize(request);
-        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, "flow.publish", request.IdempotencyKey, requestPayload, cancellationToken);
+        var requestJson = Serialize(request);
+        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, "flow.publish", request.IdempotencyKey, requestJson, cancellationToken);
         if (replay is not null)
         {
             return DeserializeStoredResponse(replay.ResponseJson);
@@ -119,7 +119,7 @@ internal sealed class McpFlowReleaseTools(
         var redactedDiff = FlowDiffService.RedactSensitive(stored.Diff);
         FlowDefinitionDto? selectedValue = result.DevelopmentDefinition is null ? null : FlowDiffService.RedactSensitive(result.DevelopmentDefinition);
         var response = new FlowVersionMutationDto(result.Version!, redactedDiff, selectedValue);
-        await _mcpIdempotencyService.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, response, requestPayload, cancellationToken);
+        await _mcpIdempotencyService.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, response, requestJson, cancellationToken);
         return response;
     }
 
@@ -159,9 +159,7 @@ internal sealed class McpFlowReleaseTools(
             IEnumerable<ValidationDiagnosticDto> value = [new ValidationDiagnosticDto(FlowErrorCodes.RollbackNoChange, "The selected version is already the current track head. 选定版本已经是当前轨道头版本。", null)];
             diagnostics = diagnostics.Concat(value).ToArray();
         }
-
-        var flowValidationResultDto40 = new FlowValidationResultDto(diagnostics.Length == 0, diagnostics);
-        var stored = new StoredRollbackPreview(request, flowValidationResultDto40, diff);
+        var stored = new StoredRollbackPreview(request, new FlowValidationResultDto(diagnostics.Length == 0, diagnostics), diff);
         var entry = await _mcpPreviewService.CreateAsync("flow.rollback", principal, request.ProjectId, request.FlowId, request.ExpectedHeadVersion, stored, cancellationToken);
         var redactedDiff = FlowDiffService.RedactSensitive(diff);
         return new
@@ -185,8 +183,8 @@ internal sealed class McpFlowReleaseTools(
         var principal = context.RequirePrincipal();
         var request = arguments;
         RequireConfirmation(request);
-        var requestPayload = Serialize(request);
-        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, "flow.rollback", request.IdempotencyKey, requestPayload, cancellationToken);
+        var requestJson = Serialize(request);
+        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, "flow.rollback", request.IdempotencyKey, requestJson, cancellationToken);
         if (replay is not null)
         {
             return DeserializeStoredResponse(replay.ResponseJson);
@@ -203,8 +201,7 @@ internal sealed class McpFlowReleaseTools(
         long? currentHead;
         if (stored.Request.Track == FlowVersionTrackDto.Development)
         {
-            var currentDefinition = await _flowDefinitionRepository.FindAsync(stored.Request.ProjectId, stored.Request.FlowId, cancellationToken);
-            currentHead = currentDefinition?.Version;
+            currentHead = (await _flowDefinitionRepository.FindAsync(stored.Request.ProjectId, stored.Request.FlowId, cancellationToken))?.Version;
         }
         else
         {
@@ -234,7 +231,7 @@ internal sealed class McpFlowReleaseTools(
         var redactedDiff = FlowDiffService.RedactSensitive(stored.Diff);
         FlowDefinitionDto? selectedValue = result.DevelopmentDefinition is null ? null : FlowDiffService.RedactSensitive(result.DevelopmentDefinition);
         var response = new FlowVersionMutationDto(result.Version!, redactedDiff, selectedValue);
-        await _mcpIdempotencyService.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, response, requestPayload, cancellationToken);
+        await _mcpIdempotencyService.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, response, requestJson, cancellationToken);
         return response;
     }
 }

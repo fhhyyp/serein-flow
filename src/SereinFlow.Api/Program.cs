@@ -4,8 +4,7 @@ using SereinFlow.AspNetCore;
 
 if (args.Any(static argument =>
 {
-    var equalsResult = string.Equals(argument, "--mcp-stdio", StringComparison.OrdinalIgnoreCase);
-    return equalsResult;
+    return string.Equals(argument, "--mcp-stdio", StringComparison.OrdinalIgnoreCase);
 }))
 {
     await McpStdioHost.RunAsync(args);
@@ -35,9 +34,9 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        var allowAnyOriginResult = policy.AllowAnyOrigin();
-        var allowAnyHeaderResult = allowAnyOriginResult.AllowAnyHeader();
-        allowAnyHeaderResult.AllowAnyMethod();
+        var allowAnyOrigin = policy.AllowAnyOrigin();
+        var allowAnyHeader = allowAnyOrigin.AllowAnyHeader();
+        allowAnyHeader.AllowAnyMethod();
     });
 });
 builder.Services.AddSereinFlow(options =>

@@ -59,8 +59,7 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
     {
         get
         {
-            var readResult = Volatile.Read(ref _sharedState.StepCount);
-            return readResult;
+            return Volatile.Read(ref _sharedState.StepCount);
         }
     }
 
@@ -73,9 +72,7 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
         {
             throw new ArgumentException("Execution context keys cannot be empty. 执行上下文键不能为空。", nameof(key));
         }
-
-        object? evaluatedValue = _values.TryGetValue(key, out var value) ? value : null;
-        return evaluatedValue;
+        return _values.TryGetValue(key, out var value) ? value : null;
     }
 
     public void Write(string key, object? value)
@@ -90,8 +87,7 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
 
     public IReadOnlyDictionary<string, object?> Snapshot()
     {
-        var dictionary = new Dictionary<string, object?>(_values, StringComparer.Ordinal);
-        return dictionary;
+        return new Dictionary<string, object?>(_values, StringComparer.Ordinal);
     }
 
     internal void AttachPlan(ExecutionPlan plan) => Plan = plan;
@@ -101,14 +97,12 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
     /// </summary>
     public bool TryBeginStep(string nodeId, out string? errorCode)
     {
-        var tryBeginStepResult = TryBeginStep(nodeId, out _, out _, out errorCode);
-        return tryBeginStepResult;
+        return TryBeginStep(nodeId, out _, out _, out errorCode);
     }
 
     public bool TryBeginStep(string nodeId, out Guid executionId, out string? errorCode)
     {
-        var tryBeginStepResult1 = TryBeginStep(nodeId, out _, out executionId, out errorCode);
-        return tryBeginStepResult1;
+        return TryBeginStep(nodeId, out _, out executionId, out errorCode);
     }
 
     public bool TryBeginStep(string nodeId, out int step, out Guid executionId, out string? errorCode)
@@ -134,16 +128,15 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
 
     public long NextSequence()
     {
-        var incrementResult = Interlocked.Increment(ref _sharedState.Sequence);
-        return incrementResult;
+        return Interlocked.Increment(ref _sharedState.Sequence);
     }
 
     internal FlowExecutionSession CreateChild(Guid? invocationId = null)
     {
         var child = new FlowExecutionSession(RunId, CancellationToken, MaxSteps, MaxNodeVisits, _sharedState, Resources, ownsResources: false, null, // A listener trigger is an isolated value context, not a FlowCall
- // frame. Keep its visible depth unchanged so audit consumers can
-        // distinguish FlowCall nesting from trigger instances.
-        // 监听触发器是隔离值上下文，并非 FlowCall 调用帧；保持可见深度不变，便于审计区分两者。
+                                                                                                                                                     // frame. Keep its visible depth unchanged so audit consumers can
+                                                                                                                                                     // distinguish FlowCall nesting from trigger instances.
+                                                                                                                                                     // 监听触发器是隔离值上下文，并非 FlowCall 调用帧；保持可见深度不变，便于审计区分两者。
         FrameDepth, invocationId ?? InvocationId);
         if (Plan is not null)
         {
@@ -169,8 +162,8 @@ public sealed class FlowExecutionSession : IExecutionContext, IAsyncDisposable
         }
 
         ArgumentNullException.ThrowIfNull(inputs);
-        var dictionary2 = new Dictionary<string, object?>(inputs, StringComparer.Ordinal);
-        var child = new FlowExecutionSession(RunId, CancellationToken, MaxSteps, MaxNodeVisits, _sharedState, Resources, ownsResources: false, dictionary2, FrameDepth + 1, InvocationId);
+        var flowCallInputs = new Dictionary<string, object?>(inputs, StringComparer.Ordinal);
+        var child = new FlowExecutionSession(RunId, CancellationToken, MaxSteps, MaxNodeVisits, _sharedState, Resources, ownsResources: false, flowCallInputs, FrameDepth + 1, InvocationId);
         if (Plan is not null)
         {
             child.AttachPlan(Plan);

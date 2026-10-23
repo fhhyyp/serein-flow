@@ -12,23 +12,20 @@ internal static class LibraryBindingIndex
 {
     public static IReadOnlyList<string> Extract(FlowDefinitionDto definition)
     {
-        var toArrayResult = definition.Canvases
+        return definition.Canvases
             .SelectMany(static canvas => canvas.Nodes)
             .Where(static node => node.Type is NodeTypeDto.Action or NodeTypeDto.Flipflop)
             .Select(static node => node.Ui?.LibraryId)
             .Where(static id =>
             {
-                var evaluatedValue = !string.IsNullOrWhiteSpace(id);
-                return evaluatedValue;
+                return !string.IsNullOrWhiteSpace(id);
             })
             .Select(static id =>
             {
-                var trimResult = id!.Trim();
-                return trimResult;
+                return id!.Trim();
             })
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Order(StringComparer.Ordinal)
             .ToArray();
-        return toArrayResult;
     }
 }

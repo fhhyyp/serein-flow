@@ -17,8 +17,8 @@ internal sealed class WorkerNativeLibraryLoader : IFlowNativeLibraryLoader, IDis
     private bool _disposed;
     public WorkerNativeLibraryLoader(string libraryRoot, Func<string, nint> loadFromPath)
     {
-        var evaluatedValue = libraryRoot ?? throw new ArgumentNullException(nameof(libraryRoot));
-        _libraryRoot = Path.GetFullPath(evaluatedValue);
+        var validatedLibraryRoot = libraryRoot ?? throw new ArgumentNullException(nameof(libraryRoot));
+        _libraryRoot = Path.GetFullPath(validatedLibraryRoot);
         _loadFromPath = loadFromPath ?? throw new ArgumentNullException(nameof(loadFromPath));
     }
 
@@ -53,20 +53,19 @@ internal sealed class WorkerNativeLibraryLoader : IFlowNativeLibraryLoader, IDis
         string[] nativeFiles;
         try
         {
-            var enumerateFilesResult = Directory.EnumerateFiles(directory, "*", searchOption);
-            var whereResult = enumerateFilesResult.Where(IsNativeLibraryFile);
-            var whereResult3 = whereResult.Where(static path =>
+            nativeFiles = Directory
+                .EnumerateFiles(directory, "*", searchOption)
+                .Where(IsNativeLibraryFile)
+                .Where(static path =>
             {
-                var evaluatedValue1 = !IsManagedAssembly(path);
-                return evaluatedValue1;
-            });
-            var orderByResult = whereResult3.OrderBy(static path =>
+                return !IsManagedAssembly(path);
+            })
+                .OrderBy(static path =>
             {
-                int evaluatedValue2 = IsOpenCvShim(path) ? 1 : 0;
-                return evaluatedValue2;
-            });
-            var thenByResult = orderByResult.ThenBy(static path => path, StringComparer.OrdinalIgnoreCase);
-            nativeFiles = thenByResult.ToArray();
+                return IsOpenCvShim(path) ? 1 : 0;
+            })
+                .ThenBy(static path => path, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
         }
         catch (Exception exception)
         {
@@ -97,7 +96,7 @@ internal sealed class WorkerNativeLibraryLoader : IFlowNativeLibraryLoader, IDis
             {
                 LoadPath(relativeFile, nativeFile);
             }
-            catch (FlowNativeLibraryException exception)when (!required)
+            catch (FlowNativeLibraryException exception) when (!required)
             {
                 // stderr is captured by WorkerSupervisor and is intentionally separate from the
                 // framed stdout protocol.
@@ -168,21 +167,16 @@ internal sealed class WorkerNativeLibraryLoader : IFlowNativeLibraryLoader, IDis
         {
             throw new FlowNativeLibraryException(errorCode, $"Native library paths must be relative to the library package. Native 类库路径必须是相对于类库包的路径：“{relativePath}”。", relativePath);
         }
-
-        var replaceResult = expanded.Replace('/', Path.DirectorySeparatorChar);
-        var normalized = replaceResult.Replace('\\', Path.DirectorySeparatorChar);
+        var normalized = expanded.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
         var segments = normalized.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
         if (segments.Any(static segment =>
         {
-            var evaluatedValue4 = segment is "." or ".." || segment.Contains(':');
-            return evaluatedValue4;
+            return segment is "." or ".." || segment.Contains(':');
         }))
         {
             throw new FlowNativeLibraryException(errorCode, $"Native library paths cannot contain parent or drive segments. Native 类库路径不能包含父目录或驱动器片段：“{relativePath}”。", relativePath);
         }
-
-        var combineResult = Path.Combine(_libraryRoot, normalized);
-        var fullPath = Path.GetFullPath(combineResult);
+        var fullPath = Path.GetFullPath(Path.Combine(_libraryRoot, normalized));
         if (!IsWithinRoot(fullPath, _libraryRoot))
         {
             throw new FlowNativeLibraryException(errorCode, $"Native library path '{relativePath}' is outside the library package. Native 类库路径“{relativePath}”超出了类库包目录。", relativePath);
@@ -194,8 +188,7 @@ internal sealed class WorkerNativeLibraryLoader : IFlowNativeLibraryLoader, IDis
     private static bool IsNativeLibraryFile(string path)
     {
         var fileName = Path.GetFileName(path);
-        bool evaluatedValue5 = OperatingSystem.IsWindows() ? fileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) : OperatingSystem.IsLinux() ? fileName.EndsWith(".so", StringComparison.OrdinalIgnoreCase) || fileName.Contains(".so.", StringComparison.OrdinalIgnoreCase) : fileName.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".so", StringComparison.OrdinalIgnoreCase);
-        return evaluatedValue5;
+        return OperatingSystem.IsWindows() ? fileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) : OperatingSystem.IsLinux() ? fileName.EndsWith(".so", StringComparison.OrdinalIgnoreCase) || fileName.Contains(".so.", StringComparison.OrdinalIgnoreCase) : fileName.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".so", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsManagedAssembly(string path)
@@ -213,17 +206,13 @@ internal sealed class WorkerNativeLibraryLoader : IFlowNativeLibraryLoader, IDis
 
     private static bool IsOpenCvShim(string path)
     {
-        var getFileNameWithoutExtensionResult = Path.GetFileNameWithoutExtension(path);
-        var equalsResult = string.Equals(getFileNameWithoutExtensionResult, "OpenCvSharpExtern", StringComparison.OrdinalIgnoreCase);
-        return equalsResult;
+        return string.Equals(Path.GetFileNameWithoutExtension(path), "OpenCvSharpExtern", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsWithinRoot(string candidate, string root)
     {
-        var getFullPathResult = Path.GetFullPath(root);
-        var normalizedRoot = Path.TrimEndingDirectorySeparator(getFullPathResult);
-        var evaluatedValue6 = string.Equals(candidate, normalizedRoot, StringComparison.OrdinalIgnoreCase) || candidate.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
-        return evaluatedValue6;
+        var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        return string.Equals(candidate, normalizedRoot, StringComparison.OrdinalIgnoreCase) || candidate.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     private void ThrowIfDisposed()

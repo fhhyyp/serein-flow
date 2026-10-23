@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using SereinFlow.Application;
 
 namespace SereinFlow.AspNetCore;
+
 public sealed class SereinFlowHttpSecurityOptions
 {
     public string Mode { get; set; } = "";
@@ -26,11 +27,11 @@ public static class SereinFlowHostSecurityExtensions
             throw new InvalidOperationException("SereinFlow HTTP security has already been selected.");
         }
 
-        var argument1 = new SereinFlowHttpSecurityOptions
+        var sereinFlowHttpSecurityOptions = new SereinFlowHttpSecurityOptions
         {
             Mode = "Host"
         };
-        builder.Services.AddSingleton(argument1);
+        builder.Services.AddSingleton(sereinFlowHttpSecurityOptions);
         builder.Services.AddScoped<ISereinFlowAuthorizationService, HostAuthorization>();
         return builder;
     }
@@ -53,13 +54,13 @@ public static class SereinFlowHttpActor
     internal static void Set(HttpContext context, SereinFlowActor? actor) => context.Items[ActorKey] = actor;
     public static async Task<SereinFlowActor?> ResolveAsync(HttpContext context)
     {
-        var options = context.RequestServices.GetRequiredService<SereinFlowHttpSecurityOptions>();
-        if (options.Mode == "None")
+        var sereinFlowHttpSecurityOptions = context.RequestServices.GetRequiredService<SereinFlowHttpSecurityOptions>();
+        if (sereinFlowHttpSecurityOptions.Mode == "None")
         {
             return AnonymousAuthorization.Actor;
         }
         var principal = context.User;
-        if (options.AuthenticationScheme is { } scheme)
+        if (sereinFlowHttpSecurityOptions.AuthenticationScheme is { } scheme)
         {
             var result = await context.AuthenticateAsync(scheme);
             if (!result.Succeeded)
@@ -82,10 +83,9 @@ public static class SereinFlowHttpActor
             return null;
         }
 
-        var id = options.Mode == "ApiKey" ? subject.Value : $"host:{Uri.EscapeDataString(principal.Identity.AuthenticationType ?? "host")}:{Uri.EscapeDataString(subject.Issuer)}:{Uri.EscapeDataString(subject.Value)}";
+        var id = sereinFlowHttpSecurityOptions.Mode == "ApiKey" ? subject.Value : $"host:{Uri.EscapeDataString(principal.Identity.AuthenticationType ?? "host")}:{Uri.EscapeDataString(subject.Issuer)}:{Uri.EscapeDataString(subject.Value)}";
         {
-            SereinFlowActor? result1 = new(id, principal);
-            return result1;
+            return new(id, principal);
         }
     }
 }

@@ -29,8 +29,7 @@ public static class LibraryArgumentConverter
         var effectiveType = nullableType ?? targetType;
         if (value is Value scriptValue)
         {
-            var convertResult = ScriptValueTypeConverter.Convert(scriptValue, targetType);
-            return convertResult;
+            return ScriptValueTypeConverter.Convert(scriptValue, targetType);
         }
 
         if (value is JsonElement element)
@@ -55,32 +54,22 @@ public static class LibraryArgumentConverter
 
         if (effectiveType == typeof(string))
         {
-            var convertToStringResult = ConvertToString(value);
-            return convertToStringResult;
+            return ConvertToString(value);
         }
 
         if (effectiveType == typeof(bool))
         {
-            var convertToBooleanResult = ConvertToBoolean(value);
-            return convertToBooleanResult;
+            return ConvertToBoolean(value);
         }
 
         if (effectiveType.IsEnum)
         {
-            var convertToEnumResult = ConvertToEnum(value, effectiveType);
-            return convertToEnumResult;
+            return ConvertToEnum(value, effectiveType);
         }
 
         if (effectiveType == typeof(Guid))
         {
-            object evaluatedValue1 = value is Guid guid ? guid : resolveParseResult();
-            return evaluatedValue1;
-            Guid resolveParseResult()
-            {
-                var evaluatedValue = System.Convert.ToString(value, CultureInfo.InvariantCulture)!;
-                var parseResult = Guid.Parse(evaluatedValue);
-                return parseResult;
-            }
+            return value is Guid guid ? guid : Guid.Parse((System.Convert.ToString(value, CultureInfo.InvariantCulture)!));
         }
 
         if (effectiveType == typeof(char))
@@ -96,17 +85,14 @@ public static class LibraryArgumentConverter
 
         if (effectiveType.IsArray && value is IEnumerable enumerable && value is not string)
         {
-            var evaluatedValue2 = effectiveType.GetElementType()!;
-            var convertArrayResult = ConvertArray(enumerable, evaluatedValue2);
-            return convertArrayResult;
+            return ConvertArray(enumerable, (effectiveType.GetElementType()!));
         }
 
         try
         {
             if (value is IConvertible && typeof(IConvertible).IsAssignableFrom(effectiveType))
             {
-                var changeTypeResult = System.Convert.ChangeType(value, effectiveType, CultureInfo.InvariantCulture);
-                return changeTypeResult;
+                return System.Convert.ChangeType(value, effectiveType, CultureInfo.InvariantCulture);
             }
         }
         catch (Exception exception) when (exception is FormatException or InvalidCastException or OverflowException)
@@ -115,24 +101,21 @@ public static class LibraryArgumentConverter
         }
 
         var targetConverter = TypeDescriptor.GetConverter(effectiveType);
-        var getTypeResult = value.GetType();
-        if (targetConverter.CanConvertFrom(getTypeResult))
+        var type = value.GetType();
+        if (targetConverter.CanConvertFrom(type))
         {
-            var convertFromResult = targetConverter.ConvertFrom(null, CultureInfo.InvariantCulture, value);
-            return convertFromResult;
+            return targetConverter.ConvertFrom(null, CultureInfo.InvariantCulture, value);
         }
 
         if (value is string inputText && targetConverter.CanConvertFrom(typeof(string)))
         {
-            var convertFromInvariantStringResult = targetConverter.ConvertFromInvariantString(inputText);
-            return convertFromInvariantStringResult;
+            return targetConverter.ConvertFromInvariantString(inputText);
         }
 
         try
         {
-            var json = JsonSerializer.Serialize(value, JsonOptions);
-            var evaluatedValue3 = JsonSerializer.Deserialize(json, effectiveType, JsonOptions) ?? throw new InvalidCastException($"Value cannot be converted to {effectiveType.FullName}. 值无法转换为目标类型“{effectiveType.FullName}”。");
-            return evaluatedValue3;
+            var valueJson = JsonSerializer.Serialize(value, JsonOptions);
+            return JsonSerializer.Deserialize(valueJson, effectiveType, JsonOptions) ?? throw new InvalidCastException($"Value cannot be converted to {effectiveType.FullName}. 值无法转换为目标类型“{effectiveType.FullName}”。");
         }
         catch (JsonException exception)
         {
@@ -149,21 +132,17 @@ public static class LibraryArgumentConverter
 
         if (value is char character)
         {
-            var toStringResult = character.ToString();
-            return toStringResult;
+            return character.ToString();
         }
 
         if (value is IFormattable formattable)
         {
-            var evaluatedValue4 = formattable.ToString(null, CultureInfo.InvariantCulture) ?? string.Empty;
-            return evaluatedValue4;
+            return formattable.ToString(null, CultureInfo.InvariantCulture) ?? string.Empty;
         }
-
-        string evaluatedValue5 = value is IEnumerable and not string ? JsonSerializer.Serialize(value, JsonOptions) : value.ToString() ?? string.Empty;
         // Preserve useful content when a node returns an object/array and the
         // target method explicitly asks for a string.
         // 当节点返回对象或数组且目标方法显式要求字符串时，保留有用内容。
-        return evaluatedValue5;
+        return value is IEnumerable and not string ? JsonSerializer.Serialize(value, JsonOptions) : value.ToString() ?? string.Empty;
     }
 
     private static bool ConvertToBoolean(object value)
@@ -212,14 +191,12 @@ public static class LibraryArgumentConverter
     {
         if (value is string text)
         {
-            var parseResult6 = Enum.Parse(enumType, text, ignoreCase: true);
-            return parseResult6;
+            return Enum.Parse(enumType, text, ignoreCase: true);
         }
 
         var underlying = Enum.GetUnderlyingType(enumType);
         var numeric = System.Convert.ChangeType(value, underlying, CultureInfo.InvariantCulture);
-        var toObjectResult = Enum.ToObject(enumType, numeric!);
-        return toObjectResult;
+        return Enum.ToObject(enumType, numeric!);
     }
 
     private static Array ConvertArray(IEnumerable values, Type elementType)
@@ -228,8 +205,7 @@ public static class LibraryArgumentConverter
             .Cast<object?>()
             .Select(item =>
             {
-                var convertResult7 = Convert(item, elementType);
-                return convertResult7;
+                return Convert(item, elementType);
             })
             .ToArray();
         var result = Array.CreateInstance(elementType, converted.Length);
@@ -243,7 +219,7 @@ public static class LibraryArgumentConverter
 
     private static object? ToClrValue(JsonElement element)
     {
-        object? evaluatedValue9 = element.ValueKind switch
+        return element.ValueKind switch
         {
             JsonValueKind.Null => null,
             JsonValueKind.True => true,
@@ -251,28 +227,16 @@ public static class LibraryArgumentConverter
             JsonValueKind.String => element.GetString(),
             JsonValueKind.Number when element.TryGetInt64(out var integer) => integer,
             JsonValueKind.Number when element.TryGetDecimal(out var decimalValue) => decimalValue,
-            JsonValueKind.Array => resolveToArrayResult(),
-            JsonValueKind.Object => resolveToDictionaryResult(),
-            _ => null,
-        };
-        return evaluatedValue9;
-        object resolveToArrayResult()
-        {
-            var toArrayResult = element.EnumerateArray()
+            JsonValueKind.Array => element
+                .EnumerateArray()
                 .Select(ToClrValue)
-                .ToArray();
-            return toArrayResult;
-        }
-
-        object resolveToDictionaryResult()
-        {
-            var toDictionaryResult = element.EnumerateObject()
+                .ToArray(),
+            JsonValueKind.Object => element.EnumerateObject()
                 .ToDictionary(item => item.Name, item =>
                 {
-                    var toClrValueResult = ToClrValue(item.Value);
-                    return toClrValueResult;
-                }, StringComparer.Ordinal);
-            return toDictionaryResult;
-        }
+                    return ToClrValue(item.Value);
+                }, StringComparer.Ordinal),
+            _ => null,
+        };
     }
 }

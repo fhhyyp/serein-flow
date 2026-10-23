@@ -6,6 +6,7 @@ using SereinFlow.Domain;
 using static SereinFlow.Api.ApiEndpointHelpers;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/projects/{projectId:guid}/flows/{flowId:guid}/versions")]
 public sealed class FlowVersionsController : ApiControllerBase
 {
@@ -29,19 +30,16 @@ public sealed class FlowVersionsController : ApiControllerBase
     {
         if (!TryParseFlowVersionTrack(track, out var parsedTrack))
         {
-            var apiProblemResult = ApiProblemWithCode(StatusCodes.Status400BadRequest, "The flow version track is invalid. 流程版本轨道无效。", code: FlowErrorCodes.VersionTrackInvalid);
-            return apiProblemResult;
+            return ApiProblemWithCode(StatusCodes.Status400BadRequest, "The flow version track is invalid. 流程版本轨道无效。", code: FlowErrorCodes.VersionTrackInvalid);
         }
 
-        if (await _projects.FindAsync(projectId, cancellationToken)is null || await _flows.FindAsync(projectId, flowId, cancellationToken)is null)
+        if (await _projects.FindAsync(projectId, cancellationToken) is null || await _flows.FindAsync(projectId, flowId, cancellationToken) is null)
         {
-            var apiProblemResult1 = ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。");
-            return apiProblemResult1;
+            return ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。");
         }
 
-        var listVersionsAsyncResult = await _versions.ListVersionsAsync(projectId, flowId, parsedTrack, cancellationToken);
-        var okResult = Ok(listVersionsAsyncResult);
-        return okResult;
+        var listVersions = await _versions.ListVersionsAsync(projectId, flowId, parsedTrack, cancellationToken);
+        return Ok(listVersions);
     }
 
     [HttpGet("{version:long}")]
@@ -49,15 +47,13 @@ public sealed class FlowVersionsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Get([FromRoute] Guid projectId, [FromRoute] Guid flowId, [FromRoute] long version, CancellationToken cancellationToken)
     {
-        if (await _projects.FindAsync(projectId, cancellationToken)is null || await _flows.FindAsync(projectId, flowId, cancellationToken)is null)
+        if (await _projects.FindAsync(projectId, cancellationToken) is null || await _flows.FindAsync(projectId, flowId, cancellationToken) is null)
         {
-            var apiProblemResult2 = ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。");
-            return apiProblemResult2;
+            return ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。");
         }
 
         var item = await _versions.FindVersionAsync(projectId, flowId, version, cancellationToken);
-        ActionResult evaluatedValue = item is null ? ApiProblem(StatusCodes.Status404NotFound, "Flow version not found. 未找到流程版本。") : Ok(item);
-        return evaluatedValue;
+        return item is null ? ApiProblem(StatusCodes.Status404NotFound, "Flow version not found. 未找到流程版本。") : Ok(item);
     }
 
     [HttpPost("/api/projects/{projectId:guid}/flows/{flowId:guid}/publish")]
@@ -69,52 +65,44 @@ public sealed class FlowVersionsController : ApiControllerBase
     {
         if (request.ExpectedDevelopmentVersion < 1)
         {
-            var apiProblemResult3 = ApiProblem(StatusCodes.Status400BadRequest, "A positive development version is required. 需要有效的开发版本号。");
-            return apiProblemResult3;
+            return ApiProblem(StatusCodes.Status400BadRequest, "A positive development version is required. 需要有效的开发版本号。");
         }
 
         var project = await _projects.FindAsync(projectId, cancellationToken);
         var development = await _flows.FindAsync(projectId, flowId, cancellationToken);
         if (project is null || development is null)
         {
-            var apiProblemResult4 = ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。");
-            return apiProblemResult4;
+            return ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。");
         }
 
         if (project.Status == ProjectStatus.Archived)
         {
-            var apiProblemResult5 = ApiProblem(StatusCodes.Status409Conflict, "Archived projects cannot publish flow versions. 已归档项目不能发布流程版本。");
-            return apiProblemResult5;
+            return ApiProblem(StatusCodes.Status409Conflict, "Archived projects cannot publish flow versions. 已归档项目不能发布流程版本。");
         }
 
         if (development.Version != request.ExpectedDevelopmentVersion)
         {
-            var apiProblemResult7 = ApiVersionProblem(StatusCodes.Status409Conflict, "The development flow version changed before publishing. 开发流程版本已变更，无法发布。", currentVersion: development.Version);
-            return apiProblemResult7;
+            return ApiVersionProblem(StatusCodes.Status409Conflict, "The development flow version changed before publishing. 开发流程版本已变更，无法发布。", currentVersion: development.Version);
         }
 
         var validation = FlowDefinitionContractValidator.ValidateForExecution(development);
         if (!validation.IsValid)
         {
-            var badRequestResult = BadRequest(validation);
-            return badRequestResult;
+            return BadRequest(validation);
         }
 
         var libraryValidation = await _projectLibraries.ValidateFlowLibrariesAsync(projectId, development, cancellationToken);
         if (!libraryValidation.IsValid)
         {
-            var badRequestResult8 = BadRequest(libraryValidation);
-            return badRequestResult8;
+            return BadRequest(libraryValidation);
         }
 
-        var findProductionVersionAsyncResult = await _versions.FindProductionVersionAsync(projectId, flowId, cancellationToken);
-        var published = await _versions.PublishAsync(projectId, flowId, request.ExpectedDevelopmentVersion, request.Remark, findProductionVersionAsyncResult, cancellationToken);
-        ActionResult evaluatedValue11 = published.IsCommitted ? Ok(published.Version) : resolveApiProblemResult();
-        return evaluatedValue11;
-        ObjectResult resolveApiProblemResult()
+        var expectedProductionVersion = await _versions.FindProductionVersionAsync(projectId, flowId, cancellationToken);
+        var published = await _versions.PublishAsync(projectId, flowId, request.ExpectedDevelopmentVersion, request.Remark, expectedProductionVersion, cancellationToken);
+        return published.IsCommitted ? Ok(published.Version) : PublishConflict();
+        ObjectResult PublishConflict()
         {
-            var apiProblemResult10 = ApiVersionProblem(StatusCodes.Status409Conflict, "The development flow version changed before publishing. 开发流程版本已变更，无法发布。", currentVersion: published.CurrentHeadVersion);
-            return apiProblemResult10;
+            return ApiVersionProblem(StatusCodes.Status409Conflict, "The development flow version changed before publishing. 开发流程版本已变更，无法发布。", currentVersion: published.CurrentHeadVersion);
         }
     }
 
@@ -127,51 +115,43 @@ public sealed class FlowVersionsController : ApiControllerBase
     {
         if (version < 1 || request.ExpectedHeadVersion < 1 || !Enum.IsDefined(request.Track))
         {
-            var apiProblemResult12 = ApiProblem(StatusCodes.Status400BadRequest, "The rollback request is invalid. 回滚请求无效。");
-            return apiProblemResult12;
+            return ApiProblem(StatusCodes.Status400BadRequest, "The rollback request is invalid. 回滚请求无效。");
         }
 
         var project = await _projects.FindAsync(projectId, cancellationToken);
-        if (project is null || await _flows.FindAsync(projectId, flowId, cancellationToken)is null)
+        if (project is null || await _flows.FindAsync(projectId, flowId, cancellationToken) is null)
         {
-            var apiProblemResult13 = ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。");
-            return apiProblemResult13;
+            return ApiProblem(StatusCodes.Status404NotFound, "Flow definition not found. 未找到流程定义。");
         }
 
         if (project.Status == ProjectStatus.Archived)
         {
-            var apiProblemResult14 = ApiProblem(StatusCodes.Status409Conflict, "Archived projects cannot roll back flow versions. 已归档项目不能回滚流程版本。");
-            return apiProblemResult14;
+            return ApiProblem(StatusCodes.Status409Conflict, "Archived projects cannot roll back flow versions. 已归档项目不能回滚流程版本。");
         }
 
         var source = await _versions.FindVersionAsync(projectId, flowId, version, cancellationToken);
         if (source is null || source.Version.Track != request.Track)
         {
-            var apiProblemResult15 = ApiProblem(StatusCodes.Status404NotFound, "The requested flow version was not found on this track. 当前版本轨道中未找到要回滚的流程版本。");
-            return apiProblemResult15;
+            return ApiProblem(StatusCodes.Status404NotFound, "The requested flow version was not found on this track. 当前版本轨道中未找到要回滚的流程版本。");
         }
 
         var validation = FlowDefinitionContractValidator.ValidateForExecution(source.Definition);
         if (!validation.IsValid)
         {
-            var badRequestResult16 = BadRequest(validation);
-            return badRequestResult16;
+            return BadRequest(validation);
         }
 
         var libraryValidation = await _projectLibraries.ValidateFlowLibrariesAsync(projectId, source.Definition, cancellationToken);
         if (!libraryValidation.IsValid)
         {
-            var badRequestResult17 = BadRequest(libraryValidation);
-            return badRequestResult17;
+            return BadRequest(libraryValidation);
         }
 
         var rolledBack = await _versions.RollbackAsync(projectId, flowId, version, request.Track, request.ExpectedHeadVersion, cancellationToken);
-        ActionResult evaluatedValue21 = rolledBack.IsCommitted ? Ok(rolledBack.Version) : resolveApiProblemResult18();
-        return evaluatedValue21;
-        ObjectResult resolveApiProblemResult18()
+        return rolledBack.IsCommitted ? Ok(rolledBack.Version) : RollbackConflict();
+        ObjectResult RollbackConflict()
         {
-            var apiProblemResult20 = ApiVersionProblem(StatusCodes.Status409Conflict, "The flow version head changed before rollback. 流程版本头已变更，无法回滚。", currentVersion: rolledBack.CurrentHeadVersion);
-            return apiProblemResult20;
+            return ApiVersionProblem(StatusCodes.Status409Conflict, "The flow version head changed before rollback. 流程版本头已变更，无法回滚。", currentVersion: rolledBack.CurrentHeadVersion);
         }
     }
 }

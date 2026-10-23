@@ -19,13 +19,13 @@ public sealed class SereinFlowRestAuthorizationFilter(SereinFlowAccess security)
 {
     public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
     {
-        if (resolveAnyResult())
+        if (AllowsAnonymousAccess())
         {
             return;
         }
 
-        var ofTypeResult1 = context.ActionDescriptor.EndpointMetadata.OfType<SereinFlowScopedAuthorizationAttribute>();
-        if (ofTypeResult1.Any())
+        var ofType = context.ActionDescriptor.EndpointMetadata.OfType<SereinFlowScopedAuthorizationAttribute>();
+        if (ofType.Any())
         {
             return;
         }
@@ -46,11 +46,10 @@ public sealed class SereinFlowRestAuthorizationFilter(SereinFlowAccess security)
             Deny(context, exception.StatusCode, exception.Message);
         }
 
-        bool resolveAnyResult()
+        bool AllowsAnonymousAccess()
         {
-            var ofTypeResult = context.ActionDescriptor.EndpointMetadata.OfType<SereinFlowAnonymousAttribute>();
-            var anyResult = ofTypeResult.Any();
-            return anyResult;
+            var mappedOfType = context.ActionDescriptor.EndpointMetadata.OfType<SereinFlowAnonymousAttribute>();
+            return mappedOfType.Any();
         }
     }
 

@@ -88,8 +88,7 @@ public sealed class DebugInvocationScheduler
 
         foreach (var work in discarded)
         {
-            var discardSafelyAsyncResult = DiscardSafelyAsync(work);
-            await discardSafelyAsyncResult.ConfigureAwait(false);
+            await DiscardSafelyAsync(work).ConfigureAwait(false);
         }
 
         if (activeTask is not null)
@@ -111,20 +110,19 @@ public sealed class DebugInvocationScheduler
     {
         try
         {
-            var executeAsyncResult = work.ExecuteAsync();
-            await executeAsyncResult.ConfigureAwait(false);
+            await work.ExecuteAsync().ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-        // The owning FlowRunner records shared cancellation; this class
-        // owns only scheduling and disposal of queued work.
-        // FlowRunner 负责记录共享取消；此类仅拥有排队与待处理工作释放职责。
+            // The owning FlowRunner records shared cancellation; this class
+            // owns only scheduling and disposal of queued work.
+            // FlowRunner 负责记录共享取消；此类仅拥有排队与待处理工作释放职责。
         }
         catch
         {
-        // Individual trigger work publishes its own diagnostics. One
-        // failure must not stop reception of subsequent triggers.
-        // 单次触发工作自行发布诊断；一个失败不能停止后续触发的接收。
+            // Individual trigger work publishes its own diagnostics. One
+            // failure must not stop reception of subsequent triggers.
+            // 单次触发工作自行发布诊断；一个失败不能停止后续触发的接收。
         }
         finally
         {
@@ -150,13 +148,12 @@ public sealed class DebugInvocationScheduler
     {
         try
         {
-            var discardAsyncResult = work.DiscardAsync();
-            await discardAsyncResult.ConfigureAwait(false);
+            await work.DiscardAsync().ConfigureAwait(false);
         }
         catch
         {
-        // A child session release failure must not keep the scheduler alive.
-        // 子会话释放失败时不能让调度器继续滞留。
+            // A child session release failure must not keep the scheduler alive.
+            // 子会话释放失败时不能让调度器继续滞留。
         }
     }
 

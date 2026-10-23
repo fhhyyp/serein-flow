@@ -39,22 +39,18 @@ public sealed record SereinFlowStorageOptions(string DataRoot, string DatabasePa
         Directory.CreateDirectory(scriptArtifactRoot);
         Directory.CreateDirectory(stagingDirectory);
         Directory.CreateDirectory(workpieceDirectory);
-        SereinFlowStorageOptions evaluatedValue = new(dataRoot, databasePath, libraryDirectory, scriptArtifactRoot, stagingDirectory, workpieceDirectory);
-        return evaluatedValue;
+        return new(dataRoot, databasePath, libraryDirectory, scriptArtifactRoot, stagingDirectory, workpieceDirectory);
     }
 
     private static bool HasLegacyPathSettings(IConfiguration configuration)
     {
-        var evaluatedValue1 = !string.IsNullOrWhiteSpace(configuration["SereinFlow:DatabasePath"]) || !string.IsNullOrWhiteSpace(configuration["SereinFlow:LibraryDirectory"]) || !string.IsNullOrWhiteSpace(configuration["SereinFlow:ScriptArtifactRoot"]) || !string.IsNullOrWhiteSpace(configuration["SereinFlow:Mcp:PackageStagingDirectory"]);
-        return evaluatedValue1;
+        return !string.IsNullOrWhiteSpace(configuration["SereinFlow:DatabasePath"]) || !string.IsNullOrWhiteSpace(configuration["SereinFlow:LibraryDirectory"]) || !string.IsNullOrWhiteSpace(configuration["SereinFlow:ScriptArtifactRoot"]) || !string.IsNullOrWhiteSpace(configuration["SereinFlow:Mcp:PackageStagingDirectory"]);
     }
 
     private static string ResolveRoot(string? configuredRoot, string contentRootPath)
     {
         var value = string.IsNullOrWhiteSpace(configuredRoot) ? "data" : configuredRoot.Trim();
-        string evaluatedValue2 = Path.IsPathRooted(value) ? value : Path.Combine(contentRootPath, value);
-        var getFullPathResult = Path.GetFullPath(evaluatedValue2);
-        return getFullPathResult;
+        return Path.GetFullPath((Path.IsPathRooted(value) ? value : Path.Combine(contentRootPath, value)));
     }
 
     private static string ReadName(string? value, string fallback, string fieldName)
@@ -70,16 +66,14 @@ public sealed record SereinFlowStorageOptions(string DataRoot, string DatabasePa
 
     private static string ResolveChildFile(string root, string name, string fieldName)
     {
-        var combineResult = Path.Combine(root, name);
-        var path = Path.GetFullPath(combineResult);
+        var path = Path.GetFullPath(Path.Combine(root, name));
         EnsureWithinRoot(path, root, fieldName);
         return path;
     }
 
     private static string ResolveChildDirectory(string root, string name, string fieldName)
     {
-        var combineResult3 = Path.Combine(root, name);
-        var path = Path.GetFullPath(combineResult3);
+        var path = Path.GetFullPath(Path.Combine(root, name));
         EnsureWithinRoot(path, root, fieldName);
         return path;
     }

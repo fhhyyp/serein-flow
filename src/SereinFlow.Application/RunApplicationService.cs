@@ -67,8 +67,7 @@ public sealed class RunApplicationService
 
         if (request.ExpectedFlowVersion is not null && request.ExpectedFlowVersion != persistedDefinition!.Version)
         {
-            var versionConflictResult = RunPreparationResult.VersionConflict(persistedDefinition!.Version);
-            return versionConflictResult;
+            return RunPreparationResult.VersionConflict(persistedDefinition!.Version);
         }
 
         if (definitionOverride is not null)
@@ -80,8 +79,7 @@ public sealed class RunApplicationService
 
             if (definitionOverride.Version != persistedDefinition.Version)
             {
-                var versionConflictResult1 = RunPreparationResult.VersionConflict(persistedDefinition.Version);
-                return versionConflictResult1;
+                return RunPreparationResult.VersionConflict(persistedDefinition.Version);
             }
         }
 
@@ -89,20 +87,17 @@ public sealed class RunApplicationService
         var validation = FlowDefinitionContractValidator.ValidateForExecution(definition);
         if (!validation.IsValid)
         {
-            var invalidResult = RunPreparationResult.Invalid(validation);
-            return invalidResult;
+            return RunPreparationResult.Invalid(validation);
         }
 
         var configuredBreakpointIds = (breakpointNodeIds ?? [])
             .Where(static nodeId =>
             {
-                var evaluatedValue = !string.IsNullOrWhiteSpace(nodeId);
-                return evaluatedValue;
+                return !string.IsNullOrWhiteSpace(nodeId);
             })
             .Select(static nodeId =>
             {
-                var trimResult = nodeId.Trim();
-                return trimResult;
+                return nodeId.Trim();
             });
         var definedNodeIds = definition.Canvases
             .SelectMany(static canvas => canvas.Nodes)
@@ -116,13 +111,11 @@ public sealed class RunApplicationService
             var breakpointDiagnostics = unknownBreakpoints
                 .Select(nodeId =>
                 {
-                    var validationDiagnosticDto = new ValidationDiagnosticDto(DebugErrorCodes.BreakpointNodeMissing, $"Breakpoint node '{nodeId}' does not exist in the saved flow. 断点节点“{nodeId}”不存在于已保存流程中。", $"breakpointNodeIds.{nodeId}");
-                    return validationDiagnosticDto;
+                    return new ValidationDiagnosticDto(DebugErrorCodes.BreakpointNodeMissing, $"Breakpoint node '{nodeId}' does not exist in the saved flow. 断点节点“{nodeId}”不存在于已保存流程中。", $"breakpointNodeIds.{nodeId}");
                 })
                 .ToArray();
             var flowValidationResultDto = new FlowValidationResultDto(false, breakpointDiagnostics);
-            var invalidResult2 = RunPreparationResult.Invalid(flowValidationResultDto);
-            return invalidResult2;
+            return RunPreparationResult.Invalid(flowValidationResultDto);
         }
 
         // The source hash is derived data. Persist the canonical value into the
@@ -132,8 +125,7 @@ public sealed class RunApplicationService
         var libraryValidation = await _projectLibraries.ValidateFlowLibrariesAsync(projectId, definition, cancellationToken);
         if (!libraryValidation.IsValid)
         {
-            var invalidResult3 = RunPreparationResult.Invalid(libraryValidation);
-            return invalidResult3;
+            return RunPreparationResult.Invalid(libraryValidation);
         }
 
         var timeout = Math.Clamp(request.TimeoutSeconds ?? DefaultRunTimeoutSeconds, MinimumExecutionLimit, MaximumRunTimeoutSeconds);
@@ -150,13 +142,11 @@ public sealed class RunApplicationService
         var admission = await _runs.TryCreateWithSnapshotAsync(run, definition, flowRunExecutionOptions, cancellationToken);
         if (!admission.IsAdmitted)
         {
-            var alreadyActiveResult = RunPreparationResult.AlreadyActive(admission.ActiveRunId);
-            return alreadyActiveResult;
+            return RunPreparationResult.AlreadyActive(admission.ActiveRunId);
         }
 
         var runPreparation = new RunPreparation(admission.Run!, definition, request.ProjectInputs, timeout, maxSteps, maxNodeVisits, isListenerRun);
-        var successResult = RunPreparationResult.Success(runPreparation);
-        return successResult;
+        return RunPreparationResult.Success(runPreparation);
     }
 
     private static bool IsListenerRun(FlowDefinitionDto definition)
@@ -166,14 +156,12 @@ public sealed class RunApplicationService
             .Where(static connection => connection.Kind == ConnectionKindDto.Execution)
             .Select(static connection => connection.ToNodeId)
             .ToHashSet(StringComparer.Ordinal);
-        var anyResult = definition.Canvases
+        return definition.Canvases
             .SelectMany(static canvas => canvas.Nodes)
             .Any(node =>
             {
-                var evaluatedValue6 = node.Type == NodeTypeDto.Flipflop && !incomingExecutionNodes.Contains(node.Id);
-                return evaluatedValue6;
+                return node.Type == NodeTypeDto.Flipflop && !incomingExecutionNodes.Contains(node.Id);
             });
-        return anyResult;
     }
 }
 
@@ -187,8 +175,7 @@ public sealed record RunPreparationResult(RunPreparation? Preparation, int Statu
 
     public static RunPreparationResult Success(RunPreparation preparation)
     {
-        RunPreparationResult evaluatedValue11 = new(preparation, 202, null);
-        return evaluatedValue11;
+        return new(preparation, 202, null);
     }
 
     public static RunPreparationResult ProjectNotFound { get; } = new(null, 404, "Project not found. 未找到项目。");
@@ -197,21 +184,18 @@ public sealed record RunPreparationResult(RunPreparation? Preparation, int Statu
 
     public static RunPreparationResult VersionConflict(long currentVersion)
     {
-        RunPreparationResult evaluatedValue12 = new(null, 409, "Flow definition was changed by another editor. 流程定义已被其他编辑器修改。", null, currentVersion);
-        return evaluatedValue12;
+        return new(null, 409, "Flow definition was changed by another editor. 流程定义已被其他编辑器修改。", null, currentVersion);
     }
 
     public static RunPreparationResult CandidateDefinitionNotAllowed { get; } = new(null, 409, "Only a saved flow definition may start a formal run. 正式运行只能使用已保存的流程定义。", new { code = RunErrorCodes.CandidateDefinitionNotAllowed, message = "Only a saved flow definition may start a formal run. 正式运行只能使用已保存的流程定义。" });
 
     public static RunPreparationResult Invalid(object validation)
     {
-        RunPreparationResult evaluatedValue13 = new(null, 400, null, validation);
-        return evaluatedValue13;
+        return new(null, 400, null, validation);
     }
 
     public static RunPreparationResult AlreadyActive(Guid? activeRunId)
     {
-        RunPreparationResult evaluatedValue14 = new(null, 409, "The flow already has an active run and does not allow concurrent execution. 该流程已有活动运行实例，不允许并发执行。", new { code = FlowErrorCodes.RunAlreadyActive, message = "The flow already has an active run and does not allow concurrent execution. 该流程已有活动运行实例，不允许并发执行。", activeRunId });
-        return evaluatedValue14;
+        return new(null, 409, "The flow already has an active run and does not allow concurrent execution. 该流程已有活动运行实例，不允许并发执行。", new { code = FlowErrorCodes.RunAlreadyActive, message = "The flow already has an active run and does not allow concurrent execution. 该流程已有活动运行实例，不允许并发执行。", activeRunId });
     }
 }

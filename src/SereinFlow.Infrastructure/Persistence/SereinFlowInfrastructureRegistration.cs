@@ -9,21 +9,20 @@ using SereinFlow.Application;
 using SereinFlow.Infrastructure.Configuration;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 public static class SereinFlowInfrastructureRegistration
 {
     public static IServiceCollection AddSereinFlowStorage(this IServiceCollection services, IConfiguration configuration, string contentRootPath)
     {
         var options = SereinFlowStorageOptions.FromConfiguration(configuration, contentRootPath);
-        var addSereinFlowStorageResult = services.AddSereinFlowStorage(options);
-        return addSereinFlowStorageResult;
+        return services.AddSereinFlowStorage(options);
     }
 
     public static IServiceCollection AddSereinFlowStorage(this IServiceCollection services, SereinFlowStorageOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         services.AddSingleton(options);
-        var addSereinFlowStorageResult1 = services.AddSereinFlowStorage();
-        return addSereinFlowStorageResult1;
+        return services.AddSereinFlowStorage();
     }
 
     public static IServiceCollection AddSereinFlowStorage(this IServiceCollection services)
@@ -32,15 +31,13 @@ public static class SereinFlowInfrastructureRegistration
         services.TryAddSingleton<IFileUploadSettings, FileUploadSettings>();
         services.TryAddSingleton(serviceProvider =>
         {
-            var getRequiredServiceResult = serviceProvider.GetRequiredService<IConfiguration>();
-            var evaluatedValue = serviceProvider.GetRequiredService<IHostEnvironment>().ContentRootPath;
-            var fromConfigurationResult = SereinFlowStorageOptions.FromConfiguration(getRequiredServiceResult, evaluatedValue);
-            return fromConfigurationResult;
+            var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+            var contentRootPath = serviceProvider.GetRequiredService<IHostEnvironment>().ContentRootPath;
+            return SereinFlowStorageOptions.FromConfiguration(configuration, contentRootPath);
         });
         services.AddSingleton(serviceProvider =>
         {
-            var options = serviceProvider.GetRequiredService<SereinFlowStorageOptions>();
-            var sqliteDatabaseOptions = new SqliteDatabaseOptions(options.DatabasePath);
+            var sqliteDatabaseOptions = new SqliteDatabaseOptions(serviceProvider.GetRequiredService<SereinFlowStorageOptions>().DatabasePath);
             var database = new SqliteDatabase(sqliteDatabaseOptions);
             database.Initialize();
             return database;
@@ -53,9 +50,7 @@ public static class SereinFlowInfrastructureRegistration
         // API 请求共享 ADO 读取器或事务，进而阻塞事件持久化和流程读取。
         services.AddScoped<ISqlSugarClient>(serviceProvider =>
         {
-            var getRequiredServiceResult2 = serviceProvider.GetRequiredService<SqliteDatabase>();
-            var createClientResult = getRequiredServiceResult2.CreateClient();
-            return createClientResult;
+            return serviceProvider.GetRequiredService<SqliteDatabase>().CreateClient();
         });
         services.AddScoped(typeof(IRepository<>), typeof(SqlSugarRepository<>));
         services.AddScoped<IUnitOfWork, SqlSugarUnitOfWork>();
@@ -67,141 +62,115 @@ public static class SereinFlowInfrastructureRegistration
         // 这些适配器为基础设施测试保留 SqliteDatabase 兼容构造函数；显式注册基于仓储的构造函数，避免 ASP.NET Core 解析时出现歧义。
         services.AddScoped<IProjectRepository>(serviceProvider =>
         {
-            var getRequiredServiceResult3 = serviceProvider.GetRequiredService<IRepository<ProjectRecord>>();
-            var getRequiredServiceResult4 = serviceProvider.GetRequiredService<IUnitOfWork>();
-            var sqlSugarProjectRepository = new SqlSugarProjectRepository(getRequiredServiceResult3, getRequiredServiceResult4);
-            return sqlSugarProjectRepository;
+            var projects = serviceProvider.GetRequiredService<IRepository<ProjectRecord>>();
+            var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
+            return new SqlSugarProjectRepository(projects, unitOfWork);
         });
         services.AddScoped<SqlSugarFlowDefinitionRepository>(serviceProvider =>
         {
-            var getRequiredServiceResult5 = serviceProvider.GetRequiredService<IRepository<FlowDefinitionRecord>>();
-            var getRequiredServiceResult6 = serviceProvider.GetRequiredService<IRepository<FlowDefinitionVersionRecord>>();
-            var getRequiredServiceResult7 = serviceProvider.GetRequiredService<IRepository<FlowProductionHeadRecord>>();
-            var getRequiredServiceResult8 = serviceProvider.GetRequiredService<IRepository<FlowVersionCounterRecord>>();
-            var getRequiredServiceResult9 = serviceProvider.GetRequiredService<IRepository<LibraryRecord>>();
-            var getRequiredServiceResult10 = serviceProvider.GetRequiredService<IRepository<FlowLibraryBindingRecord>>();
-            var getRequiredServiceResult11 = serviceProvider.GetRequiredService<IUnitOfWork>();
-            var sqlSugarFlowDefinitionRepository = new SqlSugarFlowDefinitionRepository(getRequiredServiceResult5, getRequiredServiceResult6, getRequiredServiceResult7, getRequiredServiceResult8, getRequiredServiceResult9, getRequiredServiceResult10, getRequiredServiceResult11);
-            return sqlSugarFlowDefinitionRepository;
+            var definitions = serviceProvider.GetRequiredService<IRepository<FlowDefinitionRecord>>();
+            var versions = serviceProvider.GetRequiredService<IRepository<FlowDefinitionVersionRecord>>();
+            var productionHeads = serviceProvider.GetRequiredService<IRepository<FlowProductionHeadRecord>>();
+            var versionCounters = serviceProvider.GetRequiredService<IRepository<FlowVersionCounterRecord>>();
+            var libraries = serviceProvider.GetRequiredService<IRepository<LibraryRecord>>();
+            var libraryBindings = serviceProvider.GetRequiredService<IRepository<FlowLibraryBindingRecord>>();
+            var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
+            return new SqlSugarFlowDefinitionRepository(definitions, versions, productionHeads, versionCounters, libraries, libraryBindings, unitOfWork);
         });
         services.AddScoped<IFlowDefinitionRepository>(serviceProvider =>
         {
-            var getRequiredServiceResult12 = serviceProvider.GetRequiredService<SqlSugarFlowDefinitionRepository>();
-            return getRequiredServiceResult12;
+            return serviceProvider.GetRequiredService<SqlSugarFlowDefinitionRepository>();
         });
         services.AddScoped<IFlowVersionRepository>(serviceProvider =>
         {
-            var getRequiredServiceResult13 = serviceProvider.GetRequiredService<SqlSugarFlowDefinitionRepository>();
-            return getRequiredServiceResult13;
+            return serviceProvider.GetRequiredService<SqlSugarFlowDefinitionRepository>();
         });
         services.AddScoped<IFlowRunEventStore>(serviceProvider =>
         {
-            var getRequiredServiceResult14 = serviceProvider.GetRequiredService<IRepository<FlowRunEventRecord>>();
-            var getRequiredServiceResult15 = serviceProvider.GetRequiredService<IUnitOfWork>();
-            var operationResult1 = serviceProvider.GetRequiredService<IFlowRunEventQueries>();
-            var sqlSugarFlowRunEventStore = new SqlSugarFlowRunEventStore(getRequiredServiceResult14, getRequiredServiceResult15, operationResult1);
-            return sqlSugarFlowRunEventStore;
+            var events = serviceProvider.GetRequiredService<IRepository<FlowRunEventRecord>>();
+            var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
+            var flowRunEventQueries = serviceProvider.GetRequiredService<IFlowRunEventQueries>();
+            return new SqlSugarFlowRunEventStore(events, unitOfWork, flowRunEventQueries);
         });
         services.AddScoped<IFlowRunOutputStore>(serviceProvider =>
         {
-            var getRequiredServiceResult16 = serviceProvider.GetRequiredService<IRepository<FlowRunOutputRecord>>();
-            var getRequiredServiceResult17 = serviceProvider.GetRequiredService<IUnitOfWork>();
-            var sqlSugarFlowRunOutputStore = new SqlSugarFlowRunOutputStore(getRequiredServiceResult16, getRequiredServiceResult17);
-            return sqlSugarFlowRunOutputStore;
+            var outputs = serviceProvider.GetRequiredService<IRepository<FlowRunOutputRecord>>();
+            var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
+            return new SqlSugarFlowRunOutputStore(outputs, unitOfWork);
         });
         services.AddScoped<IFlowRunStore>(serviceProvider =>
         {
-            var getRequiredServiceResult18 = serviceProvider.GetRequiredService<IRepository<FlowRunRecord>>();
-            var getRequiredServiceResult19 = serviceProvider.GetRequiredService<IRepository<FlowRunDefinitionRecord>>();
-            var getRequiredServiceResult20 = serviceProvider.GetRequiredService<IRepository<LibraryRecord>>();
-            var getRequiredServiceResult21 = serviceProvider.GetRequiredService<IRepository<RunLibraryBindingRecord>>();
-            var getRequiredServiceResult22 = serviceProvider.GetRequiredService<IUnitOfWork>();
-            var sqlSugarFlowRunStore = new SqlSugarFlowRunStore(getRequiredServiceResult18, getRequiredServiceResult19, getRequiredServiceResult20, getRequiredServiceResult21, getRequiredServiceResult22);
-            return sqlSugarFlowRunStore;
+            var runs = serviceProvider.GetRequiredService<IRepository<FlowRunRecord>>();
+            var definitions = serviceProvider.GetRequiredService<IRepository<FlowRunDefinitionRecord>>();
+            var libraries = serviceProvider.GetRequiredService<IRepository<LibraryRecord>>();
+            var libraryBindings = serviceProvider.GetRequiredService<IRepository<RunLibraryBindingRecord>>();
+            var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
+            return new SqlSugarFlowRunStore(runs, definitions, libraries, libraryBindings, unitOfWork);
         });
         services.AddScoped<IFlowDebugSessionStore>(serviceProvider =>
         {
-            var getRequiredServiceResult23 = serviceProvider.GetRequiredService<IRepository<FlowDebugSessionRecord>>();
-            var sqlSugarFlowDebugSessionStore = new SqlSugarFlowDebugSessionStore(getRequiredServiceResult23);
-            return sqlSugarFlowDebugSessionStore;
+            return new SqlSugarFlowDebugSessionStore(serviceProvider.GetRequiredService<IRepository<FlowDebugSessionRecord>>());
         });
         services.AddScoped<IRunEnvironmentSettingsStore>(serviceProvider =>
         {
-            var getRequiredServiceResult24 = serviceProvider.GetRequiredService<IRepository<RunEnvironmentSettingsRecord>>();
-            var sqlSugarRunEnvironmentSettingsStore = new SqlSugarRunEnvironmentSettingsStore(getRequiredServiceResult24);
-            return sqlSugarRunEnvironmentSettingsStore;
+            return new SqlSugarRunEnvironmentSettingsStore(serviceProvider.GetRequiredService<IRepository<RunEnvironmentSettingsRecord>>());
         });
         services.AddScoped<IFlowInterfaceRepository>(serviceProvider =>
         {
-            var getRequiredServiceResult25 = serviceProvider.GetRequiredService<IRepository<FlowInterfaceRecord>>();
-            var sqlSugarFlowInterfaceRepository = new SqlSugarFlowInterfaceRepository(getRequiredServiceResult25);
-            return sqlSugarFlowInterfaceRepository;
+            return new SqlSugarFlowInterfaceRepository(serviceProvider.GetRequiredService<IRepository<FlowInterfaceRecord>>());
         });
         services.AddScoped<IProjectLibraryReferenceRepository>(serviceProvider =>
         {
-            var getRequiredServiceResult26 = serviceProvider.GetRequiredService<IRepository<ProjectLibraryReferenceRecord>>();
-            var sqlSugarProjectLibraryReferenceRepository = new SqlSugarProjectLibraryReferenceRepository(getRequiredServiceResult26);
-            return sqlSugarProjectLibraryReferenceRepository;
+            return new SqlSugarProjectLibraryReferenceRepository(serviceProvider.GetRequiredService<IRepository<ProjectLibraryReferenceRecord>>());
         });
         services.AddScoped<ILibraryArtifactUsageStore>(serviceProvider =>
         {
-            var getRequiredServiceResult27 = serviceProvider.GetRequiredService<IRepository<FlowDefinitionRecord>>();
-            var getRequiredServiceResult28 = serviceProvider.GetRequiredService<IRepository<FlowLibraryBindingRecord>>();
-            var getRequiredServiceResult29 = serviceProvider.GetRequiredService<IRepository<FlowRunRecord>>();
-            var getRequiredServiceResult30 = serviceProvider.GetRequiredService<IRepository<RunLibraryBindingRecord>>();
-            var sqlSugarLibraryArtifactUsageStore = new SqlSugarLibraryArtifactUsageStore(getRequiredServiceResult27, getRequiredServiceResult28, getRequiredServiceResult29, getRequiredServiceResult30);
-            return sqlSugarLibraryArtifactUsageStore;
+            var definitions = serviceProvider.GetRequiredService<IRepository<FlowDefinitionRecord>>();
+            var flowBindings = serviceProvider.GetRequiredService<IRepository<FlowLibraryBindingRecord>>();
+            var runs = serviceProvider.GetRequiredService<IRepository<FlowRunRecord>>();
+            var runBindings = serviceProvider.GetRequiredService<IRepository<RunLibraryBindingRecord>>();
+            return new SqlSugarLibraryArtifactUsageStore(definitions, flowBindings, runs, runBindings);
         });
         services.AddScoped<IFlowLibraryUpgradeStore>(serviceProvider =>
         {
-            var getRequiredServiceResult31 = serviceProvider.GetRequiredService<IRepository<LibraryUpgradePlanRecord>>();
-            var getRequiredServiceResult32 = serviceProvider.GetRequiredService<IRepository<FlowDefinitionRecord>>();
-            var getRequiredServiceResult33 = serviceProvider.GetRequiredService<IRepository<FlowDefinitionVersionRecord>>();
-            var getRequiredServiceResult34 = serviceProvider.GetRequiredService<IRepository<FlowVersionCounterRecord>>();
-            var getRequiredServiceResult35 = serviceProvider.GetRequiredService<IRepository<ProjectLibraryReferenceRecord>>();
-            var getRequiredServiceResult36 = serviceProvider.GetRequiredService<IRepository<LibraryRecord>>();
-            var getRequiredServiceResult37 = serviceProvider.GetRequiredService<IRepository<FlowLibraryBindingRecord>>();
-            var getRequiredServiceResult38 = serviceProvider.GetRequiredService<IUnitOfWork>();
-            var sqlSugarFlowLibraryUpgradeStore = new SqlSugarFlowLibraryUpgradeStore(getRequiredServiceResult31, getRequiredServiceResult32, getRequiredServiceResult33, getRequiredServiceResult34, getRequiredServiceResult35, getRequiredServiceResult36, getRequiredServiceResult37, getRequiredServiceResult38);
-            return sqlSugarFlowLibraryUpgradeStore;
+            var plans = serviceProvider.GetRequiredService<IRepository<LibraryUpgradePlanRecord>>();
+            var definitions = serviceProvider.GetRequiredService<IRepository<FlowDefinitionRecord>>();
+            var versions = serviceProvider.GetRequiredService<IRepository<FlowDefinitionVersionRecord>>();
+            var versionCounters = serviceProvider.GetRequiredService<IRepository<FlowVersionCounterRecord>>();
+            var references = serviceProvider.GetRequiredService<IRepository<ProjectLibraryReferenceRecord>>();
+            var libraries = serviceProvider.GetRequiredService<IRepository<LibraryRecord>>();
+            var bindings = serviceProvider.GetRequiredService<IRepository<FlowLibraryBindingRecord>>();
+            var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
+            return new SqlSugarFlowLibraryUpgradeStore(plans, definitions, versions, versionCounters, references, libraries, bindings, unitOfWork);
         });
         services.AddScoped<IMcpPreviewStore>(serviceProvider =>
         {
-            var getRequiredServiceResult40 = serviceProvider.GetRequiredService<IRepository<McpPreviewRecord>>();
-            var sqlSugarMcpPreviewStore = new SqlSugarMcpPreviewStore(getRequiredServiceResult40);
-            return sqlSugarMcpPreviewStore;
+            return new SqlSugarMcpPreviewStore(serviceProvider.GetRequiredService<IRepository<McpPreviewRecord>>());
         });
         services.AddScoped<IMcpAuditStore>(serviceProvider =>
         {
-            var getRequiredServiceResult41 = serviceProvider.GetRequiredService<IRepository<McpAuditRecord>>();
-            var sqlSugarMcpAuditStore = new SqlSugarMcpAuditStore(getRequiredServiceResult41);
-            return sqlSugarMcpAuditStore;
+            return new SqlSugarMcpAuditStore(serviceProvider.GetRequiredService<IRepository<McpAuditRecord>>());
         });
         services.AddScoped<IMcpIdempotencyStore>(serviceProvider =>
         {
-            var getRequiredServiceResult42 = serviceProvider.GetRequiredService<IRepository<McpIdempotencyRecord>>();
-            var sqlSugarMcpIdempotencyStore = new SqlSugarMcpIdempotencyStore(getRequiredServiceResult42);
-            return sqlSugarMcpIdempotencyStore;
+            return new SqlSugarMcpIdempotencyStore(serviceProvider.GetRequiredService<IRepository<McpIdempotencyRecord>>());
         });
         services.AddSingleton(serviceProvider =>
         {
-            var evaluatedValue43 = serviceProvider.GetRequiredService<SereinFlowStorageOptions>().McpPackageStagingDirectory;
-            var getRequiredServiceResult44 = serviceProvider.GetRequiredService<IFileUploadSettings>();
-            var mcpPackageStagingService = new McpPackageStagingService(evaluatedValue43, fileUploadSettings: getRequiredServiceResult44);
-            return mcpPackageStagingService;
+            var rootPath = serviceProvider.GetRequiredService<SereinFlowStorageOptions>().McpPackageStagingDirectory;
+            var fileUploadSettings = serviceProvider.GetRequiredService<IFileUploadSettings>();
+            return new McpPackageStagingService(rootPath, fileUploadSettings: fileUploadSettings);
         });
         services.AddScoped<ILibraryCatalogService>(serviceProvider =>
         {
-            var getRequiredServiceResult45 = serviceProvider.GetRequiredService<IRepository<LibraryRecord>>();
-            var getRequiredServiceResult46 = serviceProvider.GetRequiredService<IRepository<LibraryFamilyRecord>>();
-            var getRequiredServiceResult47 = serviceProvider.GetRequiredService<IUnitOfWork>();
-            var evaluatedValue48 = serviceProvider.GetRequiredService<SereinFlowStorageOptions>().LibraryDirectory;
-            var libraryCatalogOptions = new LibraryCatalogOptions(evaluatedValue48);
-            var getRequiredServiceResult49 = serviceProvider.GetRequiredService<ILogger<SqliteLibraryCatalogService>>();
-            var getRequiredServiceResult50 = serviceProvider.GetRequiredService<IFileUploadSettings>();
-            var getServiceResult = serviceProvider.GetService<IWorkspaceChangePublisher>();
-            var sqliteLibraryCatalogService = new SqliteLibraryCatalogService(getRequiredServiceResult45, getRequiredServiceResult46, getRequiredServiceResult47, libraryCatalogOptions, getRequiredServiceResult49, getRequiredServiceResult50, getServiceResult);
-            return sqliteLibraryCatalogService;
+            var libraries = serviceProvider.GetRequiredService<IRepository<LibraryRecord>>();
+            var families = serviceProvider.GetRequiredService<IRepository<LibraryFamilyRecord>>();
+            var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
+            var libraryCatalogOptions = new LibraryCatalogOptions(serviceProvider.GetRequiredService<SereinFlowStorageOptions>().LibraryDirectory);
+            var logger = serviceProvider.GetRequiredService<ILogger<SqliteLibraryCatalogService>>();
+            var fileUploadSettings = serviceProvider.GetRequiredService<IFileUploadSettings>();
+            var changePublisher = serviceProvider.GetService<IWorkspaceChangePublisher>();
+            return new SqliteLibraryCatalogService(libraries, families, unitOfWork, libraryCatalogOptions, logger, fileUploadSettings, changePublisher);
         });
         return services;
     }

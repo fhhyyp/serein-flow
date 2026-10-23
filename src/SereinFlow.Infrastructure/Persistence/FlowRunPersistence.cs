@@ -9,6 +9,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
 namespace SereinFlow.Infrastructure.Persistence;
+
 public sealed class SqlSugarFlowRunStore : IFlowRunStore
 {
     private const int MinimumRunPageSize = 1;
@@ -52,14 +53,12 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
     public Task<FlowRun> CreateWithSnapshotAsync(FlowRun run, FlowDefinitionDto definition, CancellationToken cancellationToken = default)
     {
         var flowRunExecutionOptions = new FlowRunExecutionOptions(null, DefaultRunTimeoutSeconds, DefaultMaximumSteps, DefaultMaximumNodeVisits);
-        var createWithSnapshotAsyncResult = CreateWithSnapshotAsync(run, definition, flowRunExecutionOptions, cancellationToken);
-        return createWithSnapshotAsyncResult;
+        return CreateWithSnapshotAsync(run, definition, flowRunExecutionOptions, cancellationToken);
     }
 
     public Task<FlowRun> CreateWithSnapshotAsync(FlowRun run, FlowDefinitionDto definition, FlowRunExecutionOptions options, CancellationToken cancellationToken = default)
     {
-        var createWithSnapshotCoreAsyncResult = CreateWithSnapshotCoreAsync(run, definition, options, cancellationToken);
-        return createWithSnapshotCoreAsyncResult;
+        return CreateWithSnapshotCoreAsync(run, definition, options, cancellationToken);
     }
 
     public async Task<FlowRunAdmissionResult> TryCreateWithSnapshotAsync(FlowRun run, FlowDefinitionDto definition, FlowRunExecutionOptions options, CancellationToken cancellationToken = default)
@@ -67,15 +66,13 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         try
         {
             var saved = await CreateWithSnapshotCoreAsync(run, definition, options, cancellationToken);
-            var flowRunAdmissionResult = new FlowRunAdmissionResult(saved);
-            return flowRunAdmissionResult;
+            return new FlowRunAdmissionResult(saved);
         }
-        catch (SqlSugarException exception)when (IsExclusiveConflict(exception))
+        catch (SqlSugarException exception) when (IsExclusiveConflict(exception))
         {
             var flowRunQuery = new FlowRunQuery([FlowRunStatus.Pending, FlowRunStatus.Running]);
             var active = (await ListAsync(flowRunQuery, cancellationToken)).FirstOrDefault(item => item.FlowId == run.FlowId && item.ConcurrencyMode == FlowConcurrencyMode.ExclusiveReject);
-            var flowRunAdmissionResult1 = new FlowRunAdmissionResult(null, active?.Id);
-            return flowRunAdmissionResult1;
+            return new FlowRunAdmissionResult(null, active?.Id);
         }
     }
 
@@ -99,9 +96,9 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
             throw new InvalidOperationException("The run checksum does not match its immutable flow snapshot. 运行实例校验和与不可变流程快照不匹配。");
         }
 
-        var serialized = JsonSerializer.Serialize(definition, JsonOptions);
+        var definitionJson = JsonSerializer.Serialize(definition, JsonOptions);
         var projectInputsJson = options.ProjectInputs is null ? null : JsonSerializer.Serialize(options.ProjectInputs, JsonOptions);
-        var executeAsyncResult = _unitOfWork.ExecuteAsync(async token =>
+        return _unitOfWork.ExecuteAsync(async token =>
         {
             var flowRunRecord = new FlowRunRecord
             {
@@ -132,14 +129,13 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
                 FlowVersion = definition.Version,
                 SchemaVersion = definition.SchemaVersion,
                 Checksum = snapshotChecksum,
-                DefinitionJson = serialized,
+                DefinitionJson = definitionJson,
                 CreatedAt = run.CreatedAt.ToString("O")
             };
             await _definitions.AddAsync(flowRunDefinitionRecord, token);
             await WriteLibraryBindingsAsync(run, definition, token);
             return run;
         }, cancellationToken);
-        return executeAsyncResult;
     }
 
     public async Task<IReadOnlyList<PendingFlowRun>> ListPendingAsync(CancellationToken cancellationToken = default)
@@ -166,82 +162,75 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
             var timeoutSeconds = row.TimeoutSeconds > 0 ? row.TimeoutSeconds : 300;
             var maxSteps = row.MaxSteps > 0 ? row.MaxSteps : 10_000;
             var maxNodeVisits = row.MaxNodeVisits > 0 ? row.MaxNodeVisits : 1_000;
-            var flowRunExecutionOptions2 = new FlowRunExecutionOptions(inputs, timeoutSeconds, maxSteps, maxNodeVisits);
-            var pendingFlowRun = new PendingFlowRun(run, definition, flowRunExecutionOptions2);
+            var pendingFlowRun = new PendingFlowRun(run, definition, new FlowRunExecutionOptions(inputs, timeoutSeconds, maxSteps, maxNodeVisits));
             pending.Add(pendingFlowRun);
         }
-
-        var toArrayResult = pending.OrderBy(static item => item.Run.QueuedAt).ThenBy(static item => item.Run.Id).ToArray();
-        return toArrayResult;
+        return pending
+            .OrderBy(static item => item.Run.QueuedAt)
+            .ThenBy(static item => item.Run.Id)
+            .ToArray();
     }
 
     public async Task<IReadOnlyList<FlowRun>> ListAsync(FlowRunQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
-        var optionalReceiver = query.Statuses;
-        HashSet<string>? optionalResult = default(HashSet<string>);
-        if (optionalReceiver is not null)
+        var mappedStatuses = query.Statuses;
+        HashSet<string>? hashSet = default(HashSet<string>);
+        if (mappedStatuses is not null)
         {
-            var selectResult = optionalReceiver.Select(static item =>
+            hashSet = mappedStatuses.Select(static item =>
             {
-                var toStringResult = item.ToString();
-                return toStringResult;
-            });
-            optionalResult = selectResult.ToHashSet(StringComparer.Ordinal);
+                return item.ToString();
+            }).ToHashSet(StringComparer.Ordinal);
         }
 
-        var statuses = optionalResult;
+        var statuses = hashSet;
         if (query.ProjectIds is { Count: 0 })
         {
-            return[];
+            return [];
         }
 
         var allowedProjects = query.ProjectIds?.Select(id =>
         {
-            var key = id.ToString("D");
-            return key;
+            return id.ToString("D");
         }).ToArray();
         var projectId = query.ProjectId?.ToString("D");
-        var rows = await _runs.ListAsync(projectId is not null ? row => row.ProjectId == projectId : null, cancellationToken);
-        var orderByDescendingResult = rows.Where(row =>
+        var orderByDescending = (await _runs.ListAsync(projectId is not null ? row => row.ProjectId == projectId : null, cancellationToken))
+            .Where(row =>
         {
-            var value1 = allowedProjects is null || allowedProjects.Contains(row.ProjectId);
-            return value1;
-        }).Where(row =>
+            return allowedProjects is null || allowedProjects.Contains(row.ProjectId);
+        })
+            .Where(row =>
         {
-            var evaluatedValue3 = statuses is null || statuses.Contains(row.Status);
-            return evaluatedValue3;
-        }).Select(Map).OrderByDescending(static item => item.CreatedAt);
-        var clampResult = Math.Clamp(query.Take, MinimumRunPageSize, MaximumRunPageSize);
-        var toArrayResult5 = orderByDescendingResult.Take(clampResult).ToArray();
-        return toArrayResult5;
+            return statuses is null || statuses.Contains(row.Status);
+        })
+            .Select(Map)
+            .OrderByDescending(static item => item.CreatedAt);
+        var clamp = Math.Clamp(query.Take, MinimumRunPageSize, MaximumRunPageSize);
+        return orderByDescending.Take(clamp).ToArray();
     }
 
     public async Task<FlowRun?> FindAsync(Guid runId, CancellationToken cancellationToken = default)
     {
-        var toStringResult6 = runId.ToString("D");
-        var row = await _runs.GetByIdAsync(toStringResult6, cancellationToken);
-        FlowRun? evaluatedValue7 = row is null ? null : Map(row);
-        return evaluatedValue7;
+        var id = runId.ToString("D");
+        var row = await _runs.GetByIdAsync(id, cancellationToken);
+        return row is null ? null : Map(row);
     }
 
     public async Task<FlowDefinitionDto?> GetSnapshotAsync(Guid runId, CancellationToken cancellationToken = default)
     {
         var runKey = runId.ToString("D");
-        var rows = await _definitions.ListAsync(cancellationToken: cancellationToken);
-        var row = rows.SingleOrDefault(item =>
+        var row = (await _definitions.ListAsync(cancellationToken: cancellationToken)).SingleOrDefault(item =>
         {
-            var equalsResult = string.Equals(item.RunId, runKey, StringComparison.OrdinalIgnoreCase);
-            return equalsResult;
+            return string.Equals(item.RunId, runKey, StringComparison.OrdinalIgnoreCase);
         });
-        FlowDefinitionDto? evaluatedValue8 = row is null ? null : JsonSerializer.Deserialize<FlowDefinitionDto>(row.DefinitionJson, JsonOptions);
-        return evaluatedValue8;
+        return row is null ? null : JsonSerializer.Deserialize<FlowDefinitionDto>(row.DefinitionJson, JsonOptions);
     }
 
     public async Task<bool> SaveAsync(FlowRun run, CancellationToken cancellationToken = default)
     {
-        var toStringResult9 = run.Id.ToString("D");
-        var record = await _runs.GetByIdAsync(toStringResult9, cancellationToken);
+        var id = run.Id.ToString("D");
+        var record = await _runs.GetByIdAsync(id, cancellationToken);
         if (record is null)
         {
             return false;
@@ -260,8 +249,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         record.QueuedAt = run.QueuedAt.ToString("O");
         record.ExecutionKind = run.ExecutionKind.ToString();
         record.DebugSessionId = run.DebugSessionId?.ToString("D");
-        var updateAsyncResult = await _runs.UpdateAsync(record, cancellationToken);
-        return updateAsyncResult;
+        return await _runs.UpdateAsync(record, cancellationToken);
     }
 
     public FlowRun CreateWithSnapshot(FlowRun run, FlowDefinitionDto definition)
@@ -281,10 +269,10 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
             throw new InvalidOperationException("The run checksum does not match its immutable flow snapshot. 运行实例校验和与不可变流程快照不匹配。");
         }
 
-        var serialized = JsonSerializer.Serialize(definition, JsonOptions);
-        var executeAsyncResult12 = _unitOfWork.ExecuteAsync(async cancellationToken =>
+        var definitionJson = JsonSerializer.Serialize(definition, JsonOptions);
+        var task = _unitOfWork.ExecuteAsync(async cancellationToken =>
         {
-            var flowRunRecord10 = new FlowRunRecord
+            var entity = new FlowRunRecord
             {
                 Id = run.Id.ToString("D"),
                 ProjectId = run.ProjectId == Guid.Empty ? null : run.ProjectId.ToString("D"),
@@ -300,34 +288,32 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
                 ExecutionKind = run.ExecutionKind.ToString(),
                 DebugSessionId = run.DebugSessionId?.ToString("D")
             };
-            await _runs.AddAsync(flowRunRecord10, cancellationToken);
-            var flowRunDefinitionRecord11 = new FlowRunDefinitionRecord
+            await _runs.AddAsync(entity, cancellationToken);
+            var flowRunDefinitionRecord = new FlowRunDefinitionRecord
             {
                 RunId = run.Id.ToString("D"),
                 FlowId = definition.Id.ToString("D"),
                 FlowVersion = definition.Version,
                 SchemaVersion = definition.SchemaVersion,
                 Checksum = definition.Checksum,
-                DefinitionJson = serialized,
+                DefinitionJson = definitionJson,
                 CreatedAt = run.CreatedAt.ToString("O")
             };
-            await _definitions.AddAsync(flowRunDefinitionRecord11, cancellationToken);
+            await _definitions.AddAsync(flowRunDefinitionRecord, cancellationToken);
             await WriteLibraryBindingsAsync(run, definition, cancellationToken);
             return run;
         });
-        var getAwaiterResult = executeAsyncResult12.GetAwaiter();
-        var getResultResult = getAwaiterResult.GetResult();
-        return getResultResult;
+        return task.GetAwaiter().GetResult();
     }
 
     public FlowRun? Find(Guid runId)
     {
-        var toStringResult13 = runId.ToString("D");
-        var getByIdAsyncResult = _runs.GetByIdAsync(toStringResult13);
-        var getAwaiterResult14 = getByIdAsyncResult.GetAwaiter();
-        var row = getAwaiterResult14.GetResult();
-        FlowRun? evaluatedValue15 = row is null ? null : Map(row);
-        return evaluatedValue15;
+        var id = runId.ToString("D");
+        var row = _runs
+            .GetByIdAsync(id)
+            .GetAwaiter()
+            .GetResult();
+        return row is null ? null : Map(row);
     }
 
     public FlowDefinitionDto? GetSnapshot(Guid runId)
@@ -340,23 +326,24 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         // adapter compatible with the existing SQLite schema.
         // 查询不依赖具体提供程序的表达式翻译能力；对运行级小表先物化再筛选，保证快照读取可靠，并兼容现有 SQLite 架构。
         var runKey = runId.ToString("D");
-        var listAsyncResult = _definitions.ListAsync();
-        var getAwaiterResult17 = listAsyncResult.GetAwaiter();
-        var row = getAwaiterResult17.GetResult().SingleOrDefault(item =>
+        var row = _definitions
+            .ListAsync()
+            .GetAwaiter()
+            .GetResult()
+            .SingleOrDefault(item =>
         {
-            var equalsResult16 = string.Equals(item.RunId, runKey, StringComparison.OrdinalIgnoreCase);
-            return equalsResult16;
+            return string.Equals(item.RunId, runKey, StringComparison.OrdinalIgnoreCase);
         });
-        FlowDefinitionDto? evaluatedValue19 = row is null ? null : JsonSerializer.Deserialize<FlowDefinitionDto>(row.DefinitionJson, JsonOptions);
-        return evaluatedValue19;
+        return row is null ? null : JsonSerializer.Deserialize<FlowDefinitionDto>(row.DefinitionJson, JsonOptions);
     }
 
     public bool Save(FlowRun run)
     {
-        var toStringResult20 = run.Id.ToString("D");
-        var getByIdAsyncResult21 = _runs.GetByIdAsync(toStringResult20);
-        var getAwaiterResult22 = getByIdAsyncResult21.GetAwaiter();
-        var record = getAwaiterResult22.GetResult();
+        var id = run.Id.ToString("D");
+        var record = _runs
+            .GetByIdAsync(id)
+            .GetAwaiter()
+            .GetResult();
         if (record is null)
         {
             return false;
@@ -375,34 +362,32 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
         record.QueuedAt = run.QueuedAt.ToString("O");
         record.ExecutionKind = run.ExecutionKind.ToString();
         record.DebugSessionId = run.DebugSessionId?.ToString("D");
-        var updateAsyncResult23 = _runs.UpdateAsync(record);
-        var getAwaiterResult24 = updateAsyncResult23.GetAwaiter();
-        var getResultResult25 = getAwaiterResult24.GetResult();
-        return getResultResult25;
+        return _runs
+            .UpdateAsync(record)
+            .GetAwaiter()
+            .GetResult();
     }
 
     private static FlowRun Map(FlowRunRecord row)
     {
-        var parseResult = Guid.Parse(row.Id);
-        Guid evaluatedValue26 = Guid.TryParse(row.ProjectId, out var projectId) ? projectId : Guid.Empty;
-        var parseResult27 = Guid.Parse(row.FlowId);
-        var parseResult28 = Enum.Parse<FlowRunStatus>(row.Status);
-        var evaluatedValue29 = ParseNullable(row.CreatedAt) ?? ParseNullable(row.StartedAt) ?? DateTimeOffset.UtcNow;
-        var parseNullableResult = ParseNullable(row.StartedAt);
-        var parseNullableResult30 = ParseNullable(row.EndedAt);
-        FlowConcurrencyMode evaluatedValue31 = Enum.TryParse<FlowConcurrencyMode>(row.ConcurrencyMode, out var concurrencyMode) ? concurrencyMode : FlowConcurrencyMode.Parallel;
-        var parseNullableResult32 = ParseNullable(row.QueuedAt);
-        var parseNullableResult33 = ParseNullable(row.Deadline);
-        FlowRunExecutionKind evaluatedValue34 = Enum.TryParse<FlowRunExecutionKind>(row.ExecutionKind, out var executionKind) ? executionKind : FlowRunExecutionKind.Production;
-        Guid? evaluatedValue35 = Guid.TryParse(row.DebugSessionId, out var debugSessionId) ? debugSessionId : null;
-        var rehydrateResult = FlowRun.Rehydrate(parseResult, evaluatedValue26, parseResult27, row.FlowVersion, parseResult28, evaluatedValue29, parseNullableResult, parseNullableResult30, row.CancellationReason, row.ErrorSummary, evaluatedValue31, row.IsListenerRun, parseNullableResult32, parseNullableResult33, evaluatedValue34, evaluatedValue35, row.DefinitionChecksum);
-        return rehydrateResult;
+        var id = Guid.Parse(row.Id);
+        Guid empty = Guid.TryParse(row.ProjectId, out var projectId) ? projectId : Guid.Empty;
+        var flowId = Guid.Parse(row.FlowId);
+        var status = Enum.Parse<FlowRunStatus>(row.Status);
+        var createdAt = ParseNullable(row.CreatedAt) ?? ParseNullable(row.StartedAt) ?? DateTimeOffset.UtcNow;
+        var startedAt = ParseNullable(row.StartedAt);
+        var endedAt = ParseNullable(row.EndedAt);
+        FlowConcurrencyMode parallel = Enum.TryParse<FlowConcurrencyMode>(row.ConcurrencyMode, out var concurrencyMode) ? concurrencyMode : FlowConcurrencyMode.Parallel;
+        var queuedAt = ParseNullable(row.QueuedAt);
+        var deadline = ParseNullable(row.Deadline);
+        FlowRunExecutionKind production = Enum.TryParse<FlowRunExecutionKind>(row.ExecutionKind, out var executionKind) ? executionKind : FlowRunExecutionKind.Production;
+        Guid? parsedDebugSessionId = Guid.TryParse(row.DebugSessionId, out var debugSessionId) ? debugSessionId : null;
+        return FlowRun.Rehydrate(id, empty, flowId, row.FlowVersion, status, createdAt, startedAt, endedAt, row.CancellationReason, row.ErrorSummary, parallel, row.IsListenerRun, queuedAt, deadline, production, parsedDebugSessionId, row.DefinitionChecksum);
     }
 
     private static bool IsExclusiveConflict(SqlSugarException exception)
     {
-        var evaluatedValue36 = exception.Message.Contains("UX_FlowRuns_ActiveExclusiveFlow", StringComparison.OrdinalIgnoreCase) || exception.Message.Contains("FlowRuns.ExclusivityKey", StringComparison.OrdinalIgnoreCase);
-        return evaluatedValue36;
+        return exception.Message.Contains("UX_FlowRuns_ActiveExclusiveFlow", StringComparison.OrdinalIgnoreCase) || exception.Message.Contains("FlowRuns.ExclusivityKey", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task WriteLibraryBindingsAsync(FlowRun run, FlowDefinitionDto definition, CancellationToken cancellationToken)
@@ -419,37 +404,29 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
             // immutable run snapshot itself from being retained.
             // 运行快照可能包含目录中已不存在的旧绑定。该索引只是可选的审计
             // 元数据，不能妨碍不可变运行快照本身被保留。
-            if (await _libraries.GetByIdAsync(artifactId, cancellationToken)is null)
+            if (await _libraries.GetByIdAsync(artifactId, cancellationToken) is null)
             {
                 continue;
             }
 
             var runLibraryBindingRecord = new RunLibraryBindingRecord
             {
-                Id = resolveToStringResult(),
+                Id = Guid.NewGuid().ToString("N"),
                 RunId = run.Id.ToString("D"),
                 LibraryArtifactId = artifactId,
                 CreatedAt = run.CreatedAt.ToString("O")
             };
             await _libraryBindings.AddAsync(runLibraryBindingRecord, cancellationToken);
-            string resolveToStringResult()
-            {
-                var newGuidResult = Guid.NewGuid();
-                var toStringResult37 = newGuidResult.ToString("N");
-                return toStringResult37;
-            }
         }
     }
 
     private static DateTimeOffset Parse(string value)
     {
-        var parseResult38 = DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        return parseResult38;
+        return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
     }
 
     private static DateTimeOffset? ParseNullable(string? value)
     {
-        DateTimeOffset? evaluatedValue39 = string.IsNullOrWhiteSpace(value) ? null : Parse(value);
-        return evaluatedValue39;
+        return string.IsNullOrWhiteSpace(value) ? null : Parse(value);
     }
 }

@@ -23,9 +23,9 @@ public sealed class McpPreviewService
     {
         var payloadJson = JsonSerializer.Serialize(payload, JsonOptions);
         var fingerprint = Fingerprint(operation, principal.Id, payloadJson);
-        var newGuidResult = Guid.NewGuid();
-        var addMinutesResult = DateTimeOffset.UtcNow.AddMinutes(10);
-        var entry = new McpPreviewEntry(newGuidResult, operation, principal.Id, projectId, flowId, expectedVersion, payloadJson, fingerprint, McpMutationPreviewStatusDto.Pending, DateTimeOffset.UtcNow, addMinutesResult, null);
+        var id = Guid.NewGuid();
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(10);
+        var entry = new McpPreviewEntry(id, operation, principal.Id, projectId, flowId, expectedVersion, payloadJson, fingerprint, McpMutationPreviewStatusDto.Pending, DateTimeOffset.UtcNow, expiresAt, null);
         await _store.AddAsync(entry, cancellationToken);
         return entry;
     }
@@ -63,22 +63,17 @@ public sealed class McpPreviewService
 
     public Task<bool> MarkAppliedAsync(McpPreviewEntry entry, CancellationToken cancellationToken = default)
     {
-        var updateAsyncResult = _store.UpdateAsync(entry with { Status = McpMutationPreviewStatusDto.Applied, AppliedAt = DateTimeOffset.UtcNow }, cancellationToken);
-        return updateAsyncResult;
+        return _store.UpdateAsync(entry with { Status = McpMutationPreviewStatusDto.Applied, AppliedAt = DateTimeOffset.UtcNow }, cancellationToken);
     }
 
     public static string Fingerprint(string operation, string principalId, string payloadJson)
     {
         var input = Encoding.UTF8.GetBytes($"{operation}\n{principalId}\n{payloadJson}");
-        var hashDataResult = SHA256.HashData(input);
-        var toHexStringResult = Convert.ToHexString(hashDataResult);
-        var toLowerInvariantResult = toHexStringResult.ToLowerInvariant();
-        return toLowerInvariantResult;
+        return Convert.ToHexString(SHA256.HashData(input)).ToLowerInvariant();
     }
 
     public static T Deserialize<T>(McpPreviewEntry entry)
     {
-        var evaluatedValue = JsonSerializer.Deserialize<T>(entry.PayloadJson, JsonOptions) ?? throw new InvalidOperationException("The stored MCP preview payload is invalid. 存储的 MCP 预览载荷无效。");
-        return evaluatedValue;
+        return JsonSerializer.Deserialize<T>(entry.PayloadJson, JsonOptions) ?? throw new InvalidOperationException("The stored MCP preview payload is invalid. 存储的 MCP 预览载荷无效。");
     }
 }

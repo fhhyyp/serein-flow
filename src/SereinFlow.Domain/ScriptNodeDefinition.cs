@@ -81,11 +81,7 @@ public sealed class ScriptNodeDefinition
 
         var inputContracts = (inputs ?? []).ToArray();
         ValidateInputs(inputContracts);
-        var trimResult = nodeId.Trim();
-        var trimResult1 = languageVersion.Trim();
-        var toArrayResult = (outputs ?? []).ToArray();
-        var scriptNodeDefinition = new ScriptNodeDefinition(trimResult, source, trimResult1, computedHash, inputContracts, toArrayResult);
-        return scriptNodeDefinition;
+        return new ScriptNodeDefinition(nodeId.Trim(), source, languageVersion.Trim(), computedHash, inputContracts, (outputs ?? []).ToArray());
     }
 
     public static string ComputeSourceHash(string source)
@@ -94,12 +90,7 @@ public sealed class ScriptNodeDefinition
         {
             throw new ArgumentNullException(nameof(source), "Script input and output definitions cannot be null. 脚本输入和输出定义不能为空。");
         }
-
-        var getBytesResult = Encoding.UTF8.GetBytes(source);
-        var hashDataResult = SHA256.HashData(getBytesResult);
-        var toHexStringResult = Convert.ToHexString(hashDataResult);
-        var toLowerInvariantResult = toHexStringResult.ToLowerInvariant();
-        return toLowerInvariantResult;
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source))).ToLowerInvariant();
     }
 
     public static string ComputeArtifactFingerprint(string source, string languageVersion, IEnumerable<ScriptValueContract> inputs)
@@ -108,34 +99,28 @@ public sealed class ScriptNodeDefinition
         ArgumentNullException.ThrowIfNull(languageVersion);
         ArgumentNullException.ThrowIfNull(inputs);
         var builder = new StringBuilder();
-        var appendResult10 = builder.Append(CompilerCompatibilityVersion);
-        var appendResult11 = appendResult10.Append('\n');
-        var trimResult12 = languageVersion.Trim();
-        var appendResult13 = appendResult11.Append(trimResult12);
-        var appendResult14 = appendResult13.Append('\n');
-        var appendResult15 = appendResult14.Append(source);
-        appendResult15.Append('\n');
+        builder
+            .Append(CompilerCompatibilityVersion)
+            .Append('\n')
+            .Append(languageVersion.Trim())
+            .Append('\n')
+            .Append(source)
+            .Append('\n');
         foreach (var input in inputs)
         {
-            var evaluatedValue = input.Id?.Trim() ?? input.Name.Trim();
-            var appendResult = builder.Append(evaluatedValue);
-            var appendResult2 = appendResult.Append('\u001f');
-            var trimResult3 = input.Name.Trim();
-            var appendResult4 = appendResult2.Append(trimResult3);
-            var appendResult5 = appendResult4.Append('\u001f');
-            var evaluatedValue6 = input.ValueKind?.Trim() ?? string.Empty;
-            var appendResult7 = appendResult5.Append(evaluatedValue6);
-            var appendResult8 = appendResult7.Append('\u001f');
-            var appendResult9 = appendResult8.Append(input.Required ? '1' : '0');
-            appendResult9.Append('\n');
+            builder
+                .Append(input.Id?.Trim() ?? input.Name.Trim())
+                .Append('\u001f')
+                .Append(input.Name.Trim())
+                .Append('\u001f')
+                .Append(input.ValueKind?.Trim() ?? string.Empty)
+                .Append('\u001f')
+                .Append(input.Required ? '1' : '0')
+                .Append('\n');
         }
 
-        var toStringResult = builder.ToString();
-        var getBytesResult16 = Encoding.UTF8.GetBytes(toStringResult);
-        var hashDataResult17 = SHA256.HashData(getBytesResult16);
-        var toHexStringResult18 = Convert.ToHexString(hashDataResult17);
-        var toLowerInvariantResult19 = toHexStringResult18.ToLowerInvariant();
-        return toLowerInvariantResult19;
+        var builderText = builder.ToString();
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builderText))).ToLowerInvariant();
     }
 
     private static void ValidateInputs(IReadOnlyList<ScriptValueContract> inputs)
@@ -155,16 +140,15 @@ public sealed class ScriptNodeDefinition
                 throw new ArgumentException($"Script input ID '{id}' is duplicated. 脚本输入 ID“{id}”重复。", nameof(inputs));
             }
 
-            if (!resolveAddResult())
+            if (!TryAddInputName())
             {
                 throw new ArgumentException($"Script input name '{input.Name}' is duplicated. 脚本输入名称“{input.Name}”重复。", nameof(inputs));
             }
 
-            bool resolveAddResult()
+            bool TryAddInputName()
             {
-                var trimResult20 = input.Name.Trim();
-                var addResult = names.Add(trimResult20);
-                return addResult;
+                var normalizedName = input.Name.Trim();
+                return names.Add(normalizedName);
             }
         }
     }

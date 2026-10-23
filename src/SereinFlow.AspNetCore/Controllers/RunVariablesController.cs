@@ -4,6 +4,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/runs/{runId:guid}/variables")]
 public sealed class RunVariablesController(IFlowRunStore runs, IRunVariableService variables, SereinFlowApiAuthorizationService authorization) : ApiControllerBase
 {
@@ -12,9 +13,8 @@ public sealed class RunVariablesController(IFlowRunStore runs, IRunVariableServi
     [ProducesResponseType(typeof(RunVariableSnapshotDto), StatusCodes.Status200OK)]
     public Task<ActionResult> List(Guid runId, [FromQuery] int offset = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
     {
-        WorkerVariableRequestDto evaluatedValue = new(WorkerProtocol.Version, runId, "list", Offset: offset, Take: take);
-        var executeAsyncResult = ExecuteAsync(evaluatedValue, SereinFlowPermission.RunRead, cancellationToken);
-        return executeAsyncResult;
+        WorkerVariableRequestDto request = new(WorkerProtocol.Version, runId, "list", Offset: offset, Take: take);
+        return ExecuteAsync(request, SereinFlowPermission.RunRead, cancellationToken);
     }
 
     [HttpGet("{name}")]
@@ -22,9 +22,8 @@ public sealed class RunVariablesController(IFlowRunStore runs, IRunVariableServi
     [ProducesResponseType(typeof(RunVariableDto), StatusCodes.Status200OK)]
     public Task<ActionResult> Get(Guid runId, string name, CancellationToken cancellationToken)
     {
-        WorkerVariableRequestDto evaluatedValue1 = new(WorkerProtocol.Version, runId, "get", name);
-        var executeAsyncResult2 = ExecuteAsync(evaluatedValue1, SereinFlowPermission.RunRead, cancellationToken);
-        return executeAsyncResult2;
+        WorkerVariableRequestDto request = new(WorkerProtocol.Version, runId, "get", name);
+        return ExecuteAsync(request, SereinFlowPermission.RunRead, cancellationToken);
     }
 
     [HttpPut("{name}")]
@@ -32,15 +31,14 @@ public sealed class RunVariablesController(IFlowRunStore runs, IRunVariableServi
     [ProducesResponseType(typeof(RunVariableDto), StatusCodes.Status200OK)]
     public Task<ActionResult> Set(Guid runId, string name, [FromBody] RunVariableSetRequestDto request, CancellationToken cancellationToken)
     {
-        WorkerVariableRequestDto evaluatedValue3 = new(WorkerProtocol.Version, runId, "set", name, request.Value, request.ValueType);
-        var executeAsyncResult4 = ExecuteAsync(evaluatedValue3, SereinFlowPermission.RunVariableWrite, cancellationToken);
-        return executeAsyncResult4;
+        WorkerVariableRequestDto workerVariableRequestDto = new(WorkerProtocol.Version, runId, "set", name, request.Value, request.ValueType);
+        return ExecuteAsync(workerVariableRequestDto, SereinFlowPermission.RunVariableWrite, cancellationToken);
     }
 
     private async Task<ActionResult> ExecuteAsync(WorkerVariableRequestDto request, SereinFlowPermission permission, CancellationToken cancellationToken)
     {
-        var authorizeAsyncResult = await authorization.AuthorizeAsync(HttpContext, permission, null, cancellationToken);
-        var preFailure = ToAuthorizationFailure(authorizeAsyncResult);
+        var authorize = await authorization.AuthorizeAsync(HttpContext, permission, null, cancellationToken);
+        var preFailure = ToAuthorizationFailure(authorize);
         if (preFailure is not null)
         {
             return preFailure;
@@ -49,12 +47,11 @@ public sealed class RunVariablesController(IFlowRunStore runs, IRunVariableServi
         var run = await runs.FindAsync(request.RunId, cancellationToken);
         if (run is null)
         {
-            var apiProblemResult = ApiProblemWithCode(404, "Run not found. 未找到运行实例。", code: RunErrorCodes.NotFound);
-            return apiProblemResult;
+            return ApiProblemWithCode(404, "Run not found. 未找到运行实例。", code: RunErrorCodes.NotFound);
         }
 
-        var authorizeAsyncResult6 = await authorization.AuthorizeAsync(HttpContext, permission, run.ProjectId, cancellationToken);
-        var failure = ToAuthorizationFailure(authorizeAsyncResult6);
+        var mappedAuthorize = await authorization.AuthorizeAsync(HttpContext, permission, run.ProjectId, cancellationToken);
+        var failure = ToAuthorizationFailure(mappedAuthorize);
         if (failure is not null)
         {
             return failure;
@@ -64,11 +61,8 @@ public sealed class RunVariablesController(IFlowRunStore runs, IRunVariableServi
         var result = await variables.AccessAsync(request, cancellationToken);
         if (result.StatusCode == 200)
         {
-            ActionResult evaluatedValue5 = result.Snapshot is { } snapshot ? Ok(snapshot) : Ok(result.Variable);
-            return evaluatedValue5;
+            return result.Snapshot is { } snapshot ? Ok(snapshot) : Ok(result.Variable);
         }
-
-        var apiProblemResult8 = ApiProblemWithCode(result.StatusCode, result.Message ?? "Variable request failed. 变量请求失败。", code: result.Code);
-        return apiProblemResult8;
+        return ApiProblemWithCode(result.StatusCode, result.Message ?? "Variable request failed. 变量请求失败。", code: result.Code);
     }
 }

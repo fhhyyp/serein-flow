@@ -41,15 +41,13 @@ public sealed class SqlSugarLibraryArtifactUsageStore : ILibraryArtifactUsageSto
 
     public async Task<IReadOnlyList<LibraryArtifactUsageDto>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var listCoreAsyncResult = await ListCoreAsync(projectId: null, cancellationToken);
-        return listCoreAsyncResult;
+        return await ListCoreAsync(projectId: null, cancellationToken);
     }
 
     public async Task<IReadOnlyList<LibraryArtifactUsageDto>> ListByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
-        var toStringResult = projectId.ToString("D");
-        var listCoreAsyncResult1 = await ListCoreAsync(toStringResult, cancellationToken);
-        return listCoreAsyncResult1;
+        var projectIdText = projectId.ToString("D");
+        return await ListCoreAsync(projectIdText, cancellationToken);
     }
 
     private async Task<IReadOnlyList<LibraryArtifactUsageDto>> ListCoreAsync(string? projectId, CancellationToken cancellationToken)
@@ -62,15 +60,13 @@ public sealed class SqlSugarLibraryArtifactUsageStore : ILibraryArtifactUsageSto
         var definitions = definitionsTask.Result
             .Where(definition =>
             {
-                var evaluatedValue = projectId is null || string.Equals(definition.ProjectId, projectId, StringComparison.OrdinalIgnoreCase);
-                return evaluatedValue;
+                return projectId is null || string.Equals(definition.ProjectId, projectId, StringComparison.OrdinalIgnoreCase);
             })
             .ToArray();
         var scopedRunIds = runsTask.Result
             .Where(run =>
             {
-                var evaluatedValue2 = projectId is null || string.Equals(run.ProjectId, projectId, StringComparison.OrdinalIgnoreCase);
-                return evaluatedValue2;
+                return projectId is null || string.Equals(run.ProjectId, projectId, StringComparison.OrdinalIgnoreCase);
             })
             .Select(static run => run.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -78,58 +74,50 @@ public sealed class SqlSugarLibraryArtifactUsageStore : ILibraryArtifactUsageSto
         var flowBindings = flowBindingsTask.Result
             .Where(binding =>
             {
-                var evaluatedValue3 = !string.IsNullOrWhiteSpace(binding.LibraryArtifactId) && (projectId is null || string.Equals(binding.ProjectId, projectId, StringComparison.OrdinalIgnoreCase));
-                return evaluatedValue3;
+                return !string.IsNullOrWhiteSpace(binding.LibraryArtifactId) && (projectId is null || string.Equals(binding.ProjectId, projectId, StringComparison.OrdinalIgnoreCase));
             })
             .ToArray();
         var runBindings = runBindingsTask.Result
             .Where(binding =>
             {
-                var evaluatedValue4 = !string.IsNullOrWhiteSpace(binding.LibraryArtifactId) && scopedRunIds.Contains(binding.RunId);
-                return evaluatedValue4;
+                return !string.IsNullOrWhiteSpace(binding.LibraryArtifactId) && scopedRunIds.Contains(binding.RunId);
             })
             .ToArray();
-        var selectResult20 = flowBindings.Select(static binding => binding.LibraryArtifactId);
-        var selectResult21 = runBindings.Select(static binding => binding.LibraryArtifactId);
-        var artifactIds = selectResult20
-            .Concat(selectResult21)
+        var mappedFlowBindings = flowBindings.Select(static binding => binding.LibraryArtifactId);
+        var mappedRunBindings = runBindings.Select(static binding => binding.LibraryArtifactId);
+        return mappedFlowBindings
+            .Concat(mappedRunBindings)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Order(StringComparer.Ordinal)
-            .ToArray();
-        var toArrayResult = artifactIds
+            .ToArray()
             .Select(artifactId =>
             {
-                var countResult = flowBindings
+                var currentFlowCount = flowBindings
                     .Where(binding =>
                     {
-                        var evaluatedValue5 = string.Equals(binding.LibraryArtifactId, artifactId, StringComparison.OrdinalIgnoreCase) && currentVersions.TryGetValue(binding.FlowId, out var currentVersion) && currentVersion == binding.FlowVersion;
-                        return evaluatedValue5;
+                        return string.Equals(binding.LibraryArtifactId, artifactId, StringComparison.OrdinalIgnoreCase) && currentVersions.TryGetValue(binding.FlowId, out var currentVersion) && currentVersion == binding.FlowVersion;
                     })
                     .Select(static binding => binding.FlowId)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Count();
-                var countResult10 = flowBindings
+                var flowVersionCount = flowBindings
                     .Where(binding =>
                     {
-                        var equalsResult = string.Equals(binding.LibraryArtifactId, artifactId, StringComparison.OrdinalIgnoreCase);
-                        return equalsResult;
+                        return string.Equals(binding.LibraryArtifactId, artifactId, StringComparison.OrdinalIgnoreCase);
                     })
                     .Select(binding => (binding.FlowId, binding.FlowVersion))
                     .Distinct()
                     .Count();
-                var countResult14 = runBindings
+                var runSnapshotCount = runBindings
                     .Where(binding =>
                     {
-                        var equalsResult6 = string.Equals(binding.LibraryArtifactId, artifactId, StringComparison.OrdinalIgnoreCase);
-                        return equalsResult6;
+                        return string.Equals(binding.LibraryArtifactId, artifactId, StringComparison.OrdinalIgnoreCase);
                     })
                     .Select(static binding => binding.RunId)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Count();
-                var libraryArtifactUsageDto = new LibraryArtifactUsageDto(artifactId, countResult, countResult10, countResult14);
-                return libraryArtifactUsageDto;
+                return new LibraryArtifactUsageDto(artifactId, currentFlowCount, flowVersionCount, runSnapshotCount);
             })
             .ToArray();
-        return toArrayResult;
     }
 }

@@ -7,6 +7,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/environment/settings/mcp-skills")]
 public sealed class McpSkillsController(McpAiGuidanceManagementService guidance, SereinFlowAccess security) : ApiControllerBase
 {
@@ -15,13 +16,10 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
     [ProducesResponseType(typeof(McpAiGuidanceResourceDto[]), StatusCodes.Status200OK)]
     public Task<ActionResult> List(CancellationToken cancellationToken)
     {
-        var executeAsyncResult = ExecuteAsync(_ =>
+        return ExecuteAsync(_ =>
         {
-            var listResult = guidance.List();
-            var fromResultResult = Task.FromResult<object>(listResult);
-            return fromResultResult;
+            return Task.FromResult<object>(guidance.List());
         }, cancellationToken);
-        return executeAsyncResult;
     }
 
     [HttpGet("{key}")]
@@ -30,12 +28,10 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public Task<ActionResult> Read([FromRoute] string key, CancellationToken cancellationToken)
     {
-        var executeAsyncResult1 = ExecuteAsync(async token =>
+        return ExecuteAsync(async token =>
         {
-            var readAsyncResult = await guidance.ReadAsync(key, token);
-            return readAsyncResult;
+            return await guidance.ReadAsync(key, token);
         }, cancellationToken);
-        return executeAsyncResult1;
     }
 
     [HttpPut("{key}")]
@@ -46,13 +42,11 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
     [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
     public Task<ActionResult> Save([FromRoute] string key, [FromBody] SaveMcpAiGuidanceRequestDto? request, CancellationToken cancellationToken)
     {
-        var executeAsyncResult2 = ExecuteAsync(async token =>
+        return ExecuteAsync(async token =>
         {
             RequireValidBody(request);
-            var saveAsyncResult = await guidance.SaveAsync(key, request!, token);
-            return saveAsyncResult;
+            return await guidance.SaveAsync(key, request!, token);
         }, cancellationToken);
-        return executeAsyncResult2;
     }
 
     [HttpPost("{key}/reset")]
@@ -62,13 +56,11 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public Task<ActionResult> Reset([FromRoute] string key, [FromBody] ResetMcpAiGuidanceRequestDto? request, CancellationToken cancellationToken)
     {
-        var executeAsyncResult3 = ExecuteAsync(async token =>
+        return ExecuteAsync(async token =>
         {
             RequireValidBody(request);
-            var resetAsyncResult = await guidance.ResetAsync(key, request!, token);
-            return resetAsyncResult;
+            return await guidance.ResetAsync(key, request!, token);
         }, cancellationToken);
-        return executeAsyncResult3;
     }
 
     private void RequireValidBody(object? request)
@@ -86,9 +78,8 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
             var principal = SereinFlow.AspNetCore.SereinFlowHttpActor.Get(HttpContext);
             await security.RequireWorkspaceAsync(principal, cancellationToken);
             Response.Headers.CacheControl = "no-store";
-            var actionResult = await action(cancellationToken);
-            var okResult = Ok(actionResult);
-            return okResult;
+            var mappedAction = await action(cancellationToken);
+            return Ok(mappedAction);
         }
         catch (SereinFlowAccessException exception)
         {
@@ -96,9 +87,7 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
             {
                 Response.Headers.WWWAuthenticate = "Bearer";
             }
-
-            var apiProblemResult = ApiProblemWithCode(exception.StatusCode, exception.Message, code: exception.Code);
-            return apiProblemResult;
+            return ApiProblemWithCode(exception.StatusCode, exception.Message, code: exception.Code);
         }
         catch (McpProtocolException exception)
         {
@@ -112,18 +101,11 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
                 _ => StatusCodes.Status503ServiceUnavailable,
             };
             var data = JsonSerializer.SerializeToElement(exception.ErrorData);
-            var extensions = data.ValueKind == JsonValueKind.Object ? resolveToDictionaryResult() : null;
-            var apiProblemResult4 = ApiProblem(status, exception.Message, extensions: extensions);
-            return apiProblemResult4;
-            Dictionary<string, object?> resolveToDictionaryResult()
-            {
-                var toDictionaryResult = data.EnumerateObject().ToDictionary(property => property.Name, property =>
+            var extensions = data.ValueKind == JsonValueKind.Object ? data.EnumerateObject().ToDictionary(property => property.Name, property =>
                 {
-                    var evaluatedValue = (object? )property.Value.Clone();
-                    return evaluatedValue;
-                });
-                return toDictionaryResult;
-            }
+                    return (object?)property.Value.Clone();
+                }) : null;
+            return ApiProblem(status, exception.Message, extensions: extensions);
         }
     }
 }

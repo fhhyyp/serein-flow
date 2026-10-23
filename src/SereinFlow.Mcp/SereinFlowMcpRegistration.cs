@@ -66,7 +66,8 @@ public sealed class SereinFlowMcpOptions
             return [];
         }
 
-        return value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        return value
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(static origin => Uri.TryCreate(origin, UriKind.Absolute, out var uri)
                 && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
                 && !string.IsNullOrWhiteSpace(uri.Host))
@@ -115,8 +116,8 @@ public static class SereinFlowMcpServiceCollectionExtensions
         services.TryAddSingleton<McpHttpSessionRegistry>();
         services.TryAddSingleton<McpRequestLimiter>(serviceProvider =>
         {
-            var options = serviceProvider.GetRequiredService<SereinFlowMcpOptions>();
-            return new McpRequestLimiter(options.MaxConcurrentRequests, options.MaxRequestsPerMinute);
+            var sereinFlowMcpOptions = serviceProvider.GetRequiredService<SereinFlowMcpOptions>();
+            return new McpRequestLimiter(sereinFlowMcpOptions.MaxConcurrentRequests, sereinFlowMcpOptions.MaxRequestsPerMinute);
         });
         services.AddSereinFlowMcpTools();
         services.TryAddSingleton<McpResourceReader>();
@@ -124,12 +125,12 @@ public static class SereinFlowMcpServiceCollectionExtensions
         services.TryAddSingleton<ISereinFlowMcpBackend, SereinFlowMcpBackend>();
         services.TryAddSingleton<SereinFlowMcpServer>(serviceProvider =>
         {
-            var options = serviceProvider.GetRequiredService<SereinFlowMcpOptions>();
+            var sereinFlowMcpOptions = serviceProvider.GetRequiredService<SereinFlowMcpOptions>();
             return new SereinFlowMcpServer(
                 serviceProvider.GetRequiredService<ISereinFlowMcpBackend>(),
                 diagnostics: Console.Error,
-                maxRequestBytes: checked((int)options.MaxRequestBytes),
-                maxResponseBytes: checked((int)options.MaxResponseBytes),
+                maxRequestBytes: checked((int)sereinFlowMcpOptions.MaxRequestBytes),
+                maxResponseBytes: checked((int)sereinFlowMcpOptions.MaxResponseBytes),
                 requestContextAccessor: serviceProvider.GetRequiredService<IMcpRequestContextAccessor>(),
                 fileUploadSettings: serviceProvider.GetRequiredService<IFileUploadSettings>(),
                 aiGuidanceProvider: serviceProvider.GetRequiredService<McpAiGuidanceProvider>());
@@ -147,12 +148,12 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
     public static IEndpointConventionBuilder MapSereinFlowMcp(this IEndpointRouteBuilder endpoints, string pattern = McpHttpDefaults.EndpointPath)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
-        var options = endpoints.ServiceProvider.GetRequiredService<SereinFlowMcpOptions>();
+        var sereinFlowMcpOptions = endpoints.ServiceProvider.GetRequiredService<SereinFlowMcpOptions>();
         var fileUploadSettings = endpoints.ServiceProvider.GetRequiredService<IFileUploadSettings>();
         var getEndpoint = endpoints.MapMethods(pattern, ["GET"],
             static () => Results.StatusCode(StatusCodes.Status405MethodNotAllowed))
             .RequireCors("sereinflow-mcp");
-        var mapDeleteResult = endpoints.MapDelete(pattern, async (HttpContext context, SereinFlowAccess security, McpHttpSessionRegistry sessions, CancellationToken cancellationToken) =>
+        var delete = endpoints.MapDelete(pattern, async (HttpContext context, SereinFlowAccess security, McpHttpSessionRegistry sessions, CancellationToken cancellationToken) =>
         {
             var principal = await AuthenticateAsync(context, security, cancellationToken);
             if (principal is null)
@@ -168,10 +169,10 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
 
             return Results.NoContent();
         });
-        var deleteEndpoint = mapDeleteResult.RequireCors("sereinflow-mcp");
-        var mapPostResult = endpoints.MapPost(pattern, async (HttpContext context, SereinFlowMcpServer server, SereinFlowAccess security, ISereinFlowActorAccessor principalAccessor, IMcpRequestContextAccessor requestContextAccessor, McpHttpSessionRegistry sessions, McpRequestLimiter limiter, CancellationToken cancellationToken) =>
+        var deleteEndpoint = delete.RequireCors("sereinflow-mcp");
+        var post = endpoints.MapPost(pattern, async (HttpContext context, SereinFlowMcpServer server, SereinFlowAccess security, ISereinFlowActorAccessor principalAccessor, IMcpRequestContextAccessor requestContextAccessor, McpHttpSessionRegistry sessions, McpRequestLimiter limiter, CancellationToken cancellationToken) =>
         {
-            var maxRequestBytes = FileUploadLimits.GetMcpRequestBodyLimit(fileUploadSettings.MaxLibraryUploadBytes, options.MaxRequestBytes);
+            var maxRequestBytes = FileUploadLimits.GetMcpRequestBodyLimit(fileUploadSettings.MaxLibraryUploadBytes, sereinFlowMcpOptions.MaxRequestBytes);
             if (context.Request.ContentLength is > 0 && context.Request.ContentLength > maxRequestBytes)
             {
                 return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
@@ -223,7 +224,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                 var previousContext = requestContextAccessor.Current;
                 requestContextAccessor.Current = new McpRequestContext("http", sessionId);
                 using var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                requestTimeout.CancelAfter(TimeSpan.FromSeconds(options.MaxToolExecutionSeconds));
+                requestTimeout.CancelAfter(TimeSpan.FromSeconds(sereinFlowMcpOptions.MaxToolExecutionSeconds));
                 try
                 {
                     var response = await server.HandleParsedRequestAsync(request, requestTimeout.Token);
@@ -237,7 +238,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                         return Results.StatusCode(StatusCodes.Status202Accepted);
                     }
 
-                    if (Encoding.UTF8.GetByteCount(response) > options.MaxResponseBytes)
+                    if (Encoding.UTF8.GetByteCount(response) > sereinFlowMcpOptions.MaxResponseBytes)
                     {
                         return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
                     }
@@ -256,7 +257,7 @@ public static class SereinFlowMcpEndpointRouteBuilderExtensions
                 }
             }
         });
-        var postEndpoint = mapPostResult.RequireCors("sereinflow-mcp");
+        var postEndpoint = post.RequireCors("sereinflow-mcp");
         return new CompositeEndpointConventionBuilder(getEndpoint, deleteEndpoint, postEndpoint);
     }
 

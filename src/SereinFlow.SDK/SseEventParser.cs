@@ -3,6 +3,7 @@ using System.Text.Json;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Client;
+
 internal static class SseEventParser
 {
     public static async IAsyncEnumerable<FlowRunEventDto> ReadAsync(Stream stream, JsonSerializerOptions options, [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -11,7 +12,7 @@ internal static class SseEventParser
         var data = new List<string>();
         while (true)
         {
-            if (!(await resolveConfigureAwaitResult()is { } line))
+            if (!(await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line))
             {
                 break;
             }
@@ -45,13 +46,6 @@ internal static class SseEventParser
                     data.Add(value);
                     break;
             }
-
-            ConfiguredValueTaskAwaitable<string?> resolveConfigureAwaitResult()
-            {
-                var readLineAsyncResult = reader.ReadLineAsync(cancellationToken);
-                var configureAwaitResult = readLineAsyncResult.ConfigureAwait(false);
-                return configureAwaitResult;
-            }
         }
 
         var final = ParseEvent(data, options);
@@ -69,7 +63,6 @@ internal static class SseEventParser
         }
 
         var json = string.Join('\n', data);
-        var deserializeResult = JsonSerializer.Deserialize<FlowRunEventDto>(json, options);
-        return deserializeResult;
+        return JsonSerializer.Deserialize<FlowRunEventDto>(json, options);
     }
 }

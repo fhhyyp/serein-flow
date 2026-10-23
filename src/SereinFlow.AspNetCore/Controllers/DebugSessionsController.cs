@@ -4,6 +4,7 @@ using SereinFlow.Contracts;
 using static SereinFlow.Api.ApiEndpointHelpers;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/debug-sessions")]
 public sealed class DebugSessionsController : ApiControllerBase
 {
@@ -19,13 +20,11 @@ public sealed class DebugSessionsController : ApiControllerBase
     public async Task<ActionResult> Get([FromRoute] Guid sessionId, CancellationToken cancellationToken)
     {
         var session = await _sessions.FindAsync(sessionId, cancellationToken);
-        ActionResult evaluatedValue = session is null ? ApiProblem(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。") : resolveOkResult();
-        return evaluatedValue;
-        ObjectResult resolveOkResult()
+        return session is null ? ApiProblem(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。") : CreateSessionResponse();
+        ObjectResult CreateSessionResponse()
         {
-            var toFlowDebugSessionDtoResult = ToFlowDebugSessionDto(session);
-            var okResult = Ok(toFlowDebugSessionDtoResult);
-            return okResult;
+            var flowDebugSessionDto = ToFlowDebugSessionDto(session);
+            return Ok(flowDebugSessionDto);
         }
     }
 
@@ -38,27 +37,23 @@ public sealed class DebugSessionsController : ApiControllerBase
         var revision = afterRevision ?? -1;
         if (afterRevision is not null && revision < 0)
         {
-            var apiProblemResult = ApiProblemWithCode(StatusCodes.Status400BadRequest, "The debug state revision cannot be negative. 调试状态修订号不能为负数。", code: DebugErrorCodes.InvalidStateRevision);
-            return apiProblemResult;
+            return ApiProblemWithCode(StatusCodes.Status400BadRequest, "The debug state revision cannot be negative. 调试状态修订号不能为负数。", code: DebugErrorCodes.InvalidStateRevision);
         }
 
         var seconds = timeoutSeconds ?? 15;
         if (seconds is < 0 or > 60)
         {
-            var apiProblemResult2 = ApiProblemWithCode(StatusCodes.Status400BadRequest, "The debug wait timeout must be between 0 and 60 seconds. 调试等待超时必须在 0 到 60 秒之间。", code: DebugErrorCodes.InvalidWaitTimeout);
-            return apiProblemResult2;
+            return ApiProblemWithCode(StatusCodes.Status400BadRequest, "The debug wait timeout must be between 0 and 60 seconds. 调试等待超时必须在 0 到 60 秒之间。", code: DebugErrorCodes.InvalidWaitTimeout);
         }
 
-        var fromSecondsResult = TimeSpan.FromSeconds(seconds);
-        var result = await _sessions.WaitForChangeAsync(sessionId, revision, fromSecondsResult, cancellationToken);
-        ActionResult evaluatedValue6 = result.Session is null ? ApiProblem(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。") : resolveOkResult3();
-        return evaluatedValue6;
-        ObjectResult resolveOkResult3()
+        var timeout = TimeSpan.FromSeconds(seconds);
+        var result = await _sessions.WaitForChangeAsync(sessionId, revision, timeout, cancellationToken);
+        return result.Session is null ? ApiProblem(StatusCodes.Status404NotFound, "Debug session not found. 未找到调试会话。") : CreateWaitResponse();
+        ObjectResult CreateWaitResponse()
         {
-            var toFlowDebugSessionDtoResult4 = ToFlowDebugSessionDto(result.Session);
-            var flowDebugWaitResultDto = new FlowDebugWaitResultDto(result.HasChanged, result.TimedOut, toFlowDebugSessionDtoResult4);
-            var okResult5 = Ok(flowDebugWaitResultDto);
-            return okResult5;
+            var session = ToFlowDebugSessionDto(result.Session);
+            var flowDebugWaitResultDto = new FlowDebugWaitResultDto(result.HasChanged, result.TimedOut, session);
+            return Ok(flowDebugWaitResultDto);
         }
     }
 
@@ -69,9 +64,8 @@ public sealed class DebugSessionsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> Continue([FromRoute] Guid sessionId, [FromBody] FlowDebugCommandRequestDto request, CancellationToken cancellationToken)
     {
-        var continueAsyncResult = await _sessions.ContinueAsync(sessionId, request.CommandSequence, cancellationToken);
-        var toDebugCommandResponseResult = ToDebugCommandResponse(continueAsyncResult);
-        return toDebugCommandResponseResult;
+        var continueResult = await _sessions.ContinueAsync(sessionId, request.CommandSequence, cancellationToken);
+        return ToDebugCommandResponse(continueResult);
     }
 
     [HttpPost("{sessionId:guid}/step")]
@@ -81,9 +75,8 @@ public sealed class DebugSessionsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> Step([FromRoute] Guid sessionId, [FromBody] FlowDebugCommandRequestDto request, CancellationToken cancellationToken)
     {
-        var stepAsyncResult = await _sessions.StepAsync(sessionId, request.CommandSequence, cancellationToken);
-        var toDebugCommandResponseResult7 = ToDebugCommandResponse(stepAsyncResult);
-        return toDebugCommandResponseResult7;
+        var step = await _sessions.StepAsync(sessionId, request.CommandSequence, cancellationToken);
+        return ToDebugCommandResponse(step);
     }
 
     [HttpPost("{sessionId:guid}/stop")]
@@ -93,8 +86,7 @@ public sealed class DebugSessionsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> Stop([FromRoute] Guid sessionId, [FromBody] FlowDebugCommandRequestDto request, CancellationToken cancellationToken)
     {
-        var stopAsyncResult = await _sessions.StopAsync(sessionId, request.CommandSequence, cancellationToken);
-        var toDebugCommandResponseResult8 = ToDebugCommandResponse(stopAsyncResult);
-        return toDebugCommandResponseResult8;
+        var stop = await _sessions.StopAsync(sessionId, request.CommandSequence, cancellationToken);
+        return ToDebugCommandResponse(stop);
     }
 }

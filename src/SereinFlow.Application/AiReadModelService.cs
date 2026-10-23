@@ -39,54 +39,48 @@ public sealed class AiReadModelService
 
     public async Task<AiPageDto<AiProjectSummaryDto>> ListProjectsAsync(AiReadModelOptions? options = null, CancellationToken cancellationToken = default, ProjectAccessScope? accessScope = null)
     {
-        var listProjectsAsyncResult = await ListProjectsAsync(project =>
+        return await ListProjectsAsync(project =>
         {
-            var visible = project.Status != ProjectStatus.Archived && (accessScope == null || accessScope.Contains(project.Id));
-            return visible;
+            return project.Status != ProjectStatus.Archived && (accessScope == null || accessScope.Contains(project.Id));
         }, options, cancellationToken);
-        return listProjectsAsyncResult;
     }
 
     public async Task<AiPageDto<AiProjectSummaryDto>> ListArchivedProjectsAsync(AiReadModelOptions? options = null, CancellationToken cancellationToken = default, ProjectAccessScope? accessScope = null)
     {
-        var listProjectsAsyncResult1 = await ListProjectsAsync(project =>
+        return await ListProjectsAsync(project =>
         {
-            var visible = project.Status == ProjectStatus.Archived && (accessScope == null || accessScope.Contains(project.Id));
-            return visible;
+            return project.Status == ProjectStatus.Archived && (accessScope == null || accessScope.Contains(project.Id));
         }, options, cancellationToken);
-        return listProjectsAsyncResult1;
     }
 
     private async Task<AiPageDto<AiProjectSummaryDto>> ListProjectsAsync(Func<Project, bool> predicate, AiReadModelOptions? options, CancellationToken cancellationToken)
     {
-        var evaluatedValue4 = (options ?? new());
-        var normalized = evaluatedValue4.Normalize();
+        var normalized = ((options ?? new())).Normalize();
         var projects = await _projects.ListAsync(cancellationToken);
-        var minResult = Math.Min(normalized.MaxItems, projects.Count);
-        var items = new List<AiProjectSummaryDto>(minResult);
-        foreach (var project in projects.Where(predicate).OrderBy(static item => item.Id).Take(normalized.MaxItems + 1))
+        var items = new List<AiProjectSummaryDto>(Math.Min(normalized.MaxItems, projects.Count));
+        foreach (var project in projects
+            .Where(predicate)
+            .OrderBy(static item => item.Id)
+            .Take(normalized.MaxItems + 1))
         {
             var flows = await _flows.ListByProjectAsync(project.Id, cancellationToken);
             var summaries = new List<AiFlowSummaryDto>(flows.Count);
             foreach (var flow in flows.OrderBy(static item => item.Id))
             {
-                var findProductionVersionAsyncResult = await _versions.FindProductionVersionAsync(project.Id, flow.Id, cancellationToken);
-                var sumResult = flow.Canvases.Sum(static canvas => canvas.Nodes.Count);
-                AiFlowSummaryDto evaluatedValue = new(flow.Id, flow.Version, findProductionVersionAsyncResult, flow.EntryNodeId, flow.Canvases.Count, sumResult);
-                summaries.Add(evaluatedValue);
+                var productionVersion = await _versions.FindProductionVersionAsync(project.Id, flow.Id, cancellationToken);
+                var nodeCount = flow.Canvases.Sum(static canvas => canvas.Nodes.Count);
+                AiFlowSummaryDto aiFlowSummaryDto = new(flow.Id, flow.Version, productionVersion, flow.EntryNodeId, flow.Canvases.Count, nodeCount);
+                summaries.Add(aiFlowSummaryDto);
             }
 
-            var toStringResult = project.Status.ToString();
-            AiProjectSummaryDto evaluatedValue2 = new(project.Id, project.Name, project.Version, toStringResult, project.CreatedAt, project.UpdatedAt, summaries);
-            items.Add(evaluatedValue2);
+            var status = project.Status.ToString();
+            AiProjectSummaryDto aiProjectSummaryDto = new(project.Id, project.Name, project.Version, status, project.CreatedAt, project.UpdatedAt, summaries);
+            items.Add(aiProjectSummaryDto);
         }
-
-        var createPageResult = CreatePage(items, normalized.MaxItems, static item =>
+        return CreatePage(items, normalized.MaxItems, static item =>
         {
-            var toStringResult3 = item.Id.ToString("D");
-            return toStringResult3;
+            return item.Id.ToString("D");
         });
-        return createPageResult;
     }
 
     public async Task<AiProjectSummaryDto?> GetProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
@@ -101,20 +95,19 @@ public sealed class AiReadModelService
         var summaries = new List<AiFlowSummaryDto>(flows.Count);
         foreach (var flow in flows.OrderBy(static item => item.Id))
         {
-            var findProductionVersionAsyncResult5 = await _versions.FindProductionVersionAsync(projectId, flow.Id, cancellationToken);
-            var sumResult6 = flow.Canvases.Sum(static canvas => canvas.Nodes.Count);
-            AiFlowSummaryDto evaluatedValue7 = new(flow.Id, flow.Version, findProductionVersionAsyncResult5, flow.EntryNodeId, flow.Canvases.Count, sumResult6);
-            summaries.Add(evaluatedValue7);
+            var productionVersion = await _versions.FindProductionVersionAsync(projectId, flow.Id, cancellationToken);
+            var nodeCount = flow.Canvases.Sum(static canvas => canvas.Nodes.Count);
+            AiFlowSummaryDto aiFlowSummaryDto = new(flow.Id, flow.Version, productionVersion, flow.EntryNodeId, flow.Canvases.Count, nodeCount);
+            summaries.Add(aiFlowSummaryDto);
         }
 
-        var toStringResult8 = project.Status.ToString();
-        AiProjectSummaryDto evaluatedValue9 = new(project.Id, project.Name, project.Version, toStringResult8, project.CreatedAt, project.UpdatedAt, summaries);
-        return evaluatedValue9;
+        var status = project.Status.ToString();
+        return new(project.Id, project.Name, project.Version, status, project.CreatedAt, project.UpdatedAt, summaries);
     }
 
     public async Task<AiFlowTopologyDto?> GetFlowTopologyAsync(Guid projectId, Guid flowId, FlowVersionTrackDto track = FlowVersionTrackDto.Development, long? version = null, AiReadModelOptions? options = null, CancellationToken cancellationToken = default)
     {
-        if (await _projects.FindAsync(projectId, cancellationToken)is null)
+        if (await _projects.FindAsync(projectId, cancellationToken) is null)
         {
             return null;
         }
@@ -134,22 +127,17 @@ public sealed class AiReadModelService
         {
             definition = track == FlowVersionTrackDto.Production ? await _versions.FindProductionDefinitionAsync(projectId, flowId, cancellationToken) : await _flows.FindAsync(projectId, flowId, cancellationToken);
         }
-
-        AiFlowTopologyDto? evaluatedValue11 = definition is null ? null : resolveMapTopologyResult();
-        return evaluatedValue11;
-        AiFlowTopologyDto resolveMapTopologyResult()
+        return definition is null ? null : MapRequestedTopology();
+        AiFlowTopologyDto MapRequestedTopology()
         {
-            var evaluatedValue10 = (options ?? new());
-            var normalizeResult = evaluatedValue10.Normalize();
-            var mapTopologyResult = MapTopology(projectId, definition, track, normalizeResult);
-            return mapTopologyResult;
+            var normalizedOptions = ((options ?? new())).Normalize();
+            return MapTopology(projectId, definition, track, normalizedOptions);
         }
     }
 
     public Task<IReadOnlyList<FlowVersionSummaryDto>> GetFlowVersionHistoryAsync(Guid projectId, Guid flowId, FlowVersionTrackDto track, CancellationToken cancellationToken = default)
     {
-        var listVersionsAsyncResult = _versions.ListVersionsAsync(projectId, flowId, track, cancellationToken);
-        return listVersionsAsyncResult;
+        return _versions.ListVersionsAsync(projectId, flowId, track, cancellationToken);
     }
 
     public async Task<AiFlowEditModelDto?> GetFlowEditModelAsync(Guid projectId, Guid flowId, BuiltinNodeCatalogDto builtinNodes, AiReadModelOptions? options = null, CancellationToken cancellationToken = default)
@@ -164,100 +152,93 @@ public sealed class AiReadModelService
         var libraries = await _libraries.ListAsync(false, cancellationToken);
         if (_projectLibraryReferences is not null)
         {
-            var references = await _projectLibraryReferences.ListByProjectAsync(projectId, cancellationToken);
-            var referencedIds = references.Select(static item => item.LibraryId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var whereResult12 = libraries.Where(item =>
+            var referencedIds = (await _projectLibraryReferences.ListByProjectAsync(projectId, cancellationToken)).Select(static item => item.LibraryId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            libraries = libraries.Where(item =>
             {
-                var containsResult = referencedIds.Contains(item.Id);
-                return containsResult;
-            });
-            libraries = whereResult12.ToArray();
+                return referencedIds.Contains(item.Id);
+            }).ToArray();
         }
 
-        var toArrayResult = libraries.Select(static item =>
+        var resolvedLibraries = libraries.Select(static item =>
         {
-            var mapLibraryResult = MapLibrary(item, includeNodes: true);
-            return mapLibraryResult;
+            return MapLibrary(item, includeNodes: true);
         }).ToArray();
-        AiFlowEditModelDto evaluatedValue14 = new(projectId, flowId, flow, builtinNodes.Nodes, toArrayResult);
-        return evaluatedValue14;
+        return new(projectId, flowId, flow, builtinNodes.Nodes, resolvedLibraries);
     }
 
     public Task<FlowVersionDetailDto?> GetFlowVersionAsync(Guid projectId, Guid flowId, long version, CancellationToken cancellationToken = default)
     {
-        var findVersionAsyncResult = _versions.FindVersionAsync(projectId, flowId, version, cancellationToken);
-        return findVersionAsyncResult;
+        return _versions.FindVersionAsync(projectId, flowId, version, cancellationToken);
     }
 
     public async Task<AiPageDto<AiLibrarySummaryDto>> ListLibrariesAsync(bool includeArchived = false, AiReadModelOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var listLibrariesAsyncResult = await ListLibrariesAsync(includeArchived ? null : LibraryLifecycleDto.Available, includeArchived, options, cancellationToken);
-        return listLibrariesAsyncResult;
+        return await ListLibrariesAsync(includeArchived ? null : LibraryLifecycleDto.Available, includeArchived, options, cancellationToken);
     }
 
     public async Task<AiPageDto<AiLibrarySummaryDto>> ListArchivedLibrariesAsync(AiReadModelOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var listLibrariesAsyncResult15 = await ListLibrariesAsync(LibraryLifecycleDto.Archived, includeArchived: true, options, cancellationToken);
-        return listLibrariesAsyncResult15;
+        return await ListLibrariesAsync(LibraryLifecycleDto.Archived, includeArchived: true, options, cancellationToken);
     }
 
     private async Task<AiPageDto<AiLibrarySummaryDto>> ListLibrariesAsync(LibraryLifecycleDto? lifecycle, bool includeArchived, AiReadModelOptions? options, CancellationToken cancellationToken)
     {
-        var evaluatedValue17 = (options ?? new());
-        var normalized = evaluatedValue17.Normalize();
-        var libraries = await _libraries.ListAsync(includeArchived, cancellationToken);
-        var items = libraries.Where(item => lifecycle is null || item.Lifecycle == lifecycle).OrderBy(static item => item.Id, StringComparer.Ordinal).Take(normalized.MaxItems + 1).Select(static item =>
+        var normalized = ((options ?? new())).Normalize();
+        var items = (await _libraries.ListAsync(includeArchived, cancellationToken))
+            .Where(item => lifecycle is null || item.Lifecycle == lifecycle)
+            .OrderBy(static item => item.Id, StringComparer.Ordinal)
+            .Take(normalized.MaxItems + 1)
+            .Select(static item =>
         {
-            var mapLibraryResult16 = MapLibrary(item, includeNodes: false);
-            return mapLibraryResult16;
-        }).ToArray();
-        var createPageResult21 = CreatePage(items, normalized.MaxItems, static item => item.Id);
-        return createPageResult21;
+            return MapLibrary(item, includeNodes: false);
+        })
+            .ToArray();
+        return CreatePage(items, normalized.MaxItems, static item => item.Id);
     }
 
     public async Task<AiLibrarySummaryDto?> GetLibraryAsync(string libraryId, CancellationToken cancellationToken = default)
     {
         var library = await _libraries.FindAsync(libraryId, cancellationToken);
-        AiLibrarySummaryDto? evaluatedValue22 = library is null ? null : MapLibrary(library, includeNodes: true);
-        return evaluatedValue22;
+        return library is null ? null : MapLibrary(library, includeNodes: true);
     }
 
     public async Task<AiPageDto<AiRunSummaryDto>> ListRunsAsync(Guid? projectId = null, FlowRunStatusDto? status = null, AiReadModelOptions? options = null, CancellationToken cancellationToken = default, ProjectAccessScope? accessScope = null)
     {
-        var evaluatedValue24 = (options ?? new());
-        var normalized = evaluatedValue24.Normalize();
+        var normalized = ((options ?? new())).Normalize();
         var statuses = status is null ? null : new[]
         {
             (FlowRunStatus)status.Value
         };
         var projectIds = accessScope is { AllProjects: false } ? accessScope.ProjectIds.ToArray() : null;
         var flowRunQuery = new FlowRunQuery(statuses, projectId, normalized.MaxItems + 1, projectIds);
-        var runs = await _runs.ListAsync(flowRunQuery, cancellationToken);
-        var items = runs.OrderByDescending(static item => item.CreatedAt).Take(normalized.MaxItems + 1).Select(MapRun).ToArray();
-        var createPageResult27 = CreatePage(items, normalized.MaxItems, static item =>
+        var items = (await _runs.ListAsync(flowRunQuery, cancellationToken))
+            .OrderByDescending(static item => item.CreatedAt)
+            .Take(normalized.MaxItems + 1)
+            .Select(MapRun)
+            .ToArray();
+        return CreatePage(items, normalized.MaxItems, static item =>
         {
-            var toStringResult23 = item.Id.ToString("D");
-            return toStringResult23;
+            return item.Id.ToString("D");
         });
-        return createPageResult27;
     }
 
     public async Task<AiPageDto<AiDebugSessionSummaryDto>> ListActiveDebugSessionsAsync(Guid? projectId = null, AiReadModelOptions? options = null, CancellationToken cancellationToken = default, ProjectAccessScope? accessScope = null)
     {
-        var evaluatedValue29 = (options ?? new());
-        var normalized = evaluatedValue29.Normalize();
-        var sessions = await _debugSessions.ListActiveAsync(cancellationToken);
-        var items = sessions.Where(session =>
+        var normalized = ((options ?? new())).Normalize();
+        var items = (await _debugSessions.ListActiveAsync(cancellationToken))
+            .Where(session =>
         {
-            var value1 = (projectId is null || session.ProjectId == projectId.Value) && (accessScope == null || accessScope.Contains(session.ProjectId));
-            return value1;
-        }).OrderByDescending(static session => session.UpdatedAt).ThenBy(static session => session.Id).Take(normalized.MaxItems + 1).Select(MapDebugSessionSummary).ToArray();
-        var createPageResult34 = CreatePage(items, normalized.MaxItems, static item =>
+            return (projectId is null || session.ProjectId == projectId.Value) && (accessScope == null || accessScope.Contains(session.ProjectId));
+        })
+            .OrderByDescending(static session => session.UpdatedAt)
+            .ThenBy(static session => session.Id)
+            .Take(normalized.MaxItems + 1)
+            .Select(MapDebugSessionSummary)
+            .ToArray();
+        return CreatePage(items, normalized.MaxItems, static item =>
         {
-            var toStringResult28 = item.Id.ToString("D");
-            return toStringResult28;
+            return item.Id.ToString("D");
         });
-        return createPageResult34;
     }
 
     public async Task<AiRunInspectionDto?> GetRunInspectionAsync(Guid runId, FlowVersionTrackDto? definitionTrack = null, AiReadModelOptions? options = null, long afterEventSequence = 0, CancellationToken cancellationToken = default)
@@ -267,142 +248,133 @@ public sealed class AiReadModelService
         {
             return null;
         }
-
-        var evaluatedValue35 = (options ?? new());
-        var normalized = evaluatedValue35.Normalize();
+        var normalized = ((options ?? new())).Normalize();
         var snapshot = await _runs.GetSnapshotAsync(runId, cancellationToken);
         var definition = snapshot is null ? null : MapTopology(run.ProjectId, snapshot, definitionTrack, normalized);
         var events = await GetRunEventsAsync(runId, afterEventSequence, normalized, cancellationToken) ?? EmptyPage<AiRunEventDto>();
         var outputs = await GetRunOutputsAsync(runId, normalized, cancellationToken) ?? EmptyPage<AiNodeExecutionRecordDto>();
         var debug = run.DebugSessionId is null ? null : await GetDebugStateAsync(run.DebugSessionId.Value, cancellationToken);
-        var mapRunResult = MapRun(run);
-        AiRunInspectionDto evaluatedValue36 = new(mapRunResult, definition, events, outputs, debug);
-        return evaluatedValue36;
+        var aiRunSummaryDto = MapRun(run);
+        return new(aiRunSummaryDto, definition, events, outputs, debug);
     }
 
     public async Task<AiPageDto<AiRunEventDto>?> GetRunEventsAsync(Guid runId, long afterSequence = 0, AiReadModelOptions? options = null, CancellationToken cancellationToken = default)
     {
-        if (await _runs.FindAsync(runId, cancellationToken)is null)
+        if (await _runs.FindAsync(runId, cancellationToken) is null)
         {
             return null;
         }
-
-        var evaluatedValue38 = (options ?? new());
-        var normalized = evaluatedValue38.Normalize();
-        var events = (await _events.GetAfterAsync(runId, afterSequence, cancellationToken)).OrderBy(static item => item.Sequence).Take(normalized.MaxItems + 1).Select(item =>
+        var normalized = ((options ?? new())).Normalize();
+        var events = (await _events.GetAfterAsync(runId, afterSequence, cancellationToken))
+            .OrderBy(static item => item.Sequence)
+            .Take(normalized.MaxItems + 1)
+            .Select(item =>
         {
-            var mapEventResult = MapEvent(item, normalized.MaxJsonBytes);
-            return mapEventResult;
-        }).ToArray();
-        var createPageResult43 = CreatePage(events, normalized.MaxItems, static item =>
+            return MapEvent(item, normalized.MaxJsonBytes);
+        })
+            .ToArray();
+        return CreatePage(events, normalized.MaxItems, static item =>
         {
-            var toStringResult37 = item.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            return toStringResult37;
+            return item.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture);
         });
-        return createPageResult43;
     }
 
     public async Task<AiPageDto<AiNodeExecutionRecordDto>?> GetRunOutputsAsync(Guid runId, AiReadModelOptions? options = null, CancellationToken cancellationToken = default)
     {
-        if (await _runs.FindAsync(runId, cancellationToken)is null)
+        if (await _runs.FindAsync(runId, cancellationToken) is null)
         {
             return null;
         }
-
-        var evaluatedValue45 = (options ?? new());
-        var normalized = evaluatedValue45.Normalize();
-        var outputs = (await _outputs.ListAsync(runId, cancellationToken)).OrderBy(static item => item.Sequence).Take(normalized.MaxItems + 1).Select(item =>
+        var normalized = ((options ?? new())).Normalize();
+        var outputs = (await _outputs.ListAsync(runId, cancellationToken))
+            .OrderBy(static item => item.Sequence)
+            .Take(normalized.MaxItems + 1)
+            .Select(item =>
         {
-            var mapOutputResult = MapOutput(item, normalized.MaxJsonBytes);
-            return mapOutputResult;
-        }).ToArray();
-        var createPageResult50 = CreatePage(outputs, normalized.MaxItems, static item =>
+            return MapOutput(item, normalized.MaxJsonBytes);
+        })
+            .ToArray();
+        return CreatePage(outputs, normalized.MaxItems, static item =>
         {
-            var toStringResult44 = item.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            return toStringResult44;
+            return item.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture);
         });
-        return createPageResult50;
     }
 
     public async Task<AiDebugStateDto?> GetDebugStateAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         var session = await _debugSessions.FindAsync(sessionId, cancellationToken);
-        AiDebugStateDto? evaluatedValue51 = session is null ? null : MapDebugState(session);
-        return evaluatedValue51;
+        return session is null ? null : MapDebugState(session);
     }
 
     public async Task<AiDebugStateWaitResultDto?> WaitForDebugStateChangeAsync(Guid sessionId, long afterRevision, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         var result = await FlowDebugSessionWaiter.WaitAsync(_debugSessions, sessionId, afterRevision, timeout, waitForPauseOrCompletion: true, cancellationToken: cancellationToken);
-        AiDebugStateWaitResultDto? evaluatedValue53 = result.Session is null ? null : resolveevaluatedValue();
-        return evaluatedValue53;
-        AiDebugStateWaitResultDto resolveevaluatedValue()
+        return result.Session is null ? null : MapWaitResult();
+        AiDebugStateWaitResultDto MapWaitResult()
         {
-            var mapDebugStateResult = MapDebugState(result.Session);
-            AiDebugStateWaitResultDto evaluatedValue52 = new(result.HasChanged, result.TimedOut, mapDebugStateResult);
-            return evaluatedValue52;
+            var state = MapDebugState(result.Session);
+            return new(result.HasChanged, result.TimedOut, state);
         }
     }
 
     private static AiFlowTopologyDto MapTopology(Guid projectId, FlowDefinitionDto definition, FlowVersionTrackDto? track, AiReadModelOptions options)
     {
-        var evaluatedValue64 = definition.RunPolicy?.ConcurrencyMode.ToString() ?? "Unknown";
-        var toArrayResult66 = definition.Canvases.Select(canvas =>
+        var concurrencyMode = definition.RunPolicy?.ConcurrencyMode.ToString() ?? "Unknown";
+        var canvases = definition.Canvases.Select(canvas =>
         {
             var nodes = canvas.Nodes.Take(options.MaxItems + 1).ToArray();
             var connections = canvas.Connections.Take(options.MaxItems + 1).ToArray();
             var dataConnections = canvas.Connections.Where(static connection => connection.Kind == ConnectionKindDto.Data).ToArray();
             var truncated = nodes.Length > options.MaxItems || connections.Length > options.MaxItems;
-            var toStringResult57 = canvas.Lifecycle.ToString();
-            var toArrayResult60 = nodes.Take(options.MaxItems).Select(node =>
+            var lifecycle = canvas.Lifecycle.ToString();
+            var take = nodes
+                .Take(options.MaxItems)
+                .Select(node =>
             {
-                var mapNodeResult = MapNode(canvas.Id, node, dataConnections, options);
-                return mapNodeResult;
-            }).ToArray();
-            var toArrayResult63 = connections.Take(options.MaxItems).Select(MapConnection).ToArray();
-            var aiCanvasDto = new AiCanvasDto(canvas.Id, toStringResult57, canvas.Name, toArrayResult60, toArrayResult63, truncated);
-            return aiCanvasDto;
+                return MapNode(canvas.Id, node, dataConnections, options);
+            })
+                .ToArray();
+            var mappedConnections = connections
+                .Take(options.MaxItems)
+                .Select(MapConnection)
+                .ToArray();
+            return new AiCanvasDto(canvas.Id, lifecycle, canvas.Name, take, mappedConnections, truncated);
         }).ToArray();
-        AiFlowTopologyDto evaluatedValue67 = new(projectId, definition.Id, track, definition.Version, definition.SchemaVersion, definition.EntryNodeId, definition.Checksum, evaluatedValue64, toArrayResult66);
-        return evaluatedValue67;
+        return new(projectId, definition.Id, track, definition.Version, definition.SchemaVersion, definition.EntryNodeId, definition.Checksum, concurrencyMode, canvases);
     }
 
     private static AiNodeContractDto MapNode(string canvasId, NodeDto node, IReadOnlyList<ConnectionDto> dataConnections, AiReadModelOptions options)
     {
-        var toStringResult68 = node.Type.ToString();
-        var toArrayResult70 = node.Ports.Select(port =>
+        var type = node.Type.ToString();
+        var ports = node.Ports.Select(port =>
         {
-            var aiPortContractDto = new AiPortContractDto(port.Id, port.Name, port.Direction, port.Required);
-            return aiPortContractDto;
+            return new AiPortContractDto(port.Id, port.Name, port.Direction, port.Required);
         }).ToArray();
-        var toArrayResult72 = node.Parameters.Select(parameter =>
+        var parameters = node.Parameters.Select(parameter =>
         {
-            var firstOrDefaultResult = dataConnections.FirstOrDefault(connection => connection.ToNodeId == node.Id && connection.ToPortId == (parameter.Ui?.Id ?? parameter.Name));
-            var mapParameterResult = MapParameter(parameter, options, firstOrDefaultResult);
-            return mapParameterResult;
+            var dataConnection = dataConnections.FirstOrDefault(connection => connection.ToNodeId == node.Id && connection.ToPortId == (parameter.Ui?.Id ?? parameter.Name));
+            return MapParameter(parameter, options, dataConnection);
         }).ToArray();
-        AiNodeRuntimeDto? conditionalValue;
+        AiNodeRuntimeDto? runtime;
         if (node.Ui is null)
         {
-            conditionalValue = null;
+            runtime = null;
         }
         else
         {
-            Guid? evaluatedValue1 = Guid.TryParse(node.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null;
-            conditionalValue = new AiNodeRuntimeDto(node.Ui.LibraryId, node.Ui.LibraryNodeContractId, node.Ui.FlowLibraryName, node.Ui.ClassName, node.Ui.MethodName, node.Ui.DllName, node.Ui.DllVersion, node.Ui.ReturnType, node.Ui.IsAwaitable ?? false, evaluatedValue1, node.Ui.TargetNodeId, node.Ui.TargetCanvasId, node.Ui.IsPublic ?? false);
+            Guid? parsedTargetFlowId = Guid.TryParse(node.Ui.TargetFlowId, out var targetFlowId) ? targetFlowId : null;
+            runtime = new AiNodeRuntimeDto(node.Ui.LibraryId, node.Ui.LibraryNodeContractId, node.Ui.FlowLibraryName, node.Ui.ClassName, node.Ui.MethodName, node.Ui.DllName, node.Ui.DllVersion, node.Ui.ReturnType, node.Ui.IsAwaitable ?? false, parsedTargetFlowId, node.Ui.TargetNodeId, node.Ui.TargetCanvasId, node.Ui.IsPublic ?? false);
         }
 
-        AiNodeRuntimeDto? evaluatedValue73 = conditionalValue;
-        AiScriptContractDto? evaluatedValue79 = node.Script is null ? null : resolveAiScriptContractDto();
-        AiNodeContractDto evaluatedValue80 = new(node.Id, toStringResult68, node.DisplayName, canvasId, toArrayResult70, toArrayResult72, evaluatedValue73, evaluatedValue79, node.X, node.Y);
-        return evaluatedValue80;
-        AiScriptContractDto resolveAiScriptContractDto()
+        AiNodeRuntimeDto? aiNodeRuntimeDto = runtime;
+        AiScriptContractDto? script = node.Script is null ? null : MapScriptContract();
+        return new(node.Id, type, node.DisplayName, canvasId, ports, parameters, aiNodeRuntimeDto, script, node.X, node.Y);
+        AiScriptContractDto MapScriptContract()
         {
-            string? evaluatedValue74 = options.IncludeScriptSource ? LimitText(node.Script.Source, options.MaxJsonBytes) : null;
-            var toArrayResult76 = node.Script.Inputs.Select(MapScriptValue).ToArray();
-            var toArrayResult78 = node.Script.Outputs.Select(MapScriptValue).ToArray();
-            var aiScriptContractDto = new AiScriptContractDto(node.Script.NodeId, node.Script.LanguageVersion, node.Script.SourceHash, evaluatedValue74, toArrayResult76, toArrayResult78);
-            return aiScriptContractDto;
+            string? limitText = options.IncludeScriptSource ? LimitText(node.Script.Source, options.MaxJsonBytes) : null;
+            var inputs = node.Script.Inputs.Select(MapScriptValue).ToArray();
+            var outputs = node.Script.Outputs.Select(MapScriptValue).ToArray();
+            return new AiScriptContractDto(node.Script.NodeId, node.Script.LanguageVersion, node.Script.SourceHash, limitText, inputs, outputs);
         }
     }
 
@@ -415,129 +387,107 @@ public sealed class AiReadModelService
         var source = dataConnection is null ? parameter.Source : DataSourceDto.PreviousNode;
         var sourceNodeId = dataConnection?.FromNodeId ?? parameter.Ui?.SourceNodeId;
         var sourcePortId = dataConnection?.FromPortId ?? parameter.Ui?.SourcePortId;
-        var toStringResult81 = source.ToString();
-        var evaluatedValue82 = !string.IsNullOrWhiteSpace(parameter.ValueJson) || parameter.Ui?.ProjectInputKey is not null || parameter.Ui?.Expression is not null || sourceNodeId is not null;
-        string? evaluatedValue83 = options.IncludeFlowLiteralValues && source == DataSourceDto.Literal ? LimitText(parameter.ValueJson, options.MaxJsonBytes) : null;
-        AiParameterContractDto evaluatedValue84 = new(parameter.Ui?.Id ?? parameter.Name, parameter.Name, parameter.Ui?.Type ?? parameter.Ui?.ValueKind, toStringResult81, parameter.Required, evaluatedValue82, evaluatedValue83, options.IncludeFlowLiteralValues ? parameter.Ui?.ProjectInputKey : null, options.IncludeFlowLiteralValues ? parameter.Ui?.Expression : null, sourceNodeId, sourcePortId, parameter.Ui?.IsVariadic ?? false, parameter.Ui?.VariadicGroupId, parameter.Ui?.ElementType, parameter.Ui?.Description, parameter.Ui?.EnumMetadata);
-        return evaluatedValue84;
+        var sourceText = source.ToString();
+        var isConfigured = !string.IsNullOrWhiteSpace(parameter.ValueJson) || parameter.Ui?.ProjectInputKey is not null || parameter.Ui?.Expression is not null || sourceNodeId is not null;
+        string? valueJson = options.IncludeFlowLiteralValues && source == DataSourceDto.Literal ? LimitText(parameter.ValueJson, options.MaxJsonBytes) : null;
+        return new(parameter.Ui?.Id ?? parameter.Name, parameter.Name, parameter.Ui?.Type ?? parameter.Ui?.ValueKind, sourceText, parameter.Required, isConfigured, valueJson, options.IncludeFlowLiteralValues ? parameter.Ui?.ProjectInputKey : null, options.IncludeFlowLiteralValues ? parameter.Ui?.Expression : null, sourceNodeId, sourcePortId, parameter.Ui?.IsVariadic ?? false, parameter.Ui?.VariadicGroupId, parameter.Ui?.ElementType, parameter.Ui?.Description, parameter.Ui?.EnumMetadata);
     }
 
     private static AiScriptValueContractDto MapScriptValue(ScriptValueContractDto value)
     {
-        AiScriptValueContractDto evaluatedValue85 = new(value.Id ?? value.Name, value.Name, value.ValueKind, value.Required, value.Description);
-        return evaluatedValue85;
+        return new(value.Id ?? value.Name, value.Name, value.ValueKind, value.Required, value.Description);
     }
 
     private static AiConnectionDto MapConnection(ConnectionDto connection)
     {
-        var toStringResult86 = connection.Kind.ToString();
-        var evaluatedValue87 = connection.Branch?.ToString();
-        string? evaluatedValue88 = connection.Kind == ConnectionKindDto.Data ? (connection.DataSource ?? DataSourceDto.PreviousNode).ToString() : connection.DataSource?.ToString();
-        AiConnectionDto evaluatedValue89 = new(connection.Id, connection.FromNodeId, connection.FromPortId, connection.ToNodeId, connection.ToPortId, toStringResult86, evaluatedValue87, evaluatedValue88, connection.Priority);
-        return evaluatedValue89;
+        var kind = connection.Kind.ToString();
+        var branch = connection.Branch?.ToString();
+        string? dataSource = connection.Kind == ConnectionKindDto.Data ? (connection.DataSource ?? DataSourceDto.PreviousNode).ToString() : connection.DataSource?.ToString();
+        return new(connection.Id, connection.FromNodeId, connection.FromPortId, connection.ToNodeId, connection.ToPortId, kind, branch, dataSource, connection.Priority);
     }
 
     private static AiLibrarySummaryDto MapLibrary(LibraryDto library, bool includeNodes)
     {
-        var toStringResult93 = library.Lifecycle.ToString();
-        IReadOnlyList<AiLibraryNodeContractDto>? evaluatedValue96 = includeNodes ? resolveToArrayResult() : null;
-        AiLibrarySummaryDto evaluatedValue97 = new(library.Id, library.Name, library.Version, library.SemanticVersion, library.Sha256, toStringResult93, library.FamilyId, library.FamilyName, library.Nodes.Count, evaluatedValue96);
-        return evaluatedValue97;
-        AiLibraryNodeContractDto[] resolveToArrayResult()
-        {
-            var toArrayResult95 = library.Nodes.Select(node =>
+        var lifecycle = library.Lifecycle.ToString();
+        IReadOnlyList<AiLibraryNodeContractDto>? nodes = includeNodes ? library.Nodes.Select(node =>
             {
-                var toStringResult90 = node.Type.ToString();
-                var toArrayResult92 = node.Parameters.Select(parameter =>
+                var type = node.Type.ToString();
+                var parameters = node.Parameters.Select(parameter =>
                 {
-                    var aiLibraryParameterContractDto = new AiLibraryParameterContractDto(parameter.Id, parameter.Name, parameter.Type, parameter.Description, parameter.Required, parameter.IsVariadic, parameter.ElementType, parameter.DefaultValue, parameter.Aliases, parameter.IdentityConfidence, parameter.EnumMetadata);
-                    return aiLibraryParameterContractDto;
+                    return new AiLibraryParameterContractDto(parameter.Id, parameter.Name, parameter.Type, parameter.Description, parameter.Required, parameter.IsVariadic, parameter.ElementType, parameter.DefaultValue, parameter.Aliases, parameter.IdentityConfidence, parameter.EnumMetadata);
                 }).ToArray();
-                var aiLibraryNodeContractDto = new AiLibraryNodeContractDto(node.Id, node.ContractId ?? node.Id, toStringResult90, node.DisplayName, node.Description, node.LibraryId, node.ClassName, node.MethodName, node.DllName, node.DllVersion, node.ReturnType, node.IsAwaitable, node.FlowLibraryName, toArrayResult92, node.IdentityConfidence);
-                return aiLibraryNodeContractDto;
-            }).ToArray();
-            return toArrayResult95;
-        }
+                return new AiLibraryNodeContractDto(node.Id, node.ContractId ?? node.Id, type, node.DisplayName, node.Description, node.LibraryId, node.ClassName, node.MethodName, node.DllName, node.DllVersion, node.ReturnType, node.IsAwaitable, node.FlowLibraryName, parameters, node.IdentityConfidence);
+            }).ToArray() : null;
+        return new(library.Id, library.Name, library.Version, library.SemanticVersion, library.Sha256, lifecycle, library.FamilyId, library.FamilyName, library.Nodes.Count, nodes);
     }
 
     private static AiRunSummaryDto MapRun(FlowRun run)
     {
-        var toStringResult98 = run.Status.ToString();
-        var toStringResult99 = run.ExecutionKind.ToString();
-        AiRunSummaryDto evaluatedValue100 = new(run.Id, run.ProjectId, run.FlowId, run.FlowVersion, toStringResult98, toStringResult99, run.IsListenerRun, run.CreatedAt, run.StartedAt, run.EndedAt, run.ErrorSummary, run.CancellationReason, run.DebugSessionId, run.DefinitionChecksum);
-        return evaluatedValue100;
+        var status = run.Status.ToString();
+        var executionKind = run.ExecutionKind.ToString();
+        return new(run.Id, run.ProjectId, run.FlowId, run.FlowVersion, status, executionKind, run.IsListenerRun, run.CreatedAt, run.StartedAt, run.EndedAt, run.ErrorSummary, run.CancellationReason, run.DebugSessionId, run.DefinitionChecksum);
     }
 
     private static AiRunEventDto MapEvent(FlowRunEvent item, int maxJsonBytes)
     {
-        var(payload, malformed, truncated) = ParsePayload(item.PayloadJson, maxJsonBytes);
-        AiRunEventDto evaluatedValue101 = new(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, payload, malformed, truncated);
-        return evaluatedValue101;
+        var (payload, malformed, truncated) = ParsePayload(item.PayloadJson, maxJsonBytes);
+        return new(item.RunId, item.Sequence, item.Timestamp, item.Type, item.NodeId, payload, malformed, truncated);
     }
 
     private static AiNodeExecutionRecordDto MapOutput(FlowRunOutput item, int maxJsonBytes)
     {
-        var(inputs, inputsMalformed, inputsTruncated) = ParsePayload(item.InputsJson, maxJsonBytes);
-        var(outputs, outputsMalformed, outputsTruncated) = ParsePayload(item.OutputsJson, maxJsonBytes);
-        AiNodeExecutionRecordDto evaluatedValue104 = new(item.RunId, item.Sequence, item.Timestamp, item.NodeId, item.Outcome, item.Branch, inputs, outputs, item.ErrorCode, item.ErrorMessage, inputsMalformed, outputsMalformed, inputsTruncated, outputsTruncated);
-        return evaluatedValue104;
+        var (inputs, inputsMalformed, inputsTruncated) = ParsePayload(item.InputsJson, maxJsonBytes);
+        var (outputs, outputsMalformed, outputsTruncated) = ParsePayload(item.OutputsJson, maxJsonBytes);
+        return new(item.RunId, item.Sequence, item.Timestamp, item.NodeId, item.Outcome, item.Branch, inputs, outputs, item.ErrorCode, item.ErrorMessage, inputsMalformed, outputsMalformed, inputsTruncated, outputsTruncated);
     }
 
     private static AiDebugStateDto MapDebugState(FlowDebugSession session)
     {
-        var toStringResult105 = session.Status.ToString();
-        AiDebugPauseStateDto? evaluatedValue107 = session.PauseState is null ? null : resolveAiDebugPauseStateDto();
-        AiDebugNodeResultDto? evaluatedValue110 = session.LastNodeResult is null ? null : resolveAiDebugNodeResultDto();
-        AiDebugStateDto evaluatedValue111 = new(session.Id, session.RunId, session.ProjectId, session.FlowId, toStringResult105, session.BreakpointNodeIds, session.CurrentNodeId, session.ActiveInvocationId, session.ActiveFlipflopNodeId, session.QueuedTriggerCount, session.LastCommandSequence, session.FailureMessage, session.CreatedAt, session.UpdatedAt, session.StateRevision, evaluatedValue107, evaluatedValue110);
-        return evaluatedValue111;
-        AiDebugPauseStateDto resolveAiDebugPauseStateDto()
+        var status = session.Status.ToString();
+        AiDebugPauseStateDto? pauseState = session.PauseState is null ? null : MapPauseState();
+        AiDebugNodeResultDto? aiDebugNodeResultDto = session.LastNodeResult is null ? null : MapLastNodeResult();
+        return new(session.Id, session.RunId, session.ProjectId, session.FlowId, status, session.BreakpointNodeIds, session.CurrentNodeId, session.ActiveInvocationId, session.ActiveFlipflopNodeId, session.QueuedTriggerCount, session.LastCommandSequence, session.FailureMessage, session.CreatedAt, session.UpdatedAt, session.StateRevision, pauseState, aiDebugNodeResultDto);
+        AiDebugPauseStateDto MapPauseState()
         {
-            var evaluatedValue106 = ParsePayload(session.PauseState.InputsJson, 64 * 1024).Payload;
-            var aiDebugPauseStateDto = new AiDebugPauseStateDto(session.PauseState.NodeId, session.PauseState.NodeType, session.PauseState.Step, session.PauseState.FrameDepth, session.PauseState.InvocationId, session.PauseState.BoundarySequence, evaluatedValue106, session.PauseState.PausedAt);
-            return aiDebugPauseStateDto;
+            var inputs = ParsePayload(session.PauseState.InputsJson, 64 * 1024).Payload;
+            return new AiDebugPauseStateDto(session.PauseState.NodeId, session.PauseState.NodeType, session.PauseState.Step, session.PauseState.FrameDepth, session.PauseState.InvocationId, session.PauseState.BoundarySequence, inputs, session.PauseState.PausedAt);
         }
 
-        AiDebugNodeResultDto resolveAiDebugNodeResultDto()
+        AiDebugNodeResultDto MapLastNodeResult()
         {
-            var evaluatedValue108 = ParsePayload(session.LastNodeResult.InputsJson, 64 * 1024).Payload;
-            var evaluatedValue109 = ParsePayload(session.LastNodeResult.OutputsJson, 64 * 1024).Payload;
-            var aiDebugNodeResultDto = new AiDebugNodeResultDto(session.LastNodeResult.NodeId, session.LastNodeResult.Sequence, session.LastNodeResult.CompletedAt, session.LastNodeResult.Outcome, session.LastNodeResult.Branch, evaluatedValue108, evaluatedValue109, session.LastNodeResult.ErrorCode, session.LastNodeResult.ErrorMessage);
-            return aiDebugNodeResultDto;
+            var payload = ParsePayload(session.LastNodeResult.InputsJson, 64 * 1024).Payload;
+            var outputs = ParsePayload(session.LastNodeResult.OutputsJson, 64 * 1024).Payload;
+            return new AiDebugNodeResultDto(session.LastNodeResult.NodeId, session.LastNodeResult.Sequence, session.LastNodeResult.CompletedAt, session.LastNodeResult.Outcome, session.LastNodeResult.Branch, payload, outputs, session.LastNodeResult.ErrorCode, session.LastNodeResult.ErrorMessage);
         }
     }
 
     private static AiDebugSessionSummaryDto MapDebugSessionSummary(FlowDebugSession session)
     {
-        var toStringResult112 = session.Status.ToString();
-        AiDebugSessionSummaryDto evaluatedValue113 = new(session.Id, session.RunId, session.ProjectId, session.FlowId, toStringResult112, session.BreakpointNodeIds, session.CurrentNodeId, session.ActiveInvocationId, session.ActiveFlipflopNodeId, session.QueuedTriggerCount, session.LastCommandSequence, session.StateRevision, session.CreatedAt, session.UpdatedAt);
-        return evaluatedValue113;
+        var status = session.Status.ToString();
+        return new(session.Id, session.RunId, session.ProjectId, session.FlowId, status, session.BreakpointNodeIds, session.CurrentNodeId, session.ActiveInvocationId, session.ActiveFlipflopNodeId, session.QueuedTriggerCount, session.LastCommandSequence, session.StateRevision, session.CreatedAt, session.UpdatedAt);
     }
 
     private static (JsonElement Payload, bool Malformed, bool Truncated) ParsePayload(string? json, int maxJsonBytes)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
-            var evaluatedValue114 = (JsonSerializer.SerializeToElement(new { }), false, false);
-            return evaluatedValue114;
+            return (JsonSerializer.SerializeToElement(new { }), false, false);
         }
 
         var bounded = LimitText(json, maxJsonBytes);
         if (!string.Equals(bounded, json, StringComparison.Ordinal))
         {
-            var evaluatedValue115 = (JsonSerializer.SerializeToElement(new { truncated = true, rawLength = json.Length, value = bounded }), false, true);
-            return evaluatedValue115;
+            return (JsonSerializer.SerializeToElement(new { truncated = true, rawLength = json.Length, value = bounded }), false, true);
         }
 
         try
         {
             using var document = JsonDocument.Parse(json);
-            var evaluatedValue116 = (document.RootElement.Clone(), false, false);
-            return evaluatedValue116;
+            return (document.RootElement.Clone(), false, false);
         }
         catch (JsonException)
         {
-            var evaluatedValue117 = (JsonSerializer.SerializeToElement(new { malformed = true, raw = bounded }), true, false);
-            return evaluatedValue117;
+            return (JsonSerializer.SerializeToElement(new { malformed = true, raw = bounded }), true, false);
         }
     }
 
@@ -556,17 +506,16 @@ public sealed class AiReadModelService
         var length = Math.Min(value.Length, maxBytes);
         while (true)
         {
-            if (!(length > 0 && resolveGetByteCountResult() > maxBytes))
+            if (!(length > 0 && GetPrefixByteCount() > maxBytes))
             {
                 break;
             }
 
             length--;
-            int resolveGetByteCountResult()
+            int GetPrefixByteCount()
             {
-                var asSpanResult = value.AsSpan(0, length);
-                var getByteCountResult = System.Text.Encoding.UTF8.GetByteCount(asSpanResult);
-                return getByteCountResult;
+                var asSpan = value.AsSpan(0, length);
+                return System.Text.Encoding.UTF8.GetByteCount(asSpan);
             }
         }
 
@@ -576,20 +525,13 @@ public sealed class AiReadModelService
     private static AiPageDto<T> CreatePage<T>(IReadOnlyList<T> items, int take, Func<T, string> cursor)
     {
         var hasMore = items.Count > take;
-        var visible = hasMore ? resolveToArrayResult118() : items.ToArray();
-        string? evaluatedValue121 = hasMore && visible.Length > 0 ? cursor(visible[^1]) : null;
-        AiPageDto<T> evaluatedValue122 = new(AiReadModelContract.SchemaVersion, visible, hasMore, evaluatedValue121);
-        return evaluatedValue122;
-        T[] resolveToArrayResult118()
-        {
-            var toArrayResult120 = items.Take(take).ToArray();
-            return toArrayResult120;
-        }
+        var visible = hasMore ? items.Take(take).ToArray() : items.ToArray();
+        string? nextCursor = hasMore && visible.Length > 0 ? cursor(visible[^1]) : null;
+        return new(AiReadModelContract.SchemaVersion, visible, hasMore, nextCursor);
     }
 
     private static AiPageDto<T> EmptyPage<T>()
     {
-        AiPageDto<T> evaluatedValue123 = new(AiReadModelContract.SchemaVersion, [], false, null);
-        return evaluatedValue123;
+        return new(AiReadModelContract.SchemaVersion, [], false, null);
     }
 }

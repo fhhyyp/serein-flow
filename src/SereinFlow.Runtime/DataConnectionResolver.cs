@@ -37,16 +37,15 @@ public sealed class DataConnectionResolver
                 value = incoming.Count > 0 ? ReadPreviousNode(incoming, session) : parameter.Source switch
                 {
                     DataSource.Literal => ParseJson(parameter.ValueJson),
-                    DataSource.PreviousNode => resolveReadPreviousNodeResult(),
+                    DataSource.PreviousNode => ReadPreviousNodeValue(),
                     DataSource.ProjectInput => ReadProjectInput(parameter.ProjectInputKey ?? parameter.Name, session),
                     DataSource.Expression => ResolveDynamicReference(parameter.Expression, session),
                     _ => null
                 };
-                object? resolveReadPreviousNodeResult()
+                object? ReadPreviousNodeValue()
                 {
-                    IReadOnlyList<ConnectionDefinition> evaluatedValue = string.IsNullOrWhiteSpace(parameter.SourceNodeId) ? [] : [ConnectionDefinition.Data(parameter.SourceNodeId, parameter.SourcePortId ?? "data-out", node.Id, parameter.Id, DataSource.PreviousNode)];
-                    var readPreviousNodeResult = ReadPreviousNode(evaluatedValue, session);
-                    return readPreviousNodeResult;
+                    IReadOnlyList<ConnectionDefinition> mappedIncoming = string.IsNullOrWhiteSpace(parameter.SourceNodeId) ? [] : [ConnectionDefinition.Data(parameter.SourceNodeId, parameter.SourcePortId ?? "data-out", node.Id, parameter.Id, DataSource.PreviousNode)];
+                    return ReadPreviousNode(mappedIncoming, session);
                 }
             }
 
@@ -80,15 +79,12 @@ public sealed class DataConnectionResolver
         {
             return null;
         }
-
-        var readResult = session.Read($"{connection.FromNodeId}.{connection.FromPortId}");
-        return readResult;
+        return session.Read($"{connection.FromNodeId}.{connection.FromPortId}");
     }
 
     private static object? ReadProjectInput(string key, FlowExecutionSession session)
     {
-        var readResult1 = session.Read($"project.{key}");
-        return readResult1;
+        return session.Read($"project.{key}");
     }
 
     /// <summary>
@@ -116,15 +112,13 @@ public sealed class DataConnectionResolver
 
         if (trimmed.StartsWith("project.", StringComparison.Ordinal))
         {
-            var readResult2 = session.Read(trimmed);
-            return readResult2;
+            return session.Read(trimmed);
         }
 
         var separator = trimmed.IndexOf('.');
         if (separator > 0 && separator == trimmed.LastIndexOf('.') && separator < trimmed.Length - 1)
         {
-            var readResult3 = session.Read(trimmed);
-            return readResult3;
+            return session.Read(trimmed);
         }
 
         return trimmed;
@@ -136,9 +130,7 @@ public sealed class DataConnectionResolver
         {
             return null;
         }
-
-        object? evaluatedValue4 = TryParseJson(valueJson, out var value) ? value : valueJson;
-        return evaluatedValue4;
+        return TryParseJson(valueJson, out var value) ? value : valueJson;
     }
 
     private static bool TryParseJson(string? valueJson, out object? value)
@@ -163,7 +155,7 @@ public sealed class DataConnectionResolver
 
     private static object? ConvertJson(JsonElement element)
     {
-        object? evaluatedValue5 = element.ValueKind switch
+        return element.ValueKind switch
         {
             JsonValueKind.Null => null,
             JsonValueKind.True => true,
@@ -171,29 +163,17 @@ public sealed class DataConnectionResolver
             JsonValueKind.Number when element.TryGetInt64(out var integer) => integer,
             JsonValueKind.Number when element.TryGetDecimal(out var decimalValue) => decimalValue,
             JsonValueKind.String => element.GetString(),
-            JsonValueKind.Array => resolveToArrayResult(),
-            JsonValueKind.Object => resolveToDictionaryResult(),
-            _ => null
-        };
-        return evaluatedValue5;
-        object resolveToArrayResult()
-        {
-            var toArrayResult = element.EnumerateArray()
+            JsonValueKind.Array => element
+                .EnumerateArray()
                 .Select(ConvertJson)
-                .ToArray();
-            return toArrayResult;
-        }
-
-        object resolveToDictionaryResult()
-        {
-            var toDictionaryResult = element.EnumerateObject()
+                .ToArray(),
+            JsonValueKind.Object => element.EnumerateObject()
                 .ToDictionary(item => item.Name, item =>
                 {
-                    var convertJsonResult = ConvertJson(item.Value);
-                    return convertJsonResult;
-                }, StringComparer.Ordinal);
-            return toDictionaryResult;
-        }
+                    return ConvertJson(item.Value);
+                }, StringComparer.Ordinal),
+            _ => null
+        };
     }
 }
 

@@ -48,9 +48,7 @@ internal static class McpPromptCatalog
         {
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, $"The SereinFlow prompt '{name}' is not supported. 不支持此 SereinFlow 提示词。");
         }
-
-        var guidance = await guidanceProvider.ReadManyAsync(definition.GuidanceIds, cancellationToken);
-        var guidanceText = string.Join("\n\n", guidance.Select(static resource =>
+        var guidanceText = string.Join("\n\n", (await guidanceProvider.ReadManyAsync(definition.GuidanceIds, cancellationToken)).Select(static resource =>
             resource.Value as string ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The SereinFlow AI guidance is not available. SereinFlow AI 指引不可用。")));
         return Result(definition.ResultDescription, $"""
             SereinFlow workflow: {name}

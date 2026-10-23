@@ -47,8 +47,8 @@ internal sealed class McpProjectLibraryTools(
         var principal = context.RequirePrincipal();
         var request = arguments;
         RequireConfirmation(request);
-        var requestPayload = Serialize(request);
-        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, ProjectErrorCodes.LibraryAttach, request.IdempotencyKey, requestPayload, cancellationToken);
+        var requestJson = Serialize(request);
+        var replay = await _mcpIdempotencyService.FindAsync(principal.Id, ProjectErrorCodes.LibraryAttach, request.IdempotencyKey, requestJson, cancellationToken);
         if (replay is not null)
         {
             return DeserializeStoredResponse(replay.ResponseJson);
@@ -75,7 +75,7 @@ internal sealed class McpProjectLibraryTools(
         }
 
         await MarkPreviewAppliedAsync(_mcpPreviewService, entry, cancellationToken);
-        await _mcpIdempotencyService.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, result, requestPayload, cancellationToken);
+        await _mcpIdempotencyService.SaveAsync(principal.Id, entry.Operation, request.IdempotencyKey, result, requestJson, cancellationToken);
         return result;
     }
 

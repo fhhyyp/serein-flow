@@ -16,14 +16,14 @@ public sealed class LibraryCatalogReindexHostedService(IServiceScopeFactory scop
         try
         {
             using var scope = scopeFactory.CreateScope();
-            var catalog = scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>();
-            var count = await catalog.ReindexOutdatedAsync(stoppingToken);
+            var libraryCatalogService = scope.ServiceProvider.GetRequiredService<ILibraryCatalogService>();
+            var count = await libraryCatalogService.ReindexOutdatedAsync(stoppingToken);
             if (count > 0)
             {
                 ReindexCompletedLog(logger, count, null);
             }
         }
-        catch (OperationCanceledException)when (stoppingToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
         }
         catch (Exception exception)
@@ -35,14 +35,12 @@ public sealed class LibraryCatalogReindexHostedService(IServiceScopeFactory scop
     private static Action<ILogger, int, Exception?> CreateReindexCompletedLogInitialValue()
     {
         var eventId = new EventId(1001, nameof(ReindexCompletedLog));
-        Action<ILogger, int, Exception?> reindexCompletedLogInitialValue = LoggerMessage.Define<int>(LogLevel.Information, eventId, "Reindexed {LibraryCount} outdated library catalogs. 已完成过期类库目录重新索引。");
-        return reindexCompletedLogInitialValue;
+        return LoggerMessage.Define<int>(LogLevel.Information, eventId, "Reindexed {LibraryCount} outdated library catalogs. 已完成过期类库目录重新索引。");
     }
 
     private static Action<ILogger, Exception?> CreateReindexFailedLogInitialValue()
     {
-        var eventId1 = new EventId(1002, nameof(ReindexFailedLog));
-        Action<ILogger, Exception?> reindexFailedLogInitialValue = LoggerMessage.Define(LogLevel.Error, eventId1, "Library catalog background reindex failed. 类库目录后台重新索引失败。");
-        return reindexFailedLogInitialValue;
+        var eventId = new EventId(1002, nameof(ReindexFailedLog));
+        return LoggerMessage.Define(LogLevel.Error, eventId, "Library catalog background reindex failed. 类库目录后台重新索引失败。");
     }
 }

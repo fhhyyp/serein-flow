@@ -3,6 +3,7 @@ using SereinFlow.Application.Persistence;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/runs/{runId:guid}/workpieces")]
 public sealed class WorkpiecesController : ApiControllerBase
 {
@@ -32,8 +33,7 @@ public sealed class WorkpiecesController : ApiControllerBase
         var run = await _runs.FindAsync(runId, cancellationToken);
         if (run is null)
         {
-            var apiProblemResult = ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
-            return apiProblemResult;
+            return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
         }
 
         var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
@@ -42,11 +42,8 @@ public sealed class WorkpiecesController : ApiControllerBase
         {
             return failure;
         }
-
-        var items = await _workpieces.ListAsync(runId, cancellationToken);
-        var toArrayResult = items.Select(ToDto).ToArray();
-        var okResult = Ok(toArrayResult);
-        return okResult;
+        var mappedItems = (await _workpieces.ListAsync(runId, cancellationToken)).Select(ToDto).ToArray();
+        return Ok(mappedItems);
     }
 
     [HttpGet("{workpieceId}")]
@@ -65,8 +62,7 @@ public sealed class WorkpiecesController : ApiControllerBase
         var run = await _runs.FindAsync(runId, cancellationToken);
         if (run is null)
         {
-            var apiProblemResult1 = ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
-            return apiProblemResult1;
+            return ApiProblem(StatusCodes.Status404NotFound, "Run not found. 未找到运行实例。");
         }
 
         var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
@@ -79,25 +75,20 @@ public sealed class WorkpiecesController : ApiControllerBase
         var item = await _workpieces.FindAsync(runId, workpieceId, cancellationToken);
         if (item is null)
         {
-            var apiProblemResult2 = ApiProblem(StatusCodes.Status404NotFound, "Workpiece not found. 未找到流程工件。");
-            return apiProblemResult2;
+            return ApiProblem(StatusCodes.Status404NotFound, "Workpiece not found. 未找到流程工件。");
         }
 
         var content = await _workpieces.OpenReadAsync(runId, workpieceId, cancellationToken);
         if (content is null)
         {
-            var apiProblemResult3 = ApiProblem(StatusCodes.Status404NotFound, "Workpiece content not found. 未找到流程工件内容。");
-            return apiProblemResult3;
+            return ApiProblem(StatusCodes.Status404NotFound, "Workpiece content not found. 未找到流程工件内容。");
         }
-
-        ActionResult evaluatedValue = download ? File(content, item.ContentType, item.Name, enableRangeProcessing: true) : File(content, item.ContentType, enableRangeProcessing: true);
-        return evaluatedValue;
+        return download ? File(content, item.ContentType, item.Name, enableRangeProcessing: true) : File(content, item.ContentType, enableRangeProcessing: true);
     }
 
     private static FlowWorkpieceDto ToDto(FlowWorkpieceRecord item)
     {
-        var runWorkpieceResult = SereinFlowApiUris.RunWorkpiece(item.RunId, item.Id);
-        FlowWorkpieceDto evaluatedValue4 = new(item.RunId, item.Id, item.Kind, item.Name, item.ContentType, item.Length, item.CreatedAt, runWorkpieceResult, item.NodeId, item.ExecutionId);
-        return evaluatedValue4;
+        var downloadUrl = SereinFlowApiUris.RunWorkpiece(item.RunId, item.Id);
+        return new(item.RunId, item.Id, item.Kind, item.Name, item.ContentType, item.Length, item.CreatedAt, downloadUrl, item.NodeId, item.ExecutionId);
     }
 }

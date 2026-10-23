@@ -71,14 +71,12 @@ public sealed record McpJsonSchema
                 throw new ArgumentException("Required properties must be declared exactly once. 必填属性必须且只能声明一次。", nameof(required));
             }
         }
-
-        var schema = new McpJsonSchema
+        return new McpJsonSchema
         {
             Type = "object",
             Properties = propertySnapshot,
             Required = requiredSnapshot,
             AdditionalProperties = additionalProperties
         };
-        return schema;
     }
 }

@@ -5,6 +5,7 @@ using SereinFlow.Contracts;
 using static SereinFlow.Api.ApiEndpointHelpers;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/projects/{projectId:guid}")]
 public sealed class ProjectLibrariesController : ApiControllerBase
 {
@@ -25,9 +26,8 @@ public sealed class ProjectLibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> List([FromRoute] Guid projectId, CancellationToken cancellationToken)
     {
-        var listAsyncResult = await _projectLibraries.ListAsync(projectId, cancellationToken);
-        var toProjectLibraryResponseResult = ToProjectLibraryResponse(listAsyncResult);
-        return toProjectLibraryResponseResult;
+        var projectLibraries = await _projectLibraries.ListAsync(projectId, cancellationToken);
+        return ToProjectLibraryResponse(projectLibraries);
     }
 
     [HttpGet("libraries/usage")]
@@ -35,15 +35,13 @@ public sealed class ProjectLibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetUsage([FromRoute] Guid projectId, CancellationToken cancellationToken)
     {
-        if (await _projects.FindAsync(projectId, cancellationToken)is null)
+        if (await _projects.FindAsync(projectId, cancellationToken) is null)
         {
-            var apiProblemResult = ApiProblem(StatusCodes.Status404NotFound, "Project was not found. 未找到项目。");
-            return apiProblemResult;
+            return ApiProblem(StatusCodes.Status404NotFound, "Project was not found. 未找到项目。");
         }
 
-        var listByProjectAsyncResult = await _usage.ListByProjectAsync(projectId, cancellationToken);
-        var okResult = Ok(listByProjectAsyncResult);
-        return okResult;
+        var listByProject = await _usage.ListByProjectAsync(projectId, cancellationToken);
+        return Ok(listByProject);
     }
 
     [HttpPut("libraries/{libraryId}")]
@@ -52,9 +50,8 @@ public sealed class ProjectLibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> Attach([FromRoute] Guid projectId, [FromRoute] string libraryId, CancellationToken cancellationToken)
     {
-        var addAsyncResult = await _projectLibraries.AddAsync(projectId, libraryId, cancellationToken);
-        var toProjectLibraryResponseResult1 = ToProjectLibraryResponse(addAsyncResult);
-        return toProjectLibraryResponseResult1;
+        var addResult = await _projectLibraries.AddAsync(projectId, libraryId, cancellationToken);
+        return ToProjectLibraryResponse(addResult);
     }
 
     [HttpDelete("libraries/{libraryId}")]
@@ -63,9 +60,8 @@ public sealed class ProjectLibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> Detach([FromRoute] Guid projectId, [FromRoute] string libraryId, CancellationToken cancellationToken)
     {
-        var removeAsyncResult = await _projectLibraries.RemoveAsync(projectId, libraryId, cancellationToken);
-        var toProjectLibraryResponseResult2 = ToProjectLibraryResponse(removeAsyncResult);
-        return toProjectLibraryResponseResult2;
+        var remove = await _projectLibraries.RemoveAsync(projectId, libraryId, cancellationToken);
+        return ToProjectLibraryResponse(remove);
     }
 
     [HttpPost("library-upgrades/preview")]
@@ -74,9 +70,8 @@ public sealed class ProjectLibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> PreviewUpgrade([FromRoute] Guid projectId, [FromBody] LibraryUpgradePreviewRequestDto request, CancellationToken cancellationToken)
     {
-        var previewAsyncResult = await _upgrades.PreviewAsync(projectId, request, cancellationToken);
-        var toLibraryUpgradeResponseResult = ToLibraryUpgradeResponse(previewAsyncResult);
-        return toLibraryUpgradeResponseResult;
+        var preview = await _upgrades.PreviewAsync(projectId, request, cancellationToken);
+        return ToLibraryUpgradeResponse(preview);
     }
 
     [HttpGet("library-upgrades/{upgradeId:guid}")]
@@ -84,9 +79,8 @@ public sealed class ProjectLibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetUpgrade([FromRoute] Guid projectId, [FromRoute] Guid upgradeId, CancellationToken cancellationToken)
     {
-        var getPlanAsyncResult = await _upgrades.GetPlanAsync(projectId, upgradeId, cancellationToken);
-        var toLibraryUpgradeResponseResult3 = ToLibraryUpgradeResponse(getPlanAsyncResult);
-        return toLibraryUpgradeResponseResult3;
+        var plan = await _upgrades.GetPlanAsync(projectId, upgradeId, cancellationToken);
+        return ToLibraryUpgradeResponse(plan);
     }
 
     [HttpPost("library-upgrades/{upgradeId:guid}/apply")]
@@ -97,9 +91,8 @@ public sealed class ProjectLibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> ApplyUpgrade([FromRoute] Guid projectId, [FromRoute] Guid upgradeId, [FromBody] ApplyLibraryUpgradeRequestDto request, CancellationToken cancellationToken)
     {
-        var applyAsyncResult = await _upgrades.ApplyAsync(projectId, upgradeId, request, cancellationToken);
-        var toLibraryUpgradeResponseResult4 = ToLibraryUpgradeResponse(applyAsyncResult);
-        return toLibraryUpgradeResponseResult4;
+        var apply = await _upgrades.ApplyAsync(projectId, upgradeId, request, cancellationToken);
+        return ToLibraryUpgradeResponse(apply);
     }
 
     [HttpPost("library-upgrades/{upgradeId:guid}/apply-batch")]
@@ -110,8 +103,7 @@ public sealed class ProjectLibrariesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> ApplyUpgradeBatch([FromRoute] Guid projectId, [FromRoute] Guid upgradeId, [FromBody] ApplyLibraryUpgradeBatchRequestDto request, CancellationToken cancellationToken)
     {
-        var applyBatchAsyncResult = await _upgrades.ApplyBatchAsync(projectId, upgradeId, request, cancellationToken);
-        var toLibraryUpgradeResponseResult5 = ToLibraryUpgradeResponse(applyBatchAsyncResult);
-        return toLibraryUpgradeResponseResult5;
+        var applyBatch = await _upgrades.ApplyBatchAsync(projectId, upgradeId, request, cancellationToken);
+        return ToLibraryUpgradeResponse(applyBatch);
     }
 }

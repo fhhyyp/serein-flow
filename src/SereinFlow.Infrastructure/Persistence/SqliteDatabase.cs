@@ -64,14 +64,13 @@ public sealed class SqliteDatabase : IDisposable
     /// </summary>
     public SqlSugarClient CreateClient()
     {
-        var connectionConfig1 = new ConnectionConfig
+        var client = new SqlSugarClient(new ConnectionConfig
         {
             ConnectionString = $"Data Source={DatabasePath}",
             DbType = DbType.Sqlite,
             IsAutoCloseConnection = true,
             InitKeyType = InitKeyType.Attribute
-        };
-        var client = new SqlSugarClient(connectionConfig1);
+        });
         ConfigurePragmas(client);
         return client;
     }
@@ -82,29 +81,23 @@ public sealed class SqliteDatabase : IDisposable
         {
             return;
         }
-
-        var sqliteMigrator = new SqliteMigrator(Client);
-        sqliteMigrator.Migrate();
+        new SqliteMigrator(Client).Migrate();
         _initialized = true;
     }
 
     public int Execute(string sql, params SugarParameter[] parameters)
     {
-        var executeCommandResult = Client.Ado.ExecuteCommand(sql, parameters);
-        return executeCommandResult;
+        return Client.Ado.ExecuteCommand(sql, parameters);
     }
 
     public IReadOnlyList<T> Query<T>(string sql, params SugarParameter[] parameters)
     {
-        var sqlQueryResult = Client.Ado.SqlQuery<T>(sql, parameters);
-        return sqlQueryResult;
+        return Client.Ado.SqlQuery<T>(sql, parameters);
     }
 
     public T Scalar<T>(string sql, params SugarParameter[] parameters)
     {
-        var values = Client.Ado.SqlQuery<T>(sql, parameters);
-        var evaluatedValue = values.FirstOrDefault() ?? default!;
-        return evaluatedValue;
+        return Client.Ado.SqlQuery<T>(sql, parameters).FirstOrDefault() ?? default!;
     }
 
     public void BackupTo(string targetPath)

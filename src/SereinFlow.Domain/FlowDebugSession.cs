@@ -105,20 +105,16 @@ public sealed class FlowDebugSession
         var breakpoints = (breakpointNodeIds ?? [])
             .Where(static nodeId =>
             {
-                var evaluatedValue = !string.IsNullOrWhiteSpace(nodeId);
-                return evaluatedValue;
+                return !string.IsNullOrWhiteSpace(nodeId);
             })
             .Select(static nodeId =>
             {
-                var trimResult = nodeId.Trim();
-                return trimResult;
+                return nodeId.Trim();
             })
             .Distinct(StringComparer.Ordinal)
             .OrderBy(static nodeId => nodeId, StringComparer.Ordinal)
             .ToArray();
-        var evaluatedValue1 = id ?? Guid.NewGuid();
-        var flowDebugSession = new FlowDebugSession(evaluatedValue1, runId, projectId, flowId, breakpoints, createdAt);
-        return flowDebugSession;
+        return new FlowDebugSession((id ?? Guid.NewGuid()), runId, projectId, flowId, breakpoints, createdAt);
     }
 
     public static FlowDebugSession Rehydrate(Guid id, Guid runId, Guid projectId, Guid flowId, IEnumerable<string>? breakpointNodeIds, FlowDebugSessionStatus status, string? currentNodeId, Guid? activeInvocationId, string? activeFlipflopNodeId, int queuedTriggerCount, long lastCommandSequence, string? failureMessage, DateTimeOffset createdAt, DateTimeOffset updatedAt, long stateRevision = 0, FlowDebugPauseState? pauseState = null, FlowDebugNodeResult? lastNodeResult = null)

@@ -12,22 +12,19 @@ internal sealed class AnonymousAuthorization : ISereinFlowAuthorizationService, 
     {
         var identity = new ClaimsIdentity();
         var principal = new ClaimsPrincipal(identity);
-        var actor = new SereinFlowActor("anonymous", principal);
-        return actor;
+        return new SereinFlowActor("anonymous", principal);
     }
 
     public ValueTask<AccessDecision> AuthorizeAsync(SereinFlowActor actor, string operation, SereinFlowResource resource, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var result = ValueTask.FromResult(AccessDecision.Allowed);
-        return result;
+        return ValueTask.FromResult(AccessDecision.Allowed);
     }
 
     public ValueTask<ProjectAccessScope> GetScopeAsync(SereinFlowActor actor, string operation, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var result = ValueTask.FromResult(ProjectAccessScope.All);
-        return result;
+        return ValueTask.FromResult(ProjectAccessScope.All);
     }
 }
 

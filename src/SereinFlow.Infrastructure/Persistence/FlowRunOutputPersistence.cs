@@ -43,8 +43,7 @@ public sealed class SqlSugarFlowRunOutputStore : IFlowRunOutputStore
                 .GroupBy(static item => (item.RunId, item.Sequence))
                 .Select(static group =>
                 {
-                    var firstResult = group.First();
-                    return firstResult;
+                    return group.First();
                 })
                 .ToArray();
             var existingKeys = new HashSet<(string RunId, long Sequence)>();
@@ -64,8 +63,8 @@ public sealed class SqlSugarFlowRunOutputStore : IFlowRunOutputStore
             {
                 foreach (var item in distinct)
                 {
-                    var evaluatedValue = (item.RunId.ToString("D"), item.Sequence);
-                    if (existingKeys.Contains(evaluatedValue))
+                    var outputKey = (item.RunId.ToString("D"), item.Sequence);
+                    if (existingKeys.Contains(outputKey))
                     {
                         continue;
                     }
@@ -98,19 +97,16 @@ public sealed class SqlSugarFlowRunOutputStore : IFlowRunOutputStore
     public async Task<IReadOnlyList<FlowRunOutput>> ListAsync(Guid runId, CancellationToken cancellationToken = default)
     {
         var runIdText = runId.ToString("D");
-        var rows = await _outputs.ListAsync(row => row.RunId == runIdText, cancellationToken);
-        var toArrayResult = rows
+        return (await _outputs.ListAsync(row => row.RunId == runIdText, cancellationToken))
             .OrderBy(static row => row.Sequence)
             .Select(Map)
             .ToArray();
-        return toArrayResult;
     }
 
     private static FlowRunOutput Map(FlowRunOutputRecord row)
     {
-        var parseResult = Guid.Parse(row.RunId);
-        var parseResult3 = DateTimeOffset.Parse(row.Timestamp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        FlowRunOutput evaluatedValue4 = new(parseResult, row.Sequence, parseResult3, row.NodeId, row.Outcome, row.Branch, row.OutputsJson, row.ErrorCode, row.ErrorMessage, row.InputsJson);
-        return evaluatedValue4;
+        var runId = Guid.Parse(row.RunId);
+        var timestamp = DateTimeOffset.Parse(row.Timestamp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+        return new(runId, row.Sequence, timestamp, row.NodeId, row.Outcome, row.Branch, row.OutputsJson, row.ErrorCode, row.ErrorMessage, row.InputsJson);
     }
 }

@@ -20,78 +20,61 @@ public sealed class McpIdempotencyService
 
     public static string HashKey(string key)
     {
-        var trimResult = key.Trim();
-        var getBytesResult = Encoding.UTF8.GetBytes(trimResult);
-        var hashDataResult = SHA256.HashData(getBytesResult);
-        var toHexStringResult = Convert.ToHexString(hashDataResult);
-        var toLowerInvariantResult = toHexStringResult.ToLowerInvariant();
-        return toLowerInvariantResult;
+        var normalizedKey = key.Trim();
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedKey))).ToLowerInvariant();
     }
 
     public Task<McpIdempotencyEntry?> FindAsync(string principalId, string operation, string key, CancellationToken cancellationToken = default)
     {
-        var findCoreAsyncResult = FindCoreAsync(principalId, operation, key, null, cancellationToken);
-        return findCoreAsyncResult;
+        return FindCoreAsync(principalId, operation, key, null, cancellationToken);
     }
 
     public Task<McpIdempotencyEntry?> FindAsync(string principalId, string operation, string key, string requestPayload, CancellationToken cancellationToken = default)
     {
-        var findCoreAsyncResult1 = FindCoreAsync(principalId, operation, key, requestPayload, cancellationToken);
-        return findCoreAsyncResult1;
+        return FindCoreAsync(principalId, operation, key, requestPayload, cancellationToken);
     }
 
     private async Task<McpIdempotencyEntry?> FindCoreAsync(string principalId, string operation, string key, string? requestPayload, CancellationToken cancellationToken)
     {
-        var hashKeyResult = HashKey(key);
-        var entry = await _store.FindAsync(principalId, operation, hashKeyResult, cancellationToken);
-        if (entry is not null && !string.IsNullOrWhiteSpace(entry.RequestHash) && requestPayload is not null && !resolveEqualsResult())
+        var keyHash = HashKey(key);
+        var entry = await _store.FindAsync(principalId, operation, keyHash, cancellationToken);
+        if (entry is not null && !string.IsNullOrWhiteSpace(entry.RequestHash) && requestPayload is not null && !RequestHashMatches())
         {
             throw new SereinFlowAccessException(McpErrorCodes.IdempotencyConflict, "The idempotency key was already used for a different MCP request. 该幂等键已用于另一个不同的 MCP 请求。", StatusCodes.Status409Conflict);
         }
 
         return entry;
-        bool resolveEqualsResult()
+        bool RequestHashMatches()
         {
-            var hashKeyResult2 = HashKey(requestPayload);
-            var equalsResult = string.Equals(entry.RequestHash, hashKeyResult2, StringComparison.Ordinal);
-            return equalsResult;
+            var hashKey = HashKey(requestPayload);
+            return string.Equals(entry.RequestHash, hashKey, StringComparison.Ordinal);
         }
     }
 
     public async Task<T?> FindResponseAsync<T>(string principalId, string operation, string key, CancellationToken cancellationToken = default)
     {
         var entry = await FindAsync(principalId, operation, key, cancellationToken);
-        T? evaluatedValue = entry is null ? default : resolveDeserializeResult();
-        return evaluatedValue;
-        T? resolveDeserializeResult()
+        return entry is null ? default : DeserializeStoredResponse();
+        T? DeserializeStoredResponse()
         {
-            var createContractOptionsResult = SereinJsonSerialization.CreateContractOptions();
-            var deserializeResult = JsonSerializer.Deserialize<T>(entry.ResponseJson, createContractOptionsResult);
-            return deserializeResult;
+            var contractOptions = SereinJsonSerialization.CreateContractOptions();
+            return JsonSerializer.Deserialize<T>(entry.ResponseJson, contractOptions);
         }
     }
 
     public Task SaveAsync<T>(string principalId, string operation, string key, T response, CancellationToken cancellationToken = default)
     {
-        var saveCoreAsyncResult = SaveCoreAsync(principalId, operation, key, response, null, cancellationToken);
-        return saveCoreAsyncResult;
+        return SaveCoreAsync(principalId, operation, key, response, null, cancellationToken);
     }
 
     public Task SaveAsync<T>(string principalId, string operation, string key, T response, string requestPayload, CancellationToken cancellationToken = default)
     {
-        var saveCoreAsyncResult3 = SaveCoreAsync(principalId, operation, key, response, requestPayload, cancellationToken);
-        return saveCoreAsyncResult3;
+        return SaveCoreAsync(principalId, operation, key, response, requestPayload, cancellationToken);
     }
 
     private Task SaveCoreAsync<T>(string principalId, string operation, string key, T response, string? requestPayload, CancellationToken cancellationToken)
     {
-        var newGuidResult = Guid.NewGuid();
-        var hashKeyResult4 = HashKey(key);
-        string evaluatedValue5 = requestPayload is null ? string.Empty : HashKey(requestPayload);
-        var createContractOptionsResult6 = SereinJsonSerialization.CreateContractOptions();
-        var serializeResult = JsonSerializer.Serialize(response, createContractOptionsResult6);
-        var mcpIdempotencyEntry = new McpIdempotencyEntry(newGuidResult, principalId, operation, hashKeyResult4, evaluatedValue5, serializeResult, DateTimeOffset.UtcNow);
-        var addAsyncResult = _store.AddAsync(mcpIdempotencyEntry, cancellationToken);
-        return addAsyncResult;
+        var mcpIdempotencyEntry = new McpIdempotencyEntry(Guid.NewGuid(), principalId, operation, HashKey(key), (requestPayload is null ? string.Empty : HashKey(requestPayload)), JsonSerializer.Serialize(response, SereinJsonSerialization.CreateContractOptions()), DateTimeOffset.UtcNow);
+        return _store.AddAsync(mcpIdempotencyEntry, cancellationToken);
     }
 }

@@ -94,15 +94,11 @@ public sealed class FlowDefinitionWriteService
         {
             return null;
         }
-
-        var evaluatedValue = FlowDefinitionContractValidator.ValidateForPersistence(candidate).Diagnostics;
-        var diagnostics = evaluatedValue.ToList();
-        var libraryValidation = await _projectLibraries.ValidateFlowLibrariesAsync(projectId, candidate, cancellationToken);
-        diagnostics.AddRange(libraryValidation.Diagnostics);
+        var diagnostics = FlowDefinitionContractValidator.ValidateForPersistence(candidate).Diagnostics.ToList();
+        diagnostics.AddRange((await _projectLibraries.ValidateFlowLibrariesAsync(projectId, candidate, cancellationToken)).Diagnostics);
         var validation = new FlowValidationResultDto(diagnostics.Count == 0, diagnostics);
         var normalized = validation.IsValid ? FlowDefinitionContractNormalizer.NormalizeForPersistence(candidate) : candidate;
-        FlowDefinitionPreparationResult evaluatedValue1 = new(current, normalized, validation);
-        return evaluatedValue1;
+        return new(current, normalized, validation);
     }
 
     /// <summary>
@@ -113,66 +109,51 @@ public sealed class FlowDefinitionWriteService
     {
         if (candidate.Id != flowId || expectedVersion < 1)
         {
-            FlowDefinitionWriteResult evaluatedValue2 = new(FlowDefinitionWriteStatus.Invalid, CurrentVersion: expectedVersion);
-            return evaluatedValue2;
+            return new(FlowDefinitionWriteStatus.Invalid, CurrentVersion: expectedVersion);
         }
 
         var preparation = await PrepareAsync(projectId, flowId, candidate, cancellationToken);
         if (preparation is null)
         {
-            FlowDefinitionWriteResult evaluatedValue3 = new(FlowDefinitionWriteStatus.NotFound);
-            return evaluatedValue3;
+            return new(FlowDefinitionWriteStatus.NotFound);
         }
 
         if (await _projects.FindAsync(projectId, cancellationToken) is { Status: SereinFlow.Domain.ProjectStatus.Archived })
         {
-            FlowDefinitionWriteResult evaluatedValue4 = new(FlowDefinitionWriteStatus.Archived, preparation);
-            return evaluatedValue4;
+            return new(FlowDefinitionWriteStatus.Archived, preparation);
         }
 
         if (preparation.Current.Version != expectedVersion)
         {
-            FlowDefinitionWriteResult evaluatedValue5 = new(FlowDefinitionWriteStatus.Conflict, preparation, CurrentVersion: preparation.Current.Version);
-            return evaluatedValue5;
+            return new(FlowDefinitionWriteStatus.Conflict, preparation, CurrentVersion: preparation.Current.Version);
         }
 
         if (!preparation.Validation.IsValid)
         {
-            FlowDefinitionWriteResult evaluatedValue6 = new(FlowDefinitionWriteStatus.Invalid, preparation);
-            return evaluatedValue6;
+            return new(FlowDefinitionWriteStatus.Invalid, preparation);
         }
 
-        if (resolveCompareResult().Changes.Count == 0)
+        if (new FlowDiffService().Compare(preparation.Current, preparation.Candidate).Changes.Count == 0)
         {
-            FlowDefinitionWriteResult evaluatedValue7 = new(FlowDefinitionWriteStatus.NoChange, preparation, preparation.Current, expectedVersion);
-            return evaluatedValue7;
+            return new(FlowDefinitionWriteStatus.NoChange, preparation, preparation.Current, expectedVersion);
         }
 
         var saved = await _flows.TryUpdateAsync(projectId, preparation.Candidate, expectedVersion, cancellationToken);
         if (saved is null)
         {
-            var evaluatedValue8 = (await _flows.FindAsync(projectId, flowId, cancellationToken))?.Version;
-            FlowDefinitionWriteResult evaluatedValue9 = new(FlowDefinitionWriteStatus.Conflict, preparation, CurrentVersion: evaluatedValue8);
-            return evaluatedValue9;
+            var currentVersion = (await _flows.FindAsync(projectId, flowId, cancellationToken))?.Version;
+            return new(FlowDefinitionWriteStatus.Conflict, preparation, CurrentVersion: currentVersion);
         }
 
         if (_changePublisher is not null)
         {
             var scope = GetChangeScope(preparation.Current, preparation.Candidate);
-            var newGuidResult = Guid.NewGuid();
-            var getLibraryIdsResult = ProjectLibraryService.GetLibraryIds(saved);
-            var workspaceChangeEventDto = new WorkspaceChangeEventDto(newGuidResult, DateTimeOffset.UtcNow, "flow.changed", projectId, flowId, saved.Version, saved.Checksum, origin, "flow.save", scope.CanvasIds, scope.NodeIds, scope.ConnectionIds, scope.ParameterIds, LibraryIds: getLibraryIdsResult);
+            var eventId = Guid.NewGuid();
+            var libraryIds = ProjectLibraryService.GetLibraryIds(saved);
+            var workspaceChangeEventDto = new WorkspaceChangeEventDto(eventId, DateTimeOffset.UtcNow, "flow.changed", projectId, flowId, saved.Version, saved.Checksum, origin, "flow.save", scope.CanvasIds, scope.NodeIds, scope.ConnectionIds, scope.ParameterIds, LibraryIds: libraryIds);
             await _changePublisher.PublishAsync(workspaceChangeEventDto, CancellationToken.None);
         }
-
-        FlowDefinitionWriteResult evaluatedValue10 = new(FlowDefinitionWriteStatus.Saved, preparation, saved, saved.Version);
-        return evaluatedValue10;
-        FlowDiffDto resolveCompareResult()
-        {
-            var flowDiffService = new FlowDiffService();
-            var compareResult = flowDiffService.Compare(preparation.Current, preparation.Candidate);
-            return compareResult;
-        }
+        return new(FlowDefinitionWriteStatus.Saved, preparation, saved, saved.Version);
     }
 
     private static ChangeScope GetChangeScope(FlowDefinitionDto before, FlowDefinitionDto after)
@@ -222,7 +203,7 @@ public sealed class FlowDefinitionWriteService
                     continue;
                 }
 
-                if (!resolveEqualsResult12())
+                if (!NodesEqual())
                 {
                     canvasIds.Add(canvasId);
                     nodeIds.Add(nodeId);
@@ -234,28 +215,26 @@ public sealed class FlowDefinitionWriteService
                     .Union(newParameters.Keys)
                     .Order(StringComparer.Ordinal))
                 {
-                    if (!newParameters.TryGetValue(parameterId, out var newParameter) || !oldParameters.TryGetValue(parameterId, out var oldParameter) || !resolveEqualsResult())
+                    if (!newParameters.TryGetValue(parameterId, out var newParameter) || !oldParameters.TryGetValue(parameterId, out var oldParameter) || !ParametersEqual())
                     {
                         canvasIds.Add(canvasId);
                         nodeIds.Add(nodeId);
                         parameterIds.Add(parameterId);
                     }
 
-                    bool resolveEqualsResult()
+                    bool ParametersEqual()
                     {
-                        var serializeResult = Serialize(oldParameter);
-                        var serializeResult11 = Serialize(newParameter);
-                        var equalsResult = string.Equals(serializeResult, serializeResult11, StringComparison.Ordinal);
-                        return equalsResult;
+                        var oldParameterJson = Serialize(oldParameter);
+                        var newParameterJson = Serialize(newParameter);
+                        return string.Equals(oldParameterJson, newParameterJson, StringComparison.Ordinal);
                     }
                 }
 
-                bool resolveEqualsResult12()
+                bool NodesEqual()
                 {
-                    var serializeResult13 = Serialize(oldNode);
-                    var serializeResult14 = Serialize(newNode);
-                    var equalsResult15 = string.Equals(serializeResult13, serializeResult14, StringComparison.Ordinal);
-                    return equalsResult15;
+                    var oldNodeJson = Serialize(oldNode);
+                    var newNodeJson = Serialize(newNode);
+                    return string.Equals(oldNodeJson, newNodeJson, StringComparison.Ordinal);
                 }
             }
 
@@ -265,36 +244,34 @@ public sealed class FlowDefinitionWriteService
                 .Union(newConnections.Keys)
                 .Order(StringComparer.Ordinal))
             {
-                if (!newConnections.TryGetValue(connectionId, out var newConnection) || !oldConnections.TryGetValue(connectionId, out var oldConnection) || !resolveEqualsResult16())
+                if (!newConnections.TryGetValue(connectionId, out var newConnection) || !oldConnections.TryGetValue(connectionId, out var oldConnection) || !ConnectionsEqual())
                 {
                     canvasIds.Add(canvasId);
                     connectionIds.Add(connectionId);
                 }
 
-                bool resolveEqualsResult16()
+                bool ConnectionsEqual()
                 {
-                    var serializeResult17 = Serialize(oldConnection);
-                    var serializeResult18 = Serialize(newConnection);
-                    var equalsResult19 = string.Equals(serializeResult17, serializeResult18, StringComparison.Ordinal);
-                    return equalsResult19;
+                    var oldConnectionJson = Serialize(oldConnection);
+                    var newConnectionJson = Serialize(newConnection);
+                    return string.Equals(oldConnectionJson, newConnectionJson, StringComparison.Ordinal);
                 }
             }
         }
 
-        var toArrayResult = canvasIds
+        var order = canvasIds
             .Order(StringComparer.Ordinal)
             .ToArray();
-        var toArrayResult24 = nodeIds
+        var mappedNodeIds = nodeIds
             .Order(StringComparer.Ordinal)
             .ToArray();
-        var toArrayResult26 = connectionIds
+        var mappedConnectionIds = connectionIds
             .Order(StringComparer.Ordinal)
             .ToArray();
-        var toArrayResult28 = parameterIds
+        var mappedParameterIds = parameterIds
             .Order(StringComparer.Ordinal)
             .ToArray();
-        FlowDefinitionWriteService.ChangeScope evaluatedValue29 = new(toArrayResult, toArrayResult24, toArrayResult26, toArrayResult28);
-        return evaluatedValue29;
+        return new(order, mappedNodeIds, mappedConnectionIds, mappedParameterIds);
     }
 
     private static void AddCanvasScope(CanvasDto canvas, HashSet<string> canvasIds, HashSet<string> nodeIds, HashSet<string> connectionIds, HashSet<string> parameterIds)
@@ -305,8 +282,7 @@ public sealed class FlowDefinitionWriteService
             nodeIds.Add(node.Id);
             foreach (var parameter in node.Parameters)
             {
-                var parameterKeyResult = ParameterKey(parameter);
-                parameterIds.Add(parameterKeyResult);
+                parameterIds.Add(ParameterKey(parameter));
             }
         }
 
@@ -322,16 +298,14 @@ public sealed class FlowDefinitionWriteService
         nodeIds.Add(node.Id);
         foreach (var parameter in node.Parameters)
         {
-            var parameterKeyResult30 = ParameterKey(parameter);
-            parameterIds.Add(parameterKeyResult30);
+            parameterIds.Add(ParameterKey(parameter));
         }
     }
 
     private static string ParameterKey(NodeParameterDto parameter) => parameter.Ui?.Id ?? parameter.Name;
     private static string Serialize<T>(T value)
     {
-        var serializeResult31 = JsonSerializer.Serialize(value);
-        return serializeResult31;
+        return JsonSerializer.Serialize(value);
     }
 
     private sealed record ChangeScope(IReadOnlyList<string> CanvasIds, IReadOnlyList<string> NodeIds, IReadOnlyList<string> ConnectionIds, IReadOnlyList<string> ParameterIds);

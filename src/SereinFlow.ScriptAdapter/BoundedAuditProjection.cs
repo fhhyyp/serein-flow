@@ -13,8 +13,7 @@ public static partial class ScriptValueConverter
     /// </summary>
     public static object? ToBoundedAuditValue(object? value, int maxDepth = 16, int maxItems = 512, int maxTextCharacters = 8192)
     {
-        object? operationResult1 = new AuditBudget(maxDepth, maxItems, maxTextCharacters).Project(value, 0);
-        return operationResult1;
+        return new AuditBudget(maxDepth, maxItems, maxTextCharacters).Project(value, 0);
     }
     private sealed class AuditBudget(int maximumDepth, int remainingItems, int remainingText)
     {
@@ -22,44 +21,37 @@ public static partial class ScriptValueConverter
         {
             if (depth > maximumDepth)
             {
-                var operationResult1 = Limit("DepthLimit");
-                return operationResult1;
+                return Limit("DepthLimit");
             }
 
             if (--remainingItems < 0)
             {
-                var operationResult2 = Limit("ItemLimit");
-                return operationResult2;
+                return Limit("ItemLimit");
             }
 
             if (value is ArrayValue array)
             {
-                var operationResult3 = ProjectSequence(array.Elements, depth);
-                return operationResult3;
+                return ProjectSequence(array.Elements, depth);
             }
 
             if (value is ObjectValue obj)
             {
-                var operationResult4 = obj.Properties.Select(static pair =>
+                var values = obj.Properties.Select(static pair =>
                 {
-                    var operationResult2 = new KeyValuePair<string, object?>(pair.Key, pair.Value);
-                    return operationResult2;
+                    return new KeyValuePair<string, object?>(pair.Key, pair.Value);
                 });
-                var operationResult5 = ProjectPairs(operationResult4, depth);
-                return operationResult5;
+                return ProjectPairs(values, depth);
             }
 
             if (value is Value script)
             {
-                var operationResult6 = ToAuditValue(script);
-                var operationResult7 = Project(operationResult6, depth + 1);
-                return operationResult7;
+                var auditValue = ToAuditValue(script);
+                return Project(auditValue, depth + 1);
             }
 
             if (value is string text)
             {
-                var operationResult8 = ProjectText(text);
-                return operationResult8;
+                return ProjectText(text);
             }
 
             if (value is null or bool or byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal or DateTime or DateTimeOffset or TimeSpan or Guid or Enum)
@@ -74,36 +66,29 @@ public static partial class ScriptValueConverter
                     case JsonValueKind.Object:
                         var pairs = element.EnumerateObject().Select(static pair =>
                         {
-                            var entry = new KeyValuePair<string, object?>(pair.Name, pair.Value);
-                            return entry;
+                            return new KeyValuePair<string, object?>(pair.Name, pair.Value);
                         });
-                        var projectedObject = ProjectPairs(pairs, depth);
-                        return projectedObject;
+                        return ProjectPairs(pairs, depth);
                     case JsonValueKind.Array:
                         var elements = element.EnumerateArray();
-                        var projectedArray = ProjectSequence(elements, depth);
-                        return projectedArray;
+                        return ProjectSequence(elements, depth);
                     case JsonValueKind.String:
                         var textValue = element.GetString() ?? string.Empty;
-                        var projectedText = ProjectText(textValue);
-                        return projectedText;
+                        return ProjectText(textValue);
                     default:
-                        var scalar = element.Clone();
-                        return scalar;
+                        return element.Clone();
                 }
             }
 
             if (value is IDictionary dictionary)
             {
-                var operationResult12 = ReadDictionary(dictionary);
-                var operationResult13 = ProjectPairs(operationResult12, depth);
-                return operationResult13;
+                var dictionaryEntries = ReadDictionary(dictionary);
+                return ProjectPairs(dictionaryEntries, depth);
             }
 
             if (value is IEnumerable sequence)
             {
-                var operationResult14 = ProjectSequence(sequence, depth);
-                return operationResult14;
+                return ProjectSequence(sequence, depth);
             }
 
             try
@@ -112,20 +97,17 @@ public static partial class ScriptValueConverter
                 // 在物化 JsonElement 前限制 DTO 序列化大小。
                 using var stream = new AuditBuffer(64 * 1024);
                 JsonSerializer.Serialize(stream, value);
-                var operationResult15 = stream.ToArray();
-                using var document = JsonDocument.Parse(operationResult15);
-                var operationResult5 = Project(document.RootElement, depth + 1);
-                return operationResult5;
+                using var document = JsonDocument.Parse(stream.ToArray());
+                return Project(document.RootElement, depth + 1);
             }
             catch
             {
-                var operationResult6 = new Dictionary<string, object?>
+                return new Dictionary<string, object?>
                 {
                     ["$kind"] = "ClrValue",
                     ["clrType"] = value.GetType().FullName,
                     ["serializable"] = false
                 };
-                return operationResult6;
             }
         }
 
@@ -136,17 +118,14 @@ public static partial class ScriptValueConverter
                 remainingText -= text.Length;
                 return text;
             }
-
-            var operationResult16 = Math.Max(remainingText, 0);
-            var length = Math.Min(operationResult16, 256);
+            var length = Math.Min(Math.Max(remainingText, 0), 256);
             remainingText -= length;
-            var operationResult7 = new Dictionary<string, object?>
+            return new Dictionary<string, object?>
             {
                 ["$kind"] = "TextLimit",
                 ["length"] = text.Length,
                 ["preview"] = text[..length]
             };
-            return operationResult7;
         }
 
         private object ProjectSequence(IEnumerable values, int depth)
@@ -156,13 +135,10 @@ public static partial class ScriptValueConverter
             {
                 if (remainingItems <= 0 || remainingText <= 0)
                 {
-                    var operationResult17 = Limit("ItemLimit");
-                    result.Add(operationResult17);
+                    result.Add(Limit("ItemLimit"));
                     break;
                 }
-
-                var operationResult18 = Project(value, depth + 1);
-                result.Add(operationResult18);
+                result.Add(Project(value, depth + 1));
             }
 
             return result;
@@ -186,12 +162,11 @@ public static partial class ScriptValueConverter
 
         private static Dictionary<string, object?> Limit(string kind)
         {
-            Dictionary<string, object?> operationResult8 = new()
+            return new()
             {
                 ["$kind"] = kind,
                 ["truncated"] = true
             };
-            return operationResult8;
         }
         private static IEnumerable<KeyValuePair<string, object?>> ReadDictionary(IDictionary dictionary)
         {

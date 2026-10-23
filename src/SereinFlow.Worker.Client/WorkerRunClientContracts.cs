@@ -74,13 +74,11 @@ public sealed class DelegateWorkerRunBatchEventSink(Func<IReadOnlyList<WorkerEve
 {
     public ValueTask PublishBatchAsync(IReadOnlyList<WorkerEventEnvelopeDto> events, CancellationToken cancellationToken = default)
     {
-        ValueTask operationResult1 = publish(events, cancellationToken);
-        return operationResult1;
+        return publish(events, cancellationToken);
     }
     public ValueTask PublishAsync(WorkerEventEnvelopeDto workerEvent, CancellationToken cancellationToken = default)
     {
-        ValueTask operationResult2 = publish([workerEvent], cancellationToken);
-        return operationResult2;
+        return publish([workerEvent], cancellationToken);
     }
 }
 
@@ -89,7 +87,6 @@ public sealed class DelegateWorkerRunEventSink(Func<WorkerEventEnvelopeDto, Canc
     private readonly Func<WorkerEventEnvelopeDto, CancellationToken, ValueTask> _publish = publish ?? throw new ArgumentNullException(nameof(publish), "The worker event publisher cannot be null. Worker 事件发布器不能为空。");
     public ValueTask PublishAsync(WorkerEventEnvelopeDto workerEvent, CancellationToken cancellationToken = default)
     {
-        var publishResult = _publish(workerEvent, cancellationToken);
-        return publishResult;
+        return _publish(workerEvent, cancellationToken);
     }
 }

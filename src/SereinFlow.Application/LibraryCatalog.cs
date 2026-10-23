@@ -18,8 +18,7 @@ public interface ILibraryCatalogService
     Task<LibraryUploadResultDto> UploadAsync(Stream package, string fileName, long? declaredLength = null, CancellationToken cancellationToken = default);
     Task<LibraryUploadResultDto> UploadAsync(Stream package, string fileName, long? declaredLength, CancellationToken cancellationToken, string origin)
     {
-        var uploadAsyncResult = UploadAsync(package, fileName, declaredLength, cancellationToken);
-        return uploadAsyncResult;
+        return UploadAsync(package, fileName, declaredLength, cancellationToken);
     }
 
     /// <summary>
@@ -39,16 +38,14 @@ public interface ILibraryCatalogService
     /// </summary>
     Task<LibraryPackageInspectionDto?> InspectAsync(Stream package, string fileName, long? declaredLength = null, string? familyId = null, string? baselineArtifactId = null, CancellationToken cancellationToken = default)
     {
-        var fromResultResult = Task.FromResult<LibraryPackageInspectionDto?>(null);
-        return fromResultResult;
+        return Task.FromResult<LibraryPackageInspectionDto?>(null);
     }
 
     bool Delete(string libraryId);
     Task<bool> ArchiveAsync(string libraryId, CancellationToken cancellationToken = default);
     Task<bool> ArchiveAsync(string libraryId, CancellationToken cancellationToken, string origin)
     {
-        var archiveAsyncResult = ArchiveAsync(libraryId, cancellationToken);
-        return archiveAsyncResult;
+        return ArchiveAsync(libraryId, cancellationToken);
     }
 
     /// <summary>
@@ -58,8 +55,7 @@ public interface ILibraryCatalogService
     Task<LibraryDto?> ReindexAsync(string libraryId, CancellationToken cancellationToken = default);
     Task<LibraryDto?> ReindexAsync(string libraryId, CancellationToken cancellationToken, string origin)
     {
-        var reindexAsyncResult = ReindexAsync(libraryId, cancellationToken);
-        return reindexAsyncResult;
+        return ReindexAsync(libraryId, cancellationToken);
     }
 
     /// <summary>
@@ -74,20 +70,17 @@ public interface ILibraryCatalogService
     /// </summary>
     Task<IReadOnlyList<LibraryFamilyDto>> ListFamiliesAsync(bool includeArchivedArtifacts = true, CancellationToken cancellationToken = default)
     {
-        var fromResultResult1 = Task.FromResult<IReadOnlyList<LibraryFamilyDto>>([]);
-        return fromResultResult1;
+        return Task.FromResult<IReadOnlyList<LibraryFamilyDto>>([]);
     }
 
     Task<LibraryFamilyDto?> AssignFamilyAsync(string libraryId, AssignLibraryFamilyRequestDto request, CancellationToken cancellationToken = default)
     {
-        var fromResultResult2 = Task.FromResult<LibraryFamilyDto?>(null);
-        return fromResultResult2;
+        return Task.FromResult<LibraryFamilyDto?>(null);
     }
 
     Task<LibraryFamilyDto?> AssignFamilyAsync(string libraryId, AssignLibraryFamilyRequestDto request, CancellationToken cancellationToken, string origin)
     {
-        var assignFamilyAsyncResult = AssignFamilyAsync(libraryId, request, cancellationToken);
-        return assignFamilyAsyncResult;
+        return AssignFamilyAsync(libraryId, request, cancellationToken);
     }
 
     /// <summary>
@@ -97,14 +90,12 @@ public interface ILibraryCatalogService
     /// </summary>
     Task<bool> SetLifecycleAsync(string libraryId, LibraryLifecycleDto lifecycle, CancellationToken cancellationToken = default)
     {
-        Task<bool> evaluatedValue = lifecycle == LibraryLifecycleDto.Archived ? ArchiveAsync(libraryId, cancellationToken) : Task.FromResult(false);
-        return evaluatedValue;
+        return lifecycle == LibraryLifecycleDto.Archived ? ArchiveAsync(libraryId, cancellationToken) : Task.FromResult(false);
     }
 
     Task<bool> SetLifecycleAsync(string libraryId, LibraryLifecycleDto lifecycle, CancellationToken cancellationToken, string origin)
     {
-        Task<bool> evaluatedValue3 = lifecycle == LibraryLifecycleDto.Archived ? ArchiveAsync(libraryId, cancellationToken, origin) : Task.FromResult(false);
-        return evaluatedValue3;
+        return lifecycle == LibraryLifecycleDto.Archived ? ArchiveAsync(libraryId, cancellationToken, origin) : Task.FromResult(false);
     }
 }
 

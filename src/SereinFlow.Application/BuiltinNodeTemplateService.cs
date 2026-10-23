@@ -31,11 +31,9 @@ public sealed class BuiltinNodeTemplateService
         }
 
         var builtinNodeId = request.BuiltinNodeId.Trim();
-        var evaluatedValue = _catalog.GetCatalog().Nodes;
-        var descriptor = evaluatedValue.SingleOrDefault(item =>
+        var descriptor = _catalog.GetCatalog().Nodes.SingleOrDefault(item =>
         {
-            var equalsResult = string.Equals(item.Id, builtinNodeId, StringComparison.Ordinal);
-            return equalsResult;
+            return string.Equals(item.Id, builtinNodeId, StringComparison.Ordinal);
         });
         if (descriptor is null)
         {
@@ -56,27 +54,22 @@ public sealed class BuiltinNodeTemplateService
             var nodePortDto = new NodePortDto("data-out", "Data output", "output", false);
             ports.Add(nodePortDto);
         }
-
-        var selectResult = parameters.Select(parameter =>
+        ports.AddRange(parameters.Select(parameter =>
         {
             var parameterId = parameter.Ui?.Id ?? parameter.Name;
-            var nodePortDto1 = new NodePortDto($"param-{parameterId}", parameterId, "input", parameter.Required);
-            return nodePortDto1;
-        });
-        ports.AddRange(selectResult);
+            return new NodePortDto($"param-{parameterId}", parameterId, "input", parameter.Required);
+        }));
         var script = descriptor.Script is null ? null : descriptor.Script with
         {
             NodeId = nodeId
         };
         var node = new NodeDto(nodeId, descriptor.Type, descriptor.DisplayName, request.Position.X, request.Position.Y, ports, parameters, script, descriptor.Ui);
-        var builtinNodeTemplateDto = new BuiltinNodeTemplateDto(node, "builtinCatalog", descriptor.Id);
-        return builtinNodeTemplateDto;
+        return new BuiltinNodeTemplateDto(node, "builtinCatalog", descriptor.Id);
     }
 
     private static BuiltinNodeTemplateException Invalid(string code, string fieldPath, string expected, string remediation, int statusCode = StatusCodes.Status400BadRequest)
     {
-        BuiltinNodeTemplateException evaluatedValue2 = new(code, fieldPath, expected, remediation, statusCode);
-        return evaluatedValue2;
+        return new(code, fieldPath, expected, remediation, statusCode);
     }
 }
 

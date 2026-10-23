@@ -32,8 +32,7 @@ public sealed class SereinFlowApiAuthorizationService
         {
             context.Response.Headers.WWWAuthenticate = "Bearer";
             {
-                var result1 = Unauthorized();
-                return result1;
+                return Unauthorized();
             }
         }
 
@@ -42,12 +41,11 @@ public sealed class SereinFlowApiAuthorizationService
             var routeRun = context.Request.RouteValues["runId"]?.ToString();
             if (projectId is null && Guid.TryParse(routeRun, out var requestedRun))
             {
-                var runs = context.RequestServices.GetRequiredService<IFlowRunStore>();
-                var run = await runs.FindAsync(requestedRun, cancellationToken);
+                var flowRunStore = context.RequestServices.GetRequiredService<IFlowRunStore>();
+                var run = await flowRunStore.FindAsync(requestedRun, cancellationToken);
                 if (run is null)
                 {
-                    var missing = new SereinFlowApiAuthorizationResult(false, 404, RunErrorCodes.NotFound, "Run not found. 未找到运行实例。");
-                    return missing;
+                    return new SereinFlowApiAuthorizationResult(false, 404, RunErrorCodes.NotFound, "Run not found. 未找到运行实例。");
                 }
                 projectId = run.ProjectId;
             }
@@ -73,14 +71,12 @@ public sealed class SereinFlowApiAuthorizationService
         }
         catch (SereinFlowAccessException exception)
         {
-            var sereinFlowApiAuthorizationResult = new SereinFlowApiAuthorizationResult(false, exception.StatusCode, exception.Code, exception.Message);
-            return sereinFlowApiAuthorizationResult;
+            return new SereinFlowApiAuthorizationResult(false, exception.StatusCode, exception.Code, exception.Message);
         }
     }
 
     private static SereinFlowApiAuthorizationResult Unauthorized()
     {
-        SereinFlowApiAuthorizationResult evaluatedValue = new(false, StatusCodes.Status401Unauthorized, McpErrorCodes.Unauthenticated, "SereinFlow API authentication is required. SereinFlow API 需要鉴权。");
-        return evaluatedValue;
+        return new(false, StatusCodes.Status401Unauthorized, McpErrorCodes.Unauthenticated, "SereinFlow API authentication is required. SereinFlow API 需要鉴权。");
     }
 }

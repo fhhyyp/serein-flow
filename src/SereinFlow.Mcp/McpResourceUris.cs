@@ -268,7 +268,10 @@ public static class McpResourceCatalog
 
     static McpResourceCatalog()
     {
-        if (AllDefinitions.Select(static definition => definition.UriTemplate).Distinct(StringComparer.Ordinal).Count() != AllDefinitions.Count)
+        if (AllDefinitions
+            .Select(static definition => definition.UriTemplate)
+            .Distinct(StringComparer.Ordinal)
+            .Count() != AllDefinitions.Count)
         {
             throw new InvalidOperationException("MCP resource URI templates must be unique. MCP 资源 URI 模板不能重复。");
         }

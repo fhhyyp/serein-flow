@@ -3,6 +3,7 @@ using SereinFlow.Application;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/projects/{projectId:guid}/flows/{flowId:guid}")]
 public sealed class FlowExecutionController : ApiControllerBase
 {
@@ -31,9 +32,8 @@ public sealed class FlowExecutionController : ApiControllerBase
             return failure;
         }
 
-        var submitAsyncResult = await _submissions.SubmitAsync(projectId, flowId, request, cancellationToken);
-        var toRunSubmissionResponseResult = ToRunSubmissionResponse(submitAsyncResult);
-        return toRunSubmissionResponseResult;
+        var submission = await _submissions.SubmitAsync(projectId, flowId, request, cancellationToken);
+        return ToRunSubmissionResponse(submission);
     }
 
     [HttpPost("debug-sessions")]
@@ -46,17 +46,14 @@ public sealed class FlowExecutionController : ApiControllerBase
         var result = await _debugSessions.CreateAsync(projectId, flowId, request, cancellationToken);
         if (result.IsAccepted)
         {
-            var toFlowDebugSessionDtoResult = ApiEndpointHelpers.ToFlowDebugSessionDto(result.Session);
-            var acceptedResult = Accepted($"/api/debug-sessions/{result.Session!.Id:D}", toFlowDebugSessionDtoResult);
-            return acceptedResult;
+            var flowDebugSessionDto = ApiEndpointHelpers.ToFlowDebugSessionDto(result.Session);
+            return Accepted($"/api/debug-sessions/{result.Session!.Id:D}", flowDebugSessionDto);
         }
-
-        ActionResult evaluatedValue = result.ErrorBody is not null ? new JsonResult(result.ErrorBody)
+        return result.ErrorBody is not null ? new JsonResult(result.ErrorBody)
         {
             StatusCode = result.StatusCode
         }
 
         : ApiProblem(result.StatusCode, result.ErrorTitle);
-        return evaluatedValue;
     }
 }

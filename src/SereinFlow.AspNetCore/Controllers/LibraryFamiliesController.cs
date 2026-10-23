@@ -16,9 +16,8 @@ public sealed class LibraryFamiliesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> List(CancellationToken cancellationToken)
     {
-        var listFamiliesAsyncResult = await _catalog.ListFamiliesAsync(cancellationToken: cancellationToken);
-        var okResult = Ok(listFamiliesAsyncResult);
-        return okResult;
+        var listFamilies = await _catalog.ListFamiliesAsync(cancellationToken: cancellationToken);
+        return Ok(listFamilies);
     }
 
     [HttpGet("{familyId}/artifacts")]
@@ -29,10 +28,8 @@ public sealed class LibraryFamiliesController : ApiControllerBase
         var family = (await _catalog.ListFamiliesAsync(cancellationToken: cancellationToken))
             .SingleOrDefault(item =>
             {
-                var equalsResult = string.Equals(item.Id, familyId, StringComparison.OrdinalIgnoreCase);
-                return equalsResult;
+                return string.Equals(item.Id, familyId, StringComparison.OrdinalIgnoreCase);
             });
-        ActionResult evaluatedValue1 = family is null ? ApiProblem(StatusCodes.Status404NotFound, "Library family not found. 未找到类库族。") : Ok(family.Artifacts ?? []);
-        return evaluatedValue1;
+        return family is null ? ApiProblem(StatusCodes.Status404NotFound, "Library family not found. 未找到类库族。") : Ok(family.Artifacts ?? []);
     }
 }

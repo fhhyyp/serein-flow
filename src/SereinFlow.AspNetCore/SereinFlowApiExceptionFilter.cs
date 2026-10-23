@@ -17,7 +17,7 @@ public sealed class SereinFlowApiExceptionFilter(ILogger<SereinFlowApiExceptionF
                 context.HttpContext.Response.Headers.WWWAuthenticate = "Bearer";
             }
 
-            var argument1 = new ProblemDetails
+            var mappedProblemDetails = new ProblemDetails
             {
                 Status = denied.StatusCode,
                 Title = denied.Message,
@@ -26,7 +26,7 @@ public sealed class SereinFlowApiExceptionFilter(ILogger<SereinFlowApiExceptionF
                     ["code"] = denied.Code
                 }
             };
-            context.Result = new ObjectResult(argument1)
+            context.Result = new ObjectResult(mappedProblemDetails)
             {
                 StatusCode = denied.StatusCode
             };

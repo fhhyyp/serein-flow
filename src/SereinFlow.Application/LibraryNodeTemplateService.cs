@@ -59,9 +59,8 @@ public sealed class LibraryNodeTemplateService
 
         var contract = library.Nodes.SingleOrDefault(node =>
         {
-            var trimResult = request.LibraryNodeContractId.Trim();
-            var equalsResult = string.Equals(node.ContractId ?? node.Id, trimResult, StringComparison.Ordinal);
-            return equalsResult;
+            var normalizedLibraryNodeContractId = request.LibraryNodeContractId.Trim();
+            return string.Equals(node.ContractId ?? node.Id, normalizedLibraryNodeContractId, StringComparison.Ordinal);
         });
         if (contract is null)
         {
@@ -74,15 +73,14 @@ public sealed class LibraryNodeTemplateService
         }
 
         var node = CreateNode(contract, request.Position);
-        var getContractRevisionResult = GetContractRevision(contract);
-        var libraryNodeTemplateDto = new LibraryNodeTemplateDto(node, "libraryContract", library.Id, library.Version, library.Sha256, getContractRevisionResult);
-        return libraryNodeTemplateDto;
+        var contractRevision = GetContractRevision(contract);
+        return new LibraryNodeTemplateDto(node, "libraryContract", library.Id, library.Version, library.Sha256, contractRevision);
     }
 
     public static string GetContractRevision(LibraryNodeDto contract)
     {
         ArgumentNullException.ThrowIfNull(contract);
-        var toArrayResult = contract.Parameters
+        var mappedParameters = contract.Parameters
             .Select(parameter => new { id = parameter.Id, name = parameter.Name, type = parameter.Type, description = parameter.Description, required = parameter.Required, isVariadic = parameter.IsVariadic, variadicGroupId = parameter.VariadicGroupId, elementType = parameter.ElementType, defaultValue = parameter.DefaultValue, aliases = parameter.Aliases, enumMetadata = parameter.EnumMetadata })
             .ToArray();
         var canonical = new
@@ -96,14 +94,11 @@ public sealed class LibraryNodeTemplateService
             returnType = contract.ReturnType,
             isAwaitable = contract.IsAwaitable,
             flowLibraryName = contract.FlowLibraryName,
-            parameters = toArrayResult
+            parameters = mappedParameters
         };
-        var serializeResult = JsonSerializer.Serialize(canonical, JsonOptions);
-        var getBytesResult = Encoding.UTF8.GetBytes(serializeResult);
-        var bytes = SHA256.HashData(getBytesResult);
-        var toHexStringResult = Convert.ToHexString(bytes);
-        var toLowerInvariantResult = toHexStringResult.ToLowerInvariant();
-        return toLowerInvariantResult;
+        var canonicalJson = JsonSerializer.Serialize(canonical, JsonOptions);
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalJson));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
     private static NodeDto CreateNode(LibraryNodeDto contract, NodeTemplatePositionDto position)
@@ -118,61 +113,41 @@ public sealed class LibraryNodeTemplateService
             new("exec-failure", "Failure", "output", false),
             new("exec-error", "Error", "output", false)
         };
-        if (!resolveEqualsResult())
+        if (!string.Equals(contract.ReturnType.Trim(), "System.Void", StringComparison.OrdinalIgnoreCase))
         {
             var nodePortDto = new NodePortDto("data-out", "Data output", "output", false);
             ports.Add(nodePortDto);
         }
-
-        var selectResult5 = contract.Parameters.Select(parameter =>
+        ports.AddRange(contract.Parameters.Select(parameter =>
         {
-            var evaluatedValue = $"param-{CanonicalParameterId(parameter.Id)}";
-            var canonicalParameterIdResult = CanonicalParameterId(parameter.Id);
-            var nodePortDto1 = new NodePortDto(evaluatedValue, canonicalParameterIdResult, "input", false);
-            return nodePortDto1;
-        });
-        ports.AddRange(selectResult5);
+            var id = $"param-{CanonicalParameterId(parameter.Id)}";
+            var name = CanonicalParameterId(parameter.Id);
+            return new NodePortDto(id, name, "input", false);
+        }));
         var kind = contract.Type == NodeTypeDto.Action ? "action" : "flipflop";
-        var evaluatedValue6 = $"node-{Guid.NewGuid():N}";
-        var evaluatedValue10 = !resolveEqualsResult7();
-        var nodeUiMetadataDto = new NodeUiMetadataDto(kind, "node.catalogMethod", "node.catalogSubtitle", contract.Description ?? $"{contract.ClassName}.{contract.MethodName}", "ready", evaluatedValue10, 260, Category: "method", LibraryId: contract.LibraryId, ClassName: contract.ClassName, MethodName: contract.MethodName, DllName: contract.DllName, DllVersion: contract.DllVersion, ReturnType: contract.ReturnType, IsAwaitable: contract.IsAwaitable, LibraryNodeContractId: contract.ContractId ?? contract.Id, FlowLibraryName: contract.FlowLibraryName);
-        var nodeDto = new NodeDto(evaluatedValue6, contract.Type, contract.DisplayName, position.X, position.Y, ports, parameters, null, nodeUiMetadataDto);
-        return nodeDto;
-        bool resolveEqualsResult()
-        {
-            var trimResult3 = contract.ReturnType.Trim();
-            var equalsResult4 = string.Equals(trimResult3, "System.Void", StringComparison.OrdinalIgnoreCase);
-            return equalsResult4;
-        }
-
-        bool resolveEqualsResult7()
-        {
-            var trimResult8 = contract.ReturnType.Trim();
-            var equalsResult9 = string.Equals(trimResult8, "System.Void", StringComparison.OrdinalIgnoreCase);
-            return equalsResult9;
-        }
+        var newNodeId = $"node-{Guid.NewGuid():N}";
+        var hasDataOutput = !string.Equals(contract.ReturnType.Trim(), "System.Void", StringComparison.OrdinalIgnoreCase);
+        var nodeUiMetadataDto = new NodeUiMetadataDto(kind, "node.catalogMethod", "node.catalogSubtitle", contract.Description ?? $"{contract.ClassName}.{contract.MethodName}", "ready", hasDataOutput, 260, Category: "method", LibraryId: contract.LibraryId, ClassName: contract.ClassName, MethodName: contract.MethodName, DllName: contract.DllName, DllVersion: contract.DllVersion, ReturnType: contract.ReturnType, IsAwaitable: contract.IsAwaitable, LibraryNodeContractId: contract.ContractId ?? contract.Id, FlowLibraryName: contract.FlowLibraryName);
+        return new NodeDto(newNodeId, contract.Type, contract.DisplayName, position.X, position.Y, ports, parameters, null, nodeUiMetadataDto);
     }
 
     private static NodeParameterDto CreateParameter(LibraryParameterDto parameter)
     {
-        var canonicalParameterIdResult11 = CanonicalParameterId(parameter.Id);
-        string? evaluatedValue12 = parameter.IsVariadic ? CanonicalParameterId(parameter.VariadicGroupId ?? parameter.Id) : null;
-        var nodeParameterUiMetadataDto = new NodeParameterUiMetadataDto(canonicalParameterIdResult11, parameter.Name, parameter.Type, parameter.DefaultValue, null, null, null, null, Type: parameter.Type, Description: parameter.Description, InputMode: parameter.EnumMetadata is null ? "manual" : "select", IsVariadic: parameter.IsVariadic, VariadicGroupId: evaluatedValue12, ElementType: parameter.ElementType, VariadicMode: parameter.IsVariadic ? "expanded" : null, EnumMetadata: parameter.EnumMetadata);
-        NodeParameterDto evaluatedValue13 = new(parameter.Name, parameter.DefaultValue, DataSourceDto.Literal, parameter.Required, nodeParameterUiMetadataDto);
-        return evaluatedValue13;
+        var id = CanonicalParameterId(parameter.Id);
+        string? variadicGroupId = parameter.IsVariadic ? CanonicalParameterId(parameter.VariadicGroupId ?? parameter.Id) : null;
+        var nodeParameterUiMetadataDto = new NodeParameterUiMetadataDto(id, parameter.Name, parameter.Type, parameter.DefaultValue, null, null, null, null, Type: parameter.Type, Description: parameter.Description, InputMode: parameter.EnumMetadata is null ? "manual" : "select", IsVariadic: parameter.IsVariadic, VariadicGroupId: variadicGroupId, ElementType: parameter.ElementType, VariadicMode: parameter.IsVariadic ? "expanded" : null, EnumMetadata: parameter.EnumMetadata);
+        return new(parameter.Name, parameter.DefaultValue, DataSourceDto.Literal, parameter.Required, nodeParameterUiMetadataDto);
     }
 
     private static string CanonicalParameterId(string parameterId)
     {
         var trimmed = parameterId.Trim();
-        string evaluatedValue14 = trimmed.StartsWith("param-", StringComparison.Ordinal) ? trimmed["param-".Length..] : trimmed;
-        return evaluatedValue14;
+        return trimmed.StartsWith("param-", StringComparison.Ordinal) ? trimmed["param-".Length..] : trimmed;
     }
 
     private static LibraryNodeTemplateException Invalid(string code, string fieldPath, string expected, string remediation, int statusCode = StatusCodes.Status400BadRequest)
     {
-        LibraryNodeTemplateException evaluatedValue15 = new(code, fieldPath, expected, remediation, statusCode);
-        return evaluatedValue15;
+        return new(code, fieldPath, expected, remediation, statusCode);
     }
 }
 
@@ -187,8 +162,6 @@ public sealed class LibraryNodeTemplateException(string code, string fieldPath, 
 
     private static string CreateDiagnosticIdInitialValue()
     {
-        var newGuidResult = Guid.NewGuid();
-        string diagnosticIdInitialValue = newGuidResult.ToString("N");
-        return diagnosticIdInitialValue;
+        return Guid.NewGuid().ToString("N");
     }
 }

@@ -7,6 +7,7 @@ using SereinFlow.Domain;
 using static SereinFlow.Api.ApiEndpointHelpers;
 
 namespace SereinFlow.Api.Controllers;
+
 [Route("api/public")]
 public sealed class PublicFlowInvocationController : ApiControllerBase
 {
@@ -46,8 +47,7 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
         var flowInterface = await _interfaces.FindAsync(interfaceId, cancellationToken);
         if (flowInterface is null || !flowInterface.IsEnabled)
         {
-            var apiProblemResult = ApiProblem(StatusCodes.Status404NotFound, "The flow interface is unavailable. 流程接口不可用。");
-            return apiProblemResult;
+            return ApiProblem(StatusCodes.Status404NotFound, "The flow interface is unavailable. 流程接口不可用。");
         }
 
         var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunExecute, flowInterface.ProjectId, cancellationToken);
@@ -57,41 +57,36 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
             return authorizationFailure;
         }
 
-        if (await _versions.FindProductionDefinitionAsync(flowInterface.ProjectId, flowInterface.FlowId, cancellationToken)is null)
+        if (await _versions.FindProductionDefinitionAsync(flowInterface.ProjectId, flowInterface.FlowId, cancellationToken) is null)
         {
-            var apiProblemResult1 = ApiProblemWithCode(StatusCodes.Status409Conflict, "The flow interface requires a published production version. 流程接口需要已发布的生产版本。", code: FlowErrorCodes.ProductionVersionRequired);
-            return apiProblemResult1;
+            return ApiProblemWithCode(StatusCodes.Status409Conflict, "The flow interface requires a published production version. 流程接口需要已发布的生产版本。", code: FlowErrorCodes.ProductionVersionRequired);
         }
 
         var runFlowRequestDto = new RunFlowRequestDto(null, request.ProjectInputs, request.TimeoutSeconds, request.MaxSteps, request.MaxNodeVisits);
         var submission = await _submissions.SubmitProductionAsync(flowInterface.ProjectId, flowInterface.FlowId, runFlowRequestDto, cancellationToken);
         if (!submission.IsAccepted)
         {
-            var toRunSubmissionResponseResult = ToRunSubmissionResponse(submission);
-            return toRunSubmissionResponseResult;
+            return ToRunSubmissionResponse(submission);
         }
 
         var submittedRun = submission.Run!;
         if (flowInterface.InvocationMode == FlowInvocationModeDto.Asynchronous)
         {
             var publicFlowInvocationResponseDto = new PublicFlowInvocationResponseDto(submittedRun.Id, FlowRunStatusDto.Pending, false, []);
-            var acceptedResult = Accepted($"/api/public/tasks/{submittedRun.Id:D}", publicFlowInvocationResponseDto);
-            return acceptedResult;
+            return Accepted($"/api/public/tasks/{submittedRun.Id:D}", publicFlowInvocationResponseDto);
         }
 
         var maximumWait = TimeSpan.FromSeconds(_queue.Options.SynchronousInvocationTimeoutSeconds);
         var completedRun = await WaitForTerminalRunAsync(_runs, submittedRun.Id, maximumWait, cancellationToken);
         if (completedRun is null || !completedRun.IsTerminal)
         {
-            var publicFlowInvocationResponseDto2 = new PublicFlowInvocationResponseDto(submittedRun.Id, FlowRunStatusDto.Pending, false, []);
-            var acceptedResult3 = Accepted($"/api/public/tasks/{submittedRun.Id:D}", publicFlowInvocationResponseDto2);
-            return acceptedResult3;
+            var mappedPublicFlowInvocationResponseDto = new PublicFlowInvocationResponseDto(submittedRun.Id, FlowRunStatusDto.Pending, false, []);
+            return Accepted($"/api/public/tasks/{submittedRun.Id:D}", mappedPublicFlowInvocationResponseDto);
         }
 
-        var readNodeDataAsyncResult = await ReadNodeDataAsync(_outputs, completedRun.Id, cancellationToken);
-        var publicFlowInvocationResponseDto4 = new PublicFlowInvocationResponseDto(completedRun.Id, (FlowRunStatusDto)completedRun.Status, true, readNodeDataAsyncResult);
-        var okResult = Ok(publicFlowInvocationResponseDto4);
-        return okResult;
+        var flowData = await ReadNodeDataAsync(_outputs, completedRun.Id, cancellationToken);
+        var resolvedPublicFlowInvocationResponseDto = new PublicFlowInvocationResponseDto(completedRun.Id, (FlowRunStatusDto)completedRun.Status, true, flowData);
+        return Ok(resolvedPublicFlowInvocationResponseDto);
     }
 
     [HttpGet("tasks/{taskId:guid}")]
@@ -110,8 +105,7 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
         var run = await _runs.FindAsync(taskId, cancellationToken);
         if (run is null)
         {
-            var apiProblemResult5 = ApiProblem(StatusCodes.Status404NotFound, "Task not found. 任务不存在。");
-            return apiProblemResult5;
+            return ApiProblem(StatusCodes.Status404NotFound, "Task not found. 任务不存在。");
         }
 
         var authorization = await _authorization.AuthorizeAsync(HttpContext, SereinFlowPermission.RunRead, run.ProjectId, cancellationToken);
@@ -121,9 +115,8 @@ public sealed class PublicFlowInvocationController : ApiControllerBase
             return authorizationFailure;
         }
 
-        IReadOnlyList<FlowNodeDataDto> evaluatedValue = run.IsTerminal ? await ReadNodeDataAsync(_outputs, run.Id, cancellationToken) : [];
-        var publicFlowInvocationResponseDto6 = new PublicFlowInvocationResponseDto(run.Id, (FlowRunStatusDto)run.Status, run.IsTerminal, evaluatedValue);
-        var okResult7 = Ok(publicFlowInvocationResponseDto6);
-        return okResult7;
+        IReadOnlyList<FlowNodeDataDto> flowData = run.IsTerminal ? await ReadNodeDataAsync(_outputs, run.Id, cancellationToken) : [];
+        var publicFlowInvocationResponseDto = new PublicFlowInvocationResponseDto(run.Id, (FlowRunStatusDto)run.Status, run.IsTerminal, flowData);
+        return Ok(publicFlowInvocationResponseDto);
     }
 }

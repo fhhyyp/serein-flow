@@ -2,7 +2,7 @@
 
 适用于仓库内的自有 Vue、TypeScript、C# 和 CSS，包括测试、示例、文档站及检查工具。第三方源码、生成文件、依赖与构建产物不纳入调整。
 
-`SereinFlow.Mcp`、`SereinFlow.Mcp.Framework`、`SereinFlow.Mcp.Generator` 及其三个对应测试项目不适用本文的自定义规则，也不进入 C# 规范检查器。它们使用自然的 C# 表达方式，包括直接返回、表达式体、嵌套调用和完整 LINQ 查询；仍遵守基本 EditorConfig、编译检查及行为兼容要求。其他项目和前端的检查保持不变。
+`SereinFlow.Mcp`、`SereinFlow.Mcp.Framework`、`SereinFlow.Mcp.Generator` 及其三个对应测试项目不适用本文的自定义规则，也不进入 C# 规范检查器。它们使用自然的 C# 表达方式，包括直接返回、表达式体、嵌套调用和完整 LINQ 查询；仍遵守基本 EditorConfig、编译检查及行为兼容要求。其他 C# 项目使用下文规则，前端规则保持不变。
 
 安装 `frontend/sereinflow-web` 的依赖后，从仓库根目录运行：
 
@@ -21,9 +21,10 @@ pwsh -File ./eng/check-code-conventions.ps1 -SelfTest
 
 ## 调用、声明与控制流
 
-- 调用参数中的函数或构造调用，先存入有意义的临时变量。回调自身不算参数嵌套，但回调内部仍受检查。
-- C# 和 TypeScript 允许链式调用，不要求仅为拆开调用链而引入中间变量。LINQ、普通流式 API、集合创建及 JSON 枚举后接查询、`(await ReadAsync()).Where(...)`、可空条件调用链均允许。调用链中各次调用的参数和回调内部仍按原规则检查；返回结果遵守下一条规则。优先按完整的查询或操作表达业务含义，复杂时再按语义拆分。
-- 块体内函数、构造和 await 调用的返回结果先赋值再 return；Lambda 和 TypeScript 箭头函数也遵守此规则。C# 方法、局部函数及属性等成员的 `=>` 表达式体允许直接返回调用结果，包括 `await`；调用参数中的嵌套调用仍受检查。
+- C# 允许嵌套调用、直接返回调用或 `await` 结果，以及 Lambda 和成员表达式体。不为单纯转交参数或返回值引入临时变量。仅在表达业务含义、复用结果、固定求值时机或管理资源时保留变量；名称应说明用途，避免 `argument4`、`selectResult5`、`evaluatedValue7` 等机械编号。
+- C# 检查器通过 `NAME001` 拦截适用项目 `src/` 下的编号式中转变量，例如 `argument4`、`evaluatedValue7`、`selectResult5`。算法、编码和版本名称如 `sha256`、`packageBase64`、`isV2` 保留。测试代码本次不作命名迁移。
+- C# 和 TypeScript 允许链式调用，不要求仅为拆开调用链而引入中间变量。LINQ、普通流式 API、集合创建及 JSON 枚举后接查询、`(await ReadAsync()).Where(...)`、可空条件调用链均允许。优先按完整的查询或操作表达业务含义，复杂时再按语义拆分。
+- TypeScript 仍要求把参数中的函数或构造调用先存入有意义的临时变量；块体及箭头函数返回调用或 await 结果时先赋值再 return。回调自身不算参数嵌套，但回调内部仍受检查。
 - 普通声明每行只声明或初始化一个变量。C# 允许元组解构，包括 `var (a, b)`、`(int a, string b)`、嵌套解构、丢弃值和 `foreach` 解构，不要求拆成多个变量声明。每行一条语句，`for` 头部的分隔符除外。
 - `if`、`else if`、`else` 分行书写；分支体始终加大括号。
 - 拆分时保留求值顺序、短路分支、异常时机、异步行为、查询延迟执行、资源生命周期及响应性。
@@ -60,8 +61,6 @@ Vue `withDefaults(defineProps<...>(), defaults)` 是编译宏，Vue 编译器要
 | `workspace/OutputPanel.vue` | 17 |
 | `workspace/WorkspacePanelSwitcher.vue` | 13 |
 
-C# 必须以表达式形式交给框架处理的表达式树登记在 `eng/code-conventions/exceptions.json`，包含文件、精确表达式和原因。例外只跳过对应表达式，不豁免整个文件或普通 LINQ to Objects。
-
-应优先把表达式树中可提前计算的值提取到查询外。本次重构后的 C# 例外清单为空；现有查询保留表达式树，只把 GUID、枚举等值的转换移到明确命名的变量中。
+C# 表达式树可以自然保留表达式形式，无需为嵌套调用或直接返回登记例外。既有 `eng/code-conventions/exceptions.json` 保留精确表达式与文件的例外机制，当前清单为空。不要把提供程序需要翻译的表达式改写为块体 Lambda，或将依赖查询项的计算移到查询外。
 
 检查器分别使用 TypeScript、Vue 编译器、PostCSS 和随 .NET SDK 提供的 Roslyn 解析源码。测试中的违规示例存放在字符串内，不会被当作待检查代码。

@@ -16,7 +16,8 @@ public sealed partial class McpToolGenerator : FrameworkGenerator
         builder.AddInitializationSource("McpToolkits.g.cs", _attributeText);
         builder.AddInitializationSource("SereinFlowMcpToolkits.g.cs", _sereinFlowAttributeText);
 
-        builder.ForMethodAttribute("SereinFlow.Mcp.Framework.McpToolAttribute", AttributeMatch.IncludeDerived)
+        builder
+            .ForMethodAttribute("SereinFlow.Mcp.Framework.McpToolAttribute", AttributeMatch.IncludeDerived)
             .Analyze(McpToolAnalyzer.Analyze)
             .Named("McpTools")
             .Collect()
@@ -27,7 +28,8 @@ public sealed partial class McpToolGenerator : FrameworkGenerator
                 output.AddSource("McpToolRegistry.g.cs", code);
             }, "McpRegistryOutput", "McpHost");
 
-        builder.ForClassAttribute("SereinFlow.Mcp.Framework.McpHostAttribute")
+        builder
+            .ForClassAttribute("SereinFlow.Mcp.Framework.McpHostAttribute")
             .Require(McpHostExtension.InvalidHost, TypeRules.TopLevel, TypeRules.NonGeneric, TypeRules.Static, TypeRules.Partial,
                 McpHostAnalyzer.RegistrationName)
             .Analyze(McpHostAnalyzer.Analyze)

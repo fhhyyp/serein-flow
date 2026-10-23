@@ -24,21 +24,18 @@ public sealed class SqlSugarProjectRepository : IProjectRepository
 
     public async Task<Project?> FindAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var toStringResult = id.ToString("D");
-        var getByIdAsyncResult = await _projects.GetByIdAsync(toStringResult, cancellationToken);
-        var mapResult = Map(getByIdAsyncResult);
-        return mapResult;
+        var idText = id.ToString("D");
+        return Map((await _projects.GetByIdAsync(idText, cancellationToken)));
     }
 
     public async Task<IReadOnlyList<Project>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var toArrayResult = (await _projects.ListAsync(cancellationToken: cancellationToken))
+        return (await _projects.ListAsync(cancellationToken: cancellationToken))
             .Select(Map)
             .Where(static project => project is not null)
             .Cast<Project>()
             .OrderBy(static project => project.CreatedAt)
             .ToArray();
-        return toArrayResult;
     }
 
     public Task AddAsync(Project project, CancellationToken cancellationToken = default)
@@ -48,9 +45,8 @@ public sealed class SqlSugarProjectRepository : IProjectRepository
             throw new ArgumentNullException(nameof(project), "The project cannot be null. 项目不能为空。");
         }
 
-        var toRecordResult = ToRecord(project);
-        var addAsyncResult = _projects.AddAsync(toRecordResult, cancellationToken);
-        return addAsyncResult;
+        var entity = ToRecord(project);
+        return _projects.AddAsync(entity, cancellationToken);
     }
 
     public Task<bool> TryUpdateAsync(Project project, long expectedVersion, CancellationToken cancellationToken = default)
@@ -59,44 +55,40 @@ public sealed class SqlSugarProjectRepository : IProjectRepository
         {
             throw new ArgumentNullException(nameof(project), "The project cannot be null. 项目不能为空。");
         }
-
-        var executeAsyncResult = _unitOfWork.ExecuteAsync(async token =>
+        return _unitOfWork.ExecuteAsync(async token =>
         {
-            var toStringResult1 = project.Id.ToString("D");
-            var existing = await _projects.GetByIdAsync(toStringResult1, token);
+            var id = project.Id.ToString("D");
+            var existing = await _projects.GetByIdAsync(id, token);
             if (existing is null || existing.Version != expectedVersion)
             {
                 return false;
             }
 
-            var toRecordResult2 = ToRecord(project);
-            var updateAsyncResult = await _projects.UpdateAsync(toRecordResult2, token);
-            return updateAsyncResult;
+            var entity = ToRecord(project);
+            return await _projects.UpdateAsync(entity, token);
         }, cancellationToken);
-        return executeAsyncResult;
     }
 
     public Project? Find(Guid id)
     {
-        var toStringResult3 = id.ToString("D");
-        var getByIdAsyncResult4 = _projects.GetByIdAsync(toStringResult3);
-        var getAwaiterResult = getByIdAsyncResult4.GetAwaiter();
-        var getResultResult = getAwaiterResult.GetResult();
-        var mapResult5 = Map(getResultResult);
-        return mapResult5;
+        var idText = id.ToString("D");
+        return Map(_projects
+            .GetByIdAsync(idText)
+            .GetAwaiter()
+            .GetResult());
     }
 
     public IReadOnlyList<Project> List()
     {
-        var listAsyncResult = _projects.ListAsync(cancellationToken: CancellationToken.None);
-        var getAwaiterResult6 = listAsyncResult.GetAwaiter();
-        var toArrayResult12 = getAwaiterResult6.GetResult()
+        return _projects
+            .ListAsync(cancellationToken: CancellationToken.None)
+            .GetAwaiter()
+            .GetResult()
             .Select(Map)
             .Where(static project => project is not null)
             .Cast<Project>()
             .OrderBy(static project => project.CreatedAt)
             .ToArray();
-        return toArrayResult12;
     }
 
     public void Add(Project project)
@@ -106,10 +98,11 @@ public sealed class SqlSugarProjectRepository : IProjectRepository
             throw new ArgumentNullException(nameof(project), "The project cannot be null. 项目不能为空。");
         }
 
-        var toRecordResult13 = ToRecord(project);
-        var addAsyncResult14 = _projects.AddAsync(toRecordResult13);
-        var getAwaiterResult15 = addAsyncResult14.GetAwaiter();
-        getAwaiterResult15.GetResult();
+        var entity = ToRecord(project);
+        _projects
+            .AddAsync(entity)
+            .GetAwaiter()
+            .GetResult();
     }
 
     public bool TryUpdate(Project project, long expectedVersion)
@@ -119,27 +112,24 @@ public sealed class SqlSugarProjectRepository : IProjectRepository
             throw new ArgumentNullException(nameof(project), "The project cannot be null. 项目不能为空。");
         }
 
-        var executeAsyncResult19 = _unitOfWork.ExecuteAsync(async cancellationToken =>
+        var task = _unitOfWork.ExecuteAsync(async cancellationToken =>
         {
-            var toStringResult16 = project.Id.ToString("D");
-            var existing = await _projects.GetByIdAsync(toStringResult16, cancellationToken);
+            var id = project.Id.ToString("D");
+            var existing = await _projects.GetByIdAsync(id, cancellationToken);
             if (existing is null || existing.Version != expectedVersion)
             {
                 return false;
             }
 
-            var toRecordResult17 = ToRecord(project);
-            var updateAsyncResult18 = await _projects.UpdateAsync(toRecordResult17, cancellationToken);
-            return updateAsyncResult18;
+            var entity = ToRecord(project);
+            return await _projects.UpdateAsync(entity, cancellationToken);
         });
-        var getAwaiterResult20 = executeAsyncResult19.GetAwaiter();
-        var getResultResult21 = getAwaiterResult20.GetResult();
-        return getResultResult21;
+        return task.GetAwaiter().GetResult();
     }
 
     private static ProjectRecord ToRecord(Project project)
     {
-        ProjectRecord evaluatedValue22 = new()
+        return new()
         {
             Id = project.Id.ToString("D"),
             Name = project.Name,
@@ -148,7 +138,6 @@ public sealed class SqlSugarProjectRepository : IProjectRepository
             CreatedAt = project.CreatedAt.ToString("O"),
             UpdatedAt = project.UpdatedAt.ToString("O")
         };
-        return evaluatedValue22;
     }
 
     private static Project? Map(ProjectRecord? row)
@@ -158,11 +147,10 @@ public sealed class SqlSugarProjectRepository : IProjectRepository
             return null;
         }
 
-        var parseResult = Guid.Parse(row.Id);
-        var parseResult23 = Enum.Parse<ProjectStatus>(row.Status, ignoreCase: false);
-        var parseResult24 = DateTimeOffset.Parse(row.CreatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        var parseResult25 = DateTimeOffset.Parse(row.UpdatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        var rehydrateResult = Project.Rehydrate(parseResult, row.Name, row.Version, parseResult23, parseResult24, parseResult25);
-        return rehydrateResult;
+        var id = Guid.Parse(row.Id);
+        var status = Enum.Parse<ProjectStatus>(row.Status, ignoreCase: false);
+        var createdAt = DateTimeOffset.Parse(row.CreatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+        var updatedAt = DateTimeOffset.Parse(row.UpdatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+        return Project.Rehydrate(id, row.Name, row.Version, status, createdAt, updatedAt);
     }
 }

@@ -127,8 +127,7 @@ internal sealed class McpLibraryQueries(
         IReadOnlyList<LibraryFamilyDto> families,
         CancellationToken cancellationToken)
     {
-        var references = await VisibleReferencesAsync(scope, cancellationToken);
-        var referencedArtifactIds = references
+        var referencedArtifactIds = (await VisibleReferencesAsync(scope, cancellationToken))
             .Select(static reference => reference.LibraryId)
             .Where(static id => !string.IsNullOrWhiteSpace(id))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);

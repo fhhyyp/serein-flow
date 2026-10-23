@@ -66,8 +66,7 @@ public sealed class FlowRun
     {
         get
         {
-            string? evaluatedValue = ConcurrencyMode == FlowConcurrencyMode.ExclusiveReject ? FlowId.ToString("D") : null;
-            return evaluatedValue;
+            return ConcurrencyMode == FlowConcurrencyMode.ExclusiveReject ? FlowId.ToString("D") : null;
         }
     }
 
@@ -97,14 +96,12 @@ public sealed class FlowRun
 
     public static FlowRun Start(Guid flowId, long flowVersion, DateTimeOffset createdAt, Guid? id = null)
     {
-        var startResult = Start(Guid.Empty, flowId, flowVersion, createdAt, FlowConcurrencyMode.Parallel, false, id);
-        return startResult;
+        return Start(Guid.Empty, flowId, flowVersion, createdAt, FlowConcurrencyMode.Parallel, false, id);
     }
 
     public static FlowRun Start(Guid projectId, Guid flowId, long flowVersion, DateTimeOffset createdAt, Guid? id = null)
     {
-        var startResult1 = Start(projectId, flowId, flowVersion, createdAt, FlowConcurrencyMode.Parallel, false, id);
-        return startResult1;
+        return Start(projectId, flowId, flowVersion, createdAt, FlowConcurrencyMode.Parallel, false, id);
     }
 
     public static FlowRun Start(Guid projectId, Guid flowId, long flowVersion, DateTimeOffset createdAt, FlowConcurrencyMode concurrencyMode, bool isListenerRun, Guid? id = null, FlowRunExecutionKind executionKind = FlowRunExecutionKind.Production, Guid? debugSessionId = null, string definitionChecksum = "")
@@ -138,10 +135,7 @@ public sealed class FlowRun
         {
             throw new ArgumentException("Only debug runs may have a debug session ID. 只有调试运行可以关联调试会话 ID。", nameof(debugSessionId));
         }
-
-        var evaluatedValue2 = id ?? Guid.NewGuid();
-        var flowRun = new FlowRun(evaluatedValue2, projectId, flowId, flowVersion, definitionChecksum, createdAt, concurrencyMode, isListenerRun, executionKind, debugSessionId);
-        return flowRun;
+        return new FlowRun((id ?? Guid.NewGuid()), projectId, flowId, flowVersion, definitionChecksum, createdAt, concurrencyMode, isListenerRun, executionKind, debugSessionId);
     }
 
     public static FlowRun Rehydrate(Guid id, Guid projectId, Guid flowId, long flowVersion, FlowRunStatus status, DateTimeOffset createdAt, DateTimeOffset? startedAt, DateTimeOffset? endedAt, string? cancellationReason, string? errorSummary, FlowConcurrencyMode concurrencyMode = FlowConcurrencyMode.Parallel, bool isListenerRun = false, DateTimeOffset? queuedAt = null, DateTimeOffset? deadline = null, FlowRunExecutionKind executionKind = FlowRunExecutionKind.Production, Guid? debugSessionId = null, string definitionChecksum = "")
@@ -159,8 +153,8 @@ public sealed class FlowRun
 
     public void MarkRunning(DateTimeOffset startedAt)
     {
-        var addMinutesResult = startedAt.AddMinutes(5);
-        MarkRunning(startedAt, addMinutesResult);
+        var deadline = startedAt.AddMinutes(5);
+        MarkRunning(startedAt, deadline);
     }
 
     public void MarkRunning(DateTimeOffset startedAt, DateTimeOffset deadline)

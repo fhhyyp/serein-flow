@@ -58,37 +58,26 @@ public sealed class PluginManifest
         {
             throw new ArgumentException("Plugin API version cannot be empty. 插件 API 版本不能为空。", nameof(apiVersion));
         }
-
-        var trimResult3 = assemblyName.Trim();
-        var trimResult4 = assemblyVersion.Trim();
-        var toArrayResult = targetRids
+        return new PluginManifest(assemblyName.Trim(), assemblyVersion.Trim(), normalizedHash, targetRids
             .Where(static rid =>
             {
-                var evaluatedValue = !string.IsNullOrWhiteSpace(rid);
-                return evaluatedValue;
+                return !string.IsNullOrWhiteSpace(rid);
             })
             .Select(static rid =>
             {
-                var trimResult = rid.Trim();
-                return trimResult;
+                return rid.Trim();
             })
             .Distinct(StringComparer.Ordinal)
-            .ToArray();
-        var trimResult5 = apiVersion.Trim();
-        var toArrayResult9 = nodeTypes
+            .ToArray(), apiVersion.Trim(), nodeTypes
             .Where(static nodeType =>
             {
-                var evaluatedValue1 = !string.IsNullOrWhiteSpace(nodeType);
-                return evaluatedValue1;
+                return !string.IsNullOrWhiteSpace(nodeType);
             })
             .Select(static nodeType =>
             {
-                var trimResult2 = nodeType.Trim();
-                return trimResult2;
+                return nodeType.Trim();
             })
             .Distinct(StringComparer.Ordinal)
-            .ToArray();
-        var pluginManifest = new PluginManifest(trimResult3, trimResult4, normalizedHash, toArrayResult, trimResult5, toArrayResult9);
-        return pluginManifest;
+            .ToArray());
     }
 }

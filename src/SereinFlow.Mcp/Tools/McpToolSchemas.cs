@@ -512,8 +512,14 @@ internal static class McpToolSchemas
     private static McpJsonSchema EnumSchema<TEnum>()
         where TEnum : struct, Enum
     {
-        var names = Enum.GetNames<TEnum>().Select(JsonNamingPolicy.CamelCase.ConvertName).ToArray();
-        var numbers = Enum.GetValues<TEnum>().Select(value => Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        var names = Enum
+            .GetNames<TEnum>()
+            .Select(JsonNamingPolicy.CamelCase.ConvertName)
+            .ToArray();
+        var numbers = Enum
+            .GetValues<TEnum>()
+            .Select(value => Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture))
+            .ToArray();
         var stringValues = JsonSerializer.SerializeToElement(names);
         var numericValues = JsonSerializer.SerializeToElement(numbers);
         return new McpJsonSchema

@@ -16,17 +16,17 @@ public sealed class MatConverter : INodeResultConverter<Mat, object>
     public object Transfer(Mat primitive)
     {
         ArgumentNullException.ThrowIfNull(primitive);
-        var channelsResult = primitive.Channels();
-        var evaluatedValue = $"{primitive.Depth()}";
-        var emptyResult = primitive.Empty();
+        var channelCount = primitive.Channels();
+        var depthText = $"{primitive.Depth()}";
+        var isEmpty = primitive.Empty();
         return new
         {
             type = "opencv-mat",
             width = primitive.Width,
             height = primitive.Height,
-            channels = channelsResult,
-            depth = evaluatedValue,
-            empty = emptyResult
+            channels = channelCount,
+            depth = depthText,
+            empty = isEmpty
         };
     }
 }
@@ -64,21 +64,14 @@ public sealed class OpenCvNodes
         var scalar = new Scalar(18, 24, 32);
         var image = new Mat(size, MatType.CV_8UC3, scalar);
         var center = new Point(width / 2, height / 2);
-        var evaluatedValue1 = Math.Min(width, height) / 5;
-        var radius = Math.Max(8, evaluatedValue1);
+        var radius = Math.Max(8, (Math.Min(width, height) / 5));
         var rect = new Rect(width / 10, height / 8, width / 3, height / 3);
-        var scalar2 = new Scalar(40, 160, 220);
-        Cv2.Rectangle(image, rect, scalar2, -1);
-        var scalar3 = new Scalar(220, 120, 45);
-        Cv2.Circle(image, center, radius, scalar3, -1);
+        Cv2.Rectangle(image, rect, new Scalar(40, 160, 220), -1);
+        Cv2.Circle(image, center, radius, new Scalar(220, 120, 45), -1);
         var point = new Point(width / 8, height * 3 / 4);
-        var point4 = new Point(width * 7 / 8, height / 4);
-        var scalar5 = new Scalar(80, 220, 90);
-        Cv2.Line(image, point, point4, scalar5, 8);
-        var point6 = new Point(width / 5, height * 9 / 10);
-        Cv2.PutText(image, "OpenCV", point6, HersheyFonts.HersheySimplex, 1.2, Scalar.White, 2);
-        var publishResult = Publish(image, "opencv-sample.png", flowContext);
-        return publishResult;
+        Cv2.Line(image, point, new Point(width * 7 / 8, height / 4), new Scalar(80, 220, 90), 8);
+        Cv2.PutText(image, "OpenCV", new Point(width / 5, height * 9 / 10), HersheyFonts.HersheySimplex, 1.2, Scalar.White, 2);
+        return Publish(image, "opencv-sample.png", flowContext);
     }
 
     /// <summary>
@@ -101,9 +94,7 @@ public sealed class OpenCvNodes
             image.Dispose();
             throw new ArgumentException("图像字节不是受支持的 PNG、JPEG 或其他编码图像。", nameof(imageBytes));
         }
-
-        var publishResult7 = Publish(image, "opencv-decoded.png", flowContext);
-        return publishResult7;
+        return Publish(image, "opencv-decoded.png", flowContext);
     }
 
     /// <summary>
@@ -117,18 +108,15 @@ public sealed class OpenCvNodes
         EnsureImage(image);
         if (image.Channels() == 1)
         {
-            var cloneResult = image.Clone();
-            var publishResult8 = Publish(cloneResult, "opencv-grayscale.png", flowContext);
-            return publishResult8;
+            var clone = image.Clone();
+            return Publish(clone, "opencv-grayscale.png", flowContext);
         }
 
         var result = new Mat();
         try
         {
-            var evaluatedValue9 = image.Channels() == 4 ? ColorConversionCodes.BGRA2GRAY : ColorConversionCodes.BGR2GRAY;
-            Cv2.CvtColor(image, result, evaluatedValue9);
-            var publishResult10 = Publish(result, "opencv-grayscale.png", flowContext);
-            return publishResult10;
+            Cv2.CvtColor(image, result, (image.Channels() == 4 ? ColorConversionCodes.BGRA2GRAY : ColorConversionCodes.BGR2GRAY));
+            return Publish(result, "opencv-grayscale.png", flowContext);
         }
         catch
         {
@@ -153,8 +141,7 @@ public sealed class OpenCvNodes
         try
         {
             Cv2.Threshold(grayscale, result, threshold, maxValue, ThresholdTypes.Binary);
-            var publishResult11 = Publish(result, "opencv-threshold.png", flowContext);
-            return publishResult11;
+            return Publish(result, "opencv-threshold.png", flowContext);
         }
         catch
         {
@@ -171,8 +158,7 @@ public sealed class OpenCvNodes
     [NodeResult<MatConverter>]
     public Mat 膨胀([NodeParam(Name = "输入图像")] Mat image, IFlowContext flowContext, [NodeParam(Name = "核尺寸", IsExplicit = false)] int kernelSize = 3, [NodeParam(Name = "迭代次数", IsExplicit = false)] int iterations = 1)
     {
-        var morphologyResult = Morphology(image, kernelSize, iterations, MorphTypes.Dilate, "opencv-dilate.png", flowContext);
-        return morphologyResult;
+        return Morphology(image, kernelSize, iterations, MorphTypes.Dilate, "opencv-dilate.png", flowContext);
     }
 
     /// <summary>
@@ -183,8 +169,7 @@ public sealed class OpenCvNodes
     [NodeResult<MatConverter>]
     public Mat 腐蚀([NodeParam(Name = "输入图像")] Mat image, IFlowContext flowContext, [NodeParam(Name = "核尺寸", IsExplicit = false)] int kernelSize = 3, [NodeParam(Name = "迭代次数", IsExplicit = false)] int iterations = 1)
     {
-        var morphologyResult12 = Morphology(image, kernelSize, iterations, MorphTypes.Erode, "opencv-erode.png", flowContext);
-        return morphologyResult12;
+        return Morphology(image, kernelSize, iterations, MorphTypes.Erode, "opencv-erode.png", flowContext);
     }
 
     /// <summary>
@@ -195,8 +180,7 @@ public sealed class OpenCvNodes
     [NodeResult<MatConverter>]
     public Mat 开运算([NodeParam(Name = "输入图像")] Mat image, IFlowContext flowContext, [NodeParam(Name = "核尺寸", IsExplicit = false)] int kernelSize = 3, [NodeParam(Name = "迭代次数", IsExplicit = false)] int iterations = 1)
     {
-        var morphologyResult13 = Morphology(image, kernelSize, iterations, MorphTypes.Open, "opencv-open.png", flowContext);
-        return morphologyResult13;
+        return Morphology(image, kernelSize, iterations, MorphTypes.Open, "opencv-open.png", flowContext);
     }
 
     /// <summary>
@@ -207,8 +191,7 @@ public sealed class OpenCvNodes
     [NodeResult<MatConverter>]
     public Mat 闭运算([NodeParam(Name = "输入图像")] Mat image, IFlowContext flowContext, [NodeParam(Name = "核尺寸", IsExplicit = false)] int kernelSize = 3, [NodeParam(Name = "迭代次数", IsExplicit = false)] int iterations = 1)
     {
-        var morphologyResult14 = Morphology(image, kernelSize, iterations, MorphTypes.Close, "opencv-close.png", flowContext);
-        return morphologyResult14;
+        return Morphology(image, kernelSize, iterations, MorphTypes.Close, "opencv-close.png", flowContext);
     }
 
     /// <summary>
@@ -229,10 +212,8 @@ public sealed class OpenCvNodes
         var result = new Mat();
         try
         {
-            var size15 = new Size(kernelSize, kernelSize);
-            Cv2.GaussianBlur(image, result, size15, sigmaX);
-            var publishResult16 = Publish(result, "opencv-gaussian-blur.png", flowContext);
-            return publishResult16;
+            Cv2.GaussianBlur(image, result, new Size(kernelSize, kernelSize), sigmaX);
+            return Publish(result, "opencv-gaussian-blur.png", flowContext);
         }
         catch
         {
@@ -260,8 +241,7 @@ public sealed class OpenCvNodes
         try
         {
             Cv2.Canny(grayscale, result, lowThreshold, highThreshold);
-            var publishResult17 = Publish(result, "opencv-canny.png", flowContext);
-            return publishResult17;
+            return Publish(result, "opencv-canny.png", flowContext);
         }
         catch
         {
@@ -283,10 +263,8 @@ public sealed class OpenCvNodes
         var result = new Mat();
         try
         {
-            var size18 = new Size(width, height);
-            Cv2.Resize(image, result, size18, 0, 0, InterpolationFlags.Area);
-            var publishResult19 = Publish(result, "opencv-resized.png", flowContext);
-            return publishResult19;
+            Cv2.Resize(image, result, new Size(width, height), 0, 0, InterpolationFlags.Area);
+            return Publish(result, "opencv-resized.png", flowContext);
         }
         catch
         {
@@ -308,8 +286,7 @@ public sealed class OpenCvNodes
         try
         {
             Cv2.BitwiseNot(image, result);
-            var publishResult20 = Publish(result, "opencv-inverted.png", flowContext);
-            return publishResult20;
+            return Publish(result, "opencv-inverted.png", flowContext);
         }
         catch
         {
@@ -326,15 +303,12 @@ public sealed class OpenCvNodes
         {
             throw new ArgumentOutOfRangeException(nameof(iterations), "迭代次数必须在 1 到 20 之间。");
         }
-
-        var size22 = new Size(kernelSize, kernelSize);
-        using var kernel = Cv2.GetStructuringElement(MorphShapes.Rect, size22);
+        using var kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(kernelSize, kernelSize));
         var result = new Mat();
         try
         {
             Cv2.MorphologyEx(image, result, operation, kernel, iterations: iterations);
-            var publishResult21 = Publish(result, fileName, flowContext);
-            return publishResult21;
+            return Publish(result, fileName, flowContext);
         }
         catch
         {
@@ -382,8 +356,7 @@ public sealed class OpenCvNodes
             {
                 variables.Set("opencv.first.width", image.Width);
                 variables.Set("opencv.first.height", image.Height);
-                var channelsResult23 = image.Channels();
-                variables.Set("opencv.first.channels", channelsResult23);
+                variables.Set("opencv.first.channels", image.Channels());
             }
 
             var processedCount = _variables.TryGet<int>("opencv.processed.count", out var count) ? count : 0;
@@ -394,8 +367,7 @@ public sealed class OpenCvNodes
             variables.Set("opencv.last.fileName", fileName);
             variables.Set("opencv.last.width", image.Width);
             variables.Set("opencv.last.height", image.Height);
-            var channelsResult24 = image.Channels();
-            variables.Set("opencv.last.channels", channelsResult24);
+            variables.Set("opencv.last.channels", image.Channels());
             variables.Set("opencv.last.scaleX", (double)image.Width / firstWidth);
             variables.Set("opencv.last.scaleY", (double)image.Height / firstHeight);
             variables.Set("opencv.last.image", image);
@@ -406,15 +378,13 @@ public sealed class OpenCvNodes
     {
         if (image.Channels() == 1)
         {
-            var cloneResult25 = image.Clone();
-            return cloneResult25;
+            return image.Clone();
         }
 
         var grayscale = new Mat();
         try
         {
-            var evaluatedValue26 = image.Channels() == 4 ? ColorConversionCodes.BGRA2GRAY : ColorConversionCodes.BGR2GRAY;
-            Cv2.CvtColor(image, grayscale, evaluatedValue26);
+            Cv2.CvtColor(image, grayscale, (image.Channels() == 4 ? ColorConversionCodes.BGRA2GRAY : ColorConversionCodes.BGR2GRAY));
             return grayscale;
         }
         catch

@@ -25,12 +25,11 @@ public sealed record AiReadModelOptions(int MaxItems = 200, int MaxJsonBytes = 6
     private const int MaximumJsonBytes = 1_048_576;
     public AiReadModelOptions Normalize()
     {
-        var evaluatedValue = this with
+        return this with
         {
             MaxItems = Math.Clamp(MaxItems, MinimumItemCount, MaximumItemCount),
             MaxJsonBytes = Math.Clamp(MaxJsonBytes, MinimumJsonBytes, MaximumJsonBytes),
         };
-        return evaluatedValue;
     }
 }
 

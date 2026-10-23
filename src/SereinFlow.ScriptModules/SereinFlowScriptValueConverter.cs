@@ -15,8 +15,7 @@ public static class SereinFlowScriptValueConverter
     private const int MaxItems = 10_000;
     public static Value ToScriptValue(object? value)
     {
-        var toScriptValueResult = ToScriptValue(value, MaxDepth);
-        return toScriptValueResult;
+        return ToScriptValue(value, MaxDepth);
     }
 
     /// <summary>
@@ -26,8 +25,7 @@ public static class SereinFlowScriptValueConverter
     /// </summary>
     public static object? ToVariableValue(Value value)
     {
-        var toVariableValueResult = ToVariableValue(value, MaxDepth);
-        return toVariableValueResult;
+        return ToVariableValue(value, MaxDepth);
     }
 
     private static Value ToScriptValue(object? value, int depth)
@@ -35,11 +33,9 @@ public static class SereinFlowScriptValueConverter
         CheckDepth(depth);
         if (value is JsonElement element)
         {
-            var fromJsonElementResult = FromJsonElement(element, depth);
-            return fromJsonElementResult;
+            return FromJsonElement(element, depth);
         }
-
-        Value evaluatedValue = value switch
+        return value switch
         {
             null => Value.Null,
             Value scriptValue => scriptValue,
@@ -49,31 +45,26 @@ public static class SereinFlowScriptValueConverter
             int number => NumberValueFactory.Create(number),
             uint number => NumberValueFactory.Create((long)number),
             long number => NumberValueFactory.Create(number),
-            ulong number => resolveCreateResult(number),
+            ulong number => ConvertUnsignedNumber(number),
             float number => NumberValueFactory.Create(number),
             double number => NumberValueFactory.Create(number),
             decimal number => NumberValueFactory.Create(number),
             string text => StringValue.Create(text),
-            char character => resolveCreateResult1(character),
+            char character => ConvertCharacter(character),
             DateTime dateTime => new DateTimeValue(dateTime),
             TimeSpan timeSpan => new TimeSpanValue(timeSpan),
             IDictionary dictionary => FromDictionary(dictionary, depth),
             IEnumerable sequence => FromSequence(sequence, depth),
             _ => new ClrObjectValue(value)
         };
-        return evaluatedValue;
-        Value resolveCreateResult(ulong number)
+        Value ConvertUnsignedNumber(ulong number)
         {
-            var toDecimalResult = Convert.ToDecimal(number, CultureInfo.InvariantCulture);
-            var createResult = NumberValueFactory.Create(toDecimalResult);
-            return createResult;
+            return NumberValueFactory.Create(Convert.ToDecimal(number, CultureInfo.InvariantCulture));
         }
 
-        Value resolveCreateResult1(char character)
+        Value ConvertCharacter(char character)
         {
-            var toStringResult = character.ToString();
-            var createResult2 = StringValue.Create(toStringResult);
-            return createResult2;
+            return StringValue.Create(character.ToString());
         }
     }
 
@@ -81,7 +72,7 @@ public static class SereinFlowScriptValueConverter
     {
         ArgumentNullException.ThrowIfNull(value);
         CheckDepth(depth);
-        object? evaluatedValue4 = value switch
+        return value switch
         {
             NullValue => null,
             BoolValue boolean => boolean.Value,
@@ -96,62 +87,38 @@ public static class SereinFlowScriptValueConverter
             ClrObjectValue clr => clr.Value,
             ArrayValue array => ToVariableArray(array, depth),
             ObjectValue obj => ToVariableObject(obj, depth),
-            _ => throw resolveNotSupportedException()
+            _ => throw new NotSupportedException(($"Script value '{value.GetType().Name}' cannot be stored as a flow variable. 脚本值“{value.GetType().Name}”不能存入流程变量表。"))
         };
-        return evaluatedValue4;
-        Exception resolveNotSupportedException()
-        {
-            var evaluatedValue3 = $"Script value '{value.GetType().Name}' cannot be stored as a flow variable. 脚本值“{value.GetType().Name}”不能存入流程变量表。";
-            var notSupportedException = new NotSupportedException(evaluatedValue3);
-            return notSupportedException;
-        }
     }
 
     private static Value FromJsonElement(JsonElement element, int depth)
     {
-        Value evaluatedValue9 = element.ValueKind switch
+        return element.ValueKind switch
         {
             JsonValueKind.Null or JsonValueKind.Undefined => Value.Null,
             JsonValueKind.True => BoolValue.True,
             JsonValueKind.False => BoolValue.False,
-            JsonValueKind.String => resolveCreateResult5(),
+            JsonValueKind.String => StringValue.Create(element.GetString()),
             JsonValueKind.Number when element.TryGetInt32(out var number) => NumberValueFactory.Create(number),
             JsonValueKind.Number when element.TryGetInt64(out var number) => NumberValueFactory.Create(number),
             JsonValueKind.Number when element.TryGetDecimal(out var number) => NumberValueFactory.Create(number),
-            JsonValueKind.Number => resolveCreateResult7(),
+            JsonValueKind.Number => NumberValueFactory.Create(element.GetDouble()),
             JsonValueKind.Array => FromJsonArray(element, depth),
             JsonValueKind.Object => FromJsonObject(element, depth),
             _ => throw new NotSupportedException($"Unsupported JSON value kind '{element.ValueKind}'. 不支持 JSON 值类型“{element.ValueKind}”。")
         };
-        return evaluatedValue9;
-        Value resolveCreateResult5()
-        {
-            var getStringResult = element.GetString();
-            var createResult6 = StringValue.Create(getStringResult);
-            return createResult6;
-        }
-
-        Value resolveCreateResult7()
-        {
-            var getDoubleResult = element.GetDouble();
-            var createResult8 = NumberValueFactory.Create(getDoubleResult);
-            return createResult8;
-        }
     }
 
     private static ArrayValue FromJsonArray(JsonElement element, int depth)
     {
-        var getArrayLengthResult = element.GetArrayLength();
-        CheckItems(getArrayLengthResult);
-        var toListResult = element.EnumerateArray()
+        CheckItems(element.GetArrayLength());
+        return new ArrayValue(element
+            .EnumerateArray()
             .Select(item =>
             {
-                var toScriptValueResult10 = ToScriptValue(item, depth - 1);
-                return toScriptValueResult10;
+                return ToScriptValue(item, depth - 1);
             })
-            .ToList();
-        var arrayValue = new ArrayValue(toListResult);
-        return arrayValue;
+            .ToList());
     }
 
     private static ObjectValue FromJsonObject(JsonElement element, int depth)
@@ -160,12 +127,10 @@ public static class SereinFlowScriptValueConverter
         foreach (var property in element.EnumerateObject())
         {
             CheckItems(properties.Count + 1);
-            var toScriptValueResult11 = ToScriptValue(property.Value, depth - 1);
-            properties.Add(property.Name, toScriptValueResult11);
+            var scriptValue = ToScriptValue(property.Value, depth - 1);
+            properties.Add(property.Name, scriptValue);
         }
-
-        var objectValue = new ObjectValue(properties);
-        return objectValue;
+        return new ObjectValue(properties);
     }
 
     private static ObjectValue FromDictionary(IDictionary dictionary, int depth)
@@ -181,9 +146,7 @@ public static class SereinFlowScriptValueConverter
 
             result[key] = ToScriptValue(entry.Value, depth - 1);
         }
-
-        var objectValue12 = new ObjectValue(result);
-        return objectValue12;
+        return new ObjectValue(result);
     }
 
     private static ArrayValue FromSequence(IEnumerable sequence, int depth)
@@ -192,35 +155,27 @@ public static class SereinFlowScriptValueConverter
         foreach (var item in sequence)
         {
             CheckItems(result.Count + 1);
-            var toScriptValueResult13 = ToScriptValue(item, depth - 1);
-            result.Add(toScriptValueResult13);
+            result.Add(ToScriptValue(item, depth - 1));
         }
-
-        var arrayValue14 = new ArrayValue(result);
-        return arrayValue14;
+        return new ArrayValue(result);
     }
 
     private static object?[] ToVariableArray(ArrayValue array, int depth)
     {
         CheckItems(array.Elements.Count);
-        var selectResult16 = array.Elements.Select(item =>
+        return array.Elements.Select(item =>
         {
-            var toVariableValueResult15 = ToVariableValue(item, depth - 1);
-            return toVariableValueResult15;
-        });
-        var toArrayResult = selectResult16.ToArray();
-        return toArrayResult;
+            return ToVariableValue(item, depth - 1);
+        }).ToArray();
     }
 
     private static Dictionary<string, object?> ToVariableObject(ObjectValue value, int depth)
     {
         CheckItems(value.Properties.Count);
-        var toDictionaryResult = value.Properties.ToDictionary(pair => pair.Key, pair =>
+        return value.Properties.ToDictionary(pair => pair.Key, pair =>
         {
-            var toVariableValueResult17 = ToVariableValue(pair.Value, depth - 1);
-            return toVariableValueResult17;
+            return ToVariableValue(pair.Value, depth - 1);
         }, StringComparer.Ordinal);
-        return toDictionaryResult;
     }
 
     private static void CheckDepth(int depth)

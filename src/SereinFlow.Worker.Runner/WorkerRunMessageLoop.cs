@@ -3,12 +3,12 @@ using SereinFlow.Library;
 using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Worker.Runner;
+
 internal static class WorkerRunMessageLoop
 {
     public static async Task RunAsync(WorkerRunRequestDto request, IWorkerTransport transport, WorkerMessageService messageService, LibraryVariableService variables, Task runTask, DebugRunController? debugController, CancellationTokenSource runCancellation, CancellationToken cancellationToken)
     {
-        var receiveAsyncResult3 = transport.ReceiveAsync(cancellationToken);
-        var readTask = receiveAsyncResult3.AsTask();
+        var readTask = transport.ReceiveAsync(cancellationToken).AsTask();
         while (!runTask.IsCompleted)
         {
             var completed = await Task.WhenAny(runTask, readTask);
@@ -27,8 +27,7 @@ internal static class WorkerRunMessageLoop
             if (message.Kind == WorkerProtocolConstants.CancelKind && message.RunId == request.RunId)
             {
                 runCancellation.Cancel();
-                var createResult = WorkerMessage.Create(WorkerProtocolConstants.CancelAcknowledgedKind, runId: request.RunId);
-                await transport.SendAsync(createResult, cancellationToken);
+                await transport.SendAsync(WorkerMessage.Create(WorkerProtocolConstants.CancelAcknowledgedKind, runId: request.RunId), cancellationToken);
             }
             else if (debugController is not null && message.RunId == request.RunId && message.Kind is WorkerProtocolConstants.DebugContinueKind or WorkerProtocolConstants.DebugStepKind or WorkerProtocolConstants.DebugStopKind)
             {
@@ -47,8 +46,7 @@ internal static class WorkerRunMessageLoop
             }
             else if (message.Kind == WorkerProtocolConstants.HeartbeatKind)
             {
-                var createResult1 = WorkerMessage.Create(WorkerProtocolConstants.HeartbeatAcknowledgedKind, runId: request.RunId);
-                await transport.SendAsync(createResult1, cancellationToken);
+                await transport.SendAsync(WorkerMessage.Create(WorkerProtocolConstants.HeartbeatAcknowledgedKind, runId: request.RunId), cancellationToken);
             }
             else if (message.Kind == WorkerProtocolConstants.MessageDeliverKind && message.RunId == request.RunId)
             {
@@ -66,14 +64,9 @@ internal static class WorkerRunMessageLoop
                 {
                     response = new(WorkerProtocolConstants.Version, request.RunId, 400, Code: VariableErrorCodes.InvalidRequest, Message: "Invalid variable request. 变量请求无效。");
                 }
-
-                var serializePayloadResult = WorkerProtocolCodec.SerializePayload(response);
-                var createResult2 = WorkerMessage.Create(WorkerProtocolConstants.VariableResponseKind, serializePayloadResult, request.RunId, requestId: message.RequestId);
-                await transport.SendAsync(createResult2, cancellationToken);
+                await transport.SendAsync(WorkerMessage.Create(WorkerProtocolConstants.VariableResponseKind, WorkerProtocolCodec.SerializePayload(response), request.RunId, requestId: message.RequestId), cancellationToken);
             }
-
-            var receiveAsyncResult = transport.ReceiveAsync(cancellationToken);
-            readTask = receiveAsyncResult.AsTask();
+            readTask = transport.ReceiveAsync(cancellationToken).AsTask();
         }
 
         await runTask;
@@ -84,21 +77,18 @@ internal static class WorkerRunMessageLoop
         var delivery = WorkerProtocolCodec.DeserializePayload<WorkerMessageDeliveryDto>(message);
         var outcome = messageService.TryDeliver(delivery);
         var responseKind = outcome.Accepted ? WorkerProtocolConstants.MessageAcceptedKind : WorkerProtocolConstants.MessageRejectedKind;
-        var responsePayload = outcome.Accepted ? resolveSerializePayloadResult() : resolveSerializePayloadResult5();
-        var createResult7 = WorkerMessage.Create(responseKind, responsePayload, request.RunId, requestId: message.RequestId);
-        await transport.SendAsync(createResult7, cancellationToken);
-        string resolveSerializePayloadResult()
+        var responsePayload = outcome.Accepted ? SerializeAcceptedMessage() : SerializeRejectedMessage();
+        await transport.SendAsync(WorkerMessage.Create(responseKind, responsePayload, request.RunId, requestId: message.RequestId), cancellationToken);
+        string SerializeAcceptedMessage()
         {
             var workerMessageAcceptedDto = new WorkerMessageAcceptedDto(WorkerProtocolConstants.Version, request.RunId, outcome.MessageId, outcome.Topic, outcome.Duplicate);
-            var serializePayloadResult4 = WorkerProtocolCodec.SerializePayload(workerMessageAcceptedDto);
-            return serializePayloadResult4;
+            return WorkerProtocolCodec.SerializePayload(workerMessageAcceptedDto);
         }
 
-        string resolveSerializePayloadResult5()
+        string SerializeRejectedMessage()
         {
             var workerMessageRejectedDto = new WorkerMessageRejectedDto(WorkerProtocolConstants.Version, request.RunId, outcome.MessageId, outcome.Topic, outcome.Code ?? MessageErrorCodes.Rejected, outcome.Message);
-            var serializePayloadResult6 = WorkerProtocolCodec.SerializePayload(workerMessageRejectedDto);
-            return serializePayloadResult6;
+            return WorkerProtocolCodec.SerializePayload(workerMessageRejectedDto);
         }
     }
 }

@@ -27,8 +27,7 @@ public sealed class SereinFlowMcpPolicy(ISereinFlowActorAccessor principalAccess
             foreach (var permission in metadata.Permissions)
             {
                 var operation = SereinFlowOperationNames.ToName(permission);
-                var authorizer = context.CallContext.Services.GetRequiredService<ISereinFlowAuthorizationService>();
-                var decision = await authorizer.AuthorizeAsync(principal!, operation, resource, token);
+                var decision = await context.CallContext.Services.GetRequiredService<ISereinFlowAuthorizationService>().AuthorizeAsync(principal!, operation, resource, token);
                 if (decision.IsAllowed) return;
                 deniedCode = decision.Code ?? deniedCode;
             }

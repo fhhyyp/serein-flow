@@ -4,17 +4,16 @@ using SereinFlow.Contracts;
 using SereinFlow.Worker.Protocol;
 
 namespace SereinFlow.Worker.Supervisor;
+
 public sealed partial class WorkerSupervisor
 {
     public Task<WorkerVariableResponseDto> AccessVariablesAsync(WorkerVariableRequestDto request, CancellationToken cancellationToken = default)
     {
-        Task<WorkerVariableResponseDto> evaluatedValue = _messageSessions.TryGetValue(request.RunId, out var session) ? session.AccessVariablesAsync(request, cancellationToken) : resolveFromResultResult();
-        return evaluatedValue;
-        Task<WorkerVariableResponseDto> resolveFromResultResult()
+        return _messageSessions.TryGetValue(request.RunId, out var session) ? session.AccessVariablesAsync(request, cancellationToken) : InactiveRunResponse();
+        Task<WorkerVariableResponseDto> InactiveRunResponse()
         {
             var workerVariableResponseDto = new WorkerVariableResponseDto(WorkerProtocolConstants.Version, request.RunId, 409, Code: WorkerErrorCodes.NotActive, Message: "The Worker run is not active. Worker 运行当前不活动。");
-            var fromResultResult = Task.FromResult(workerVariableResponseDto);
-            return fromResultResult;
+            return Task.FromResult(workerVariableResponseDto);
         }
     }
 }
@@ -26,18 +25,14 @@ internal sealed partial class WorkerMessageSession
     {
         if (Volatile.Read(ref _completed) == 1)
         {
-            var variablesInactiveResult = VariablesInactive();
-            return variablesInactiveResult;
+            return VariablesInactive();
         }
 
         if (request.RunId != _request.RunId || request.ProtocolVersion != WorkerProtocolConstants.Version)
         {
-            WorkerVariableResponseDto evaluatedValue1 = new(WorkerProtocolConstants.Version, request.RunId, 400, Code: VariableErrorCodes.InvalidRequest);
-            return evaluatedValue1;
+            return new(WorkerProtocolConstants.Version, request.RunId, 400, Code: VariableErrorCodes.InvalidRequest);
         }
-
-        var newGuidResult = Guid.NewGuid();
-        var requestId = newGuidResult.ToString("N");
+        var requestId = Guid.NewGuid().ToString("N");
         var pending = new TaskCompletionSource<WorkerVariableResponseDto>(TaskCreationOptions.RunContinuationsAsynchronously);
         _variableRequests[requestId] = pending;
         try
@@ -46,25 +41,19 @@ internal sealed partial class WorkerMessageSession
             // 运行完成可能与注册并发发生；避免等待已经退出的 Worker 返回响应。
             if (Volatile.Read(ref _completed) == 1)
             {
-                var variablesInactiveResult2 = VariablesInactive();
-                return variablesInactiveResult2;
+                return VariablesInactive();
             }
-
-            var serializePayloadResult = WorkerProtocolCodec.SerializePayload(request);
-            var createResult = WorkerMessage.Create(WorkerProtocolConstants.VariableRequestKind, serializePayloadResult, request.RunId, requestId: requestId);
-            await _transport.SendAsync(createResult, cancellationToken);
-            var waitAsyncResult = await pending.Task.WaitAsync(_deliveryTimeout, cancellationToken);
-            return waitAsyncResult;
+            var message = WorkerMessage.Create(WorkerProtocolConstants.VariableRequestKind, WorkerProtocolCodec.SerializePayload(request), request.RunId, requestId: requestId);
+            await _transport.SendAsync(message, cancellationToken);
+            return await pending.Task.WaitAsync(_deliveryTimeout, cancellationToken);
         }
         catch (TimeoutException)
         {
-            WorkerVariableResponseDto evaluatedValue3 = new(WorkerProtocolConstants.Version, request.RunId, 504, Code: VariableErrorCodes.Timeout, Message: "The Worker variable request timed out. Worker 变量请求超时。");
-            return evaluatedValue3;
+            return new(WorkerProtocolConstants.Version, request.RunId, 504, Code: VariableErrorCodes.Timeout, Message: "The Worker variable request timed out. Worker 变量请求超时。");
         }
-        catch (Exception exception)when (exception is IOException or WorkerTransportException or ObjectDisposedException)
+        catch (Exception exception) when (exception is IOException or WorkerTransportException or ObjectDisposedException)
         {
-            var variablesInactiveResult4 = VariablesInactive();
-            return variablesInactiveResult4;
+            return VariablesInactive();
         }
         finally
         {
@@ -90,16 +79,14 @@ internal sealed partial class WorkerMessageSession
 
     private WorkerVariableResponseDto VariablesInactive()
     {
-        WorkerVariableResponseDto evaluatedValue5 = new(WorkerProtocolConstants.Version, _request.RunId, 409, Code: WorkerErrorCodes.NotActive, Message: "The Worker run is not active. Worker 运行当前不活动。");
-        return evaluatedValue5;
+        return new(WorkerProtocolConstants.Version, _request.RunId, 409, Code: WorkerErrorCodes.NotActive, Message: "The Worker run is not active. Worker 运行当前不活动。");
     }
 
     private void CompleteVariables()
     {
         foreach (var pending in _variableRequests.Values)
         {
-            var variablesInactiveResult6 = VariablesInactive();
-            pending.TrySetResult(variablesInactiveResult6);
+            pending.TrySetResult(VariablesInactive());
         }
 
         _variableRequests.Clear();

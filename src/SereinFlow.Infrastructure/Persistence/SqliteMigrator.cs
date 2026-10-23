@@ -976,8 +976,7 @@ public sealed class SqliteMigrator
     /// </summary>
     private void PopulateProjectLibraryReferencesFromExistingFlows()
     {
-        var sqlQueryResult = _client.Ado.SqlQuery<string>("SELECT Id FROM Libraries");
-        var knownLibraryIds = sqlQueryResult.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var knownLibraryIds = _client.Ado.SqlQuery<string>("SELECT Id FROM Libraries").ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (knownLibraryIds.Count == 0)
         {
             return;
@@ -998,18 +997,15 @@ public sealed class SqliteMigrator
                 {
                     continue;
                 }
-
-                var trimResult = libraryId.Trim();
-                var normalizedLibraryId = trimResult.ToLowerInvariant();
-                var sugarParameter = new SugarParameter("@id", $"{projectId:N}:{normalizedLibraryId}");
-                var toStringResult = projectId.ToString("D");
-                var sugarParameter1 = new SugarParameter("@projectId", toStringResult);
-                var sugarParameter2 = new SugarParameter("@libraryId", normalizedLibraryId);
-                var sugarParameter3 = new SugarParameter("@referencedAt", referencedAt);
+                var normalizedLibraryId = libraryId.Trim().ToLowerInvariant();
+                var idParameter = new SugarParameter("@id", $"{projectId:N}:{normalizedLibraryId}");
+                var projectIdParameter = new SugarParameter("@projectId", projectId.ToString("D"));
+                var libraryIdParameter = new SugarParameter("@libraryId", normalizedLibraryId);
+                var referencedAtParameter = new SugarParameter("@referencedAt", referencedAt);
                 _client.Ado.ExecuteCommand("""
                     INSERT OR IGNORE INTO ProjectLibraryReferences (Id, ProjectId, LibraryId, ReferencedAt)
                     VALUES (@id, @projectId, @libraryId, @referencedAt)
-                    """, sugarParameter, sugarParameter1, sugarParameter2, sugarParameter3);
+                    """, idParameter, projectIdParameter, libraryIdParameter, referencedAtParameter);
             }
         }
     }
@@ -1043,9 +1039,7 @@ public sealed class SqliteMigrator
                     {
                         continue;
                     }
-
-                    var storedLibraryId = libraryId.GetString();
-                    var value = storedLibraryId?.Trim();
+                    var value = libraryId.GetString()?.Trim();
                     if (!string.IsNullOrWhiteSpace(value))
                     {
                         libraryIds.Add(value);
@@ -1072,8 +1066,7 @@ public sealed class SqliteMigrator
     /// </summary>
     private void PopulateLibraryBindingIndexes()
     {
-        var sqlQueryResult22 = _client.Ado.SqlQuery<string>("SELECT Id FROM Libraries");
-        var knownLibraryIds = sqlQueryResult22.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var knownLibraryIds = _client.Ado.SqlQuery<string>("SELECT Id FROM Libraries").ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (knownLibraryIds.Count == 0)
         {
             return;
@@ -1098,9 +1091,7 @@ public sealed class SqliteMigrator
             foreach (var libraryId in ReadLibraryIds(flowVersion.DefinitionJson)
                 .Select(static id =>
                 {
-                    var trimResult4 = id.Trim();
-                    var toLowerInvariantResult = trimResult4.ToLowerInvariant();
-                    return toLowerInvariantResult;
+                    return id.Trim().ToLowerInvariant();
                 })
                 .Distinct(StringComparer.Ordinal))
             {
@@ -1109,18 +1100,16 @@ public sealed class SqliteMigrator
                     continue;
                 }
 
-                var sugarParameter5 = new SugarParameter("@id", $"{flowId:N}:{flowVersion.Version}:{libraryId}");
-                var toStringResult6 = projectId.ToString("D");
-                var sugarParameter7 = new SugarParameter("@projectId", toStringResult6);
-                var toStringResult8 = flowId.ToString("D");
-                var sugarParameter9 = new SugarParameter("@flowId", toStringResult8);
-                var sugarParameter10 = new SugarParameter("@flowVersion", flowVersion.Version);
-                var sugarParameter11 = new SugarParameter("@libraryArtifactId", libraryId);
-                var sugarParameter12 = new SugarParameter("@createdAt", createdAt);
+                var idParameter = new SugarParameter("@id", $"{flowId:N}:{flowVersion.Version}:{libraryId}");
+                var projectIdParameter = new SugarParameter("@projectId", projectId.ToString("D"));
+                var flowIdParameter = new SugarParameter("@flowId", flowId.ToString("D"));
+                var flowVersionParameter = new SugarParameter("@flowVersion", flowVersion.Version);
+                var libraryArtifactIdParameter = new SugarParameter("@libraryArtifactId", libraryId);
+                var createdAtParameter = new SugarParameter("@createdAt", createdAt);
                 _client.Ado.ExecuteCommand("""
                     INSERT OR IGNORE INTO FlowLibraryBindings (Id, ProjectId, FlowId, FlowVersion, LibraryArtifactId, CreatedAt)
                     VALUES (@id, @projectId, @flowId, @flowVersion, @libraryArtifactId, @createdAt)
-                    """, sugarParameter5, sugarParameter7, sugarParameter9, sugarParameter10, sugarParameter11, sugarParameter12);
+                    """, idParameter, projectIdParameter, flowIdParameter, flowVersionParameter, libraryArtifactIdParameter, createdAtParameter);
             }
         }
 
@@ -1140,9 +1129,7 @@ public sealed class SqliteMigrator
             foreach (var libraryId in ReadLibraryIds(runDefinition.DefinitionJson)
                 .Select(static id =>
                 {
-                    var trimResult13 = id.Trim();
-                    var toLowerInvariantResult14 = trimResult13.ToLowerInvariant();
-                    return toLowerInvariantResult14;
+                    return id.Trim().ToLowerInvariant();
                 })
                 .Distinct(StringComparer.Ordinal))
             {
@@ -1151,15 +1138,14 @@ public sealed class SqliteMigrator
                     continue;
                 }
 
-                var sugarParameter15 = new SugarParameter("@id", $"{runId:N}:{libraryId}");
-                var toStringResult16 = runId.ToString("D");
-                var sugarParameter17 = new SugarParameter("@runId", toStringResult16);
-                var sugarParameter18 = new SugarParameter("@libraryArtifactId", libraryId);
-                var sugarParameter19 = new SugarParameter("@createdAt", createdAt);
+                var idParameter = new SugarParameter("@id", $"{runId:N}:{libraryId}");
+                var runIdParameter = new SugarParameter("@runId", runId.ToString("D"));
+                var libraryArtifactIdParameter = new SugarParameter("@libraryArtifactId", libraryId);
+                var createdAtParameter = new SugarParameter("@createdAt", createdAt);
                 _client.Ado.ExecuteCommand("""
                     INSERT OR IGNORE INTO RunLibraryBindings (Id, RunId, LibraryArtifactId, CreatedAt)
                     VALUES (@id, @runId, @libraryArtifactId, @createdAt)
-                    """, sugarParameter15, sugarParameter17, sugarParameter18, sugarParameter19);
+                    """, idParameter, runIdParameter, libraryArtifactIdParameter, createdAtParameter);
             }
         }
     }
@@ -1184,26 +1170,22 @@ public sealed class SqliteMigrator
 
     private bool HasTable(string tableName)
     {
-        var evaluatedValue = resolveGetIntResult() > 0;
-        return evaluatedValue;
-        int resolveGetIntResult()
+        return CountMatchingTables() > 0;
+        int CountMatchingTables()
         {
-            var sugarParameter23 = new SugarParameter("@tableName", tableName);
-            var getIntResult = _client.Ado.GetInt("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = @tableName", sugarParameter23);
-            return getIntResult;
+            var tableNameParameter = new SugarParameter("@tableName", tableName);
+            return _client.Ado.GetInt("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = @tableName", tableNameParameter);
         }
     }
 
     private bool HasColumn(string tableName, string columnName)
     {
-        var evaluatedValue28 = resolveGetIntResult24() > 0;
-        return evaluatedValue28;
-        int resolveGetIntResult24()
+        return CountMatchingColumns() > 0;
+        int CountMatchingColumns()
         {
-            var evaluatedValue25 = $"SELECT COUNT(*) FROM pragma_table_info('{tableName.Replace("'", "''", StringComparison.Ordinal)}') WHERE name = @columnName";
-            var sugarParameter26 = new SugarParameter("@columnName", columnName);
-            var getIntResult27 = _client.Ado.GetInt(evaluatedValue25, sugarParameter26);
-            return getIntResult27;
+            var columnCountSql = $"SELECT COUNT(*) FROM pragma_table_info('{tableName.Replace("'", "''", StringComparison.Ordinal)}') WHERE name = @columnName";
+            var columnNameParameter = new SugarParameter("@columnName", columnName);
+            return _client.Ado.GetInt(columnCountSql, columnNameParameter);
         }
     }
 
@@ -1229,10 +1211,9 @@ public sealed class SqliteMigrator
 
     private void RecordMigration(int version, string checksum)
     {
-        var sugarParameter29 = new SugarParameter("@version", version);
-        var toStringResult30 = DateTimeOffset.UtcNow.ToString("O");
-        var sugarParameter31 = new SugarParameter("@appliedAt", toStringResult30);
-        var sugarParameter32 = new SugarParameter("@checksum", checksum);
-        _client.Ado.ExecuteCommand("INSERT INTO SchemaMigrations (Version, AppliedAt, Checksum) VALUES (@version, @appliedAt, @checksum)", sugarParameter29, sugarParameter31, sugarParameter32);
+        var versionParameter = new SugarParameter("@version", version);
+        var appliedAtParameter = new SugarParameter("@appliedAt", DateTimeOffset.UtcNow.ToString("O"));
+        var checksumParameter = new SugarParameter("@checksum", checksum);
+        _client.Ado.ExecuteCommand("INSERT INTO SchemaMigrations (Version, AppliedAt, Checksum) VALUES (@version, @appliedAt, @checksum)", versionParameter, appliedAtParameter, checksumParameter);
     }
 }

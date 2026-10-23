@@ -9,6 +9,7 @@ using SereinFlow.Contracts;
 using SereinFlow.Mcp;
 
 namespace SereinFlow.Api;
+
 public static class SereinFlowWebApiExtensions
 {
     public static IServiceCollection AddSereinFlowWebApi(this IServiceCollection services)
@@ -17,12 +18,12 @@ public static class SereinFlowWebApiExtensions
         {
             ConfigureJson(options.SerializerOptions);
         });
-        var addControllersResult = services.AddControllers(options => options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true);
-        var addJsonOptionsResult = addControllersResult.AddJsonOptions(options =>
+        var addControllers = services.AddControllers(options => options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true);
+        var addJsonOptions = addControllers.AddJsonOptions(options =>
         {
             ConfigureJson(options.JsonSerializerOptions);
         });
-        addJsonOptionsResult.AddApplicationPart(typeof(AssemblyMarker).Assembly);
+        addJsonOptions.AddApplicationPart(typeof(AssemblyMarker).Assembly);
         services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
         services.AddSingleton<IWorkspaceChangePublisher, WorkspaceChangePublisher>();
         services.AddScoped<SereinFlowApiAuthorizationService>();
@@ -30,15 +31,13 @@ public static class SereinFlowWebApiExtensions
         services.AddScoped<SereinFlowApiExceptionFilter>();
         services.TryAddSingleton(provider =>
         {
-            var evaluatedValue2 = provider.GetService<McpAiGuidanceProvider>() ?? resolveMcpAiGuidanceProvider();
-            var mcpAiGuidanceManagementService = new McpAiGuidanceManagementService(evaluatedValue2);
-            return mcpAiGuidanceManagementService;
-            McpAiGuidanceProvider resolveMcpAiGuidanceProvider()
+            var service = provider.GetService<McpAiGuidanceProvider>() ?? CreateGuidanceProvider();
+            return new McpAiGuidanceManagementService(service);
+            McpAiGuidanceProvider CreateGuidanceProvider()
             {
-                var getRequiredServiceResult = provider.GetRequiredService<IConfiguration>();
-                var evaluatedValue = provider.GetRequiredService<IHostEnvironment>().ContentRootPath;
-                var mcpAiGuidanceProvider = new McpAiGuidanceProvider(getRequiredServiceResult, evaluatedValue);
-                return mcpAiGuidanceProvider;
+                var configuration = provider.GetRequiredService<IConfiguration>();
+                var contentRootPath = provider.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                return new McpAiGuidanceProvider(configuration, contentRootPath);
             }
         });
         services.AddSereinFlowAccess();
@@ -80,14 +79,8 @@ public static class SereinFlowWebApiExtensions
         app.UseSwaggerUI(options =>
         {
             options.RoutePrefix = uiRoutePrefix.Trim('/');
-            var evaluatedValue7 = "/" + resolveReplaceResult();
-            options.SwaggerEndpoint(evaluatedValue7, "SereinFlow API v1");
-            string resolveReplaceResult()
-            {
-                var trimResult = routeTemplate.Trim('/');
-                var replaceResult = trimResult.Replace("{documentName}", "v1", StringComparison.Ordinal);
-                return replaceResult;
-            }
+            var documentPath = "/" + routeTemplate.Trim('/').Replace("{documentName}", "v1", StringComparison.Ordinal);
+            options.SwaggerEndpoint(documentPath, "SereinFlow API v1");
         });
         return app;
     }

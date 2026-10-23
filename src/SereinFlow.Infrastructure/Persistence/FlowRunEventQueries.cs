@@ -13,9 +13,10 @@ internal sealed class SqlSugarFlowRunEventQueries(ISqlSugarClient database) : IF
     {
         cancellationToken.ThrowIfCancellationRequested();
         var key = runId.ToString("D");
-        var values = await database.Queryable<FlowRunEventRecord>().Where(row => row.RunId == key)
-            .Select<long?>("MAX(Sequence)").ToListAsync(cancellationToken);
-        var operationResult2 = values.FirstOrDefault() ?? 0;
-        return operationResult2;
+        return (await database
+            .Queryable<FlowRunEventRecord>()
+            .Where(row => row.RunId == key)
+            .Select<long?>("MAX(Sequence)")
+            .ToListAsync(cancellationToken)).FirstOrDefault() ?? 0;
     }
 }

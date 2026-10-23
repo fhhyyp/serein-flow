@@ -6,16 +6,17 @@ using SereinFlow.Contracts;
 using SereinFlow.Worker.Client;
 
 namespace SereinFlow.Api;
+
 public static class SereinFlowExecutionRegistration
 {
     public static IServiceCollection AddSereinFlowExecution(this IServiceCollection services, IConfiguration? configuration = null, string? contentRootPath = null)
     {
         ArgumentNullException.ThrowIfNull(services);
-        var addOptionsResult = services.AddOptions<RunExecutionOptions>();
-        addOptionsResult.Configure<IConfiguration>((options, resolvedConfiguration) =>
+        var addOptions = services.AddOptions<RunExecutionOptions>();
+        addOptions.Configure<IConfiguration>((options, resolvedConfiguration) =>
         {
-            var getSectionResult = resolvedConfiguration.GetSection("SereinFlow:RunExecution");
-            getSectionResult.Bind(options);
+            var section = resolvedConfiguration.GetSection("SereinFlow:RunExecution");
+            section.Bind(options);
         });
         services.AddScoped<RunSubmissionService>();
         services.AddScoped<RunInterruptionService>();
@@ -29,47 +30,40 @@ public static class SereinFlowExecutionRegistration
             var workerRunnerFileName = IsManagedWorkerAssembly(workerRunnerPath) ? "dotnet" : workerRunnerPath;
             var logger = serviceProvider.GetRequiredService<ILogger<SupervisorWorkerRunClient>>();
             var storage = serviceProvider.GetRequiredService<SereinFlow.Infrastructure.Configuration.SereinFlowStorageOptions>();
-            var getDirectoryNameResult = Path.GetDirectoryName(workerRunnerPath);
-            var supervisorWorkerRunClientOptions = new SupervisorWorkerRunClientOptions(workerRunnerPath, RunnerFileName: workerRunnerFileName, WorkingDirectory: getDirectoryNameResult, AllowedScriptArtifactRoot: storage.ScriptArtifactRoot, AllowedLibraryPackageRoot: storage.LibraryDirectory, AllowedWorkpieceRoot: storage.WorkpieceDirectory, DiagnosticLogger: message =>
+            var workingDirectory = Path.GetDirectoryName(workerRunnerPath);
+            var supervisorWorkerRunClientOptions = new SupervisorWorkerRunClientOptions(workerRunnerPath, RunnerFileName: workerRunnerFileName, WorkingDirectory: workingDirectory, AllowedScriptArtifactRoot: storage.ScriptArtifactRoot, AllowedLibraryPackageRoot: storage.LibraryDirectory, AllowedWorkpieceRoot: storage.WorkpieceDirectory, DiagnosticLogger: message =>
             {
                 WorkerLog.WorkerDiagnostic(logger, message, null);
             });
-            var supervisorWorkerRunClient = new SupervisorWorkerRunClient(supervisorWorkerRunClientOptions);
-            return supervisorWorkerRunClient;
+            return new SupervisorWorkerRunClient(supervisorWorkerRunClientOptions);
         });
         services.AddSingleton<IWorkerRunClient>(serviceProvider =>
         {
-            var getRequiredServiceResult = serviceProvider.GetRequiredService<SupervisorWorkerRunClient>();
-            return getRequiredServiceResult;
+            return serviceProvider.GetRequiredService<SupervisorWorkerRunClient>();
         });
         services.AddSingleton<IWorkerDebugRunClient>(serviceProvider =>
         {
-            var getRequiredServiceResult1 = serviceProvider.GetRequiredService<SupervisorWorkerRunClient>();
-            return getRequiredServiceResult1;
+            return serviceProvider.GetRequiredService<SupervisorWorkerRunClient>();
         });
         services.AddSingleton<IWorkerMessageRunClient>(serviceProvider =>
         {
-            var getRequiredServiceResult2 = serviceProvider.GetRequiredService<SupervisorWorkerRunClient>();
-            return getRequiredServiceResult2;
+            return serviceProvider.GetRequiredService<SupervisorWorkerRunClient>();
         });
         services.AddSingleton<IWorkerVariableRunClient>(serviceProvider =>
         {
-            var getRequiredServiceResult3 = serviceProvider.GetRequiredService<SupervisorWorkerRunClient>();
-            return getRequiredServiceResult3;
+            return serviceProvider.GetRequiredService<SupervisorWorkerRunClient>();
         });
         services.AddSingleton<RunExecutionQueue>();
         services.AddSingleton<RunEventBroadcaster>();
         services.AddSingleton<FlowDebugSessionService>();
         services.AddSingleton<IFlowDebugSessionService>(serviceProvider =>
         {
-            var getRequiredServiceResult4 = serviceProvider.GetRequiredService<FlowDebugSessionService>();
-            return getRequiredServiceResult4;
+            return serviceProvider.GetRequiredService<FlowDebugSessionService>();
         });
         services.AddHostedService<RunExecutionHostedService>();
         services.AddHostedService(serviceProvider =>
         {
-            var getRequiredServiceResult5 = serviceProvider.GetRequiredService<FlowDebugSessionService>();
-            return getRequiredServiceResult5;
+            return serviceProvider.GetRequiredService<FlowDebugSessionService>();
         });
         services.AddHostedService<LibraryCatalogReindexHostedService>();
         return services;
@@ -80,7 +74,7 @@ public static class SereinFlowExecutionRegistration
         var candidates = new List<string>();
         if (!string.IsNullOrWhiteSpace(configuredPath))
         {
-            var configured = Path.IsPathRooted(configuredPath) ? Path.GetFullPath(configuredPath) : resolveGetFullPathResult();
+            var configured = Path.IsPathRooted(configuredPath) ? Path.GetFullPath(configuredPath) : Path.GetFullPath(Path.Combine(contentRootPath, configuredPath));
             if (!File.Exists(configured))
             {
                 throw new InvalidOperationException($"Configured SereinFlow:WorkerRunnerPath does not exist: '{configured}'. 配置的 SereinFlow:WorkerRunnerPath 路径不存在。");
@@ -88,12 +82,6 @@ public static class SereinFlowExecutionRegistration
 
             ValidateManagedRunnerFiles(configured);
             return configured;
-            string resolveGetFullPathResult()
-            {
-                var combineResult = Path.Combine(contentRootPath, configuredPath);
-                var getFullPathResult = Path.GetFullPath(combineResult);
-                return getFullPathResult;
-            }
         }
 
         foreach (var fileName in new[]
@@ -105,8 +93,7 @@ public static class SereinFlowExecutionRegistration
 
         )
         {
-            var combineResult6 = Path.Combine(AppContext.BaseDirectory, "sereinflow", "worker", fileName);
-            candidates.Add(combineResult6);
+            candidates.Add(Path.Combine(AppContext.BaseDirectory, "sereinflow", "worker", fileName));
         }
 
         // Only the repository's official host may use source-tree build output.
@@ -127,8 +114,7 @@ public static class SereinFlowExecutionRegistration
 
             )
             {
-                var combineResult7 = Path.Combine(ancestor.Parent!.FullName, "SereinFlow.Worker.Runner", "bin", configuration, "net10.0", "SereinFlow.Worker.Runner.dll");
-                candidates.Add(combineResult7);
+                candidates.Add(Path.Combine(ancestor.Parent!.FullName, "SereinFlow.Worker.Runner", "bin", configuration, "net10.0", "SereinFlow.Worker.Runner.dll"));
             }
 
             break;
@@ -147,9 +133,7 @@ public static class SereinFlowExecutionRegistration
 
     private static bool IsManagedWorkerAssembly(string path)
     {
-        var getExtensionResult = Path.GetExtension(path);
-        var equalsResult = string.Equals(getExtensionResult, ".dll", StringComparison.OrdinalIgnoreCase);
-        return equalsResult;
+        return string.Equals(Path.GetExtension(path), ".dll", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void ValidateManagedRunnerFiles(string path)

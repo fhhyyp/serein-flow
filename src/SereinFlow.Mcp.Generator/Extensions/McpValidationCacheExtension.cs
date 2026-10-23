@@ -34,7 +34,10 @@ internal static class McpValidationCacheExtension
         var names = new HashSet<string>(StringComparer.Ordinal);
         for (var current = type as INamedTypeSymbol; current is not null; current = current.BaseType)
         {
-            foreach (var property in current.GetMembers().OfType<IPropertySymbol>().OrderBy(property => property.Name, StringComparer.Ordinal))
+            foreach (var property in current
+                .GetMembers()
+                .OfType<IPropertySymbol>()
+                .OrderBy(property => property.Name, StringComparer.Ordinal))
             {
                 if (property.IsStatic || property.IsIndexer || property.GetMethod?.DeclaredAccessibility != Accessibility.Public || !names.Add(property.Name)) continue;
                 var childType = property.Type;

@@ -3,6 +3,7 @@ using System.Text.Json;
 using SereinFlow.Contracts;
 
 namespace SereinFlow.Client;
+
 public sealed class SereinFlowClientOptions
 {
     public Uri? BaseAddress { get; set; }
@@ -49,7 +50,6 @@ public sealed class SereinFlowClientOptions
     private static Uri EnsureTrailingSlash(Uri value)
     {
         var text = value.ToString();
-        Uri evaluatedValue = text.EndsWith('/') ? value : new Uri(text + "/", UriKind.Absolute);
-        return evaluatedValue;
+        return text.EndsWith('/') ? value : new Uri(text + "/", UriKind.Absolute);
     }
 }
