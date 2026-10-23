@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using SereinFlow.Contracts;
 using SereinFlow.Domain;
 
@@ -24,6 +25,7 @@ public interface IFlowDebugSessionService
 /// </summary>
 public sealed record FlowDebugSessionStartResult(FlowDebugSession? Session, int StatusCode, string? ErrorTitle = null, object? ErrorBody = null, string? ErrorCode = null)
 {
+    [MemberNotNullWhen(true, nameof(Session))]
     public bool IsAccepted => Session is not null;
 }
 

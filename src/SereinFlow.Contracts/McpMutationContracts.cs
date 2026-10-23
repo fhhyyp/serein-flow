@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -7,6 +8,7 @@ namespace SereinFlow.Contracts;
 /// Defines transport-independent SereinFlow operations.
 /// 定义与传输方式无关的 SereinFlow 操作。
 /// </summary>
+[SuppressMessage("Naming", "CA1711:Identifiers should not have incorrect suffix", Justification = "This public permission enum is shared by authorization, generated tools and host integrations; its name describes the domain contract.")]
 public enum SereinFlowPermission
 {
     /// <summary>

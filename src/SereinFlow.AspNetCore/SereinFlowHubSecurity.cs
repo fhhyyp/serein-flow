@@ -17,30 +17,30 @@ public sealed class SereinFlowHubSecurity : IHubFilter
         await next(context);
     }
 
-    public async ValueTask<object?> InvokeMethodAsync(HubInvocationContext context, Func<HubInvocationContext, ValueTask<object?>> next)
+    public async ValueTask<object?> InvokeMethodAsync(HubInvocationContext invocationContext, Func<HubInvocationContext, ValueTask<object?>> next)
     {
-        var http = context.Context.GetHttpContext()!;
+        var http = invocationContext.Context.GetHttpContext()!;
         var actor = SereinFlowHttpActor.Get(http);
-        var access = context.ServiceProvider.GetRequiredService<SereinFlowAccess>();
-        if (context.HubMethodName == "Subscribe")
+        var access = invocationContext.ServiceProvider.GetRequiredService<SereinFlowAccess>();
+        if (invocationContext.HubMethodName == "Subscribe")
         {
-            var runId = (Guid)context.HubMethodArguments[0]!;
-            var store = context.ServiceProvider.GetRequiredService<IFlowRunStore>();
-            var run = await store.FindAsync(runId, context.Context.ConnectionAborted) ?? throw new HubException("Run not found.");
+            var runId = (Guid)invocationContext.HubMethodArguments[0]!;
+            var store = invocationContext.ServiceProvider.GetRequiredService<IFlowRunStore>();
+            var run = await store.FindAsync(runId, invocationContext.Context.ConnectionAborted) ?? throw new HubException("Run not found.");
             var resource = SereinFlowResource.Run(runId, run.ProjectId);
-            await access.RequireResourceAsync(actor, SereinFlowOperations.RunRead, resource, context.Context.ConnectionAborted);
+            await access.RequireResourceAsync(actor, SereinFlowOperations.RunRead, resource, invocationContext.Context.ConnectionAborted);
         }
-        else if (context.HubMethodName == "SubscribeProject")
+        else if (invocationContext.HubMethodName == "SubscribeProject")
         {
-            await access.RequireAsync(actor, SereinFlowPermission.ProjectRead, (Guid)context.HubMethodArguments[0]!, context.Context.ConnectionAborted);
+            await access.RequireAsync(actor, SereinFlowPermission.ProjectRead, (Guid)invocationContext.HubMethodArguments[0]!, invocationContext.Context.ConnectionAborted);
         }
-        else if (context.HubMethodName == "SubscribeGlobal")
+        else if (invocationContext.HubMethodName == "SubscribeGlobal")
         {
-            await access.RequireWorkspaceAsync(actor);
+            await access.RequireWorkspaceAsync(actor, invocationContext.Context.ConnectionAborted);
         }
 
         {
-            var result1 = await next(context);
+            var result1 = await next(invocationContext);
             return result1;
         }
     }

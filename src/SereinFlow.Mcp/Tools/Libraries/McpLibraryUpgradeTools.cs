@@ -31,7 +31,7 @@ internal sealed class McpLibraryUpgradeTools(
             FlowIds = request.FlowIds ?? []
         };
         await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, request.ProjectId, SereinFlowPermission.FlowWrite, cancellationToken);
-        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, request.ProjectId);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, request.ProjectId, cancellationToken: cancellationToken);
         var upgradeRequest = new LibraryUpgradePreviewRequestDto(request.SourceArtifactId, request.TargetArtifactId, request.FlowIds);
         var result = await _libraryUpgradeService.PreviewAsync(request.ProjectId, upgradeRequest, cancellationToken);
         if (!result.IsSuccess || result.Value is null)
@@ -75,7 +75,7 @@ internal sealed class McpLibraryUpgradeTools(
 
         var stored = McpPreviewService.Deserialize<StoredLibraryUpgradePreview>(entry);
         await _mcpResourceAuthorization.RequireActiveProjectAsync(principal, stored.Plan.ProjectId, SereinFlowPermission.FlowWrite, cancellationToken);
-        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, stored.Plan.ProjectId);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, stored.Plan.ProjectId, cancellationToken: cancellationToken);
         object response;
         var hasDurableSuccess = false;
         if (request.Flows.Count == 1)

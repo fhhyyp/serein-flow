@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace SereinFlow.Mcp.Framework;
@@ -49,7 +50,7 @@ public static class McpArgumentReader
 
     public static System.Guid? OptionalGuid(JsonElement arguments, string name)
         => arguments.ValueKind == JsonValueKind.Object && arguments.TryGetProperty(name, out var value)
-            ? Guid(value, name, new McpParameterOptions()) : null;
+            ? ReadGuid(value, name, new McpParameterOptions()) : null;
     public static McpParameterBindingException Invalid(string name, McpParameterOptions parameter, string message)
         => new(parameter.ErrorMessage ?? message,
             parameter.ErrorPath ?? (parameter.ErrorCode is null ? "$." + name : null), errorCode: parameter.ErrorCode)
@@ -61,7 +62,11 @@ public static class McpArgumentReader
             throw Invalid(name, parameter, $"MCP parameter '{name}' is required. 必须提供该 MCP 参数。");
     }
 
+    [SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "Compatibility entry point; new callers use ReadString.")]
     public static string? String(JsonElement value, string name, McpParameterOptions parameter)
+        => ReadString(value, name, parameter);
+
+    public static string? ReadString(JsonElement value, string name, McpParameterOptions parameter)
     {
         if (value.ValueKind == JsonValueKind.Null && parameter.AllowNull) return null;
         if (value.ValueKind != JsonValueKind.String)
@@ -72,20 +77,36 @@ public static class McpArgumentReader
         return parameter.Trim ? text?.Trim() : text;
     }
 
-    public static Guid? Guid(JsonElement value, string name, McpParameterOptions parameter)
+    [SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "Compatibility entry point; new callers use ReadGuid.")]
+    public static System.Guid? Guid(JsonElement value, string name, McpParameterOptions parameter)
+        => ReadGuid(value, name, parameter);
+
+    public static System.Guid? ReadGuid(JsonElement value, string name, McpParameterOptions parameter)
     {
-        var text = String(value, name, parameter);
+        var text = ReadString(value, name, parameter);
         if (!parameter.Required && string.IsNullOrWhiteSpace(text)) return null;
         if (!System.Guid.TryParse(text, out var parsed) || (parameter.NonEmptyGuid && parsed == System.Guid.Empty))
             throw Invalid(name, parameter, $"MCP parameter '{name}' must be a GUID. 该 MCP 参数必须是 GUID。");
         return parsed;
     }
 
+    public static System.Guid RequiredGuid(JsonElement value, string name, McpParameterOptions parameter)
+        => ReadGuid(value, name, parameter)
+            ?? throw Invalid(name, parameter, $"MCP parameter '{name}' must be a GUID. 该 MCP 参数必须是 GUID。");
+
+    [SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "Compatibility entry point; new callers use ReadInt32.")]
     public static int Int32(JsonElement value, string name, McpParameterOptions parameter)
+        => ReadInt32(value, name, parameter);
+
+    public static int ReadInt32(JsonElement value, string name, McpParameterOptions parameter)
         => value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var parsed) ? parsed
             : throw Invalid(name, parameter, $"MCP parameter '{name}' must be an integer. 该 MCP 参数必须是整数。");
 
+    [SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "Compatibility entry point; new callers use ReadInt64.")]
     public static long Int64(JsonElement value, string name, McpParameterOptions parameter)
+        => ReadInt64(value, name, parameter);
+
+    public static long ReadInt64(JsonElement value, string name, McpParameterOptions parameter)
         => value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var parsed) ? parsed
             : throw Invalid(name, parameter, $"MCP parameter '{name}' must be an integer. 该 MCP 参数必须是整数。");
 
@@ -95,7 +116,7 @@ public static class McpArgumentReader
 
     public static T Enum<T>(JsonElement value, string name, McpParameterOptions parameter) where T : struct, System.Enum
     {
-        var text = String(value, name, parameter)?.Trim();
+        var text = ReadString(value, name, parameter)?.Trim();
         if (!parameter.AllowNumericEnum && (text is null || !EnumValues<T>.Names.Contains(text)))
             throw Invalid(name, parameter, $"MCP parameter '{name}' contains an invalid enum value. 该 MCP 参数包含无效的枚举值。");
         return System.Enum.TryParse<T>(text, true, out var parsed) && System.Enum.IsDefined(parsed) ? parsed
@@ -108,7 +129,7 @@ public static class McpArgumentReader
     }
 
     public static System.DateTimeOffset DateTimeOffset(JsonElement value, string name, McpParameterOptions parameter)
-        => System.DateTimeOffset.TryParse(String(value, name, parameter), out var parsed) ? parsed
+        => System.DateTimeOffset.TryParse(ReadString(value, name, parameter), out var parsed) ? parsed
             : throw Invalid(name, parameter, $"MCP parameter '{name}' must be an ISO date. 该 MCP 参数必须是 ISO 格式日期。");
 
     public static T Value<T>(JsonElement value, string name, McpParameterOptions parameter, JsonSerializerOptions options)

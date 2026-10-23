@@ -18,7 +18,7 @@ internal sealed class McpDebugControlTools(
     {
         var principal = context.RequirePrincipal();
         var request = arguments;
-        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.DebugControl, request.ProjectId);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.DebugControl, request.ProjectId, cancellationToken: cancellationToken);
         var idempotencyKey = arguments.IdempotencyKey!.Trim();
         request = request with
         {
@@ -95,7 +95,7 @@ internal sealed class McpDebugControlTools(
             throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "Debug session not found. 未找到调试会话。", new { code = DebugErrorCodes.SessionNotFound });
         }
 
-        await _mcpSecurityService.RequireAsync(context.Principal, SereinFlowPermission.DebugControl, session.ProjectId);
+        await _mcpSecurityService.RequireAsync(context.Principal, SereinFlowPermission.DebugControl, session.ProjectId, cancellationToken: cancellationToken);
         var result = await send(_flowDebugSessionService, sessionId, commandSequence, cancellationToken);
         if (!result.IsAccepted)
         {

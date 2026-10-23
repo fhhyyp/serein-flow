@@ -11,7 +11,7 @@ internal static class McpSchemaBuilder
 
     internal static JsonElement Schema(Dictionary<string, McpJsonSchema>? properties = null, string[]? required = null)
     {
-        var schema = McpJsonSchema.Object(properties, required);
+        var schema = McpJsonSchema.CreateObject(properties, required);
         return JsonSerializer.SerializeToElement(schema);
     }
 

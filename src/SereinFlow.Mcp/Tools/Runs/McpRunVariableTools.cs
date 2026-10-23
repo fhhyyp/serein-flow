@@ -71,7 +71,7 @@ internal sealed class McpRunVariableTools(
         }
 
         var principal = context.RequirePrincipal();
-        await _mcpSecurityService.RequireAsync(principal, permission, run.ProjectId);
+        await _mcpSecurityService.RequireAsync(principal, permission, run.ProjectId, cancellationToken: cancellationToken);
     }
 
     private static void EnsureSuccess(WorkerVariableResponseDto response)

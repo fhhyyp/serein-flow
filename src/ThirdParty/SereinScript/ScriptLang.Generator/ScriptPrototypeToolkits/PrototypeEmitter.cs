@@ -63,8 +63,10 @@ internal static class PrototypeEmitter
     {
         if (!code.Cache.PushThis) return;
         var receiver = method.Parameters[0];
+        // PrototypeManager resolves CLR receivers only after IsTarget accepts the wrapped value.
+        // PrototypeManager 仅在 IsTarget 接受包装值后解析 CLR 接收对象。
         var expression = receiver.IsScriptValue ? "v" : "((global::ScriptLang.Runtime.ClrObjectValue)v).Value";
-        code.AppendCode($"var target = ({receiver.TypeName}){expression};");
+        code.AppendCode($"var target = ({receiver.TypeName}){expression}{(receiver.IsScriptValue ? "" : "!")};");
     }
 
     private static void EmitCall(CodeBuilder<PrototypeModel> code, PrototypeMethod method)
@@ -79,8 +81,9 @@ internal static class PrototypeEmitter
         for (var index = 0; index < arguments.Length; index++)
         {
             var argument = arguments[index];
-            code.AppendCode($"{argument.TypeName}? arg{index} = args.Count <= {index} ? default")
-                .AppendCode($"    : args[{index}] is {argument.TypeName} _arg{index} ? _arg{index}")
+            var optional = argument.Optional ? "?" : string.Empty;
+            var missing = argument.Optional ? $"args.Count <= {index} ? default : " : string.Empty;
+            code.AppendCode($"{argument.TypeName}{optional} arg{index} = {missing}args[{index}] is {argument.TypeName} _arg{index} ? _arg{index}")
                 .AppendCode($"    : throw new global::ScriptLang.Runtime.RuntimeException({CSharpLiteral.RenderValue($"{method.ScriptName}() 第 {index + 1} 个参数期望 '{argument.DisplayName}' 类型值")});");
         }
         EmitReceiver(code, method);

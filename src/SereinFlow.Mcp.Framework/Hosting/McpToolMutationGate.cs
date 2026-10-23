@@ -25,7 +25,7 @@ public sealed class McpToolMutationGate
         if (arguments.ValueKind != JsonValueKind.Object)
             throw new McpParameterBindingException("MCP tool arguments must be a JSON object. MCP 工具参数必须是 JSON 对象。", "$");
         McpArgumentReader.Require(arguments, "idempotencyKey", KeyParameter);
-        _ = McpArgumentReader.String(arguments.GetProperty("idempotencyKey"), "idempotencyKey", KeyParameter);
+        _ = McpArgumentReader.ReadString(arguments.GetProperty("idempotencyKey"), "idempotencyKey", KeyParameter);
         var gate = _gates.GetOrAdd(tool.Descriptor.Name, static _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(cancellationToken);
         return new SemaphoreLease(gate);

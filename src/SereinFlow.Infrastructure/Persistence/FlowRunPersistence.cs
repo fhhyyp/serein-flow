@@ -87,8 +87,9 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
             throw new InvalidOperationException("The run identity does not match its immutable flow snapshot. 运行实例身份与不可变流程快照不匹配。");
         }
 
-        var definitionChecksum = definition.Checksum?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(definitionChecksum))
+        var snapshotChecksum = definition.Checksum;
+        var definitionChecksum = snapshotChecksum?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(snapshotChecksum))
         {
             throw new InvalidOperationException("An immutable flow snapshot requires a checksum. 不可变流程快照必须包含校验和。");
         }
@@ -130,7 +131,7 @@ public sealed class SqlSugarFlowRunStore : IFlowRunStore
                 FlowId = definition.Id.ToString("D"),
                 FlowVersion = definition.Version,
                 SchemaVersion = definition.SchemaVersion,
-                Checksum = definition.Checksum,
+                Checksum = snapshotChecksum,
                 DefinitionJson = serialized,
                 CreatedAt = run.CreatedAt.ToString("O")
             };

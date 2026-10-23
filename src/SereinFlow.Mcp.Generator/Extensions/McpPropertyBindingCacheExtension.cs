@@ -36,14 +36,14 @@ internal static class McpPropertyBindingCacheExtension
                 var scalarName = scalar.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                 string read;
                 if (scalar.TypeKind == TypeKind.Enum) read = $"Enum<{scalarName}>(value, name, parameter)";
-                else if (scalarName == "global::System.Guid") read = "Guid(value, name, parameter)" + (nullable ? "" : ".Value");
+                else if (scalarName == "global::System.Guid") read = nullable ? "ReadGuid(value, name, parameter)" : "RequiredGuid(value, name, parameter)";
                 else if (scalarName == "global::System.Text.Json.JsonElement") read = "Json(value, name, parameter)";
                 else if (scalarName == "global::System.DateTimeOffset") read = "DateTimeOffset(value, name, parameter)";
                 else read = scalar.SpecialType switch
                 {
-                    SpecialType.System_String => "String(value, name, parameter)!",
-                    SpecialType.System_Int32 => "Int32(value, name, parameter)",
-                    SpecialType.System_Int64 => "Int64(value, name, parameter)",
+                    SpecialType.System_String => "ReadString(value, name, parameter)!",
+                    SpecialType.System_Int32 => "ReadInt32(value, name, parameter)",
+                    SpecialType.System_Int64 => "ReadInt64(value, name, parameter)",
                     SpecialType.System_Boolean => "Boolean(value, name, parameter)",
                     _ => $"Value<{property.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>(value, name, parameter, options)"
                 };

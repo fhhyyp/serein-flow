@@ -25,7 +25,7 @@ internal sealed class McpProjectLibraryTools(
     {
         var principal = context.RequirePrincipal();
         var request = arguments;
-        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, request.ProjectId);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, request.ProjectId, cancellationToken: cancellationToken);
         var libraryId = request.LibraryId?.Trim() ?? string.Empty;
         request = request with
         {
@@ -61,7 +61,7 @@ internal sealed class McpProjectLibraryTools(
         }
 
         var stored = McpPreviewService.Deserialize<StoredProjectLibraryAttachPreview>(entry);
-        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, stored.Request.ProjectId);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, stored.Request.ProjectId, cancellationToken: cancellationToken);
         var currentDiagnostics = await ValidateProjectLibraryAttachAsync(stored.Request, cancellationToken);
         if (currentDiagnostics.Count > 0)
         {

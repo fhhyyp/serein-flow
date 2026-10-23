@@ -19,15 +19,6 @@ public sealed partial class ScriptPrototypeGenerator
                public NamingFormat NamingFormat = NamingFormat.Net;
            }
 
-           /// <summary> 命名风格 </summary>
-           public enum NamingFormat
-           {
-               /// <summary> 首字母大写 </summary>
-               Net,
-               /// <summary> 首字母小写 </summary>
-               Js,
-           }
-
             /// <summary> 定义原型方法的属性 </summary>
             [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
             internal sealed class PrototypePropertyAttribute : Attribute

@@ -39,7 +39,7 @@ public sealed class SereinFlowRestAuthorizationFilter(SereinFlowAccess security)
 
         try
         {
-            await security.RequireWorkspaceAsync(principal);
+            await security.RequireWorkspaceAsync(principal, context.HttpContext.RequestAborted);
         }
         catch (SereinFlowAccessException exception)
         {

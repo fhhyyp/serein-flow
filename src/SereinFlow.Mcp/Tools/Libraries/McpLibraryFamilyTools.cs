@@ -20,8 +20,8 @@ internal sealed class McpLibraryFamilyTools(
         CancellationToken cancellationToken)
     {
         var principal = context.RequirePrincipal();
-        await _mcpSecurityService.RequireWorkspaceAsync(principal);
-        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage);
+        await _mcpSecurityService.RequireWorkspaceAsync(principal, cancellationToken: cancellationToken);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, cancellationToken: cancellationToken);
         var validated = await ValidateLibraryFamilyAssignmentAsync(arguments, cancellationToken);
         var stored = new StoredLibraryFamilyAssignmentPreview(validated.Request, validated.Diagnostics, validated.CurrentFamily, validated.TargetFamily);
         var entry = await _mcpPreviewService.CreateAsync(LibraryErrorCodes.FamilyAssign, principal, null, null, null, stored, cancellationToken);
@@ -50,8 +50,8 @@ internal sealed class McpLibraryFamilyTools(
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe a library family assignment. 此预览不是类库家族分配预览。");
         }
 
-        await _mcpSecurityService.RequireWorkspaceAsync(principal);
-        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage);
+        await _mcpSecurityService.RequireWorkspaceAsync(principal, cancellationToken: cancellationToken);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.LibraryManage, cancellationToken: cancellationToken);
         var stored = McpPreviewService.Deserialize<StoredLibraryFamilyAssignmentPreview>(entry);
         var validated = await ValidateLibraryFamilyAssignmentAsync(stored.Request, cancellationToken);
         if (validated.Diagnostics.Count > 0)

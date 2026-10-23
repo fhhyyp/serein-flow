@@ -34,7 +34,7 @@ public sealed class WorkspaceChangePublisher : IWorkspaceChangePublisher
             // The database commit has already completed. A disconnected live
             // client will reconcile from the authoritative GET on reconnect.
             // 数据库提交已经完成。断线客户端会在重连时通过权威 GET 对账。
-            _logger.LogWarning(exception, "Workspace change push failed for {ChangeType} {ProjectId} {FlowId}. 工作区变更推送失败。", change.ChangeType, change.ProjectId, change.FlowId);
+            HostingLog.WorkspaceChangePushFailed(_logger, change.ChangeType, change.ProjectId, change.FlowId, exception);
         }
     }
 

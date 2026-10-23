@@ -1,8 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace SereinFlow.Mcp.Framework;
 
+[SuppressMessage("Naming", "CA1711:Identifiers should not have incorrect suffix", Justification = "The public middleware contract exposes this named delegate; retain its type identity for host implementations.")]
 public delegate Task<object?> McpToolExecutionDelegate(McpToolExecutionContext context, CancellationToken cancellationToken);
 
 /// <summary>
@@ -11,6 +13,7 @@ public delegate Task<object?> McpToolExecutionDelegate(McpToolExecutionContext c
 /// </summary>
 public interface IMcpToolMiddleware
 {
+    [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "The public middleware parameter supports existing C# named calls and matches the established continuation convention.")]
     Task<object?> InvokeAsync(McpToolExecutionContext context, McpToolExecutionDelegate next, CancellationToken cancellationToken);
 }
 

@@ -31,7 +31,7 @@ internal sealed class McpRunMessageTools(
         var run = await _flowRunStore.FindAsync(runId, cancellationToken);
         if (run is not null)
         {
-            await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.RunMessagePublish, run.ProjectId);
+            await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.RunMessagePublish, run.ProjectId, cancellationToken: cancellationToken);
         }
 
         var replay = await _mcpIdempotencyService.FindAsync(principal.Id, Operation, idempotencyKey, requestPayload, cancellationToken);

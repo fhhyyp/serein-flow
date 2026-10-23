@@ -19,8 +19,8 @@ internal sealed class McpFlowQueries(
         AiReadModelOptions? options,
         CancellationToken cancellationToken)
     {
-        await security.RequireAsync(principal, SereinFlowPermission.ProjectRead, projectId);
-        await RequireSensitiveReadAsync(security, principal, projectId, options);
+        await security.RequireAsync(principal, SereinFlowPermission.ProjectRead, projectId, cancellationToken: cancellationToken);
+        await RequireSensitiveReadAsync(security, principal, projectId, options, cancellationToken: cancellationToken);
         return await service.GetFlowTopologyAsync(projectId, flowId, track, version, options, cancellationToken);
     }
 
@@ -31,8 +31,8 @@ internal sealed class McpFlowQueries(
         AiReadModelOptions options,
         CancellationToken cancellationToken)
     {
-        await security.RequireAsync(principal, SereinFlowPermission.ProjectRead, projectId);
-        await RequireSensitiveReadAsync(security, principal, projectId, options);
+        await security.RequireAsync(principal, SereinFlowPermission.ProjectRead, projectId, cancellationToken: cancellationToken);
+        await RequireSensitiveReadAsync(security, principal, projectId, options, cancellationToken: cancellationToken);
         var getCatalog = _builtinNodeCatalog.GetCatalog();
         return await service.GetFlowEditModelAsync(projectId, flowId, getCatalog, options, cancellationToken);
     }
@@ -44,7 +44,7 @@ internal sealed class McpFlowQueries(
         string trackText,
         CancellationToken cancellationToken)
     {
-        await security.RequireAsync(principal, SereinFlowPermission.ProjectRead, projectId);
+        await security.RequireAsync(principal, SereinFlowPermission.ProjectRead, projectId, cancellationToken: cancellationToken);
         var track = ParseTrack(trackText);
         return await service.GetFlowVersionHistoryAsync(projectId, flowId, track, cancellationToken);
     }
@@ -57,7 +57,7 @@ internal sealed class McpFlowQueries(
         long version,
         CancellationToken cancellationToken)
     {
-        await security.RequireAsync(principal, SereinFlowPermission.ProjectRead, projectId);
+        await security.RequireAsync(principal, SereinFlowPermission.ProjectRead, projectId, cancellationToken: cancellationToken);
         var track = ParseTrack(trackText);
         var detail = await service.GetFlowVersionAsync(projectId, flowId, version, cancellationToken);
         if (detail is null || detail.Version.Track != track)

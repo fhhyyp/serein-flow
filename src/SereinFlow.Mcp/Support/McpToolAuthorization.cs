@@ -10,17 +10,18 @@ internal static class McpToolAuthorization
         SereinFlowAccess security,
         SereinFlowActor? principal,
         Guid projectId,
-        AiReadModelOptions? options)
+        AiReadModelOptions? options,
+        CancellationToken cancellationToken)
     {
         if (options is null || (!options.IncludeFlowLiteralValues && !options.IncludeScriptSource))
         {
             return;
         }
 
-        await security.RequireAsync(principal, SereinFlowPermission.SensitiveRead, projectId);
+        await security.RequireAsync(principal, SereinFlowPermission.SensitiveRead, projectId, cancellationToken: cancellationToken);
     }
 
-    internal static async Task RequirePreviewPermissionAsync(SereinFlowAccess security, SereinFlowActor? principal, McpPreviewEntry entry)
+    internal static async Task RequirePreviewPermissionAsync(SereinFlowAccess security, SereinFlowActor? principal, McpPreviewEntry entry, CancellationToken cancellationToken)
     {
         var permission = entry.Operation switch
         {
@@ -36,19 +37,19 @@ internal static class McpToolAuthorization
         };
         if (string.Equals(entry.Operation, LibraryErrorCodes.FamilyAssign, StringComparison.Ordinal))
         {
-            await security.RequireWorkspaceAsync(principal);
-            await security.RequireAsync(principal, SereinFlowPermission.LibraryManage);
+            await security.RequireWorkspaceAsync(principal, cancellationToken: cancellationToken);
+            await security.RequireAsync(principal, SereinFlowPermission.LibraryManage, cancellationToken: cancellationToken);
             return;
         }
 
         if (string.Equals(entry.Operation, "library.upgrade", StringComparison.Ordinal))
         {
-            await security.RequireAsync(principal, SereinFlowPermission.FlowWrite, entry.ProjectId);
-            await security.RequireAsync(principal, SereinFlowPermission.LibraryManage, entry.ProjectId);
+            await security.RequireAsync(principal, SereinFlowPermission.FlowWrite, entry.ProjectId, cancellationToken: cancellationToken);
+            await security.RequireAsync(principal, SereinFlowPermission.LibraryManage, entry.ProjectId, cancellationToken: cancellationToken);
             return;
         }
 
-        await security.RequireAsync(principal, permission, entry.ProjectId);
+        await security.RequireAsync(principal, permission, entry.ProjectId, cancellationToken: cancellationToken);
     }
 
 }

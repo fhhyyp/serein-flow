@@ -84,7 +84,7 @@ public sealed class McpSkillsController(McpAiGuidanceManagementService guidance,
         try
         {
             var principal = SereinFlow.AspNetCore.SereinFlowHttpActor.Get(HttpContext);
-            await security.RequireWorkspaceAsync(principal);
+            await security.RequireWorkspaceAsync(principal, cancellationToken);
             Response.Headers.CacheControl = "no-store";
             var actionResult = await action(cancellationToken);
             var okResult = Ok(actionResult);

@@ -20,7 +20,7 @@ internal sealed class McpLibraryQueries(
         LibraryListScope listScope = LibraryListScope.Active,
         AiReadModelOptions? options = null)
     {
-        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead);
+        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead, cancellationToken: cancellationToken);
         var scope = await security.GetScopeAsync(principal!, SereinFlowPermission.LibraryRead, cancellationToken);
         if (scope.AllProjects)
         {
@@ -76,7 +76,7 @@ internal sealed class McpLibraryQueries(
         string libraryId,
         CancellationToken cancellationToken)
     {
-        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead);
+        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead, cancellationToken: cancellationToken);
         var scope = await security.GetScopeAsync(principal!, SereinFlowPermission.LibraryRead, cancellationToken);
         var library = await service.GetLibraryAsync(libraryId, cancellationToken);
         if (library is not null && !scope.AllProjects)
@@ -97,7 +97,7 @@ internal sealed class McpLibraryQueries(
         AiReadModelOptions options,
         CancellationToken cancellationToken)
     {
-        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead);
+        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead, cancellationToken: cancellationToken);
         var scope = await security.GetScopeAsync(principal!, SereinFlowPermission.LibraryRead, cancellationToken);
         var normalized = options.Normalize();
         var families = await _libraryCatalogService.ListFamiliesAsync(includeArchivedArtifacts, cancellationToken);
@@ -115,7 +115,7 @@ internal sealed class McpLibraryQueries(
         string familyId,
         CancellationToken cancellationToken)
     {
-        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead);
+        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead, cancellationToken: cancellationToken);
         var scope = await security.GetScopeAsync(principal!, SereinFlowPermission.LibraryRead, cancellationToken);
         var families = await _libraryCatalogService.ListFamiliesAsync(includeArchivedArtifacts: true, cancellationToken: cancellationToken);
         var visible = !scope.AllProjects ? await ProjectVisibleFamiliesAsync(scope, families, cancellationToken) : families;
@@ -177,7 +177,7 @@ internal sealed class McpLibraryQueries(
         AiReadModelOptions options,
         CancellationToken cancellationToken)
     {
-        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead, projectId);
+        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead, projectId, cancellationToken: cancellationToken);
         var result = await _projectLibraryService.ListAsync(projectId, cancellationToken);
         if (!result.IsSuccess)
         {
@@ -200,7 +200,7 @@ internal sealed class McpLibraryQueries(
         Guid upgradeId,
         CancellationToken cancellationToken)
     {
-        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead, projectId);
+        await security.RequireAsync(principal, SereinFlowPermission.LibraryRead, projectId, cancellationToken: cancellationToken);
         var result = await _libraryUpgradeService.GetPlanAsync(projectId, upgradeId, cancellationToken);
         if (!result.IsSuccess || result.Value is null)
         {

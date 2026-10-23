@@ -49,7 +49,7 @@ public static class FlowDefinitionMapper
             return nodeParameterDefinition;
         });
         ScriptNodeDefinition? evaluatedValue10 = dto.Script is null ? null : resolveCreateResult();
-        NodeRuntimeDefinition conditionalValue;
+        NodeRuntimeDefinition? conditionalValue;
         if (dto.Ui is null)
         {
             conditionalValue = null;

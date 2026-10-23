@@ -59,7 +59,7 @@ internal sealed class McpLibraryPackageTools(
         }
         else
         {
-            await _mcpSecurityService.RequireWorkspaceAsync(principal);
+            await _mcpSecurityService.RequireWorkspaceAsync(principal, cancellationToken: cancellationToken);
         }
 
         if (projectId is not null)
@@ -123,7 +123,7 @@ internal sealed class McpLibraryPackageTools(
         var stored = McpPreviewService.Deserialize<StoredLibraryPackagePreview>(entry);
         if (stored.ProjectId is null)
         {
-            await _mcpSecurityService.RequireWorkspaceAsync(principal);
+            await _mcpSecurityService.RequireWorkspaceAsync(principal, cancellationToken: cancellationToken);
         }
         else
         {

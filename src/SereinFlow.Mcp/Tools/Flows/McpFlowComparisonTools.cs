@@ -21,7 +21,7 @@ internal sealed class McpFlowComparisonTools(
         var track = arguments.Track;
         var fromVersion = arguments.FromVersion;
         var toVersion = arguments.ToVersion;
-        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.ProjectRead, projectId);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.ProjectRead, projectId, cancellationToken: cancellationToken);
         var fromVersionDetail = await _aiReadModelService.GetFlowVersionAsync(projectId, flowId, fromVersion, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The source flow version was not found. 未找到源流程版本。");
         var toVersionDetail = await _aiReadModelService.GetFlowVersionAsync(projectId, flowId, toVersion, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The target flow version was not found. 未找到目标流程版本。");
         if (fromVersionDetail.Version.Track != track || toVersionDetail.Version.Track != track)

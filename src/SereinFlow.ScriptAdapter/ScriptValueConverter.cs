@@ -220,7 +220,7 @@ public static partial class ScriptValueConverter
 
     private static Dictionary<string, object?> CreateClrObjectSummary(ClrObjectValue value)
     {
-        Dictionary<string, object> evaluatedValue14 = new(StringComparer.Ordinal)
+        Dictionary<string, object?> evaluatedValue14 = new(StringComparer.Ordinal)
         {
             ["$kind"] = "ClrObject",
             ["clrType"] = value.Value?.GetType().FullName,
@@ -231,7 +231,7 @@ public static partial class ScriptValueConverter
 
     private static Dictionary<string, object?> CreateClrMethodSummary(ClrMethodValue value)
     {
-        Dictionary<string, object> evaluatedValue15 = new(StringComparer.Ordinal)
+        Dictionary<string, object?> evaluatedValue15 = new(StringComparer.Ordinal)
         {
             ["$kind"] = "ClrMethod",
             ["declaringType"] = value.MethodInfo.DeclaringType?.FullName,
@@ -244,7 +244,7 @@ public static partial class ScriptValueConverter
 
     private static Dictionary<string, object?> CreateRuntimeValueSummary(Value value)
     {
-        Dictionary<string, object> evaluatedValue16 = new(StringComparer.Ordinal)
+        Dictionary<string, object?> evaluatedValue16 = new(StringComparer.Ordinal)
         {
             ["$kind"] = value.GetType().Name,
             ["serializable"] = false

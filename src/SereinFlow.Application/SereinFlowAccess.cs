@@ -121,7 +121,10 @@ public sealed class SereinFlowAccess(ISereinFlowAuthorizationService authorizati
         }
     }
 
-    public async ValueTask RequireAnyAsync(SereinFlowActor? actor, Guid? projectId, params SereinFlowPermission[] permissions)
+    public ValueTask RequireAnyAsync(SereinFlowActor? actor, Guid? projectId, params SereinFlowPermission[] permissions)
+        => RequireAnyAsync(actor, projectId, CancellationToken.None, permissions);
+
+    public async ValueTask RequireAnyAsync(SereinFlowActor? actor, Guid? projectId, CancellationToken cancellationToken, params SereinFlowPermission[] permissions)
     {
         if (actor is null)
         {
@@ -132,7 +135,7 @@ public sealed class SereinFlowAccess(ISereinFlowAuthorizationService authorizati
         {
             var resource = projectId is { } id ? SereinFlowResource.Project(id) : SereinFlowResource.Workspace;
             var operation = SereinFlowOperationNames.ToName(permission);
-            var decision = await authorization.AuthorizeAsync(actor, operation, resource);
+            var decision = await authorization.AuthorizeAsync(actor, operation, resource, cancellationToken);
             if (decision.IsAllowed)
             {
                 return;
@@ -143,6 +146,8 @@ public sealed class SereinFlowAccess(ISereinFlowAuthorizationService authorizati
     }
 
     public ValueTask RequireWorkspaceAsync(SereinFlowActor? actor) => RequireAsync(actor, SereinFlowPermission.WorkspaceManage);
+    public ValueTask RequireWorkspaceAsync(SereinFlowActor? actor, CancellationToken cancellationToken)
+        => RequireAsync(actor, SereinFlowPermission.WorkspaceManage, cancellationToken: cancellationToken);
     public async ValueTask<bool> CanManageWorkspaceAsync(SereinFlowActor actor, CancellationToken cancellationToken = default) => (await authorization.AuthorizeAsync(actor, SereinFlowOperations.WorkspaceManage, SereinFlowResource.Workspace, cancellationToken)).IsAllowed;
     public ValueTask<ProjectAccessScope> GetScopeAsync(SereinFlowActor actor, SereinFlowPermission permission, CancellationToken cancellationToken = default)
     {

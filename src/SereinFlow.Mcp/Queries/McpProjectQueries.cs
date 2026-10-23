@@ -13,7 +13,7 @@ internal sealed class McpProjectQueries(AiReadModelService service, SereinFlowAc
         CancellationToken cancellationToken,
         AiReadModelOptions? options = null)
     {
-        await security.RequireAsync(principal, SereinFlowPermission.ProjectRead);
+        await security.RequireAsync(principal, SereinFlowPermission.ProjectRead, cancellationToken: cancellationToken);
         var scope = await security.GetScopeAsync(principal!, SereinFlowPermission.ProjectRead, cancellationToken);
         return archivedOnly
             ? await service.ListArchivedProjectsAsync(options, cancellationToken, scope)
@@ -22,7 +22,7 @@ internal sealed class McpProjectQueries(AiReadModelService service, SereinFlowAc
 
     internal async Task<AiProjectSummaryDto?> ReadProjectAsync(SereinFlowActor? principal, Guid projectId, CancellationToken cancellationToken)
     {
-        await security.RequireAsync(principal, SereinFlowPermission.ProjectRead, projectId);
+        await security.RequireAsync(principal, SereinFlowPermission.ProjectRead, projectId, cancellationToken: cancellationToken);
         return await service.GetProjectAsync(projectId, cancellationToken);
     }
 }

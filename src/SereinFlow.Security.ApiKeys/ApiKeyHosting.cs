@@ -210,10 +210,12 @@ public sealed class ApiKeysController(ApiKeyManagementService management, IApiKe
             // 仅迁移当前浏览器的既有会话；其他会话和 Bearer 凭据仍按撤销规则失效。
             var subject = new Claim(ClaimTypes.NameIdentifier, rotated.Key.Id);
             var identity = new ClaimsIdentity([subject], ApiKeyHosting.SessionScheme);
-            await HttpContext.SignInAsync(ApiKeyHosting.SessionScheme, new ClaimsPrincipal(identity), session.Properties);
+            var principal = new ClaimsPrincipal(identity);
+            await HttpContext.SignInAsync(ApiKeyHosting.SessionScheme, principal, session.Properties);
         }
 
-        return Ok(rotated);
+        var result = Ok(rotated);
+        return result;
     }
 
     [HttpDelete("api-keys/{id}")]

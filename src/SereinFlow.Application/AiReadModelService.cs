@@ -381,7 +381,7 @@ public sealed class AiReadModelService
             var mapParameterResult = MapParameter(parameter, options, firstOrDefaultResult);
             return mapParameterResult;
         }).ToArray();
-        AiNodeRuntimeDto conditionalValue;
+        AiNodeRuntimeDto? conditionalValue;
         if (node.Ui is null)
         {
             conditionalValue = null;

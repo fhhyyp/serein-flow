@@ -21,7 +21,7 @@ internal sealed class McpProjectCommandTools(
         CancellationToken cancellationToken)
     {
         var principal = context.RequirePrincipal();
-        await _mcpSecurityService.RequireWorkspaceAsync(principal);
+        await _mcpSecurityService.RequireWorkspaceAsync(principal, cancellationToken: cancellationToken);
         var request = arguments;
         if (string.IsNullOrWhiteSpace(request.Name))
         {
@@ -68,8 +68,8 @@ internal sealed class McpProjectCommandTools(
             throw new McpProtocolException(McpProtocolErrorCodes.InvalidParams, "The preview does not describe project creation. 此预览不是项目创建预览。");
         }
 
-        await _mcpSecurityService.RequireWorkspaceAsync(principal);
-        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.ProjectWrite);
+        await _mcpSecurityService.RequireWorkspaceAsync(principal, cancellationToken: cancellationToken);
+        await _mcpSecurityService.RequireAsync(principal, SereinFlowPermission.ProjectWrite, cancellationToken: cancellationToken);
         var stored = McpPreviewService.Deserialize<StoredProjectCreatePreview>(entry);
         var project = RehydrateProject(stored);
         var candidate = _projectCreationService.Prepare(project, stored.Definition);

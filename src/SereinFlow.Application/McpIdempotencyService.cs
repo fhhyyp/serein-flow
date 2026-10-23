@@ -61,7 +61,7 @@ public sealed class McpIdempotencyService
     public async Task<T?> FindResponseAsync<T>(string principalId, string operation, string key, CancellationToken cancellationToken = default)
     {
         var entry = await FindAsync(principalId, operation, key, cancellationToken);
-        T evaluatedValue = entry is null ? default : resolveDeserializeResult();
+        T? evaluatedValue = entry is null ? default : resolveDeserializeResult();
         return evaluatedValue;
         T? resolveDeserializeResult()
         {

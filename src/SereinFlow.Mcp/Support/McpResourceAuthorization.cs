@@ -13,7 +13,7 @@ internal sealed class McpResourceAuthorization(IProjectRepository _projectReposi
         SereinFlowPermission permission,
         CancellationToken cancellationToken)
     {
-        await security.RequireAsync(principal, permission, projectId);
+        await security.RequireAsync(principal, permission, projectId, cancellationToken: cancellationToken);
         var project = await _projectRepository.FindAsync(projectId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The project was not found. 未找到项目。");
         if (project.Status == SereinFlow.Domain.ProjectStatus.Archived)
         {

@@ -464,7 +464,7 @@ internal static class SereinFlowMcpToolCatalogFactory
                     { "confirmation", new McpJsonSchema { Type = "string", Enum = JsonSerializer.SerializeToElement(new[] { "APPLY" }) } },
                     { "idempotencyKey", StringSchema() },
                     { "flows", ArraySchema(
-                            McpJsonSchema.Object(
+                            McpJsonSchema.CreateObject(
                                 new Dictionary<string, McpJsonSchema>
                                 {
                                     { "flowId", StringSchema() },

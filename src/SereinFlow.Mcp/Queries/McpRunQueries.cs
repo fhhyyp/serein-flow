@@ -24,7 +24,7 @@ internal sealed class McpRunQueries(
             return null;
         }
 
-        await security.RequireAnyAsync(principal, run.ProjectId, SereinFlowPermission.DebugRead, SereinFlowPermission.RunRead);
+        await security.RequireAnyAsync(principal, run.ProjectId, cancellationToken, SereinFlowPermission.DebugRead, SereinFlowPermission.RunRead);
         var items = await _flowWorkpieceStore.ListAsync(runId, cancellationToken);
         return items.Select(ToWorkpieceDto).ToArray();
     }
@@ -41,7 +41,7 @@ internal sealed class McpRunQueries(
             return null;
         }
 
-        await security.RequireAnyAsync(principal, run.ProjectId, SereinFlowPermission.DebugRead, SereinFlowPermission.RunRead);
+        await security.RequireAnyAsync(principal, run.ProjectId, cancellationToken, SereinFlowPermission.DebugRead, SereinFlowPermission.RunRead);
         var item = await _flowWorkpieceStore.FindAsync(runId, workpieceId, cancellationToken);
         return item is null ? null : ToWorkpieceDto(item);
     }
@@ -60,12 +60,12 @@ internal sealed class McpRunQueries(
         AiReadModelOptions? options = null,
         long afterEventSequence = 0)
     {
-        await security.RequireAsync(principal, SereinFlowPermission.RunRead);
+        await security.RequireAsync(principal, SereinFlowPermission.RunRead, cancellationToken: cancellationToken);
         var inspection = await service.GetRunInspectionAsync(runId, definitionTrack, options, afterEventSequence, cancellationToken);
         if (inspection is not null)
         {
-            await security.RequireAsync(principal, SereinFlowPermission.RunRead, inspection.Run.ProjectId);
-            await RequireSensitiveReadAsync(security, principal, inspection.Run.ProjectId, options);
+            await security.RequireAsync(principal, SereinFlowPermission.RunRead, inspection.Run.ProjectId, cancellationToken: cancellationToken);
+            await RequireSensitiveReadAsync(security, principal, inspection.Run.ProjectId, options, cancellationToken: cancellationToken);
         }
 
         return inspection;
@@ -80,7 +80,7 @@ internal sealed class McpRunQueries(
         var requestedProjectId = arguments.ProjectId;
         var projectId = requestedProjectId;
         var scope = await security.GetReadScopeAsync(principal, cancellationToken);
-        await security.RequireAnyAsync(principal, projectId, SereinFlowPermission.DebugRead, SereinFlowPermission.RunRead);
+        await security.RequireAnyAsync(principal, projectId, cancellationToken, SereinFlowPermission.DebugRead, SereinFlowPermission.RunRead);
         var status = arguments.Status;
         var options = ReadOptions(arguments);
         return await service.ListRunsAsync(projectId, status, options, cancellationToken, scope);

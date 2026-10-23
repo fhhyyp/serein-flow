@@ -14,7 +14,7 @@ internal sealed class McpPreviewReader(IMcpPreviewStore _mcpPreviewStore, Serein
         var entry = await _mcpPreviewStore.FindAsync(previewId, cancellationToken) ?? throw new McpProtocolException(McpProtocolErrorCodes.ResourceNotFound, "The MCP preview was not found. 未找到 MCP 预览。");
         if (principal is null || !string.Equals(entry.PrincipalId, principal.Id, StringComparison.Ordinal))
             throw new SereinFlowAccessException(McpErrorCodes.PreviewOwnerMismatch, "The preview belongs to another caller.", 403);
-        await RequirePreviewPermissionAsync(security, principal, entry);
+        await RequirePreviewPermissionAsync(security, principal, entry, cancellationToken: cancellationToken);
         var descriptor = new McpPreviewDescriptorDto(entry.Id, entry.Operation, entry.ProjectId, entry.FlowId, entry.Status, entry.ExpiresAt, entry.PreviewFingerprint);
         return (object)(entry.Operation switch
         {

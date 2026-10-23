@@ -9,7 +9,7 @@ public sealed class SereinFlowClient : ISereinFlowClient, IDisposable, IAsyncDis
     public SereinFlowClient(SereinFlowClientOptions options)
     {
         var httpClient = CreateHttpClient(options);
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _httpClient = httpClient;
         _ownsHttpClient = true;
         _transport = new SereinFlowHttpClient(httpClient, options);
         Flows = new FlowInvocationClient(_transport);

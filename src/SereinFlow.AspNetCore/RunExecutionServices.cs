@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Text.Json;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Channels;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
@@ -98,6 +99,7 @@ public sealed record RunExecutionSnapshot(int QueueCapacity, int QueuedCount, in
 /// </summary>
 public sealed record RunSubmissionResult(FlowRun? Run, int StatusCode, string? ErrorTitle = null, object? ErrorBody = null, long? CurrentVersion = null)
 {
+    [MemberNotNullWhen(true, nameof(Run))]
     public bool IsAccepted => Run is not null;
 }
 
@@ -183,20 +185,26 @@ public sealed class RunSubmissionService
 /// Reserves execution capacity and coordinates queued and active runs.
 /// 预留执行容量并协调排队中和活动中的运行。
 /// </summary>
-public sealed class RunExecutionQueue
+[SuppressMessage("Naming", "CA1711:Identifiers should not have incorrect suffix", Justification = "The public type models a run scheduling queue, including reservations and execution leases; retain its domain name and API identity.")]
+public sealed class RunExecutionQueue : IDisposable
 {
     private readonly Channel<RunWorkItem> _queue;
-    private readonly Dictionary<Guid, CancellationTokenSource> _cancellations = [];
+    private readonly Dictionary<Guid, RunCancellation> _cancellations = [];
     private readonly Dictionary<Guid, string> _cancellationSources = [];
     private readonly ConcurrentDictionary<Guid, ActiveRunInfo> _activeRuns = new();
     // A single pending wake-up is enough: scheduling always re-evaluates all
     // work and limits. This prevents signal counts accumulating under load.
     // 一个待处理唤醒信号已经足够：调度会重新检查所有任务和限制，避免高负载下信号计数累积。
     private readonly SemaphoreSlim _schedulerSignal = new(0, 1);
+    private readonly CancellationTokenSource _schedulerShutdown = new();
     private readonly object _gate = new();
     private RunExecutionOptions _options;
     private int _queuedCount;
     private bool _accepting = true;
+    private bool _disposed;
+    private bool _shutdownSignalled;
+    private bool _schedulerResourcesDisposed;
+    private int _schedulerWaiters;
     private readonly IFileUploadSettings _fileUploadSettings;
     public RunExecutionQueue(IOptions<RunExecutionOptions> options, IFileUploadSettings? fileUploadSettings = null)
     {
@@ -234,6 +242,7 @@ public sealed class RunExecutionQueue
     {
         lock (_gate)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             _options = RunExecutionOptions.FromDto(settings);
             _fileUploadSettings.Configure(_options.MaxLibraryUploadBytes);
         }
@@ -274,7 +283,7 @@ public sealed class RunExecutionQueue
             throw new InvalidOperationException("The queue reservation is not valid. 队列预留无效。");
         }
 
-        var source = new CancellationTokenSource();
+        var source = new RunCancellation();
         lock (_gate)
         {
             if (!_accepting || !_queue.Writer.TryWrite(item))
@@ -293,14 +302,17 @@ public sealed class RunExecutionQueue
 
     public bool TryRead(out RunWorkItem item)
     {
-        if (_queue.Reader.TryRead(out var next))
+        lock (_gate)
         {
-            item = next;
-            return true;
-        }
+            if (!_disposed && _queue.Reader.TryRead(out var next))
+            {
+                item = next;
+                return true;
+            }
 
-        item = default!;
-        return false;
+            item = default!;
+            return false;
+        }
     }
 
     public CancellationToken GetCancellationToken(Guid runId)
@@ -324,7 +336,7 @@ public sealed class RunExecutionQueue
 
     public bool Cancel(Guid runId, string source)
     {
-        CancellationTokenSource? cancellation = null;
+        RunCancellation? cancellation = null;
         lock (_gate)
         {
             if (!_cancellations.TryGetValue(runId, out cancellation))
@@ -340,9 +352,9 @@ public sealed class RunExecutionQueue
             _cancellationSources[runId] = NormalizeCancellationSource(source);
         }
 
-        cancellation!.Cancel();
+        var cancelled = cancellation!.Cancel();
         SignalScheduler();
-        return true;
+        return cancelled;
     }
 
     public string? GetCancellationSource(Guid runId)
@@ -393,7 +405,7 @@ public sealed class RunExecutionQueue
         lease = null;
         lock (_gate)
         {
-            if (_activeRuns.Count >= _options.MaxConcurrentRuns)
+            if (_disposed || _activeRuns.Count >= _options.MaxConcurrentRuns)
             {
                 return false;
             }
@@ -436,7 +448,7 @@ public sealed class RunExecutionQueue
     public bool TryStartDirectExecution(RunWorkItem item, out RunExecutionLease? lease)
     {
         lease = null;
-        CancellationTokenSource? source = null;
+        RunCancellation? source = null;
         lock (_gate)
         {
             if (!_accepting || _activeRuns.Count >= _options.MaxConcurrentRuns)
@@ -465,7 +477,7 @@ public sealed class RunExecutionQueue
                 return false;
             }
 
-            source = new CancellationTokenSource();
+            source = new RunCancellation();
             _cancellations[item.RunId] = source;
             lease = new RunExecutionLease(this, item.RunId);
             bool resolveTryAddResult12()
@@ -498,14 +510,39 @@ public sealed class RunExecutionQueue
     /// </summary>
     public async Task<bool> WaitForSchedulerSignalAsync(TimeSpan? timeout, CancellationToken cancellationToken)
     {
-        if (timeout is { } value && value > TimeSpan.Zero)
+        CancellationTokenSource lifetime;
+        lock (_gate)
         {
-            var waitAsyncResult = await _schedulerSignal.WaitAsync(value, cancellationToken);
-            return waitAsyncResult;
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _schedulerShutdown.Token);
+            _schedulerWaiters++;
         }
 
-        await _schedulerSignal.WaitAsync(cancellationToken);
-        return true;
+        try
+        {
+            if (timeout is { } value && value > TimeSpan.Zero)
+            {
+                var signalled = await _schedulerSignal.WaitAsync(value, lifetime.Token);
+                return signalled;
+            }
+
+            await _schedulerSignal.WaitAsync(lifetime.Token);
+            return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            throw;
+        }
+        finally
+        {
+            lifetime.Dispose();
+            lock (_gate)
+            {
+                _schedulerWaiters--;
+                TryDisposeSchedulerResources();
+            }
+        }
     }
 
     /// <summary>
@@ -514,9 +551,14 @@ public sealed class RunExecutionQueue
     /// </summary>
     public void StopAcceptingAndCancelAll()
     {
-        CancellationTokenSource[] sources;
+        RunCancellation[] sources;
         lock (_gate)
         {
+            if (_disposed)
+            {
+                return;
+            }
+
             _accepting = false;
             _queue.Writer.TryComplete();
             var selectResult = _cancellations
@@ -535,6 +577,88 @@ public sealed class RunExecutionQueue
         }
 
         SignalScheduler();
+    }
+
+    /// <summary>
+    /// Cancels outstanding work and releases owned resources after in-flight waits finish.
+    /// 取消未完成任务，并在正在进行的等待结束后释放拥有的资源。
+    /// </summary>
+    public void Dispose()
+    {
+        RunCancellation[] sources;
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _accepting = false;
+            _queue.Writer.TryComplete();
+            while (_queue.Reader.TryRead(out _))
+            {
+            }
+
+            Interlocked.Exchange(ref _queuedCount, 0);
+            foreach (var pair in _cancellations)
+            {
+                if (!pair.Value.IsCancellationRequested)
+                {
+                    _cancellationSources.TryAdd(pair.Key, RunCancellationSources.HostShutdown);
+                }
+            }
+
+            sources = _cancellations.Values.ToArray();
+            _cancellations.Clear();
+        }
+
+        List<Exception>? failures = null;
+        try
+        {
+            _schedulerShutdown.Cancel();
+            foreach (var source in sources)
+            {
+                try
+                {
+                    source.Cancel();
+                }
+                catch (Exception exception)
+                {
+                    failures ??= [];
+                    failures.Add(exception);
+                }
+                finally
+                {
+                    source.Dispose();
+                }
+            }
+        }
+        finally
+        {
+            lock (_gate)
+            {
+                _shutdownSignalled = true;
+                TryDisposeSchedulerResources();
+            }
+        }
+
+        if (failures is not null)
+        {
+            throw new AggregateException("Run cancellation callbacks failed during queue disposal. 队列释放期间运行取消回调失败。", failures);
+        }
+    }
+
+    // Call only under _gate: SemaphoreSlim.Dispose must not overlap WaitAsync or Release.
+    // 仅在 _gate 内调用：SemaphoreSlim.Dispose 不能与 WaitAsync 或 Release 并发。
+    private void TryDisposeSchedulerResources()
+    {
+        if (_shutdownSignalled && _schedulerWaiters == 0 && !_schedulerResourcesDisposed)
+        {
+            _schedulerResourcesDisposed = true;
+            _schedulerSignal.Dispose();
+            _schedulerShutdown.Dispose();
+        }
     }
 
     private void CompleteActive(Guid runId)
@@ -563,7 +687,7 @@ public sealed class RunExecutionQueue
 
     private void RemoveCancellation(Guid runId)
     {
-        CancellationTokenSource? source = null;
+        RunCancellation? source = null;
         lock (_gate)
         {
             if (_cancellations.Remove(runId, out var existing))
@@ -584,14 +708,22 @@ public sealed class RunExecutionQueue
 
     private void SignalScheduler()
     {
-        try
+        lock (_gate)
         {
-            _schedulerSignal.Release();
-        }
-        catch (SemaphoreFullException)
-        {
-            // The scheduler can coalesce redundant wake-ups.
-            // 调度器可以合并重复唤醒信号。
+            if (_disposed)
+            {
+                return;
+            }
+
+            try
+            {
+                _schedulerSignal.Release();
+            }
+            catch (SemaphoreFullException)
+            {
+                // The scheduler can coalesce redundant wake-ups.
+                // 调度器可以合并重复唤醒信号。
+            }
         }
     }
 
@@ -619,6 +751,85 @@ public sealed class RunExecutionQueue
     }
 
     private sealed record ActiveRunInfo(Guid ProjectId, bool IsListenerRun);
+
+    private sealed class RunCancellation : IDisposable
+    {
+        private readonly CancellationTokenSource _source = new();
+        private readonly object _gate = new();
+        private bool _disposed;
+        private int _cancelling;
+
+        internal CancellationToken Token
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    var token = _disposed ? new CancellationToken(canceled: true) : _source.Token;
+                    return token;
+                }
+            }
+        }
+
+        internal bool IsCancellationRequested
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _disposed || _source.IsCancellationRequested;
+                }
+            }
+        }
+
+        internal bool Cancel()
+        {
+            lock (_gate)
+            {
+                if (_disposed || _source.IsCancellationRequested)
+                {
+                    return false;
+                }
+
+                _cancelling++;
+            }
+
+            try
+            {
+                _source.Cancel();
+                return true;
+            }
+            finally
+            {
+                lock (_gate)
+                {
+                    _cancelling--;
+                    if (_disposed && _cancelling == 0)
+                    {
+                        _source.Dispose();
+                    }
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            lock (_gate)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _disposed = true;
+                if (_cancelling == 0)
+                {
+                    _source.Dispose();
+                }
+            }
+        }
+    }
+
     public sealed class RunQueueReservation : IDisposable
     {
         private RunExecutionQueue? _owner;
@@ -916,7 +1127,7 @@ public sealed class RunExecutionHostedService : BackgroundService
             var item = new RunWorkItem(pending.Run.Id, pending.Run.ProjectId, pending.Definition, pending.Options.ProjectInputs, pending.Run.QueuedAt, pending.Options.TimeoutSeconds, pending.Options.MaxSteps, pending.Options.MaxNodeVisits);
             if (!_queue.TryEnqueueReserved(item, reservation))
             {
-                _logger.LogWarning("Recovered run {RunId} could not be returned to the scheduler. 恢复的运行实例无法重新加入调度器。", item.RunId);
+                HostingLog.RecoveredRunRejected(_logger, item.RunId, null);
                 break;
             }
         }
@@ -953,7 +1164,7 @@ public sealed class RunExecutionHostedService : BackgroundService
 
         if (reconciled > 0)
         {
-            _logger.LogWarning("Reconciled {Count} orphaned running flow run(s) after engine startup. 引擎启动后已将这些孤儿运行实例标记为中断。", reconciled);
+            HostingLog.OrphanedRunsReconciled(_logger, reconciled, null);
         }
     }
 
@@ -1055,7 +1266,10 @@ public sealed class RunExecutionHostedService : BackgroundService
                 return;
             }
 
-            _logger.LogInformation("Starting flow run {RunId} for project {ProjectId}, flow {FlowId}. 开始运行流程实例。", item.RunId, item.ProjectId, item.Definition.Id);
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                HostingLog.RunStarting(_logger, item.RunId, item.ProjectId, item.Definition.Id, null);
+            }
             var startedAt = DateTimeOffset.UtcNow;
             var addSecondsResult25 = startedAt.AddSeconds(item.TimeoutSeconds);
             run.MarkRunning(startedAt, addSecondsResult25);
@@ -1080,7 +1294,10 @@ public sealed class RunExecutionHostedService : BackgroundService
 
             await PublishTerminalAsync(run, result, eventStore, CancellationToken.None);
             await runStore.SaveAsync(run, CancellationToken.None);
-            _logger.LogInformation("Flow run {RunId} finished with status {Status}. 流程实例已结束。", item.RunId, run.Status);
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                HostingLog.RunFinished(_logger, item.RunId, run.Status, null);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -1219,7 +1436,7 @@ public sealed class RunExecutionHostedService : BackgroundService
             // A disconnected SSE reader must never abort the Worker process.
             // The durable event has already been stored and can be replayed.
             // SSE 客户端断开不能终止 Worker；事件已持久化，可通过回放补齐。
-            _logger.LogWarning(exception, "Live run event broadcast failed for {RunId}. 实时事件广播失败。", item.RunId);
+            HostingLog.LiveRunBroadcastFailed(_logger, item.RunId, exception);
         }
 
         try
@@ -1229,7 +1446,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         }
         catch (Exception exception)
         {
-            _logger.LogWarning(exception, "SignalR run event push failed for {RunId}. SignalR 运行事件推送失败。", item.RunId);
+            HostingLog.RunPushFailed(_logger, item.RunId, exception);
         }
     }
 
@@ -1302,7 +1519,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         }
         catch (Exception exception)
         {
-            _logger.LogWarning(exception, "Terminal run event broadcast failed for {RunId}. 终止事件广播失败。", run.Id);
+            HostingLog.TerminalRunBroadcastFailed(_logger, run.Id, exception);
         }
 
         try
@@ -1312,7 +1529,7 @@ public sealed class RunExecutionHostedService : BackgroundService
         }
         catch (Exception exception)
         {
-            _logger.LogWarning(exception, "Terminal SignalR event push failed for {RunId}. 终止 SignalR 事件推送失败。", run.Id);
+            HostingLog.TerminalRunPushFailed(_logger, run.Id, exception);
         }
     }
 

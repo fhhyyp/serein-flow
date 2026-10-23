@@ -34,7 +34,7 @@ public sealed class SereinFlowApiExceptionFilter(ILogger<SereinFlowApiExceptionF
             return;
         }
 
-        logger.LogError(context.Exception, "Unhandled SereinFlow API request failure. SereinFlow API 请求发生未处理的错误。");
+        HostingLog.ApiRequestFailed(logger, context.Exception);
         var problemDetails = new ProblemDetails
         {
             Status = StatusCodes.Status500InternalServerError,

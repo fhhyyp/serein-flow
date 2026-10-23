@@ -44,7 +44,7 @@ public static class FlowDefinitionContractMapper
             var nodeParameterDefinition = new NodeParameterDefinition(parameter.Name, parameter.ValueJson, (DataSource)parameter.Source, parameter.Required, parameter.Ui?.Id, parameter.Ui?.ProjectInputKey, parameter.Ui?.Expression, parameter.Ui?.SourceNodeId, parameter.Ui?.SourcePortId, parameter.Ui?.ValueKind, parameter.Ui?.Description, parameter.Ui?.IsVariadic ?? false, parameter.Ui?.VariadicGroupId, parameter.Ui?.ElementType, parseVariadicModeResult, mapEnumMetadataResult);
             return nodeParameterDefinition;
         });
-        ScriptNodeDefinition conditionalValue;
+        ScriptNodeDefinition? conditionalValue;
         if (dto.Script is null)
         {
             conditionalValue = null;
@@ -68,7 +68,7 @@ public static class FlowDefinitionContractMapper
         }
 
         ScriptNodeDefinition? evaluatedValue7 = conditionalValue;
-        NodeRuntimeDefinition conditionalValue5;
+        NodeRuntimeDefinition? conditionalValue5;
         if (dto.Ui is null)
         {
             conditionalValue5 = null;

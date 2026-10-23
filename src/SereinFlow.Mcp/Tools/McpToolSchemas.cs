@@ -485,7 +485,7 @@ internal static class McpToolSchemas
         string[]? required = null,
         bool additionalProperties = false)
     {
-        return McpJsonSchema.Object(properties, required, additionalProperties);
+        return McpJsonSchema.CreateObject(properties, required, additionalProperties);
     }
 
     private static McpJsonSchema NullableSchema(McpJsonSchema schema)

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -46,7 +47,14 @@ public sealed record McpJsonSchema
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<McpJsonSchema>? OneOf { get; init; }
 
+    [SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "Compatibility factory; new callers use CreateObject.")]
     public static McpJsonSchema Object(
+        IReadOnlyDictionary<string, McpJsonSchema>? properties = null,
+        string[]? required = null,
+        bool additionalProperties = false)
+        => CreateObject(properties, required, additionalProperties);
+
+    public static McpJsonSchema CreateObject(
         IReadOnlyDictionary<string, McpJsonSchema>? properties = null,
         string[]? required = null,
         bool additionalProperties = false)
