@@ -25,7 +25,6 @@
 	<ItemGroup>
 		<Compile Remove="Prototype\Network.cs" />
 		<Compile Remove="Prototype\ScriptIO.cs" />
-		<Compile Remove="Runtime\ByteCode\Compiler_backup_001.cs" />
 		<Compile Remove="Runtime\ByteCode\ValueStack.cs" />
 		<Compile Remove="Runtime\ByteCode\VariableBinding.cs" />
 		<Compile Remove="Runtime\EvalResult.cs" />
