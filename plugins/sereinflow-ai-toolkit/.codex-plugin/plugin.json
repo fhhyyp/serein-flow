@@ -16,7 +16,7 @@
   "interface": {
     "displayName": "SereinFlow AI Toolkit",
     "shortDescription": "Operate live SereinFlow workflows",
-    "longDescription": "Connect Codex to the authenticated SereinFlow MCP API. Discover current server guidance, tools, resources, templates, and prompts before inspecting or changing projects, flows, runs, SereinLang, and library packages.",
+    "longDescription": "Connect Codex to a running SereinFlow MCP service. HTTP access requires no API key by default; authentication is optional. Load current server guidance and discover the tools needed to inspect or change projects, flows, runs, SereinLang, and library packages.",
     "developerName": "SereinFlow",
     "category": "Productivity",
     "capabilities": [

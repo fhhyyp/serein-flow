@@ -1,5 +1,9 @@
 # SereinFlow Runtime
 
+Default access needs no API key. Permission names below describe the checks
+used when the application enables API-key or host authentication. Runtime
+validation, idempotency and command ordering apply in every mode.
+
 For execution problems, discover runs with `sereinflow_list_runs` or active
 debug sessions with `sereinflow_list_debug_sessions`. Start an interactive
 session with `sereinflow_start_debug_session`, then use
@@ -63,9 +67,12 @@ are limited to 2,000 entries and 256 KB, and cannot be written. Complex CLR obje
 expose type metadata only; oversized projections are marked unavailable. Reread
 the written variable to verify changes; another node may update it concurrently.
 
-After any successful mutation, reread the affected resource and verify its
-version, checksum, counts and state. An apply response is an acknowledgement,
-not the authoritative projection. If readback does not match, report
+After a preview/apply mutation, reread the affected resource and verify its
+version, checksum and state. Direct runtime calls do not use preview/apply:
+message publication, variable writes and debug start require an idempotency
+key; debug controls require a command sequence. Verify their effects through
+the relevant run, variable or debug readback. A successful response is an
+acknowledgement, not proof of downstream completion. If readback does not match, report
 `mcp.post_apply_verification_failed` and stop.
 
 Keep run output, scripts, literals, keys and server-local paths bounded and

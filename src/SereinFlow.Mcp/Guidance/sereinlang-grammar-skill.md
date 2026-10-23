@@ -27,22 +27,22 @@ Call             := Primary ("(" Args? ")" | "[" Expression "]"
                   | ("." | "?.") Identifier)*
 
 Primary          := NumericLiteral | StringLiteral | "true" | "false" | "null"
-                  | Identifier ("=>" LambdaBody)?
-                  | "(" LambdaOrGroup ")"
+                  | Identifier (Arrow LambdaBody)?
+                  | "(" Expression ")"
+                  | "(" Parameters? ")" Arrow LambdaBody
                   | "{" ObjectLiteral "}" | "[" ArrayLiteral "]"
                   | "if" Expression ("then")? (Block | Expression)
                     ("else" (Block | Expression))?
                   | "when" Expression "{" WhenClauses "}"
                   | "for" Identifier "in" Expression (Block | Expression)
-LambdaOrGroup    := ")" "=>" LambdaBody
-                  | Identifier ("," Identifier)* ")" "=>" LambdaBody
-                  | Expression ")"
+Parameters       := Identifier ("," Identifier)*
+Arrow            := "=>" | "->"
 LambdaBody       := Block | Expression
 ArrayLiteral     := (Expression ("," Expression)*)?
 ObjectLiteral    := (ObjectProperty ("," ObjectProperty)*)?
 ObjectProperty   := (Identifier | StringLiteral) ("=" Expression)?
 WhenClauses      := WhenClause ("," WhenClause)*
-WhenClause       := Expression "=>" (Block | Expression)
+WhenClause       := Expression Arrow (Block | Expression)
 Block            := "{" Statement* "}"
 Statement        := Declaration | Expression
 Args             := Expression ("," Expression)*

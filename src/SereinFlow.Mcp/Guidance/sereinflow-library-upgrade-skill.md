@@ -2,8 +2,10 @@
 
 A library family groups immutable artifacts for compatibility selection. Do
 not infer a family from a package name or version. Family assignment is a
-separate administrator-only preview/apply operation and does not change an
-existing flow binding.
+separate environment-level preview/apply operation and does not change an
+existing flow binding. When authentication is configured, it requires
+`workspace.manage` and `library.manage`. Default direct access needs no
+administrator key; the preview/apply contract still applies.
 
 For a project upgrade, preserve this sequence:
 

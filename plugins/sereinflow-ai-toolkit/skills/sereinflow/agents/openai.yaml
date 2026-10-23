@@ -8,7 +8,7 @@ dependencies:
   tools:
     - type: "mcp"
       value: "sereinflow"
-      description: "Authenticated SereinFlow MCP service"
+      description: "SereinFlow MCP service; authentication is optional"
       transport: "streamable_http"
       url: "http://127.0.0.1:8188/mcp"
 

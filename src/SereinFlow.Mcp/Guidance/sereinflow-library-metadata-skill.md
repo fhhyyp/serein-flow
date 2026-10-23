@@ -25,20 +25,12 @@ names are case-sensitive and non-empty. Values are not persisted across runs;
 mutations of stored objects and read-modify-write sequences require caller synchronization.
 
 ```csharp
-[FlowLibrary("OpenCV Image Processing Demo")]
-public sealed class OpenCvImageNodes
+[FlowLibrary("Image byte utilities")]
+public sealed class ImageByteNodes
 {
-    [FlowNode(AnotherName = "Decode image", Desc = "Decode encoded image bytes.")]
-    public byte[] Decode([NodeParam(Name = "Encoded image bytes")] byte[] bytes)
+    [FlowNode(AnotherName = "Echo image bytes", Desc = "Return the supplied bytes unchanged.")]
+    public byte[] Echo([NodeParam(Name = "Image bytes")] byte[] bytes)
         => bytes;
-
-    [FlowNode(NodeType = NodeType.Flipflop, AnotherName = "Wait for trigger")]
-    public async Task<bool> Wait(string source, IFlowContext context)
-    {
-        await Task.Yield();
-        context.SelectSuccess();
-        return !string.IsNullOrWhiteSpace(source);
-    }
 }
 ```
 

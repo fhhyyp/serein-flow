@@ -1,21 +1,28 @@
 ---
 name: sereinflow
-description: Connect to SereinFlow MCP, load its live routing guide, and operate only the requested capability.
+description: Inspect or operate a running SereinFlow service through MCP and its live guidance. Use local tools for explicitly requested server-source edits or library builds.
 ---
 
 # SereinFlow MCP
 
 Use the configured `sereinflow` MCP server as the source of truth for
 SereinFlow projects, flows, runs, debugging, versions, run-message endpoints,
-SereinLang, library packages and MCP API-key administration. Treat the service as a remote black box; do not use local source,
-databases, library directories or uploaded binaries to explain a server result.
+SereinLang and library packages. For remote runtime state, use MCP results;
+do not infer that state from a local checkout, database or uploaded binary.
+Explicitly requested repository work or local library builds may use the
+caller's files and toolchain. Keep those local results distinct from remote
+service evidence. API-key administration is optional HTTP functionality, not
+a set of MCP tools.
 
 ## Required loading order
 
 At the start of a task:
 
-1. Complete a fresh MCP `initialize` handshake and read its `instructions`.
-2. Read `sereinflow://ai/guide` with `resources/read`. This is the server's
+1. Reuse the MCP client's initialized session, or let it initialize when no
+   session exists. Read its server instructions; do not start a second manual
+   session merely because a new task began. Direct probes use their own session.
+2. Read the guide URI returned by initialize, normally
+   `sereinflow://ai/guide`, with `resources/read`. This is the server's
    authoritative routing entry point; consume it through MCP rather than
    replacing it with a client-local path.
 3. Follow the guide and read only the smallest capability module needed for the
@@ -35,21 +42,25 @@ contains only the endpoint URL and requires no credential variable.
 
 If the service explicitly enables API-key authentication, add
 `"bearer_token_env_var": "SEREINFLOW_MCP_API_KEY"` to the client's connection
-configuration. In that mode, the bearer token comes only from this variable.
+configuration when that field is supported, or use the client's supported
+credential injection. This example variable is a client setting, not a server
+requirement. Host-authenticated deployments may use a different identity scheme.
 Never put the key in this file, task text, tool arguments, logs, repository
 files or client-local project files. Never create a second authentication
 mechanism or send an API key to a SereinFlow tool.
 
-The variable is read by the host process that owns the MCP client. A PowerShell
+When using the environment-variable example, the variable is read by the host
+process that owns the MCP client. A PowerShell
 `$env:SEREINFLOW_MCP_API_KEY` value affects that shell only; it does not update
 an already-running Codex process. Shell environment policy and stdio server
 `env_vars` are not replacements for the HTTP bearer-token setting. Enter the
-secret through the host's supported credential/environment injection, then
-restart Codex or start a new task after creating, rotating or changing it.
+secret through the host's supported credential/environment injection. Reconnect
+after a key change, restarting the owning process if it must reread environment
+variables; a new task alone does not refresh an existing process environment.
 
 ## Connection constraints
 
-- Use the configured endpoint and one fresh `initialize` session.
+- Use the configured endpoint and the client's current initialized session.
 - For every request after initialization, preserve the returned
   `MCP-Session-Id` and send the negotiated/current `MCP-Protocol-Version`.
   Do not hardcode a version that differs from the server handshake. The
@@ -78,8 +89,9 @@ keep its key in the process environment:
 
 1. `GET /mcp` returning `405` proves the route is reachable; MCP uses `POST`.
 2. `POST initialize` without credentials should return `200` in default mode.
-   A `401` with `WWW-Authenticate: Bearer` means the optional authentication
-   package is enabled; it does not by itself prove a configured key is invalid.
+   A `401` with `WWW-Authenticate: Bearer` means that the host or a gateway
+   requires Bearer authentication; it does not identify the implementation
+   or prove that a configured key is invalid.
 3. In API-key mode, authenticated `POST initialize` returning `200` and a
    session ID proves authentication and session creation. Keep the ID internal.
 4. Follow-up reads with the session ID and negotiated protocol
@@ -87,8 +99,9 @@ keep its key in the process environment:
    client should still send the negotiated protocol header even though the
    current service does not yet reject every follow-up request that omits it.
 
-The initialize body must be valid MCP JSON-RPC. Use the current protocol
-version returned by the server, for example:
+For a direct probe, initialize with a supported client protocol version. The
+following is an example for the currently supported `2025-06-18`; use the
+version returned by the handshake for follow-up requests:
 
 ```json
 {
@@ -113,12 +126,15 @@ Use these conclusions:
 
 - Connection refused or timeout: the host/port is unreachable from the
   probing process or the API is not listening there.
-- Authenticated `401`: the key is absent, invalid, expired or revoked; do not
-  replace it with a repository or tool-argument key.
+- `401` in API-key mode: the key is absent, invalid, expired or revoked.
+  Host authentication or a gateway can also return `401`; inspect the host's
+  challenge before assuming that the optional key package is enabled.
 - `502`/`503`/`504`: gateway, connector or startup failure; do not call it an
   authentication failure without an authenticated `401`.
-- Initialize succeeds but a follow-up fails: suspect session ID, protocol
-  header, session expiry or protocol mismatch before suspecting the key.
+- Initialize succeeds but a follow-up fails: use the returned status and
+  diagnostic. `401` indicates lost authentication; `403` indicates denied
+  access; session errors require checking the session ID/expiry. A successful
+  initialize does not prove access to every tool or project.
 - If direct probing is unavailable, report the exact client error and mark
   service health unverified. Do not claim the local service is down.
 
@@ -128,7 +144,7 @@ Use this compact record for connection reports:
 Connection status: healthy | client-path-failed | auth-failed | unreachable | unknown
 Endpoint: <configured endpoint, without credentials>
 Transport: <status and evidence>
-Authentication: <not tested | missing/invalid | accepted>
+Authentication: <not required | host-managed | not tested | missing/invalid | accepted>
 Session/protocol: <not established | established | follow-up headers verified>
 Capabilities: tools=<count or ?>, resources=<count or ?>, prompts=<count or ?>
 Likely cause: <one evidence-based sentence>
@@ -142,9 +158,8 @@ literals and server-local absolute paths.
 ## Mutation gate
 
 For an explicit request to create a project, edit a flow, publish, rollback,
-attach or import a library, assign or upgrade a library family, publish a
-run message, or manage an MCP API key, use one task-level authorization and
-this sequence:
+attach or import a library, or assign or upgrade a library family, use the
+preview/apply contract:
 
 ```text
 read current state -> preview requested scope -> inspect diagnostics/diff
@@ -152,18 +167,24 @@ read current state -> preview requested scope -> inspect diagnostics/diff
 -> reread affected resources and verify persisted state
 ```
 
-Do not ask for duplicate confirmation between dependent calls. Pause once when
-the request is ambiguous, the preview is destructive or unexpected, production
-state, permissions or secrets change, a version conflict occurs, or the scope
-materially differs from the request. Read-only inspection, compilation and
+The user's request authorizes the stated task and dependent calls. Do not ask
+for duplicate confirmation; the protocol field `confirmation: "APPLY"` is not
+itself a demand for another user approval. Clarify ambiguous or expanded scope,
+and stop on conflicts or unexpected destructive, release, permission or secret
+effects the user has not authorized. Read-only inspection, compilation and
 post-apply rereads do not need confirmation.
+
+Run-message publication, variable writes and debug start use direct calls with
+an `idempotencyKey`; debug controls use `commandSequence`. These operations
+have no preview/apply phase. Follow the runtime module and current schemas.
 
 For `sereinflow_publish_run_message`, include a non-empty `idempotencyKey` and
 use the runtime skill. `accepted` only means Worker broker acceptance; verify
-downstream run state or outputs. For API-key tools, use the dedicated
-`sereinflow://ai/skills/sereinflow/api-keys` Resource, keep returned secrets
-out of logs and repository files, and never repeat a create or rotate call
-after an ambiguous response without first reading current key state.
+downstream run state or outputs. For optional HTTP API-key management, read
+`sereinflow://ai/skills/sereinflow/api-keys` and use the web console or the
+authorized `/api/security/api-keys` endpoints. There are no MCP key-management
+tools. Do not initialize keys in default mode or repeat an ambiguous create or
+rotate call without first reading current key state.
 
 ## Debug workflow
 
@@ -180,6 +201,6 @@ does not mean the run failed. A paused session accepts
 `sereinflow_step_debug` or `sereinflow_continue_debug`; every command must use
 the next strictly increasing `commandSequence`. Use
 `sereinflow_stop_debug` to cancel an active session. Start and control require
-`debug.control`; discovery, state and wait reads accept `debug.read` or
-`run.read`. Do not blindly retry a control command after an ambiguous
-response—read the durable state first.
+`debug.control` when authentication is configured; discovery, state and wait
+reads accept `debug.read` or `run.read` in that mode. Do not blindly retry a
+control command after an ambiguous response—read the durable state first.
