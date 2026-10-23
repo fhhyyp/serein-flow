@@ -99,7 +99,7 @@ await download.Content.CopyToAsync(file);
 
 ## 鉴权和错误
 
-HTTP 宿主必须显式选择 `UseHostSecurity()` 或可选库的 `UseApiKeySecurity()`。独立宿主默认启用 Key 库；嵌入宿主复用现有身份与资源策略。初始化管理员接口为 `/api/security/api-keys/initial-admin`，仅允许直接回环访问。旧授权开关已移除。
+HTTP 与 MCP 默认直接访问（`None` 模式），认证为可选能力。独立宿主可设置 `SereinFlow:Security:Mode=ApiKey`，嵌入宿主可显式调用 `UseApiKeySecurity()` 或 `UseHostSecurity()`。启用 API Key 后，管理员初始化接口为 `/api/security/api-keys/initial-admin`，仅接受直接回环访问。以下权限要求适用于启用认证的模式。
 
 - `run.execute`：启动、公开调用和取消；
 - `run.read`：运行、输出、事件和工件读取；

@@ -200,11 +200,20 @@ public sealed class ApiKeysController(ApiKeyManagementService management, IApiKe
     public async Task<IActionResult> Rotate(string id, CancellationToken cancellationToken)
     {
         await RequireManagementAsync();
+        var rotated = await management.RotateAsync(id, cancellationToken);
+        var session = await HttpContext.AuthenticateAsync(ApiKeyHosting.SessionScheme);
+        if (SereinFlowHttpActor.Get(HttpContext)?.Id == id && session.Succeeded
+            && session.Principal?.FindFirstValue(ClaimTypes.NameIdentifier) == id)
         {
-            var argument4 = await management.RotateAsync(id, cancellationToken);
-            var result8 = Ok(argument4);
-            return result8;
+            // Move only this browser's existing session to the replacement key.
+            // Other sessions and Bearer credentials keep their revocation semantics.
+            // 仅迁移当前浏览器的既有会话；其他会话和 Bearer 凭据仍按撤销规则失效。
+            var subject = new Claim(ClaimTypes.NameIdentifier, rotated.Key.Id);
+            var identity = new ClaimsIdentity([subject], ApiKeyHosting.SessionScheme);
+            await HttpContext.SignInAsync(ApiKeyHosting.SessionScheme, new ClaimsPrincipal(identity), session.Properties);
         }
+
+        return Ok(rotated);
     }
 
     [HttpDelete("api-keys/{id}")]

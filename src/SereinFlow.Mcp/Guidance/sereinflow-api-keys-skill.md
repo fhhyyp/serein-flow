@@ -1,6 +1,8 @@
 # Optional HTTP API-key administration
 
 Key administration belongs to the optional `SereinFlow.Security.ApiKeys` package.
+HTTP and MCP allow direct access by default. Key services are registered only
+when the application developer explicitly enables API-key authentication.
 MCP has no tools for creating, listing, rotating or revoking keys. Use the web
 console or the authorized HTTP `/api/security/api-keys` endpoints instead.
 `/api/security/capabilities` indicates whether the host offers key management.

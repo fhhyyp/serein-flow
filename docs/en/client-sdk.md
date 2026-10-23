@@ -104,7 +104,7 @@ idempotency protocol.
 
 ## Authentication and errors
 
-HTTP hosts explicitly select `UseHostSecurity()` or `UseApiKeySecurity()` from the optional security package. The standalone host enables API-key security by default; embedding hosts reuse existing identities and resource policies. Initial setup uses `/api/security/api-keys/initial-admin` and accepts only direct loopback requests. The previous authentication switch has been removed.
+HTTP and MCP allow direct access by default (`None` mode). Authentication is optional: set `SereinFlow:Security:Mode` to `ApiKey` in the standalone host, or explicitly select `UseApiKeySecurity()` or `UseHostSecurity()` in an embedding host. In API-key mode, initial setup uses `/api/security/api-keys/initial-admin` and accepts only direct loopback requests. The permissions below apply when authentication is enabled.
 
 - `run.execute`: start, invoke, and cancel;
 - `run.read`: read runs, outputs, events, and workpieces;

@@ -30,8 +30,12 @@ this plugin contains the detailed server Skills.
 
 ## Authentication
 
-The HTTP MCP connection receives its bearer token only from
-`SEREINFLOW_MCP_API_KEY`, as declared by the plugin's MCP configuration.
+HTTP MCP allows direct access by default. The plugin configuration therefore
+contains only the endpoint URL and requires no credential variable.
+
+If the service explicitly enables API-key authentication, add
+`"bearer_token_env_var": "SEREINFLOW_MCP_API_KEY"` to the client's connection
+configuration. In that mode, the bearer token comes only from this variable.
 Never put the key in this file, task text, tool arguments, logs, repository
 files or client-local project files. Never create a second authentication
 mechanism or send an API key to a SereinFlow tool.
@@ -69,15 +73,16 @@ when shell/network diagnostics are available. Label observations `Codex MCP
 client` or `direct probe`; a shell result proves only that shell's credentials
 and network path.
 
-For a direct probe, use this order and keep the key in the process environment:
+For a direct probe, use this order. If API-key authentication is enabled,
+keep its key in the process environment:
 
 1. `GET /mcp` returning `405` proves the route is reachable; MCP uses `POST`.
-2. Unauthenticated `POST initialize` returning `401` with
-   `WWW-Authenticate: Bearer` proves bearer authentication is enforced. It
-   does not by itself prove a configured key is invalid.
-3. Authenticated `POST initialize` returning `200` and a session ID proves
-   authentication and session creation. Keep the ID internal.
-4. Authenticated follow-up reads with the session ID and negotiated protocol
+2. `POST initialize` without credentials should return `200` in default mode.
+   A `401` with `WWW-Authenticate: Bearer` means the optional authentication
+   package is enabled; it does not by itself prove a configured key is invalid.
+3. In API-key mode, authenticated `POST initialize` returning `200` and a
+   session ID proves authentication and session creation. Keep the ID internal.
+4. Follow-up reads with the session ID and negotiated protocol
    header, followed by reading the guide, verify MCP application access. The
    client should still send the negotiated protocol header even though the
    current service does not yet reject every follow-up request that omits it.

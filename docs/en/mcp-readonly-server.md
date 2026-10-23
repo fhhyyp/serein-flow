@@ -25,8 +25,13 @@ dotnet build src/SereinFlow.Api/SereinFlow.Api.csproj
 dotnet run --project src/SereinFlow.Api/SereinFlow.Api.csproj
 ```
 
-The development MCP endpoint is `http://127.0.0.1:8188/mcp`. Requests must
-include:
+The development MCP endpoint is `http://127.0.0.1:8188/mcp`. HTTP and MCP allow
+direct access by default (`None` mode), without API keys. Network isolation and
+authentication are application-developer choices. To opt into the existing
+`SereinFlow.Security.ApiKeys` package in the standalone host, set
+`SereinFlow:Security:Mode` to `ApiKey` and restart. Embedding hosts select
+`UseApiKeySecurity()` or integrate their existing identity with `UseHostSecurity()`.
+Only API-key mode requires the following header or a valid browser session:
 
 ```text
 Authorization: Bearer <api-key>
@@ -37,7 +42,7 @@ requests must return the same session ID. The HTTP transport continues to
 enforce request-body, response, concurrency, per-principal rate, and tool
 timeout limits. Unauthenticated requests, invalid sessions, limit violations,
 timeouts, and internal failures return stable `mcp.*` diagnostics. Loopback
-addresses do not provide an unauthenticated administrator bypass.
+addresses do not provide an administrator bypass when API-key authentication is enabled.
 
 The MCP client configuration committed to Git stores only the URL, not the API
 key, database path, or library directory:
@@ -52,6 +57,10 @@ key, database path, or library directory:
   }
 }
 ```
+
+The following credential setup applies only to API-key mode. The default plugin
+configuration contains only the URL; add
+`"bearer_token_env_var": "SEREINFLOW_MCP_API_KEY"` when authentication is enabled.
 
 The API key should be supplied through the MCP client's secure credentials,
 external secret injection, or a credential store. Do not write the key into the
@@ -203,7 +212,7 @@ and access failures remain errors. The skill catalog is registered with the
 assembly, and reads and management share one provider without exporting files
 at startup.
 
-In the web console's Environment settings, connect an administrator MCP key
+In the web console's Environment settings, open the independent MCP skills editor
 to view, edit, save, and restore Available MCP skills. Saving creates or
 replaces the override at the currently configured server path. The next MCP
 read or prompt receives the update. Restoring defaults deletes the override
@@ -211,8 +220,9 @@ and keeps the embedded content. The override directory must be writable;
 preserve custom files during deployment upgrades. Clients must refresh any
 content they have already cached.
 
-These REST management endpoints always require an administrator Bearer key,
-even when other REST endpoints permit anonymous access:
+These REST management endpoints allow direct access in default mode. API-key
+mode requires workspace-management permission through a Bearer key or browser
+session; host-security mode uses the host's resource policy:
 
 | Method | Path | Purpose |
 | --- | --- | --- |

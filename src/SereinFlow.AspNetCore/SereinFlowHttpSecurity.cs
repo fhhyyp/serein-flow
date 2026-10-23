@@ -54,6 +54,10 @@ public static class SereinFlowHttpActor
     public static async Task<SereinFlowActor?> ResolveAsync(HttpContext context)
     {
         var options = context.RequestServices.GetRequiredService<SereinFlowHttpSecurityOptions>();
+        if (options.Mode == "None")
+        {
+            return AnonymousAuthorization.Actor;
+        }
         var principal = context.User;
         if (options.AuthenticationScheme is { } scheme)
         {

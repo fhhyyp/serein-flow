@@ -67,13 +67,36 @@ npm run dev
 
 ## 配置 MCP 服务
 
+默认不启用 API Key，HTTP 与 MCP 均可直接访问，无需登录、初始化密钥或设置凭据环境变量。
+框架主要面向工控应用，网络隔离与认证方案由应用开发者决定。默认 MCP 客户端配置为：
+
+```json
+{
+  "mcpServers": {
+    "sereinflow": {
+      "type": "http",
+      "url": "http://127.0.0.1:8188/mcp"
+    }
+  }
+}
+```
+
+连接后完成初始化并发现工具、资源和提示词，即可确认访问正常。
+
+### 可选 API Key 认证
+
+现有外围包 `SereinFlow.Security.ApiKeys` 保留为可选能力。独立宿主需要认证时，
+将 `SereinFlow:Security:Mode` 设置为 `ApiKey` 并重启。嵌入宿主可显式调用
+`UseApiKeySecurity()`，或通过 `UseHostSecurity()` 对接已有身份系统。
+以下密钥设置步骤仅适用于已经显式启用 API Key 认证的服务，默认 `None` 模式无需执行。
+
 以下流程为本机运行的 SereinFlow 配置 HTTP MCP 客户端。请在 API 与前端均已启动后
 继续操作。
 
 ### 1. 生成管理员密钥
 
-在 Web 控制台主页菜单中打开“环境设置”，找到“MCP 访问密钥”，然后选择“生成首个
-密钥”。保存显示的管理员密钥；其格式通常为 `sfk_...`，完整 Secret 只会在创建或
+在服务器本机的 Web 登录页选择“初始化管理员”，保存返回的密钥后登录，再到“环境设置”
+管理客户端密钥。管理员密钥的格式通常为 `sfk_...`，完整 Secret 只会在创建或
 轮换时显示一次。
 
 ### 2. 创建环境变量
@@ -94,7 +117,7 @@ setx SEREINFLOW_MCP_API_KEY "sfk_replace_with_your_complete_secret"
 让所使用的 AI 工具根据
 [`plugins/sereinflow-ai-toolkit`](plugins/sereinflow-ai-toolkit) 目录中的内容创建适用于
 本机的 Skill。该目录中的 [`.mcp.json`](plugins/sereinflow-ai-toolkit/.mcp.json) 定义
-本机 HTTP MCP 地址和 `SEREINFLOW_MCP_API_KEY` 凭据变量；
+本机 HTTP MCP 地址；仅在启用 API Key 认证后添加 `SEREINFLOW_MCP_API_KEY` 凭据变量。
 [`SKILL.md`](plugins/sereinflow-ai-toolkit/skills/sereinflow/SKILL.md) 定义连接、
 诊断、能力发现和安全操作规则。
 

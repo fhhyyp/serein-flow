@@ -74,13 +74,40 @@ address.
 
 ## Configure the MCP Service
 
+HTTP and MCP allow direct access by default, with no API key or sign-in.
+The framework targets industrial-control applications; application developers
+choose their network isolation and authentication. The default MCP connection is:
+
+```json
+{
+  "mcpServers": {
+    "sereinflow": {
+      "type": "http",
+      "url": "http://127.0.0.1:8188/mcp"
+    }
+  }
+}
+```
+
+Initialize this connection and discover its tools and resources to verify access.
+No credential environment variable is needed in the default `None` mode.
+
+### Optional API-key Authentication
+
+The existing `SereinFlow.Security.ApiKeys` package remains optional. To enable it
+in the standalone host, set `SereinFlow:Security:Mode` to `ApiKey` and restart.
+Embedding hosts opt in with `UseApiKeySecurity()` or integrate existing identity
+providers with `UseHostSecurity()`. The key setup steps below apply only after
+API-key authentication is explicitly enabled.
+
 The following workflow configures an HTTP MCP client for a locally running
 SereinFlow instance. Start both the API and the web console before continuing.
 
 ### 1. Generate the Administrator Key
 
-In the web console's home menu, open **Environment settings**, find **MCP
-access keys**, and select **Generate first key**. Save the administrator key
+On the web sign-in page on the server machine, select **Create initial
+administrator**, save the returned key, and sign in. Manage further keys in
+**Environment settings**. Save the administrator key
 shown there. It normally begins with `sfk_...`, and the complete Secret is
 shown only once when it is created or rotated.
 
@@ -103,7 +130,7 @@ and AI tools. Existing processes do not receive the new variable automatically.
 Ask the AI tool you use to create a local Skill from the contents of
 [`plugins/sereinflow-ai-toolkit`](plugins/sereinflow-ai-toolkit). Its
 [`.mcp.json`](plugins/sereinflow-ai-toolkit/.mcp.json) defines the local HTTP
-MCP endpoint and the `SEREINFLOW_MCP_API_KEY` credential variable, while
+MCP endpoint; add the `SEREINFLOW_MCP_API_KEY` credential variable only when API-key authentication is enabled. The
 [`SKILL.md`](plugins/sereinflow-ai-toolkit/skills/sereinflow/SKILL.md) defines
 the connection, diagnostics, capability-discovery, and safe-operation rules.
 
@@ -152,6 +179,9 @@ Local MCP setup is complete once the AI tool can initialize and discover the
 MCP tools, resources, and prompts.
 
 ## Use SereinFlow MCP in Codex
+
+This credential-variable setup is needed only when optional API-key
+authentication is enabled. Default direct access requires no key variable.
 
 Codex's default safety policy can block this environment variable from being
 passed to Shell and command-line environments it launches. To use the

@@ -82,6 +82,105 @@ public sealed class SecurityIntegrationTests
     }
 
     [Fact]
+    public async Task RotatingCurrentKeyRenewsOnlyTheInitiatingBrowserSession()
+    {
+        using var factory = new Factory();
+        using var browser = factory.CreateClient();
+        using var otherBrowser = factory.CreateClient();
+        using var bearerClient = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+        using var setup = await browser.PostAsync("/api/security/api-keys/initial-admin", null);
+        Assert.Equal(HttpStatusCode.Created, setup.StatusCode);
+        var original = (await setup.Content.ReadFromJsonAsync<CreatedApiKeyDto>())!;
+        await LoginAsync(browser, original.Secret);
+        await LoginAsync(otherBrowser, original.Secret);
+
+        using var response = await browser.PostAsync($"/api/security/api-keys/{original.Key.Id}/rotate", null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var replacement = (await response.Content.ReadFromJsonAsync<RotatedApiKeyDto>())!;
+        var cookie = Assert.Single(response.Headers.GetValues("Set-Cookie"));
+        Assert.DoesNotContain(original.Secret, cookie);
+        Assert.DoesNotContain(replacement.Secret!, cookie);
+        Assert.Contains("httponly", cookie, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("samesite=strict", cookie, StringComparison.OrdinalIgnoreCase);
+        using var session = await browser.GetAsync("/api/security/session");
+        Assert.Equal(HttpStatusCode.OK, session.StatusCode);
+        var sessionIdentity = await session.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        Assert.Equal(replacement.Key.Id, sessionIdentity!["id"]);
+        Assert.Equal(HttpStatusCode.OK, (await browser.GetAsync("/api/security/api-keys")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await otherBrowser.GetAsync("/api/security/session")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await otherBrowser.GetAsync("/api/projects")).StatusCode);
+
+        bearerClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", original.Secret);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await bearerClient.GetAsync("/api/projects")).StatusCode);
+        bearerClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", replacement.Secret);
+        Assert.Equal(HttpStatusCode.OK, (await bearerClient.GetAsync("/api/projects")).StatusCode);
+        await LoginAsync(otherBrowser, replacement.Secret!);
+        Assert.Equal(HttpStatusCode.OK, (await otherBrowser.GetAsync("/api/security/session")).StatusCode);
+    }
+
+    [Fact]
+    public async Task SecurityConfigurationRemainsAvailableAfterSessionRevocation()
+    {
+        using var factory = new Factory();
+        using var browser = factory.CreateClient();
+        using var setup = await browser.PostAsync("/api/security/api-keys/initial-admin", null);
+        Assert.Equal(HttpStatusCode.Created, setup.StatusCode);
+        var original = (await setup.Content.ReadFromJsonAsync<CreatedApiKeyDto>())!;
+        await LoginAsync(browser, original.Secret);
+        using var revoked = await browser.DeleteAsync($"/api/security/api-keys/{original.Key.Id}");
+        Assert.Equal(HttpStatusCode.OK, revoked.StatusCode);
+
+        var capabilities = await browser.GetFromJsonAsync<Capabilities>("/api/security/capabilities");
+        Assert.Equal("ApiKey", capabilities!.Mode);
+        Assert.True(capabilities.ApiKeyManagement);
+        Assert.False(capabilities.InitialSetupRequired);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await browser.GetAsync("/api/security/session")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await browser.GetAsync("/api/projects")).StatusCode);
+    }
+
+    [Fact]
+    public async Task RotatingAnotherKeyDoesNotReplaceTheBrowserIdentity()
+    {
+        using var factory = new Factory();
+        using var browser = factory.CreateClient();
+        using var setup = await browser.PostAsync("/api/security/api-keys/initial-admin", null);
+        var administrator = (await setup.Content.ReadFromJsonAsync<CreatedApiKeyDto>())!;
+        await LoginAsync(browser, administrator.Secret);
+        using var scope = factory.Services.CreateScope();
+        var management = scope.ServiceProvider.GetRequiredService<ApiKeyManagementService>();
+        var otherKey = await management.CreateAsync(new CreateApiKeyRequest(null, "other administrator", [], IsAdministrator: true));
+
+        using var rotated = await browser.PostAsync($"/api/security/api-keys/{otherKey.Key.Id}/rotate", null);
+        Assert.Equal(HttpStatusCode.OK, rotated.StatusCode);
+        Assert.False(rotated.Headers.Contains("Set-Cookie"));
+        var session = await browser.GetFromJsonAsync<Dictionary<string, string>>("/api/security/session");
+        Assert.Equal(administrator.Key.Id, session!["id"]);
+    }
+
+    [Fact]
+    public async Task BearerRotationDoesNotCreateABrowserSession()
+    {
+        using var factory = new Factory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+        using var setup = await client.PostAsync("/api/security/api-keys/initial-admin", null);
+        var original = (await setup.Content.ReadFromJsonAsync<CreatedApiKeyDto>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", original.Secret);
+
+        using var rotated = await client.PostAsync($"/api/security/api-keys/{original.Key.Id}/rotate", null);
+        Assert.Equal(HttpStatusCode.OK, rotated.StatusCode);
+        Assert.False(rotated.Headers.Contains("Set-Cookie"));
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/security/session")).StatusCode);
+    }
+
+    private static async Task LoginAsync(HttpClient client, string secret)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/security/session");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", secret);
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    [Fact]
     public async Task InitializationRejectsForwardedRequestsAndConcurrentSetupCreatesOneKey()
     {
         using var factory = new Factory();
@@ -368,6 +467,7 @@ public sealed class SecurityIntegrationTests
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.UseSetting("SereinFlow:Security:Mode", "ApiKey");
             builder.UseEnvironment("Testing");
             builder.ConfigureAppConfiguration(configuration =>
             {
@@ -375,6 +475,7 @@ public sealed class SecurityIntegrationTests
                 var argument10 = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _root,
+                    ["SereinFlow:Security:Mode"] = "ApiKey",
                     ["Logging:EventLog:LogLevel:Default"] = "None"
                 };
                 configuration.AddInMemoryCollection(argument10);

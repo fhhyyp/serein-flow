@@ -55,6 +55,7 @@ public sealed class ClientApiAuthorizationIntegrationTests : IClassFixture<Clien
         private readonly TemporaryDirectory _storage = new();
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.UseSetting("SereinFlow:Security:Mode", "ApiKey");
             builder.UseEnvironment("Testing");
             builder.UseSetting(WebHostDefaults.PreventHostingStartupKey, "true");
             builder.ConfigureAppConfiguration(configuration =>
@@ -63,6 +64,7 @@ public sealed class ClientApiAuthorizationIntegrationTests : IClassFixture<Clien
                 var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _storage.Path,
+                    ["SereinFlow:Security:Mode"] = "ApiKey",
                     ["SereinFlow:Security:ApiKeys:BootstrapAdminKey"] = BootstrapKey,
                 };
                 configuration.AddInMemoryCollection(dictionary);

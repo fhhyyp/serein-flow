@@ -9,6 +9,7 @@ import { locale, t } from '../../i18n';
 import LibraryFamilyDialog from '../library/LibraryFamilyDialog.vue';
 import LibraryUploadDialog from '../library/LibraryUploadDialog.vue';
 import ApiKeySettings from './ApiKeySettings.vue';
+import McpSkillSettings from './McpSkillSettings.vue';
 import { securityCapabilities } from '../../api/securityApi';
 import RunSnapshotViewer from './RunSnapshotViewer.vue';
 import RunWorkpiecePanel from './RunWorkpiecePanel.vue';
@@ -34,7 +35,7 @@ const runs = ref<FlowRunDto[]>([]);
 const interfaces = ref<FlowInterfaceDto[]>([]);
 const isLoading = ref(true);
 const isSettingsSaving = ref(false);
-const mcpKeySettings = ref<InstanceType<typeof ApiKeySettings>>();
+const mcpSkillSettings = ref<InstanceType<typeof McpSkillSettings>>();
 const isInterfaceSaving = ref(false);
 const loadErrorKey = ref('');
 const noticeKey = ref('');
@@ -1046,7 +1047,7 @@ function interfaceEnabledKey(flowInterface: FlowInterfaceDto): string {
   return flowInterface.isEnabled ? 'console.enabled' : 'console.disabled';
 }
 function selectView(view: ConsoleView): void {
-  if (activeView.value === 'settings' && view !== 'settings' && mcpKeySettings.value?.confirmLeave() === false) {
+  if (activeView.value === 'settings' && view !== 'settings' && mcpSkillSettings.value?.confirmDiscard() === false) {
     return;
   }
   activeView.value = view;
@@ -1056,7 +1057,7 @@ function selectView(view: ConsoleView): void {
   }
 }
 defineExpose({ confirmLeave: () => {
-    const evaluatedValue17 = mcpKeySettings.value?.confirmLeave() ?? true;
+    const evaluatedValue17 = mcpSkillSettings.value?.confirmDiscard() ?? true;
     return evaluatedValue17;
   } });
 onMounted(() => {
@@ -1756,6 +1757,9 @@ const readRunSnapshotViewerLive = computed(() => (snapshotRun.value!.status === 
           class="environment-settings"
           @submit.prevent="saveSettings"
         >
+          <div class="operations-console__section-heading environment-settings__heading">
+            <h2><SlidersHorizontal :size="17" />{{ t('console.runtimeSettings') }}</h2>
+          </div>
           <label>
             <span>{{ t('runs.queueCapacity') }}</span>
             <input
@@ -1851,9 +1855,9 @@ const readRunSnapshotViewerLive = computed(() => (snapshotRun.value!.status === 
         </form>
         <ApiKeySettings
           v-if="securityCapabilities?.apiKeyManagement"
-          ref="mcpKeySettings"
           :project-workspaces="activeWorkspaces"
          />
+        <McpSkillSettings ref="mcpSkillSettings" secret="" />
       </template>
       <template v-else-if="readTemplateElseIf4">
         <p class="operations-console__intro">{{ t('console.environmentLibrariesHint') }}</p>

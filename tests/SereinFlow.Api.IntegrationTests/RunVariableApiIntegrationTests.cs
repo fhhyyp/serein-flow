@@ -146,6 +146,7 @@ public sealed class RunVariableApiIntegrationTests
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.UseSetting("SereinFlow:Security:Mode", "ApiKey");
             Run.MarkRunning(DateTimeOffset.UtcNow);
             builder.UseEnvironment("Testing");
             builder.UseSetting(WebHostDefaults.PreventHostingStartupKey, "true");
@@ -155,6 +156,7 @@ public sealed class RunVariableApiIntegrationTests
                 var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _root,
+                    ["SereinFlow:Security:Mode"] = "ApiKey",
                     ["SereinFlow:Security:ApiKeys:BootstrapAdminKey"] = Key,
                 };
                 configuration.AddInMemoryCollection(dictionary);

@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 const apiBaseUrl = import.meta.env?.VITE_API_BASE_URL ?? '';
 export interface SecurityCapabilities {
-    mode: 'ApiKey' | 'Host';
+    mode: 'None' | 'ApiKey' | 'Host';
     apiKeyManagement: boolean;
     initialSetupRequired: boolean;
 }

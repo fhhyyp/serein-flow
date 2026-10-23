@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import App from './App.vue';
+import { LogOut } from 'lucide-vue-next';
+import { t } from './i18n';
 import { createInitialAdministrator, hasSecuritySession, loadSecurityCapabilities, loginWithKey, logoutSecuritySession, securityCapabilities } from './api/securityApi';
 const ready = ref(false);
 const busy = ref(false);
+const isInitializing = ref(false);
 const secret = ref('');
 const createdSecret = ref('');
 const error = ref('');
@@ -19,12 +22,20 @@ function denyAccess(): void {
     error.value = 'Permission denied. 当前身份没有操作权限。';
 }
 async function initialize(): Promise<void> {
+    if (isInitializing.value) {
+        return;
+    }
+    isInitializing.value = true;
+    error.value = '';
     try {
         const capabilities = await loadSecurityCapabilities();
-        ready.value = capabilities.mode === 'Host' || await hasSecuritySession();
+        ready.value = capabilities.mode === 'None' || capabilities.mode === 'Host' || await hasSecuritySession();
     }
     catch (failure) {
         error.value = String(failure);
+    }
+    finally {
+        isInitializing.value = false;
     }
 }
 async function login(): Promise<void> {
@@ -33,6 +44,7 @@ async function login(): Promise<void> {
     try {
         await loginWithKey(secret.value);
         secret.value = '';
+        createdSecret.value = '';
         ready.value = true;
     }
     catch (failure) {
@@ -72,9 +84,10 @@ onBeforeUnmount(() => {
     <App />
     <button
       v-if="apiKeyMode"
-      class="security-signout"
+      class="command-button quiet security-signout"
+      type="button"
       @click="logoutSecuritySession"
-    >Sign out / 注销</button>
+    ><LogOut :size="15" />{{ t('security.signOut') }}</button>
     <div
       v-if="error"
       class="security-notice"
@@ -91,36 +104,42 @@ onBeforeUnmount(() => {
       @submit.prevent="login"
     >
       <h1>SereinFlow</h1>
-      <p v-if="hostMode">Sign in through your host application, then reload. 请在宿主系统登录后重新加载。</p>
+      <p v-if="isInitializing" role="status">{{ t('security.loading') }}</p>
+      <p v-else-if="hostMode">{{ t('security.hostSignInHint') }}</p>
       <template v-else-if="securityCapabilities">
-        <p>Enter an API key to open this workspace. 输入 API 密钥以打开工作区。</p>
+        <p>{{ t('security.signInHint') }}</p>
         <button
           v-if="securityCapabilities.initialSetupRequired"
+          class="command-button quiet"
           type="button"
           :disabled="busy"
           @click="setup"
-        >Create initial administrator / 初始化管理员</button>
+        >{{ t('security.initialSetup') }}</button>
         <p v-if="createdSecret">
-          Save this key before continuing. 请先保存此密钥：
+          {{ t('security.saveInitialKey') }}
           <code>{{ createdSecret }}</code>
         </p>
-        <input
-          v-model="secret"
-          type="password"
-          autocomplete="off"
-          aria-label="API key"
-          required
-        />
+        <label class="security-card__credential">
+          <span>{{ t('security.apiKey') }}</span>
+          <input
+            v-model="secret"
+            type="password"
+            autocomplete="off"
+            required
+          />
+        </label>
         <button
+          class="command-button run"
           type="submit"
           :disabled="busy"
-        >Sign in / 登录</button>
+        >{{ t('security.signIn') }}</button>
       </template>
       <button
         v-else
+        class="command-button quiet"
         type="button"
         @click="initialize"
-      >Retry / 重试</button>
+      >{{ t('security.retry') }}</button>
       <p
         v-if="error"
         role="alert"
@@ -141,11 +160,42 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 16px;
   padding: 24px;
-  border: 1px solid #8885;
+  border: 1px solid var(--line-strong);
   border-radius: 12px;
+  background: var(--surface);
 }
-.security-card input, .security-card button {
-  padding: 10px;
+.security-card h1 {
+  margin: 0;
+  font-size: 20px;
+}
+.security-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.security-card__credential {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.security-card input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.security-card .command-button {
+  justify-content: center;
+  width: 100%;
+  height: 40px;
+}
+.security-card [role='alert'] {
+  color: var(--danger);
 }
 .security-card code {
   display: block;

@@ -431,6 +431,7 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
         public const string BootstrapKey = "web-host-integration-key";
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.UseSetting("SereinFlow:Security:Mode", "ApiKey");
             builder.UseEnvironment("Testing");
             builder.UseSetting(WebHostDefaults.PreventHostingStartupKey, "true");
             builder.UseSetting("SereinFlow:DataRoot", _storage.Path);
@@ -441,6 +442,7 @@ public sealed class McpHostIntegrationTests : IClassFixture<McpHostIntegrationTe
                 var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _storage.Path,
+                    ["SereinFlow:Security:Mode"] = "ApiKey",
                     ["SereinFlow:Security:ApiKeys:BootstrapAdminKey"] = BootstrapKey,
                     ["SereinFlow:ApiDocumentation:Enabled"] = "true",
                 };

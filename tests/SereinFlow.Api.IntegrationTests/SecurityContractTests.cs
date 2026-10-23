@@ -12,20 +12,15 @@ namespace SereinFlow.Api.IntegrationTests;
 
 public sealed class SecurityContractTests
 {
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task HttpHostRejectsMissingSecurityModeOrProjectScope(bool hostMode)
+    [Fact]
+    public async Task HostSecurityRejectsMissingProjectScope()
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddSereinFlow(options =>
         {
             options.UseWebApi();
-            if (hostMode)
-            {
-                options.UseHostSecurity();
-            }
+            options.UseHostSecurity();
         });
         await using var app = builder.Build();
         Assert.Throws<InvalidOperationException>(() =>

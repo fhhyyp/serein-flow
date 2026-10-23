@@ -189,6 +189,7 @@ public sealed class McpSkillManagementIntegrationTests
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.UseSetting("SereinFlow:Security:Mode", "ApiKey");
             Directory.CreateDirectory(ContentRoot);
             builder.UseEnvironment("Testing");
             builder.UseSetting(WebHostDefaults.PreventHostingStartupKey, "true");
@@ -198,6 +199,7 @@ public sealed class McpSkillManagementIntegrationTests
                 var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _storage.FullName,
+                    ["SereinFlow:Security:Mode"] = "ApiKey",
                     ["SereinFlow:Security:ApiKeys:BootstrapAdminKey"] = BootstrapKey,
                 };
                 configuration.AddInMemoryCollection(dictionary);

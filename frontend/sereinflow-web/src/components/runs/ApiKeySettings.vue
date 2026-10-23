@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import { EyeOff, KeyRound, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-vue-next';
 import { createApiKey, listApiKeys, revokeApiKey, rotateApiKey, type ApiKeyDto, type CreateApiKeyRequest, type SereinFlowPermission } from '../../api/mcpApi';
 import type { ProjectWorkspaceDto } from '../../api/flowApi';
-import McpSkillSettings from './McpSkillSettings.vue';
+import { t } from '../../i18n';
 const props = defineProps<{
     projectWorkspaces: ProjectWorkspaceDto[];
 }>();
@@ -14,7 +15,6 @@ const keys = ref<ApiKeyDto[]>([]);
 const error = ref('');
 const revealedSecret = ref('');
 const busy = ref(false);
-const skills = ref<InstanceType<typeof McpSkillSettings>>();
 const form = reactive<CreateApiKeyRequest>({ name: '', projectId: '', permissions: ['project.read'], isAdministrator: false });
 const operations: SereinFlowPermission[] = ['project.read', 'project.write', 'library.read', 'run.read', 'debug.read', 'flow.write', 'debug.control', 'flow.publish', 'flow.rollback', 'script.compile', 'library.import', 'library.manage', 'sensitive.read', 'run.execute', 'run.message.publish', 'run.variable.write'];
 function hideSecret(): void {
@@ -24,15 +24,22 @@ function keyDisabled(key: ApiKeyDto): boolean {
     const disabled = busy.value || Boolean(key.revokedAt);
     return disabled;
 }
-function keyStatus(key: ApiKeyDto): string {
+function keyStatus(key: ApiKeyDto): 'active' | 'expired' | 'revoked' {
     if (key.revokedAt) {
-        return 'Revoked / 已撤销';
+        return 'revoked';
     }
     const expires = key.expiresAt ? Date.parse(key.expiresAt) : undefined;
     if (expires !== undefined && expires <= Date.now()) {
-        return 'Expired / 已过期';
+        return 'expired';
     }
-    return 'Active / 有效';
+    return 'active';
+}
+function projectName(key: ApiKeyDto): string {
+    if (key.isAdministrator) {
+        return t('console.mcpKeyAdministrator');
+    }
+    return props.projectWorkspaces.find(workspace => workspace.project.id === key.projectId)?.project.name
+        ?? t('console.mcpKeyProjectUnknown');
 }
 function setExpiry(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
@@ -55,6 +62,9 @@ async function execute(action: () => Promise<void>): Promise<void> {
         busy.value = false;
     }
 }
+async function refresh(): Promise<void> {
+    await execute(async () => {});
+}
 async function create(): Promise<void> {
     await execute(async () => {
         const created = await createApiKey('', { ...form, projectId: form.isAdministrator ? null : form.projectId });
@@ -62,7 +72,7 @@ async function create(): Promise<void> {
     });
 }
 async function rotate(id: string): Promise<void> {
-    if (!window.confirm('Rotate this key? The previous key will be revoked. 轮换后原密钥将被撤销，是否继续？')) {
+    if (!window.confirm(t('console.mcpKeyRotateConfirm', { name: keys.value.find(key => key.id === id)?.name ?? id }))) {
         return;
     }
     await execute(async () => {
@@ -70,153 +80,159 @@ async function rotate(id: string): Promise<void> {
     });
 }
 async function revoke(id: string): Promise<void> {
-    if (!window.confirm('Revoke this key? 撤销此密钥？')) {
+    if (!window.confirm(t('console.mcpKeyRevokeConfirm', { name: keys.value.find(key => key.id === id)?.name ?? id }))) {
         return;
     }
     await execute(async () => {
         await revokeApiKey('', id);
     });
 }
-function confirmLeave(): boolean {
-    const allowed = skills.value?.confirmDiscard() !== false;
-    return allowed;
-}
-defineExpose({ confirmLeave });
 onMounted(() => {
-    void execute(async () => {
-    });
+    void refresh();
 });
 </script>
 
 <template>
-  <section class="api-key-settings">
-    <h3>API keys / API 密钥</h3>
-    <p>Keys apply to HTTP access. Local stdio does not require a key. 密钥用于 HTTP 访问，本地 stdio 无需密钥。</p>
-    <p
-      v-if="error"
-      role="alert"
-    >{{ error }}</p>
-    <p v-if="revealedSecret">
-      Copy and save this key now. 请立即复制保存密钥：
-      <code>{{ revealedSecret }}</code>
-      <button @click="hideSecret">Hide / 隐藏</button>
-    </p>
-    <button
-      :disabled="busy"
-      @click="execute(reload)"
-    >Refresh / 刷新</button>
-    <table>
-      <thead>
-        <tr>
-          <th>Name / 名称</th>
-          <th>Prefix / 前缀</th>
-          <th>Status / 状态</th>
-          <th>Actions / 操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="key in keys"
-          :key="key.id"
-        >
-          <td>{{ key.name }}</td>
-          <td>{{ key.keyPrefix }}</td>
-          <td>{{ keyStatus(key) }}</td>
-          <td>
-            <button
-              :disabled="keyDisabled(key)"
-              @click="rotate(key.id)"
-            >Rotate / 轮换</button>
-            <button
-              :disabled="keyDisabled(key)"
-              @click="revoke(key.id)"
-            >Revoke / 撤销</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <form @submit.prevent="create">
-      <input
-        v-model="form.name"
-        required
-        placeholder="Key name / 密钥名称"
-        aria-label="Key name"
-      />
-      <label>
-        <input
-          v-model="form.isAdministrator"
-          type="checkbox"
-        />
-        Administrator / 管理员
-      </label>
-      <select
-        v-if="!form.isAdministrator"
-        v-model="form.projectId"
-        required
-        aria-label="Project"
-      >
-        <option
-          value=""
-          disabled
-        >Select project / 选择项目</option>
-        <option
-          v-for="workspace in projectOptions"
-          :key="workspace.project.id"
-          :value="workspace.project.id"
-        >{{ workspace.project.name }}</option>
-      </select>
-      <div v-if="!form.isAdministrator">
-        <label
-          v-for="operation in operations"
-          :key="operation"
-        >
-          <input
-            v-model="form.permissions"
-            type="checkbox"
-            :value="operation"
-          />
-          {{ operation }}
-        </label>
+  <div class="api-key-settings">
+    <section class="operations-console__section mcp-key-settings" aria-labelledby="api-key-settings-title" :aria-busy="busy">
+      <div class="operations-console__section-heading">
+        <div>
+          <h2 id="api-key-settings-title"><KeyRound :size="17" />{{ t('console.apiKeyTitle') }}</h2>
+          <p>{{ t('console.apiKeyHint') }}</p>
+        </div>
+        <button class="command-button quiet" type="button" :disabled="busy" @click="refresh">
+          <RefreshCw :size="15" :class="{ 'is-spinning': busy }" />
+          {{ t('console.apiKeyRefresh') }}
+        </button>
       </div>
-      <label>
-        Expires / 过期时间
-        <input
-          type="datetime-local"
-          @change="setExpiry"
-        />
-      </label>
-      <button
-        :disabled="busy"
-        type="submit"
-      >Create / 创建</button>
-    </form>
-    <McpSkillSettings
-      ref="skills"
-      secret=""
-    />
-  </section>
+      <p v-if="error" class="mcp-key-settings__message mcp-key-settings__message--error" role="alert">{{ error }}</p>
+      <div v-if="revealedSecret" class="mcp-key-settings__secret" role="status">
+        <div>
+          <strong>{{ t('console.mcpKeySecretTitle') }}</strong>
+          <p>{{ t('console.apiKeySecretHint') }}</p>
+        </div>
+        <code>{{ revealedSecret }}</code>
+        <button class="command-button quiet" type="button" @click="hideSecret">
+          <EyeOff :size="15" />{{ t('console.apiKeyHide') }}
+        </button>
+      </div>
+      <div class="operations-table-wrap api-key-settings__table" role="region" :aria-label="t('console.apiKeyTitle')" tabindex="0">
+        <table class="operations-table operations-table--mcp-keys">
+          <thead>
+            <tr>
+              <th>{{ t('console.mcpKeyName') }}</th>
+              <th>{{ t('console.apiKeyPrefix') }}</th>
+              <th>{{ t('console.mcpKeyScope') }}</th>
+              <th>{{ t('console.mcpKeyStatus') }}</th>
+              <th>{{ t('console.mcpKeyActions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="key in keys" :key="key.id">
+              <td><strong>{{ key.name }}</strong></td>
+              <td><code>{{ key.keyPrefix }}</code></td>
+              <td>{{ projectName(key) }}</td>
+              <td><span class="mcp-key-settings__status" :class="`mcp-key-settings__status--${keyStatus(key)}`">{{ t(`console.mcpKeyStatus.${keyStatus(key)}`) }}</span></td>
+              <td>
+                <div class="api-key-settings__row-actions">
+                  <button class="command-button quiet" type="button" :disabled="keyDisabled(key)" @click="rotate(key.id)">
+                    <RotateCcw :size="14" />{{ t('console.mcpKeyRotate') }}
+                  </button>
+                  <button class="command-button api-key-settings__revoke" type="button" :disabled="keyDisabled(key)" @click="revoke(key.id)">
+                    <Trash2 :size="14" />{{ t('console.mcpKeyRevoke') }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!keys.length">
+              <td class="operations-table__empty" colspan="5">{{ t(busy ? 'console.apiKeyLoading' : error ? 'console.apiKeyLoadFailed' : 'console.apiKeyEmpty') }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <form class="mcp-key-settings__create" @submit.prevent="create">
+        <div class="mcp-key-settings__subheading">
+          <h3>{{ t('console.mcpKeyCreateTitle') }}</h3>
+          <p>{{ t('console.mcpKeyCreateHint') }}</p>
+        </div>
+        <div class="mcp-key-settings__form">
+          <label>
+            <span>{{ t('console.mcpKeyName') }}</span>
+            <input v-model="form.name" required :placeholder="t('console.apiKeyNamePlaceholder')" />
+          </label>
+          <label v-if="!form.isAdministrator">
+            <span>{{ t('console.mcpKeyProject') }}</span>
+            <select v-model="form.projectId" required>
+              <option value="" disabled>{{ t('console.mcpKeyProjectPlaceholder') }}</option>
+              <option v-for="workspace in projectOptions" :key="workspace.project.id" :value="workspace.project.id">{{ workspace.project.name }}</option>
+            </select>
+          </label>
+          <label>
+            <span>{{ t('console.mcpKeyExpires') }}</span>
+            <input type="datetime-local" @change="setExpiry" />
+          </label>
+        </div>
+        <label class="mcp-key-settings__remember">
+          <input v-model="form.isAdministrator" type="checkbox" />
+          {{ t('console.mcpKeyAdministrator') }}
+        </label>
+        <fieldset v-if="!form.isAdministrator" class="mcp-key-settings__permissions">
+          <legend>{{ t('console.mcpKeyPermissions') }} · {{ form.permissions.length }} / {{ operations.length }}</legend>
+          <label v-for="operation in operations" :key="operation">
+            <input v-model="form.permissions" type="checkbox" :value="operation" />
+            <span>
+              <strong>{{ t(`console.apiKeyPermission.${operation}`) }}</strong>
+              <small>{{ operation }}</small>
+            </span>
+          </label>
+        </fieldset>
+        <p v-else class="api-key-settings__admin-hint">{{ t('console.apiKeyAdministratorHint') }}</p>
+        <div class="mcp-key-settings__actions">
+          <button class="command-button run" :disabled="busy" type="submit">
+            <Plus :size="15" />{{ t('console.mcpKeyCreate') }}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
 </template>
 
 <style scoped>
 .api-key-settings {
-  display: grid;
-  gap: 12px;
+  min-width: 0;
+  max-width: 1120px;
 }
-form {
-  display: grid;
-  gap: 10px;
+.api-key-settings__table {
+  margin-top: 16px;
 }
-form div {
+.operations-console__section-heading > .command-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.api-key-settings__row-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
 }
-code {
-  display: block;
-  overflow-wrap: anywhere;
+.api-key-settings__revoke {
+  color: var(--danger);
 }
-td, th {
-  text-align: left;
-  padding: 8px;
+.api-key-settings__revoke:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: #fef2f2;
+}
+.api-key-settings__admin-hint {
+  margin: 0;
+  color: var(--warning);
+  font-size: 12px;
+  line-height: 1.5;
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .mcp-key-settings__form, .mcp-key-settings__permissions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mcp-key-settings__secret {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

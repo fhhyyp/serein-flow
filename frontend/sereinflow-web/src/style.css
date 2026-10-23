@@ -1060,13 +1060,24 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 
 .environment-settings {
   display: grid;
-  max-width: 880px;
+  max-width: 1120px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px 18px;
   margin-top: 22px;
   border: 1px solid var(--line-strong);
   padding: 20px;
   background: var(--surface);
+}
+
+.environment-settings__heading {
+  grid-column: 1 / -1;
+  margin-bottom: 2px;
+}
+
+.environment-settings__heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .environment-settings label, .interface-form > label {
@@ -8815,6 +8826,16 @@ h2 {
   }
   .mcp-key-settings__form, .mcp-key-settings__permissions {
     grid-template-columns: 1fr;
+  }
+  .environment-settings__actions .command-button.run,
+  .mcp-key-settings__actions .command-button.run,
+  .mcp-skill-settings__actions .command-button.run {
+    width: auto;
+    padding: 0 12px;
+  }
+  .environment-settings__actions .command-button.run span,
+  .mcp-skill-settings__actions .command-button.run span {
+    display: inline;
   }
   .mcp-key-settings__secret {
     grid-template-columns: 1fr;

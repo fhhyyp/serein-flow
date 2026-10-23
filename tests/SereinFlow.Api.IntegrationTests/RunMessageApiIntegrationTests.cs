@@ -58,6 +58,7 @@ public sealed class RunMessageApiIntegrationTests
         private readonly string _dataRoot = CreatedataRootInitialValue();
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.UseSetting("SereinFlow:Security:Mode", "ApiKey");
             builder.UseEnvironment("Testing");
             builder.UseSetting(WebHostDefaults.PreventHostingStartupKey, "true");
             builder.UseSetting("SereinFlow:DataRoot", _dataRoot);
@@ -67,6 +68,7 @@ public sealed class RunMessageApiIntegrationTests
                 var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _dataRoot,
+                    ["SereinFlow:Security:Mode"] = "ApiKey",
                     ["SereinFlow:Security:ApiKeys:BootstrapAdminKey"] = "message-test-key",
                     ["SereinFlow:ApiDocumentation:Enabled"] = "true",
                 };

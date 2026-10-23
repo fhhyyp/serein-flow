@@ -99,6 +99,7 @@ public static class SereinFlowHostingExtensions
         }
 
         services.AddSingleton(options);
+        services.AddDefaultSereinFlowAccess();
         services.AddSereinFlowStorage();
         services.AddSereinFlowApplication();
         services.AddSignalR(options =>
@@ -220,7 +221,7 @@ public static class SereinFlowHostingExtensions
         var security = app.Services.GetService<SereinFlowHttpSecurityOptions>();
         if (security is null || string.IsNullOrEmpty(security.Mode))
         {
-            throw new InvalidOperationException("Select UseHostSecurity() or UseApiKeySecurity().");
+            throw new InvalidOperationException("SereinFlow HTTP security mode is not configured.");
         }
 
         var registrations = app.Services.GetRequiredService<IServiceProviderIsService>();
@@ -259,12 +260,17 @@ public static class SereinFlowHostingExtensions
                 policy.AddAuthenticationSchemes(scheme);
             }
 
-            var authenticated = policy.RequireAuthenticatedUser().Build();
             app.MapControllers();
             var mapHubResult = app.MapHub<RunEventsHub>("/hubs/runs");
-            mapHubResult.RequireCors("sereinflow-webapi").RequireAuthorization(authenticated);
+            mapHubResult.RequireCors("sereinflow-webapi");
             var mapHubResult5 = app.MapHub<WorkspaceEventsHub>("/hubs/workspace");
-            mapHubResult5.RequireCors("sereinflow-webapi").RequireAuthorization(authenticated);
+            mapHubResult5.RequireCors("sereinflow-webapi");
+            if (security.Mode != "None")
+            {
+                var authenticated = policy.RequireAuthenticatedUser().Build();
+                mapHubResult.RequireAuthorization(authenticated);
+                mapHubResult5.RequireAuthorization(authenticated);
+            }
         }
 
         if (options.McpEnabled)

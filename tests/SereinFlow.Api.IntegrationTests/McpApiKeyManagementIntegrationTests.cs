@@ -77,6 +77,7 @@ public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKe
         private readonly TemporaryDirectory _storage = new();
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.UseSetting("SereinFlow:Security:Mode", "ApiKey");
             builder.UseEnvironment("Testing");
             builder.ConfigureServices(services =>
             {
@@ -90,6 +91,7 @@ public sealed class McpApiKeyManagementIntegrationTests : IClassFixture<McpApiKe
                 var dictionary = new Dictionary<string, string?>
                 {
                     ["SereinFlow:DataRoot"] = _storage.Path,
+                    ["SereinFlow:Security:Mode"] = "ApiKey",
                     ["SereinFlow:ApiDocumentation:Enabled"] = "true",
                 };
                 configuration.AddInMemoryCollection(dictionary);

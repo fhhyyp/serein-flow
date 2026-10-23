@@ -13,10 +13,11 @@ if (args.Any(static argument =>
 }
 
 var builder = WebApplication.CreateBuilder(args);
-var securityMode = builder.Configuration["SereinFlow:Security:Mode"] ?? "ApiKey";
-if (!string.Equals(securityMode, "ApiKey", StringComparison.OrdinalIgnoreCase))
+var securityMode = builder.Configuration["SereinFlow:Security:Mode"] ?? "None";
+if (!string.Equals(securityMode, "None", StringComparison.OrdinalIgnoreCase)
+    && !string.Equals(securityMode, "ApiKey", StringComparison.OrdinalIgnoreCase))
 {
-    throw new InvalidOperationException("The standalone HTTP host uses ApiKey security. Use UseHostSecurity() in an embedding host for external authentication.");
+    throw new InvalidOperationException("The standalone HTTP host supports None (default) or ApiKey security. Use UseHostSecurity() in an embedding host for external authentication.");
 }
 
 builder.Services.AddProblemDetails(options =>
@@ -43,8 +44,22 @@ builder.Services.AddSereinFlow(options =>
 {
     options.UseWebApi();
     options.UseMcp();
-    options.UseApiKeySecurity();
+    if (string.Equals(securityMode, "ApiKey", StringComparison.OrdinalIgnoreCase))
+    {
+        options.UseApiKeySecurity();
+    }
 });
+if (string.Equals(securityMode, "None", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddControllers().ConfigureApplicationPartManager(manager =>
+    {
+        var keyAssembly = typeof(ApiKeyHosting).Assembly.GetName().Name;
+        foreach (var part in manager.ApplicationParts.Where(part => part.Name == keyAssembly).ToArray())
+        {
+            manager.ApplicationParts.Remove(part);
+        }
+    });
+}
 var app = builder.Build();
 app.UseSereinFlow();
 app.MapSereinFlow();

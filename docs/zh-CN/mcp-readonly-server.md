@@ -22,7 +22,11 @@ dotnet build src/SereinFlow.Api/SereinFlow.Api.csproj
 dotnet run --project src/SereinFlow.Api/SereinFlow.Api.csproj
 ```
 
-开发配置的 MCP 地址是 `http://127.0.0.1:8188/mcp`。请求必须携带：
+开发配置的 MCP 地址是 `http://127.0.0.1:8188/mcp`。默认 HTTP 与 MCP 均可直接访问，
+无需密钥（`None` 模式），网络隔离与认证由应用开发者决定。独立宿主需要可选外围包
+`SereinFlow.Security.ApiKeys` 时，设置 `SereinFlow:Security:Mode=ApiKey` 并重启。
+嵌入宿主可调用 `UseApiKeySecurity()`，或通过 `UseHostSecurity()` 对接已有身份系统。
+仅在 API Key 模式下，请求需要以下请求头或有效的浏览器会话：
 
 ```text
 Authorization: Bearer <api-key>
@@ -31,7 +35,7 @@ Authorization: Bearer <api-key>
 首次请求 `initialize` 会建立 `Mcp-Session-Id`，后续请求必须回传同一会话 ID。
 HTTP 传输继续执行请求体大小、响应大小、并发、每主体速率和工具超时限制。
 未认证、无效会话、超限、超时和内部异常均返回稳定的 `mcp.*` 诊断；loopback
-地址不提供免认证管理员绕过。
+地址在启用 API Key 认证时不提供管理员绕过。
 
 Git 中的 MCP 客户端配置只保存 URL，不保存 API key、数据库路径或类库目录：
 
@@ -45,6 +49,9 @@ Git 中的 MCP 客户端配置只保存 URL，不保存 API key、数据库路�
   }
 }
 ```
+
+以下凭据设置仅适用于 API Key 模式。插件默认配置只包含 URL；启用认证后才添加
+`"bearer_token_env_var": "SEREINFLOW_MCP_API_KEY"`。
 
 API key 应由 MCP 客户端的安全凭据、外部密钥注入或凭据存储提供。不要在仓库、
 插件配置、日志或流程内容中写入 key。
@@ -171,13 +178,13 @@ ContentRoot 下。MCP 调用方只能请求固定的资源 URI，不能选择任
 都遵循这个顺序；只有文件或目录不存在时才回退，空内容、超限或访问失败仍会报错。
 技能清单随程序集注册，读取和管理操作使用同一个 Provider，无需在启动时导出文件。
 
-前端“环境设置”中连接管理员 MCP 密钥后，可以在“MCP 可用技能”中查看、编辑、保存
+前端“环境设置”的“MCP 可用技能”独立于密钥管理，默认模式下可以直接查看、编辑、保存
 以及恢复默认。保存按当前服务端配置创建或替换覆盖文件，下一次 MCP 读取或生成
 Prompt 时生效；恢复默认删除覆盖文件，保留程序集内置内容。覆盖目录需要可写，升级
 部署时应保留这些自定义文件。已有客户端缓存需要由客户端重新读取。
 
-管理员 REST 管理接口如下（即使其他 REST 接口允许匿名访问，也必须携带管理员
-Bearer 密钥）：
+REST 管理接口如下。默认模式直接访问；API Key 模式需要具有工作区管理权限的
+Bearer 密钥或浏览器会话；宿主认证模式使用宿主的资源策略：
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |

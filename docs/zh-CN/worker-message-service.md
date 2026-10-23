@@ -95,7 +95,7 @@ API 只接受 JSON payload，并校验运行状态、topic、`messageId`/`Idempo
 
 ## MCP 发布工具
 
-通过已认证的 HTTP MCP 或使用本地可信身份的 stdio MCP，可以使用
+通过 HTTP MCP（默认直接访问，按需启用认证）或使用本地可信身份的 stdio MCP，可以使用
 `sereinflow_publish_run_message` 向活动普通运行或调试运行发布消息：
 
 ```json
